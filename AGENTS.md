@@ -14,8 +14,8 @@ On a Fire TV, over ADB, with no root:
 - **Always:** disables Amazon's ad, sponsored-content, screen-fingerprinting (ACR),
   telemetry and experiment packages; turns off ad tracking and usage reporting.
   Amazon packages are disabled, never uninstalled.
-- **If the owner agrees:** an on-TV DNS filter that blocks Amazon's telemetry and
-  update servers, and dumbtv home in place of Amazon's home screen.
+- **If the owner agrees:** dumbtv home in place of Amazon's home screen, and optionally an on-TV DNS filter.
+  The on-TV filter is off by default; if the network already uses Pi-hole or another DNS filter, keep it off.
 - **Only if the owner names them:** removing apps, switching off Alexa, replacing
   YouTube with SmartTube.
 
@@ -92,7 +92,7 @@ people take them.
 | 1 | "Do you watch Prime Video?" No blocks the servers it needs. | yes | `--prime 0\|1` |
 | 2 | "Do you use Alexa or the voice button on the remote?" No switches off Alexa and the app that owns the microphone. | keep | `--alexa 0\|1` |
 | 3 | "Replace Amazon's home screen with dumbtv home?" Open source, apps and inputs only, no ads, no internet access. | yes | `--launcher 0\|1` |
-| 4 | "Run the DNS filter on the TV?" It is what stops telemetry and automatic updates. Without it, the protected Amazon packages keep reporting. | yes | `--dnsfilter 0\|1` |
+| 4 | "Run the optional DNS filter on the TV?" It installs a local VPN app. If the network already uses Pi-hole or another DNS filter, leave it off. | no | `--dnsfilter 0\|1` |
 | 5 | "Are there apps you want removed?" Get names, map them to packages with `data/apps.txt` and `adb shell pm list packages -3`, and read the list back before recording it. | none | `--remove "pkg pkg"` |
 | 6 | "Do you want the YouTube app replaced with SmartTube?" No ads and no Shorts, a different app, same Google account. Ask once; if no, drop it. | no | `--youtube 0\|1` |
 
@@ -104,6 +104,8 @@ Empty means the filter forwards unknown names to the router. If the self-test sa
 `NO ANSWER`, the TV cannot use the router for DNS (an IoT network that only allows
 its own resolver, a Pi-hole): show the owner what `DnsAddresses` the network hands
 out and set that one once they confirm it.
+
+For network-wide filtering without a TV VPN, use [docs/PI-HOLE.md](docs/PI-HOLE.md). Do not install personalDNSfilter as well; two DNS-filtering layers are unnecessary here.
 
 Record the answers:
 

@@ -63,9 +63,9 @@ no root:
 - **Removes the ads and tracking.** Disables Amazon's sponsored rows, ad
   services, screen fingerprinting (ACR), telemetry and experiments, and turns off
   ad tracking and usage reporting.
-- **Blocks what cannot be disabled.** A small open-source DNS filter on the TV
-  stops Amazon's telemetry and automatic updates from reaching their servers.
-  Everything else, including your streaming apps, works as before.
+- **Optional DNS filtering.** dumbtv can install an open-source DNS filter on
+  the TV, but it is off by default. If your network already uses Pi-hole or another
+  DNS resolver, leave the on-device VPN filter off and use [the Pi-hole guide](docs/PI-HOLE.md).
 - **Replaces the home screen** with [dumbtv home](launcher/README.md): your apps,
   your inputs and a clock. 107 KB, open source, no internet access.
 - **Leaves your apps alone.** Nothing you watch is removed unless you name it.
@@ -113,7 +113,7 @@ we will help.
 | Do you watch Prime Video? | yes: its servers stay reachable |
 | Keep Alexa and the voice button? | yes |
 | Replace Amazon's home screen with dumbtv home? | yes |
-| Run the DNS filter on the TV? | yes |
+| Run the optional DNS filter on the TV? | no (use network-wide DNS filtering if available) |
 | Any apps you want removed? | none |
 | Replace the YouTube app with SmartTube (no ads, no Shorts)? | no |
 
@@ -124,13 +124,13 @@ Your answers are saved in `dumbtv.conf`; run `configure.sh` again to change them
 | | |
 |---|---|
 | **Amazon packages** | About 50 disabled: ads, sponsored content, ACR, telemetry, crash and usage uploads, experiments, update nags. Disabled, never deleted. |
-| **Protected packages** | The few Amazon will not let anyone disable lose background running; the DNS filter blocks what they upload. |
+| **Protected packages** | The few Amazon will not let anyone disable lose background running; optional DNS filtering can block their uploads. |
 | **Settings** | Ad tracking limited, interest-based ads off, usage reporting off, home-screen autoplay off. |
-| **DNS** | [personalDNSfilter](https://github.com/IngoZenz/personaldnsfilter) runs on the TV and blocks about 400 Amazon telemetry, ad and update hosts. YouTube, the Appstore and your other apps are not blocked. |
+| **DNS** | Optional [personalDNSfilter](https://github.com/IngoZenz/personaldnsfilter) runs as a local VPN on the TV. It is off by default; use [the Pi-hole guide](docs/PI-HOLE.md) for network-wide filtering without installing an APK or creating a TV VPN. |
 | **Home screen** | dumbtv home instead of Amazon's: no promo tiles, no sponsored rows. |
 | **Your apps** | Untouched. |
 
-[How it works](docs/HOW-IT-WORKS.md) explains each part and why it is needed.
+[How it works](docs/HOW-IT-WORKS.md) explains each part and why it is needed. [Pi-hole setup](docs/PI-HOLE.md) covers network-wide Amazon filtering without the on-device VPN.
 [dumbtv.org/blocked](https://dumbtv.org/blocked) lists every package, what it does
 and what you lose without it.
 
@@ -260,6 +260,7 @@ back from the Appstore.
 | [dumbtv.org](https://dumbtv.org) | the website: guides, every package, every device |
 | [How it works](docs/HOW-IT-WORKS.md) | each part and why it is needed |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | symptoms and fixes |
+| [Pi-hole](docs/PI-HOLE.md) | network-wide Amazon filtering without the on-device VPN |
 | [FAQ](docs/FAQ.md) | updates, Prime Video, factory reset, is this legal |
 | [Other TVs](docs/OTHER-TVS.md) | Android TV, Samsung, LG, Roku and the rest |
 | [YouTube](docs/YOUTUBE.md) | why its ads cannot be blocked, and SmartTube |
