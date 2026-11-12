@@ -210,12 +210,6 @@ public final class Options extends Activity {
         return v;
     }
 
-    private View gap() {
-        View v = new View(this);
-        v.setLayoutParams(new LinearLayout.LayoutParams(1, dp(18)));
-        return v;
-    }
-
     private void pick(String kind) {
         List<Item> items = Catalog.APPS.equals(kind)
                 ? Catalog.apps(this)
