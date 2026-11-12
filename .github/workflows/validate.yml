@@ -24,8 +24,11 @@ jobs:
           distribution: temurin
           java-version: "17"
       - name: sdk
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-25" "build-tools;34.0.0" >/dev/null
-      - name: build (sdk 25 for fire os 6-8; fails on any android.* API that Android 7.1 lacks)
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-25" "build-tools;34.0.0" < <(yes) >/dev/null
+      - name: build (pinned SDK 25 + build-tools 34.0.0; fails on Android APIs newer than Fire OS 6)
+        env:
+          ANDROID_BUILD_TOOLS_VERSION: "34.0.0"
         run: ./launcher/build.sh
       - name: host-side launcher tests
         run: |
@@ -56,10 +59,21 @@ jobs:
           java -cp "/tmp/host:$jar" tv.dumbtv.home.MeterTest
           javac -d /tmp/host -cp "/tmp/host:$jar" launcher/tests/LibraryTest.java
           java -cp "/tmp/host:$jar" tv.dumbtv.home.LibraryTest
-      - name: the release apk installs on fire os 6
+      - name: verify APK identity, SDK, alignment, signature and checksum
         run: |
-          min=$("$ANDROID_HOME/build-tools/34.0.0/aapt2" dump badging launcher/build/dumbtv-home.apk | sed -nE "s/^(minSdkVersion|sdkVersion):'([0-9]+)'.*/\2/p")
-          [ "$min" = 25 ] || { echo "expected minSdkVersion 25, found $min"; exit 1; }
+          apk=launcher/build/dumbtv-home.apk
+          tools="$ANDROID_HOME/build-tools/34.0.0"
+          source launcher/version.env
+          badging=$("$tools/aapt2" dump badging "$apk")
+          grep -F "package: name='tv.dumbtv.home' versionCode='$VERSION_CODE' versionName='$VERSION_NAME'" <<<"$badging"
+          grep -Fx "sdkVersion:'25'" <<<"$badging"
+          grep -Fx "targetSdkVersion:'28'" <<<"$badging"
+          "$tools/zipalign" -c -v 4 "$apk"
+          "$tools/apksigner" verify --verbose "$apk"
+          expected=$(tr -d '[:space:]' < launcher/build/dumbtv-home.apk.sha256)
+          actual=$(sha256sum "$apk" | awk '{print $1}')
+          [[ "$expected" == "$actual" && "$expected" =~ ^[0-9a-f]{64}$ ]]
+
       - name: one permission on Fire OS 7 and later
         run: |
           # Fire OS 6's Keeper pair is capped at sdk 27; RECEIVE_BOOT_COMPLETED restarts the filter (Filter.java).
