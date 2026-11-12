@@ -29,11 +29,13 @@ adb connect <tv-ip>:5555         # accept "Allow USB debugging?" on the TV
 ./launcher/install.sh            # download, check the SHA-256, install, take over HOME
 ```
 
-The APK comes from this repository's
-[releases](https://github.com/humblemuzzu/dumbtv/releases/latest), and `install.sh`
-refuses it if the checksum differs from the one in `version.env`. Installing the
-APK by hand works, but HOME only switches over once `install.sh` (or
-`scripts/launcher.sh`) has set up the HOME hook described below.
+The APK is built from this fork's launcher source and published in its
+[releases](https://github.com/sodasoba1/dumbtv/releases). The installer downloads
+the matching SHA-256 sidecar and verifies the APK before installation. See
+[Building and releasing](../docs/BUILDING-LAUNCHER.md) for the signing-key setup
+and release process. Installing the APK by hand works, but HOME only switches
+over once `install.sh` (or `scripts/launcher.sh`) has set up the HOME hook
+described below.
 
 Undo: `./launcher/install.sh --undo` gives HOME back to Amazon's launcher.
 
