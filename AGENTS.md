@@ -100,10 +100,10 @@ people take them.
 who wants a specific Amazon feature. Fire OS 6 has one more question
 (`--system-dns`); its default is right for almost everyone. `--dns-upstream` is
 not one of the questions: leave it unset unless the owner names resolver IPs.
-Empty means the filter forwards unknown names to the router. If the self-test says
-`NO ANSWER`, the TV cannot use the router for DNS (an IoT network that only allows
-its own resolver, a Pi-hole): show the owner what `DnsAddresses` the network hands
-out and set that one once they confirm it.
+`--dns-upstream` only matters when the owner explicitly opts into the on-TV DNS
+filter. For network-wide Pi-hole filtering, leave the on-TV filter disabled and
+follow [docs/PI-HOLE.md](docs/PI-HOLE.md); do not configure a second resolver in
+dumbtv.
 
 For network-wide filtering without a TV VPN, use [docs/PI-HOLE.md](docs/PI-HOLE.md). Do not install personalDNSfilter as well; two DNS-filtering layers are unnecessary here.
 
