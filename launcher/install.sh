@@ -9,7 +9,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 # shellcheck disable=SC1091
 source version.env
-APK_URL=https://github.com/humblemuzzu/dumbtv/releases/download/launcher-v$VERSION/dumbtv-home.apk
+APK_URL=https://github.com/sodasoba1/dumbtv/releases/download/launcher-v$VERSION/dumbtv-home.apk
+SHA_URL=$APK_URL.sha256
 
 PKG=tv.dumbtv.home
 GUARD=$PKG/$PKG.Guard
@@ -102,15 +103,22 @@ if [[ $mode == build ]]; then
 else
   mkdir -p build
   APK=build/dumbtv-home-$VERSION.apk
-  if [[ ! -f $APK || $(sha256 "$APK") != "$APK_SHA256" ]]; then
-    echo "downloading dumbtv home $VERSION"
-    # --retry-all-errors: GitHub's release CDN sometimes resets the first connection.
+  SUM=build/dumbtv-home-$VERSION.apk.sha256
+  echo "checking fork release $VERSION"
+  # The release workflow publishes a SHA-256 sidecar alongside the APK.
+  curl -fL --retry 4 --retry-delay 3 --retry-all-errors --connect-timeout 20 \
+    -o "$SUM.part" "$SHA_URL" || { echo "error: could not download checksum $SHA_URL" >&2; exit 1; }
+  expected=$(tr -d '[:space:]' < "$SUM.part")
+  [[ $expected =~ ^[0-9a-f]{64}$ ]] || { echo "error: invalid SHA-256 sidecar from $SHA_URL" >&2; exit 1; }
+  if [[ ! -f $APK || $(sha256 "$APK") != "$expected" ]]; then
+    echo "downloading dumbtv home $VERSION from sodasoba1/dumbtv"
     curl -fL --retry 4 --retry-delay 3 --retry-all-errors --connect-timeout 20 --progress-bar \
-      -o "$APK.part" "$APK_URL" || { echo "error: could not download $APK_URL" >&2; exit 1; }
+      -o "$APK.part" "$APK_URL" || { rm -f "$APK.part"; echo "error: could not download $APK_URL" >&2; exit 1; }
     mv "$APK.part" "$APK"
   fi
   got=$(sha256 "$APK")
-  [[ $got == "$APK_SHA256" ]] || { echo "error: checksum mismatch for $APK (got $got) — not installing" >&2; exit 1; }
+  [[ $got == "$expected" ]] || { rm -f "$SUM.part"; echo "error: checksum mismatch for $APK (got $got, expected $expected) — not installing" >&2; exit 1; }
+  mv "$SUM.part" "$SUM"
   echo "checksum ok"
 fi
 
