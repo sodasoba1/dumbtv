@@ -21,7 +21,7 @@ jobs:
           java-version: "17"
       - name: Install pinned Android SDK
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-25" "build-tools;34.0.0" >/dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-25" "build-tools;34.0.0" < <(yes) >/dev/null
       - name: Validate release tag and signing secrets
         env:
           DUMBTV_KEYSTORE_BASE64: ${{ secrets.DUMBTV_KEYSTORE_BASE64 }}
