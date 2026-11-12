@@ -48,7 +48,16 @@ public final class Options extends Activity {
         title.setPadding(dp(16), 0, 0, dp(20));
         list.addView(title);
 
-        for (Config.Choice c : Config.CHOICES) list.addView(choice(c));
+        heading(list, "APPEARANCE");
+        addChoices(list, Config.ACCENT, Config.BACKGROUND, Config.DIM, Config.ROTATE,
+                Config.TILES, Config.LAYOUT, Config.TILE_STYLE, Config.CHIPS, Config.LIBRARY);
+        list.addView(action(getString(R.string.next_wallpaper), () -> {
+            cfg.nextWallpaper();
+            refresh();
+        }));
+
+        heading(list, "APPLICATIONS");
+        addChoices(list, Config.ORDER, Config.ALL_APPS, Config.LABELS);
         LinearLayout packRow = new LinearLayout(this);
         packRow.setOrientation(LinearLayout.VERTICAL);
         list.addView(packRow);
@@ -60,14 +69,15 @@ public final class Options extends Activity {
                 if (!isDestroyed()) packRow.addView(choice(packs));
             });
         }, "icon-packs").start();
-        list.addView(action(getString(R.string.next_wallpaper), () -> {
-            cfg.nextWallpaper();
-            refresh();
-        }));
-        list.addView(gap());
         list.addView(action(getString(R.string.apps_on_home), () -> pick(Catalog.APPS)));
-        list.addView(action(getString(R.string.inputs_on_home), () -> pick(Catalog.INPUTS)));
         list.addView(action(getString(R.string.reset_layout), this::reset));
+
+        heading(list, "INPUTS");
+        addChoices(list, Config.INPUTS, Config.SWITCH);
+        list.addView(action(getString(R.string.inputs_on_home), () -> pick(Catalog.INPUTS)));
+
+        heading(list, "SYSTEM");
+        addChoices(list, Config.CLOCK, Config.MEMORY, Config.LOCK);
         list.addView(action(getString(R.string.export_settings), this::export));
         list.addView(action(getString(R.string.open_amazon_home), () -> {
             Guard.amazon(this);
@@ -94,6 +104,18 @@ public final class Options extends Activity {
 
     private void refresh() {
         for (Runnable r : refreshers) r.run();
+    }
+
+    private void heading(LinearLayout list, String title) {
+        TextView heading = Ui.text(this, 14, Ui.FAINT, Ui.MEDIUM);
+        heading.setText(title);
+        heading.setLetterSpacing(0.08f);
+        heading.setPadding(dp(16), dp(24), 0, dp(8));
+        list.addView(heading);
+    }
+
+    private void addChoices(LinearLayout list, Config.Choice... choices) {
+        for (Config.Choice c : choices) list.addView(choice(c));
     }
 
     private View choice(Config.Choice c) {
@@ -185,12 +207,6 @@ public final class Options extends Activity {
     private TextView label(String text) {
         TextView v = Ui.text(this, 16, Ui.TEXT, Ui.MEDIUM);
         v.setText(text);
-        return v;
-    }
-
-    private View gap() {
-        View v = new View(this);
-        v.setLayoutParams(new LinearLayout.LayoutParams(1, dp(18)));
         return v;
     }
 
