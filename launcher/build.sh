@@ -1,13 +1,7 @@
 #!/usr/bin/env bash
 # Builds launcher/build/dumbtv-home.apk from the bare SDK tools: no Gradle, no libraries.
-# Needs a JDK 17+ and an Android SDK with platforms;android-$MIN_SDK and any build-tools.
-#   MIN_SDK=25 (default)  one APK for Fire OS 6, 7 and 8: the published release. Compiling
-#                         against android-25 makes javac reject any android.* API Fire OS 6
-#                         lacks; java.* calls are checked against JDK 8 by --release 8, so keep
-#                         them to what Android 7.1 has. Fire OS 7/8 see one permission,
-#                         RECEIVE_BOOT_COMPLETED (Filter); the Keeper's other two are capped
-#                         at maxSdkVersion 27.
-#   MIN_SDK=28            Android 9+ only, as releases up to 1.1 were
+# Needs JDK 17 and Android SDK platforms;android-$MIN_SDK plus build-tools.
+# MIN_SDK=25 is the shared Fire OS 6/7/8 build. Keep Java APIs at Android 7.1 level.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
@@ -22,9 +16,17 @@ if [[ -z $SDK ]]; then
   done
 fi
 JAR=$SDK/platforms/android-$MIN_SDK/android.jar
-BT=$(find "$SDK/build-tools" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -V | tail -1 || true)
+BT_VERSION=${ANDROID_BUILD_TOOLS_VERSION:-}
+if [[ -n $BT_VERSION ]]; then
+  BT=$SDK/build-tools/$BT_VERSION
+else
+  BT=$(find "$SDK/build-tools" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -V | tail -1 || true)
+fi
 [[ -f $JAR ]] || { echo "error: $JAR missing — sdkmanager 'platforms;android-$MIN_SDK'" >&2; exit 1; }
-[[ -x $BT/aapt2 ]] || { echo "error: no build-tools in $SDK — sdkmanager 'build-tools;34.0.0'" >&2; exit 1; }
+[[ -x $BT/aapt2 && -x $BT/d8 && -x $BT/zipalign && -x $BT/apksigner ]] || {
+  echo "error: incomplete Android build-tools at $BT — install build-tools;34.0.0" >&2
+  exit 1
+}
 
 JDK17_PATHS=(/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home /usr/lib/jvm/java-17-openjdk)
 javac_major() { "$1/bin/javac" -version 2>&1 | sed -n 's/^javac \([0-9]*\).*/\1/p'; }
@@ -35,19 +37,17 @@ if [[ -z ${JAVA_HOME:-} || ! -x ${JAVA_HOME:-}/bin/javac ]]; then
     if [[ -n $j && -x $j/bin/javac ]]; then JAVA_HOME=$j; break; fi
   done
 fi
-# build-tools 34's bundled d8 threw an internal NullPointerException dexing an anonymous inner
-# class (Keeper$1) compiled by JDK 27, even with --release 8. JDK 17 builds it cleanly. Only 27
-# was seen failing; 21 is a conservative cut-off, since macOS's java_home and a Linux distro's
-# default javac both commonly land on something newer than 17 now.
+# build-tools 34's bundled d8 has failed with newer JDK class output; CI and releases use JDK 17.
 if [[ -z ${JAVA_HOME:-} ]] || [[ $(javac_major "$JAVA_HOME") -ge 21 ]]; then
   for j in "${JDK17_PATHS[@]}"; do [[ -x $j/bin/javac ]] && { JAVA_HOME=$j; break; }; done
 fi
 [[ -x ${JAVA_HOME:-}/bin/javac ]] || {
-  echo "error: no JDK found — brew install openjdk@17 (macOS) or pacman -S jdk17-openjdk (Arch)" >&2
+  echo "error: no JDK 17 found — install JDK 17 (Temurin/OpenJDK)" >&2
   exit 1
 }
-if [[ $(javac_major "$JAVA_HOME") -ge 21 ]]; then
-  echo "warning: $JAVA_HOME is JDK $(javac_major "$JAVA_HOME"); build-tools' d8 crashed on JDK 27 output — install a JDK 17 if this fails" >&2
+if [[ $(javac_major "$JAVA_HOME") -ne 17 ]]; then
+  echo "error: this reproducible build requires JDK 17; found JDK $(javac_major "$JAVA_HOME") at $JAVA_HOME" >&2
+  exit 1
 fi
 export JAVA_HOME
 
@@ -80,8 +80,13 @@ find "$WORK/classes" -name '*.class' > "$WORK/classes.txt"
 "$BT/zipalign" -f -p 4 "$WORK/app.apk" "$WORK/aligned.apk"
 "$BT/apksigner" sign --ks "$KEYSTORE" --ks-pass "pass:$KEYPASS" --key-pass "pass:$KEYPASS" \
   --out build/dumbtv-home.apk "$WORK/aligned.apk"
-"$BT/apksigner" verify build/dumbtv-home.apk
+"$BT/apksigner" verify --verbose build/dumbtv-home.apk
 
 perms=$("$BT/aapt2" dump permissions build/dumbtv-home.apk | grep -c 'uses-permission' || true)
+if command -v sha256sum >/dev/null; then
+  sha256sum build/dumbtv-home.apk | awk '{print $1}' > build/dumbtv-home.apk.sha256
+else
+  shasum -a 256 build/dumbtv-home.apk | awk '{print $1}' > build/dumbtv-home.apk.sha256
+fi
 printf 'built build/dumbtv-home.apk  %s bytes  %s uses-permission entries\n' \
   "$(wc -c < build/dumbtv-home.apk | tr -d ' ')" "$perms"
