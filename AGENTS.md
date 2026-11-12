@@ -105,7 +105,6 @@ filter. For network-wide Pi-hole filtering, leave the on-TV filter disabled and
 follow [docs/PI-HOLE.md](docs/PI-HOLE.md); do not configure a second resolver in
 dumbtv.
 
-For network-wide filtering without a TV VPN, use [docs/PI-HOLE.md](docs/PI-HOLE.md). Do not install personalDNSfilter as well; two DNS-filtering layers are unnecessary here.
 
 Record the answers:
 
