@@ -24,7 +24,8 @@ jobs:
           distribution: temurin
           java-version: "17"
       - name: sdk
-        run: "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-25" "build-tools;34.0.0" < <(yes) >/dev/null
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-25" "build-tools;34.0.0" < <(yes) >/dev/null
       - name: build (pinned SDK 25 + build-tools 34.0.0; fails on Android APIs newer than Fire OS 6)
         env:
           ANDROID_BUILD_TOOLS_VERSION: "34.0.0"
