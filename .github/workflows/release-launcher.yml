@@ -1,0 +1,82 @@
+name: release launcher
+
+on:
+  push:
+    tags:
+      - "launcher-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install pinned Android SDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-25" "build-tools;34.0.0" >/dev/null
+      - name: Validate release tag and signing secrets
+        env:
+          DUMBTV_KEYSTORE_BASE64: ${{ secrets.DUMBTV_KEYSTORE_BASE64 }}
+          DUMBTV_KEYPASS: ${{ secrets.DUMBTV_KEYPASS }}
+        run: |
+          source launcher/version.env
+          expected="launcher-v$VERSION"
+          [[ "$GITHUB_REF_NAME" == "$expected" ]] || {
+            echo "tag $GITHUB_REF_NAME does not match launcher/version.env ($expected)"
+            exit 1
+          }
+          [[ -n "$DUMBTV_KEYSTORE_BASE64" && -n "$DUMBTV_KEYPASS" ]] || {
+            echo "Missing repository Actions secrets: DUMBTV_KEYSTORE_BASE64 and DUMBTV_KEYPASS."
+            echo "Add the persistent signing keystore and its password before publishing a release."
+            exit 1
+          }
+          printf '%s' "$DUMBTV_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/dumbtv-release.keystore"
+          test -s "$RUNNER_TEMP/dumbtv-release.keystore"
+          "$JAVA_HOME/bin/keytool" -list -keystore "$RUNNER_TEMP/dumbtv-release.keystore" \
+            -storepass "$DUMBTV_KEYPASS" -alias home >/dev/null
+      - name: Build signed APK
+        env:
+          ANDROID_BUILD_TOOLS_VERSION: "34.0.0"
+          DUMBTV_KEYSTORE: ${{ runner.temp }}/dumbtv-release.keystore
+          DUMBTV_KEYPASS: ${{ secrets.DUMBTV_KEYPASS }}
+        run: ./launcher/build.sh
+      - name: Verify APK package, version, SDK, alignment and signature
+        run: |
+          source launcher/version.env
+          apk=launcher/build/dumbtv-home.apk
+          tools="$ANDROID_HOME/build-tools/34.0.0"
+          badging=$("$tools/aapt2" dump badging "$apk")
+          grep -F "package: name='tv.dumbtv.home' versionCode='$VERSION_CODE' versionName='$VERSION_NAME'" <<<"$badging"
+          grep -Fx "sdkVersion:'25'" <<<"$badging"
+          grep -Fx "targetSdkVersion:'28'" <<<"$badging"
+          "$tools/zipalign" -c -v 4 "$apk"
+          "$tools/apksigner" verify --verbose --print-certs "$apk"
+          test -s launcher/build/dumbtv-home.apk.sha256
+          expected=$(tr -d '[:space:]' < launcher/build/dumbtv-home.apk.sha256)
+          actual=$(sha256sum "$apk" | awk '{print $1}')
+          [[ "$expected" == "$actual" && "$expected" =~ ^[0-9a-f]{64}$ ]]
+      - name: Publish fork release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          mkdir -p "$RUNNER_TEMP/dumbtv-release"
+          cp launcher/build/dumbtv-home.apk "$RUNNER_TEMP/dumbtv-release/dumbtv-home.apk"
+          cp launcher/build/dumbtv-home.apk.sha256 "$RUNNER_TEMP/dumbtv-release/dumbtv-home.apk.sha256"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$RUNNER_TEMP/dumbtv-release/dumbtv-home.apk" \
+              "$RUNNER_TEMP/dumbtv-release/dumbtv-home.apk.sha256" --clobber
+          else
+            gh release create "$tag" "$RUNNER_TEMP/dumbtv-release/dumbtv-home.apk" \
+              "$RUNNER_TEMP/dumbtv-release/dumbtv-home.apk.sha256" \
+              --title "dumbtv home $tag" \
+              --notes "Built from sodasoba1/dumbtv at $GITHUB_SHA. Android min SDK 25 (Fire OS 6+)."
+          fi
