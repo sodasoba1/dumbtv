@@ -1,0 +1,6 @@
+# Prime Video allowlist candidates only. Do not import as an allowlist without Query Log evidence.
+api.eu-west-1.aiv-delivery.net
+api.us-east-1.aiv-delivery.net
+api.us-west-2.aiv-delivery.net
+s3-dub-ww.cf.videorolls.row.aiv-cdn.net
+s3-iad-ww.cf.videorolls.row.aiv-cdn.net
