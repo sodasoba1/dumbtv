@@ -25,7 +25,9 @@ jobs:
           java-version: "17"
       - name: sdk
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-25" "build-tools;34.0.0" >/dev/null
-      - name: build (sdk 25 for fire os 6-8; fails on any android.* API that Android 7.1 lacks)
+      - name: build (pinned SDK 25 + build-tools 34.0.0; fails on Android APIs newer than Fire OS 6)
+        env:
+          ANDROID_BUILD_TOOLS_VERSION: "34.0.0"
         run: ./launcher/build.sh
       - name: host-side launcher tests
         run: |
