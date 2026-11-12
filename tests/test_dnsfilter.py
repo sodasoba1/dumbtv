@@ -68,6 +68,9 @@ class RouteTest(unittest.TestCase):
                        PATH=f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
             for name in ("DNS_UPSTREAM", "SYSTEM_DNS", "FILTER_AUTOSTART", "DNSFILTER", "PRIME"):
                 env.pop(name, None)
+            # These tests exercise the optional filter itself. The product default is now
+            # DNSFILTER=0, so opt in explicitly rather than inheriting that safe default.
+            env["DNSFILTER"] = "1"
             result = subprocess.run(
                 ["bash", str(ROOT / "scripts" / "dnsfilter.sh"), "-y", "--no-reboot"],
                 env=env, capture_output=True, text=True, timeout=120,
