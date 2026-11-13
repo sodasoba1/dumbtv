@@ -79,7 +79,8 @@ you open an app. On Fire OS 7 and 8 the Settings button opens Amazon's settings 
 | Open inputs with | Automatic, the TV's app, dumbtv home (see below) |
 | Background | black, graphite, midnight, image, adaptive, adaptive tint |
 | Image dim, wallpaper rotation | for image backgrounds |
-| Gradient overlay | off (default), dark at bottom, top, left or right; above the background but below all text, icons, tiles and banners |
+| Gradient overlay | off (default), dark at bottom, top, left, right, or any of the four corners; above the background but below all text, icons, tiles and banners |
+| Gradient colour | black (default), white, or any of the 24 accent palette colours |
 | Gradient strength | 20%, 40% (default), 60%, 80%; available when a gradient direction is selected |
 | Tile corners | square, soft (default), rounded |
 | Tile spacing | compact, normal (default), spacious; applies to rows and grid |
@@ -123,12 +124,12 @@ original colours can be selected separately. SmartTube uses a bundled monochrome
 YouTube mark, and Smart Kick TV uses a bundled monochrome Kick mark. Missing icons
 still leave the name visible. Afterglow fade strength is adjustable.
 
-**Brand Focus** replaces app TV banners with a grayscale installed app icon and
-keeps the app name beneath it. Unfocused tiles use dark graphite; focus animates
-to a mapped, darkened brand colour, or a darkened accent for unmapped apps. It
-applies to pinned and All Apps tiles only; input tiles and the Library banner
-remain unchanged. Switching back to Original restores the normal banners and
-App names behavior. Background and layout remain separate choices.
+**Brand Focus** replaces app TV banners with a grayscale installed app icon,
+centered in the tile, and keeps the app name beneath it. Unfocused tiles use dark
+graphite; focus animates to a mapped, darkened brand colour, or a darkened accent
+for unmapped apps. It applies to pinned and All Apps tiles only; input tiles and
+the Library banner remain unchanged. Switching back to Original restores the
+normal banners and App names behavior. Background and layout remain separate choices.
 
 | Grid layout | Adaptive background | Adaptive tint |
 |---|---|---|
@@ -251,6 +252,10 @@ switch=auto
 background=black
 # 0 20 40 60 80, image backgrounds only
 dim=40
+# off bottom top left right top-left top-right bottom-left bottom-right
+gradient=off
+# black white blue cyan green amber red pink violet teal mint lime yellow orange coral crimson rose magenta purple indigo lavender sky ice gold copper
+gradient_color=black
 # off visit hourly daily daytime (visit = every return to the home screen)
 rotate=off
 # off on
