@@ -7,7 +7,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 parse_flags "$@"
 need_device
 
-changed=0
 legacy_vpn=$(dev1 settings get secure always_on_vpn_app | tr -d '\r')
 app_present=0
 
@@ -18,7 +17,6 @@ if present dnsfilter.android; then
   disable_rc=0
   acmd pm disable-user --user 0 dnsfilter.android || disable_rc=$?
   app_present=1
-  changed=1
   if [[ $DRY_RUN == 0 ]]; then
     sleep 2
     adb_reconnect
@@ -26,7 +24,11 @@ if present dnsfilter.android; then
       die "personalDNSfilter is still enabled after the disable request (exit $disable_rc)"
     fi
   fi
-  note "personalDNSfilter disabled; uninstall it from Settings > Applications if desired"
+  if [[ $DRY_RUN == 1 ]]; then
+    note "[dry-run] would disable personalDNSfilter"
+  else
+    note "personalDNSfilter disabled; uninstall it from Settings > Applications if desired"
+  fi
 else
   note "personalDNSfilter is not installed"
 fi
