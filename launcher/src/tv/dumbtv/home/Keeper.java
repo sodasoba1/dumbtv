@@ -40,7 +40,6 @@ public final class Keeper extends Service {
     private long screenOffTime;
     private String lastTop;
     private String lastTopClass;
-    private boolean screenWasAmazonHome;
     private boolean recovering;
     private int attempts;
 
@@ -67,19 +66,25 @@ public final class Keeper extends Service {
     /** All foreground/recovery state is confined to the Keeper worker thread. */
     private void handleScreen(String action) {
         if (Intent.ACTION_SCREEN_OFF.equals(action)) {
-            screenOffTime = System.currentTimeMillis();
-            screenWasAmazonHome = isAmazonHome();
-            note("screen off; amazon home=" + screenWasAmazonHome);
+            long now = System.currentTimeMillis();
+            // Refresh the event history before recording the screen-off state. The polling
+            // window may have missed a delayed UsageStats event immediately before standby.
+            updateTop(now - 10_000, now);
+            screenOffTime = now;
+            note("screen off; last foreground=" + lastTop + "/" + lastTopClass);
         } else if (Intent.ACTION_SCREEN_ON.equals(action)) {
-            if (!screenWasAmazonHome || paused) return;
-            updateTop(screenOffTime, System.currentTimeMillis());
+            if (paused) return;
+            long now = System.currentTimeMillis();
+            // Do not require a successful screen-off snapshot. A missed/stale snapshot must
+            // not permanently suppress wake recovery after a long suspend.
+            updateTop(Math.max(0, (screenOffTime == 0 ? now : screenOffTime) - 10_000), now);
             if (isAmazonHome()) {
                 note("screen on; restoring last foreground Amazon Home");
                 beginRecovery();
             } else {
-                cancelRecovery("foreground changed while screen was off");
+                cancelRecovery("screen on; foreground=" + lastTop + "/" + lastTopClass);
             }
-            screenWasAmazonHome = false;
+            screenOffTime = 0;
         }
     }
 
@@ -108,7 +113,14 @@ public final class Keeper extends Service {
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_SCREEN_OFF);
         filter.addAction(Intent.ACTION_SCREEN_ON);
-        registerReceiver(screen, filter);
+        try {
+            registerReceiver(screen, filter);
+            note("screen receiver registered");
+        } catch (RuntimeException e) {
+            // UsageStats polling remains an independent recovery path if Fire OS refuses
+            // or drops this dynamic receiver.
+            note("screen receiver registration failed: " + e);
+        }
         worker.post(poll);
         worker.postDelayed(this::firstStart, 2500);
     }
@@ -156,7 +168,12 @@ public final class Keeper extends Service {
     }
 
     private void check() {
-        boolean changed = updateTop(System.currentTimeMillis() - 4000, System.currentTimeMillis());
+        long now = System.currentTimeMillis();
+        // Query from the last event we actually consumed, not an arbitrary four-second
+        // window. Handler callbacks pause during deep sleep, so the next poll may run long
+        // after wake and otherwise miss the foreground event that should trigger recovery.
+        long from = lastEventTime == 0 ? now - 10_000 : Math.max(0, lastEventTime - 1);
+        boolean changed = updateTop(from, now);
         if (!changed) return;
         if (isAmazonHome()) {
             if (!paused) beginRecovery();
@@ -181,20 +198,25 @@ public final class Keeper extends Service {
      */
     private boolean updateTop(long from, long now) {
         if (usage == null) return false;
-        UsageEvents events = usage.queryEvents(Math.max(0, from), now);
-        if (events == null) return false;
-        boolean changed = false;
-        UsageEvents.Event event = new UsageEvents.Event();
-        while (events.hasNextEvent()) {
-            events.getNextEvent(event);
-            if (event.getEventType() != UsageEvents.Event.MOVE_TO_FOREGROUND
-                    || event.getTimeStamp() < lastEventTime) continue;
-            lastEventTime = event.getTimeStamp();
-            lastTop = event.getPackageName();
-            lastTopClass = event.getClassName();
-            changed = true;
+        try {
+            UsageEvents events = usage.queryEvents(Math.max(0, from), now);
+            if (events == null) return false;
+            boolean changed = false;
+            UsageEvents.Event event = new UsageEvents.Event();
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event);
+                if (event.getEventType() != UsageEvents.Event.MOVE_TO_FOREGROUND
+                        || event.getTimeStamp() < lastEventTime) continue;
+                lastEventTime = event.getTimeStamp();
+                lastTop = event.getPackageName();
+                lastTopClass = event.getClassName();
+                changed = true;
+            }
+            return changed;
+        } catch (RuntimeException e) {
+            note("UsageStats query failed: " + e);
+            return false;
         }
-        return changed;
     }
 
     private boolean isAmazonHome() {
@@ -239,7 +261,9 @@ public final class Keeper extends Service {
                 note("moveToFront failed: " + e);
             }
         }
-        if (!moved) raiseHome();
+        // If task reordering did not verify on the first pass, use the independent direct
+        // activity-launch path on subsequent attempts instead of repeating moveToFront only.
+        if (!moved || attempts > 1) raiseHome();
         worker.removeCallbacks(verify);
         worker.postDelayed(verify, VERIFY_MS);
     }
@@ -273,12 +297,26 @@ public final class Keeper extends Service {
         Intent intent = new Intent(this, Home.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP
                         | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        // Fire OS 6 is Android 7.1 (API 25), before background-activity launch limits.
+        // Try the direct route first; the exact alarm remains a fallback if the request throws.
+        try {
+            startActivity(intent);
+            note("Home activity launch requested directly");
+            return;
+        } catch (RuntimeException e) {
+            note("direct Home launch failed: " + e);
+        }
+
         PendingIntent pending = PendingIntent.getActivity(this, 1, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT);
         AlarmManager alarms = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
         if (alarms != null) {
-            alarms.setExact(AlarmManager.RTC, System.currentTimeMillis(), pending);
-            note("Home activity alarm requested");
+            try {
+                alarms.setExact(AlarmManager.RTC, System.currentTimeMillis(), pending);
+                note("Home activity alarm fallback requested");
+            } catch (RuntimeException e) {
+                note("Home activity alarm fallback failed: " + e);
+            }
         }
     }
 
