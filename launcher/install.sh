@@ -241,6 +241,12 @@ printf 'front window:  %s\n' "$(sh_ dumpsys window | grep -m1 mCurrentFocus | se
 # can briefly interrupt a network ADB connection.
 legacy_vpn=$(sh_ settings get secure always_on_vpn_app | tr -d '\r')
 if installed dnsfilter.android; then
+  echo "removing legacy personalDNSfilter privileges"
+  sh_ appops set dnsfilter.android ACTIVATE_VPN default >/dev/null 2>&1 || true
+  sh_ appops set dnsfilter.android AUTO_START default >/dev/null 2>&1 || true
+  sh_ dumpsys deviceidle whitelist -dnsfilter.android >/dev/null 2>&1 || true
+  sh_ pm revoke dnsfilter.android android.permission.READ_EXTERNAL_STORAGE >/dev/null 2>&1 || true
+  sh_ pm revoke dnsfilter.android android.permission.WRITE_EXTERNAL_STORAGE >/dev/null 2>&1 || true
   echo "disabling the legacy personalDNSfilter app"
   disable_rc=0
   sh_ pm disable-user --user 0 dnsfilter.android >/dev/null 2>&1 || disable_rc=$?
