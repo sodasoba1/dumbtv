@@ -47,6 +47,10 @@ class PiHoleIntegrationTest(unittest.TestCase):
         self.assertIn("if [[ $legacy_vpn == dnsfilter.android ]]", migration)
         self.assertIn("settings delete secure always_on_vpn_app", migration)
         self.assertIn("if present dnsfilter.android", migration)
+        self.assertIn("appops set dnsfilter.android ACTIVATE_VPN default", migration)
+        self.assertIn("appops set dnsfilter.android AUTO_START default", migration)
+        self.assertIn("dumpsys deviceidle whitelist -dnsfilter.android", migration)
+        self.assertIn("pm revoke dnsfilter.android android.permission.READ_EXTERNAL_STORAGE", migration)
         self.assertIn("pm disable-user --user 0 dnsfilter.android", migration)
 
     def test_launcher_upgrade_retires_only_the_legacy_filter_vpn(self):
@@ -54,6 +58,8 @@ class PiHoleIntegrationTest(unittest.TestCase):
         self.assertIn("if [[ $legacy_vpn == dnsfilter.android ]]", installer)
         self.assertIn("settings delete secure always_on_vpn_app", installer)
         self.assertIn("if installed dnsfilter.android", installer)
+        self.assertIn("appops set dnsfilter.android ACTIVATE_VPN default", installer)
+        self.assertIn("dumpsys deviceidle whitelist -dnsfilter.android", installer)
         self.assertIn("pm disable-user --user 0 dnsfilter.android", installer)
         self.assertGreater(installer.index("if installed dnsfilter.android"),
                            installer.index("printf 'front window:"))
