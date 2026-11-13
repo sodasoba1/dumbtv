@@ -94,8 +94,11 @@ final class Config {
             new String[] {"auto", "tv", "home"},
             new String[] {"Automatic", "The TV's app", "dumbtv home"});
     static final Choice BACKGROUND = new Choice("background", "Background", "black",
-            new String[] {"black", "graphite", "midnight", "image", "adaptive", "adaptive-tint"},
-            new String[] {"Black", "Graphite", "Midnight", "Image file", "Adaptive solid", "Adaptive wallpaper tint"});
+            new String[] {"black", "graphite", "midnight", "charcoal", "slate", "navy", "ocean",
+                    "forest", "burgundy", "plum", "espresso", "sand", "image", "adaptive", "adaptive-tint"},
+            new String[] {"Black", "Graphite", "Midnight", "Charcoal", "Slate", "Navy", "Ocean",
+                    "Forest", "Burgundy", "Plum", "Espresso", "Sand", "Image file", "Adaptive solid",
+                    "Adaptive wallpaper tint"});
     static final Choice DIM = new Choice("dim", "Image dim", "40",
             new String[] {"0", "20", "40", "60", "80"},
             new String[] {"0%", "20%", "40%", "60%", "80%"});
@@ -133,7 +136,9 @@ final class Config {
         0xFF26A69A, 0xFF58D6B0, 0xFF9CCC35, 0xFFDCE64A, 0xFFAE5A22, 0xFFFF765E, 0xFFC62848, 0xFFFE7AA5,
         0xFFFD36C7, 0xFF9C4DCC, 0xFF5C6BC0, 0xFFC5A3FF, 0xFF64B5F6, 0xFF80DEEA, 0xFFFFD166, 0xFFB87333,
     };
-    private static final int[] BACKGROUNDS = {0xFF000000, 0xFF141518, 0xFF0B1220, 0xFF000000, 0xFF141518, 0xFF141518};
+    private static final int[] BACKGROUNDS = {0xFF000000, 0xFF141518, 0xFF0B1220, 0xFF202124, 0xFF263238,
+            0xFF101B2D, 0xFF102A43, 0xFF14291F, 0xFF321B24, 0xFF281B35, 0xFF29221D, 0xFF292722,
+            0xFF000000, 0xFF141518, 0xFF141518};
 
     private static Config instance;
 
