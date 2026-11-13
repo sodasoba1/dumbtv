@@ -29,6 +29,9 @@ if args[:1] == ['disconnect']:
 if args[-1:] == ['get-state']:
     print('device')
     sys.exit(0)
+if args[-1:] == ['get-serialno']:
+    print(args[1] if len(args) >= 3 and args[0] == '-s' else 'test-tv')
+    sys.exit(0)
 if len(args) == 5 and args[0] == '-s' and args[2] == 'push' and 'pushed' in state:
     # Keeps a copy of each pushed file, so a test can read what reached the TV.
     Path(state['pushed']).mkdir(parents=True, exist_ok=True)
@@ -49,7 +52,28 @@ apps = state['packages']
 settings = state.setdefault('settings', {})
 words = command.split()
 
-if words[:1] == ['settings']:
+if words[:2] == ['content', 'insert'] and '--uri' in words:
+    # Model the Settings provider fallback used when Fire OS ignores settings put.
+    uri = words[words.index('--uri') + 1]
+    namespace = uri.rsplit('/', 1)[-1]
+    bindings = {}
+    for index, word in enumerate(words[:-1]):
+        if word == '--bind':
+            binding_name, separator, remainder = words[index + 1].partition(':')
+            if separator:
+                value_type, separator, value = remainder.partition(':')
+                if separator and value_type == 's':
+                    bindings[binding_name] = value
+    if namespace in ('secure', 'system', 'global') and 'name' in bindings and 'value' in bindings:
+        settings[f'{namespace}/{bindings["name"]}'] = bindings['value']
+        save()
+        print('Inserted 1 row')
+    else:
+        state.setdefault('bad', []).append(command)
+        save()
+        print('Error: unsupported content insert')
+        sys.exit(1)
+elif words[:1] == ['settings']:
     verb, rest = words[1], words[2:]
     if verb == 'put' and len(rest) == 3:
         settings[f'{rest[0]}/{rest[1]}'] = '' if rest[2] == '""' else rest[2]
@@ -143,3 +167,20 @@ elif command == 'ps -A -o NAME':
     print('NAME')
 elif command == 'dumpsys activity activities':
     print('  mResumedActivity: ActivityRecord{1 u0 tv.dumbtv.home/.Home t1}')
+elif words[:1] == ['am'] and words[1:2] in (['force-stop'], ['start']):
+    # Activity-manager operations used by the launcher install/undo scripts.
+    pass
+elif words[:1] == ['appops']:
+    # App-op state is not relevant to these tests; retain the command in the log.
+    pass
+elif words[:2] == ['dumpsys', 'deviceidle']:
+    # The fake tracks command ordering; Doze whitelist state is not queried here.
+    pass
+elif words[:2] == ['input', 'keyevent']:
+    pass
+elif words[:2] == ['cmd', 'netpolicy']:
+    pass
+elif words[:2] == ['cmd', 'package']:
+    pass
+elif words[:2] == ['pm', 'grant'] or words[:2] == ['pm', 'revoke']:
+    pass

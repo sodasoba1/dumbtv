@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Proof that it worked: blocked hosts must answer 0.0.0.0 or NXDOMAIN, everyday
-# hosts must still resolve, and HOME must land on dumbtv home unless the user kept
-# Amazon's. Exit code 0 means every enabled check passed.
+# Proof that it worked: HOME must land on dumbtv home unless the user kept Amazon's.
+# DNS filtering is external and is verified in the Pi-hole admin/query log.
 # Usage: ./scripts/verify.sh
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -11,46 +10,8 @@ need_device
 load_conf
 
 fail=0
-printf '\n%-10s %-38s %s\n' '' host result
+printf '\n%-10s %-38s %s\n' check result details
 printf '%-10s %-38s %s\n' '----------' '--------------------------------------' '----------------------'
-
-if [[ $DNSFILTER == 0 ]]; then
-  printf '%-10s %-38s %s\n' skip dns "DNSFILTER=0, not checked"
-else
-  # A blocked host answers 0.0.0.0 on personalDNSfilter, but NXDOMAIN on a router's
-  # Blocky or Unbound denylist. NXDOMAIN only counts as blocked when an everyday
-  # host still resolves: a resolver that is down makes every lookup "unknown host",
-  # and passing that would hide a broken filter. So check the allowed hosts first
-  # and hold their rows back, to keep the table in its documented order.
-  allowed_rows=""
-  resolver=0
-  while read -r h; do
-    line=$(dev "ping -c1 -W2 $h" | head -1)
-    case $line in
-      *0.0.0.0*|*127.0.0.1*)
-        allowed_rows="${allowed_rows}$(printf '%-10s %-38s %s\n' FAIL "$h" 'WRONGLY BLOCKED')"$'\n'; fail=1 ;;
-      *"unknown host"*|*"not known"*|*"cannot resolve"*|"")
-        allowed_rows="${allowed_rows}$(printf '%-10s %-38s %s\n' FAIL "$h" 'no answer')"$'\n'; fail=1 ;;
-      *)
-        allowed_rows="${allowed_rows}$(printf '%-10s %-38s %s\n' ok "$h" 'resolves')"$'\n'; resolver=1 ;;
-    esac
-  done < <(list_of "$DATA/blocklists/verify-allowed.txt")
-
-  while read -r h; do
-    line=$(dev "ping -c1 -W2 $h" | head -1)
-    case $line in
-      *0.0.0.0*|*127.0.0.1*) printf '%-10s %-38s %s\n' ok "$h" 'blocked' ;;
-      *"unknown host"*|*"not known"*|*"cannot resolve"*|"")
-        if [[ $resolver == 1 ]]; then
-          printf '%-10s %-38s %s\n' ok "$h" 'blocked (NXDOMAIN)'
-        else
-          printf '%-10s %-38s %s\n' FAIL "$h" 'no answer from the resolver'; fail=1
-        fi ;;
-      *) printf '%-10s %-38s %s\n' FAIL "$h" 'NOT BLOCKED'; fail=1 ;;
-    esac
-  done < <(expected_blocked)
-  printf '%s' "$allowed_rows"
-fi
 
 home=$(front_activity)
 wake=$(dev 'dumpsys power' | sed -n 's/.*mWakefulness=\([A-Za-z]*\).*/\1/p' | head -1)
@@ -196,43 +157,6 @@ else
     printf '%-10s %-38s %s\n' FAIL launcher "installed ${have}, release is ${want}; run ./scripts/launcher.sh -y"; fail=1
   else
     printf '%-10s %-38s %s\n' ok launcher "installed ${have} (newer than ${want})"
-  fi
-fi
-
-if [[ $DNSFILTER == 0 ]]; then
-  printf '%-10s %-38s %s\n' skip filter "not installed by choice"
-else
-  n=$(dev 'grep -c . /sdcard/Android/data/dnsfilter.android/files/PersonalDNSFilter/FILTERHOSTS.TXT 2>/dev/null' | tr -d '\r')
-  if [[ $SDK -ge 30 ]] && ! [[ ${n:-0} -gt 0 ]] 2>/dev/null; then
-    # Android 11 hides Android/data from adb; the blocked-host lookups above are the proof.
-    printf '%-10s %-38s %s\n' skip filter "list not readable over adb on $(fireos_name); see the DNS checks"
-  elif [[ ${n:-0} -gt 0 ]] 2>/dev/null; then
-    printf '%-10s %-38s %s entries\n' ok filter "$n"
-  else
-    printf '%-10s %-38s %s\n' FAIL filter "missing or empty"; fail=1
-  fi
-  vpn=$(dev 'settings get secure always_on_vpn_app' | tr -d '\r')
-  if ! present dnsfilter.android; then
-    # Every VPN app gets a tunN, so a live tunnel proves nothing by itself: a
-    # Surfshark or NordVPN tunnel used to be reported here as the filter.
-    printf '%-10s %-38s %s\n' FAIL vpn "personalDNSfilter is not installed; set DNSFILTER=0 if a router filters DNS"; fail=1
-  else
-    # Fire OS 6 always forgets always_on_vpn_app at boot; at least one Fire OS 7
-    # build (7.7.1.3 / PS7713) does too. The network's owner uid survives that, so
-    # match it against the filter's uid. The interface name is not stable across
-    # boots (seen tun0, then tun1 on the same device), hence any tunN.
-    filter_uid=$(uid_of dnsfilter.android)
-    vpn_uid=$(dev 'dumpsys connectivity' | grep -m1 'type: VPN' | sed -n 's/.*Uid: \([0-9][0-9]*\).*/\1/p')
-    tunif=$(dev 'ip addr show' | sed -n 's/^[0-9]*: \(tun[0-9]*\):.*UP.*/\1/p' | head -1)
-    if [[ -n $filter_uid && $vpn_uid == "$filter_uid" ]]; then
-      printf '%-10s %-38s %s\n' ok vpn "${tunif:-VPN} owned by uid $vpn_uid (personalDNSfilter)"
-    elif [[ -z $vpn_uid && $vpn == dnsfilter.android ]]; then
-      printf '%-10s %-38s %s\n' ok vpn "$vpn (always-on)"
-    elif [[ -n $tunif ]]; then
-      printf '%-10s %-38s %s\n' FAIL vpn "$tunif belongs to another VPN (uid ${vpn_uid:-?}, filter uid ${filter_uid:-?})"; fail=1
-    else
-      printf '%-10s %-38s %s\n' FAIL vpn "${vpn:-unset}; no tun interface up; open personalDNSfilter once, then reboot"; fail=1
-    fi
   fi
 fi
 

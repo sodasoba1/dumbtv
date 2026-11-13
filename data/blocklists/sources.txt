@@ -1,23 +1,27 @@
-# Where the DNS lists come from
+# Source and purpose of DumbTV's external DNS lists.
 #
-# Fetched by the script on your computer (not by the TV), then pushed to it:
-#   https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/native.amazon-onlydomains.txt
-#   HaGeZi DNS blocklists — Amazon native trackers. Blocks Amazon device
-#   telemetry. If the user keeps Prime Video, scripts/dnsfilter.sh removes the
-#   aiv-delivery / aiv-cdn lines before pushing, so playback still works.
+# Pi-hole blocklist exports are maintained under data/blocklists/pihole/:
+#   v6/          Adblock/ABP format for Pi-hole v6
+#   v5/          Adblock/ABP format for Pi-hole FTL 5.22+
+#   v5-legacy/   plain domains for older FTL; exact hostnames only
 #
-# Bundled here (MIT, hand-written from APK strings):
-#   extra-hosts.txt     OTA, arcus, unagi-zaz, Alexa voice, analytics
-#   verify-blocked.txt  hosts verify.sh asserts are blocked
-#   verify-allowed.txt  hosts verify.sh asserts still resolve
+# Upstream:
+#   https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/native.amazon.txt
+#   HaGeZi's maintained Amazon native tracker list, in Pi-hole-compatible
+#   Adblock format. Check its upstream licence and changelog.
 #
-# How the bundled list was built: pull system APKs off the device
-#   adb shell pm path <package>      -> adb pull that path
-#   unzip -o app.apk -d app/ ; grep -rhoaE 'https?://[A-Za-z0-9._-]+' app/ | sort -u
-# The interesting packages: the launcher, device.metrics, vizzini, tahoe,
-# devicecontrol, crashmanager, tved. Do the same on a new model to find its extra
-# hosts.
+# Local sources:
+#   extra-hosts.txt       supplemental Amazon telemetry, advertising and update hosts
+#   alexa-hosts.txt       optional Alexa voice/device endpoints
+#   prime-video-hosts.txt opt-in Prime Video blocking endpoints
 #
-# Alternative if you would rather filter the whole network: import this file into
-# NextDNS, AdGuard Home or Pi-hole and point the router's DNS at it. Same lists,
-# no app on the TV.
+# Regenerate versioned Pi-hole exports after editing a source:
+#   python3 scripts/export-pihole-lists.py --write
+# CI checks that committed exports match these source files.
+#   verify-blocked.txt / verify-allowed.txt are historical verification references
+#
+# Prime Video delivery and device-messaging endpoints are intentionally separate
+# in data/blocklists/pihole/*/prime-video.txt. Do not add them to the default list.
+# prime-video-allowlist.txt preserves the five AIV delivery/CDN entries in the
+# current HaGeZi Amazon list when Prime Video playback is required. The separate
+# prime-video.txt list is opt-in and should only be used to block Prime Video.

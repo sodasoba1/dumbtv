@@ -14,8 +14,9 @@ On a Fire TV, over ADB, with no root:
 - **Always:** disables Amazon's ad, sponsored-content, screen-fingerprinting (ACR),
   telemetry and experiment packages; turns off ad tracking and usage reporting.
   Amazon packages are disabled, never uninstalled.
-- **If the owner agrees:** dumbtv home in place of Amazon's home screen, and optionally an on-TV DNS filter.
-  The on-TV filter is off by default; if the network already uses Pi-hole or another DNS filter, keep it off.
+- **If the owner agrees:** dumbtv home in place of Amazon's home screen.
+  Optional network DNS filtering is configured separately in Pi-hole; DumbTV never
+  installs a DNS-filter app or VPN on the TV.
 - **Only if the owner names them:** removing apps, switching off Alexa, replacing
   YouTube with SmartTube.
 
@@ -41,11 +42,8 @@ Every step is undone by `./scripts/restore.sh`.
    they say yes, `youtube.sh` disables the stock app; it only deletes it with
    `--remove`, and only when they asked for it gone in those words. Their Google
    account and subscriptions are never touched.
-8. **Never `am force-stop dnsfilter.android` yourself.** It leaves the filter running
-   but filtering nothing until the TV reboots. `dnsfilter.sh` may stop it once on
-   purpose, before it replaces the app's files, and then reboots the TV itself, or,
-   when it ends at its manual step, says to reboot. If that run is cut short, reboot
-   the TV or run `dnsfilter.sh` again.
+8. **Do not install or configure an on-device DNS filter or VPN.** DNS filtering
+   is an optional external Pi-hole setup documented in `docs/PI-HOLE.md`.
 9. **Never disable `com.amazon.vizzini`.** It keeps running anyway, and on some
    TVs it covers the screen with "Unable to Detect Your Remote".
 10. **One TV at a time.** If `adb devices` lists several, set `ADB_SERIAL`.
@@ -89,21 +87,15 @@ people take them.
 
 | # | Ask | Default | Flag |
 |---|---|---|---|
-| 1 | "Do you watch Prime Video?" No blocks the servers it needs. | yes | `--prime 0\|1` |
-| 2 | "Do you use Alexa or the voice button on the remote?" No switches off Alexa and the app that owns the microphone. | keep | `--alexa 0\|1` |
-| 3 | "Replace Amazon's home screen with dumbtv home?" Open source, apps and inputs only, no ads, no internet access. | yes | `--launcher 0\|1` |
-| 4 | "Run the optional DNS filter on the TV?" It installs a local VPN app. If the network already uses Pi-hole or another DNS filter, leave it off. | no | `--dnsfilter 0\|1` |
-| 5 | "Are there apps you want removed?" Get names, map them to packages with `data/apps.txt` and `adb shell pm list packages -3`, and read the list back before recording it. | none | `--remove "pkg pkg"` |
-| 6 | "Do you want the YouTube app replaced with SmartTube?" No ads and no Shorts, a different app, same Google account. Ask once; if no, drop it. | no | `--youtube 0\|1` |
+| 1 | "Do you use Alexa or the voice button on the remote?" No switches off Alexa and the app that owns the microphone. | keep | `--alexa 0\|1` |
+| 2 | "Replace Amazon's home screen with dumbtv home?" Open source, apps and inputs only, no ads, no internet access. | yes | `--launcher 0\|1` |
+| 3 | "Are there apps you want removed?" Get names, map them to packages with `data/apps.txt` and `adb shell pm list packages -3`, and read the list back before recording it. | none | `--remove "pkg pkg"` |
+| 4 | "Do you want the YouTube app replaced with SmartTube?" No ads and no Shorts, a different app, same Google account. Ask once; if no, drop it. | no | `--youtube 0\|1` |
 
 `--keep "pkg pkg"` keeps a package that would otherwise be disabled, for an owner
-who wants a specific Amazon feature. Fire OS 6 has one more question
-(`--system-dns`); its default is right for almost everyone. `--dns-upstream` is
-not one of the questions: leave it unset unless the owner names resolver IPs.
-`--dns-upstream` only matters when the owner explicitly opts into the on-TV DNS
-filter. For network-wide Pi-hole filtering, leave the on-TV filter disabled and
-follow [docs/PI-HOLE.md](docs/PI-HOLE.md); do not configure a second resolver in
-dumbtv.
+who wants a specific Amazon feature. DNS filtering is not part of this interview.
+For network-wide filtering, follow [docs/PI-HOLE.md](docs/PI-HOLE.md) and configure
+Pi-hole independently of DumbTV.
 
 
 Record the answers:
@@ -127,9 +119,9 @@ preferences.
 
 Step by step instead, in this order:
 
-1. `./scripts/debloat.sh -y`, then reboot and check the TV reaches a home screen.
-2. `./scripts/lockdown.sh -y`
-3. `./scripts/dnsfilter.sh -y` (reboots and tests itself)
+1. `bash ./scripts/cleanup-legacy-dnsfilter.sh -y` (disables the old filter if installed; clears only its own always-on VPN selection).
+2. `./scripts/debloat.sh -y`, then reboot and check the TV reaches a home screen.
+3. `./scripts/lockdown.sh -y`
 4. `./scripts/launcher.sh -y`
 5. `./scripts/youtube.sh -y`, only if `YOUTUBE=1`
 6. `./scripts/verify.sh`
@@ -156,7 +148,7 @@ pictures in a folder outside the repository, never in a commit, and run
 | `already disabled by the system` | the TV had it off already |
 | `absent` | not on this TV; normal, the lists cover many models |
 | `PROTECTED` | Amazon refuses to let it be disabled. Expected; `lockdown.sh` and the filter deal with it |
-| `still running -> ops off, metered data blocked` | disabled but kept alive by the system, so its background running is cut. Data Saver only covers metered networks; on Wi-Fi and Ethernet the DNS filter blocks its uploads |
+| `still running -> ops off, metered data blocked` | disabled but kept alive by the system, so its background running is cut. Data Saver only covers metered networks; Pi-hole can optionally block DNS requests |
 | `uninstalled` | an app the owner named, removed |
 | `SKIP (keep list)` | the owner kept it |
 | `SKIP (never-disable list)` | the TV needs it |
@@ -171,8 +163,6 @@ ok home bound, front is tv.dumbtv.home/.Home
 packages 51 disabled
 ok settings 13 privacy settings as set
 ok data-saver on
-ok filter 416 entries
-ok vpn dnsfilter.android
 all checks passed
 ```
 
@@ -187,12 +177,9 @@ path. Use the table below; do not disable more packages.
 | Amazon's home shows for ~5 s before dumbtv home | `./scripts/launcher.sh -y` (an update reset the alarm setting) |
 | `verify.sh` warns `enabled again` or `back to Amazon's values` | an update undid part of the cleanup: `./scripts/debloat.sh -y` |
 | `verify.sh` warns `data-saver off` | `./scripts/lockdown.sh -y` |
-| `dnsfilter.sh` says the tracker list "does not look right" | the download was an error page or cut short; nothing was pushed. Run it again later |
-| Nothing is blocked, but the filter is running | reboot the TV |
-| Blocked names are blocked, but YouTube and other apps cannot connect | the filter's upstream does not answer the TV: "Blocked hosts are blocked, but nothing else resolves" in docs/TROUBLESHOOTING.md |
 | "Unable to Detect Your Remote" over everything | `adb shell pm enable --user 0 com.amazon.vizzini`, then reboot |
 | The TV sleeps while something plays on HDMI | `./scripts/launcher.sh -y` (dumbtv home 1.3 and later keep the panel awake) |
-| An app stopped working | find the host it needs and remove it from `data/blocklists/extra-hosts.txt`, then `./scripts/dnsfilter.sh -y` |
+| An app stopped working | inspect Pi-hole's Query Log and allow only the required hostname; see `docs/PI-HOLE.md` |
 | They want an app back | `adb shell pm enable --user 0 <package>`, or the Appstore if it was uninstalled |
 | Start over | `./scripts/restore.sh -y` |
 

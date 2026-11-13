@@ -1,0 +1,5 @@
+# DumbTV prime-video list for legacy Pi-hole v5.
+# Plain domain format for Pi-hole FTL before 5.22.
+aiv-delivery.net
+aiv-cdn.net
+device-messaging-na.amazon.com

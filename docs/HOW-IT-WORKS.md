@@ -50,46 +50,31 @@ cmd netpolicy add restrict-background-blacklist <uid>
 
 Their background services are held in standby. Data Saver refuses their background
 data only on metered networks: a TV on Wi-Fi or Ethernet is not metered (`dumpsys
-netpolicy` lists only the filter's tunnel), so there the DNS filter in section 4 is
-what stops them. A process that is already running keeps running,
+netpolicy` lists only the active network), so Pi-hole can optionally block their
+DNS requests when configured on the network. A process that is already running keeps running,
 and `am force-stop` is refused for them, so they are starved rather than stopped.
 `lockdown.sh` applies this to `data/fireos/protected.txt`. `debloat.sh` applies the
 same treatment to disabled packages whose process survived the disable.
 
-## 4. DNS: what actually stops the uploads
+## 4. DNS: optional network-level filtering
 
-dm-verity keeps `/system` read-only, so there is no hosts file to edit. Instead
-[personalDNSfilter](https://github.com/IngoZenz/personaldnsfilter) runs on the TV
-as a local VPN. Every lookup goes through it, and listed names answer `127.0.0.1`.
+DumbTV does not run a DNS filter on the TV. The launcher has no `INTERNET`
+permission, no VPN service, and no dependency on a local DNS-filter app.
 
-The list is built on your computer and pushed to the TV as one file:
+For advanced network-level filtering, users can run Pi-hole on a separate,
+always-on device and point the router or selected clients at it. This is entirely
+optional and is not part of `configure.sh`, `all.sh`, or the launcher.
 
-- the [HaGeZi](https://github.com/hagezi/dns-blocklists) Amazon tracker list,
-  downloaded fresh each time,
-- `data/blocklists/extra-hosts.txt`: telemetry, update and ad servers read out of
-  Fire OS's own system apps,
-- `data/blocklists/alexa-hosts.txt`, only with `ALEXA=0`.
+The repository keeps supplemental Amazon domains, optional Alexa endpoints,
+Prime Video blocking endpoints, and diagnostic allowlist candidates under
+`data/blocklists/pihole/`. Separate exports are provided for Pi-hole v6,
+Pi-hole v5 with FTL 5.22+, and older v5 installations. Prime Video and Alexa
+blocking are opt-in; the default Amazon list deliberately excludes those service
+endpoints.
 
-With `PRIME=1` (the default), Prime Video's video CDN and Amazon's push service
-are left out, because Prime Video does not start without them. The TV never
-downloads a list itself, so it cannot end up with a half-written one.
-
-Three settings keep the filter in the path:
-
-- `routeIPs = <gateway>` puts the router's resolver inside the tunnel, so an app
-  that asks the router directly is still filtered. On Fire OS 6, any other DNS
-  server the TV reports (`net.dns1` to `net.dns4`, IPv6 ones included) goes in
-  too. Fire OS 7 and 8 do not report them there.
-- `detectDNS = false` with an explicit `fallbackDNS` stops the filter falling out
-  of the path when the TV changes network. That fallback is the router. Set
-  `DNS_UPSTREAM` in `dumbtv.conf` only when those unknown names should go to
-  other resolvers instead (see [TROUBLESHOOTING](TROUBLESHOOTING.md)).
-- `always_on_vpn_app` and a Doze exemption bring it back after a reboot. The app's
-  own boot start is a second way back, and the only one on Fire OS 6, which forgets
-  the always-on setting at boot.
-
-On Fire OS 8 adb cannot write the app's folder, so the list goes to
-`/sdcard/Android/media/` and you select it in the app once.
+See [PI-HOLE.md](PI-HOLE.md) for list URLs, version compatibility, group assignment,
+and Query Log-based troubleshooting. DNS filtering is external: `verify.sh`
+does not inspect or alter the network resolver.
 
 ## 5. The home screen
 
@@ -124,15 +109,6 @@ accessibility services. `Keeper` reads the foreground app from UsageStats and ca
 `moveTaskToFront` when Amazon's home appears. That is not an activity launch, so
 the 5 s delay does not apply. Its usage-access and task-order permissions are
 capped at Android 8.1, so Fire OS 7 and 8 never see them.
-
-**Keeping the filter running: `Filter`.** Android does not restart a VPN whose
-process was killed, so after lmkd kills personalDNSfilter under memory pressure
-the filter stays off until something starts the app again. dumbtv home sends an
-explicit broadcast to the filter's `BootUpReceiver` whenever the home screen
-opens, at boot, and from a 15-minute alarm that survives dumbtv home being killed
-too. The receiver starts the VPN without showing the app, and does nothing while
-the filter runs. It only accepts senders that hold `RECEIVE_BOOT_COMPLETED`, which
-is the one permission dumbtv home asks for on Fire OS 7 and 8.
 
 Holding HOME still opens Fire OS's quick menu, and the launcher's Options can open
 Amazon's home on purpose.

@@ -1,0 +1,5 @@
+# Optional Prime Video blocking source domains.
+# The Pi-hole exporter writes ABP rules for FTL 5.22+ and plain domains for older FTL.
+aiv-delivery.net
+aiv-cdn.net
+device-messaging-na.amazon.com

@@ -1,0 +1,7 @@
+# Optional allowlist candidates for Pi-hole v5 and v6.
+# Only add a domain if Query Log proves it is being blocked and an app is failing.
+# One domain per line.
+www.youtube.com
+i.ytimg.com
+appstore-tv-prod-na.amazon.com
+m.media-amazon.com

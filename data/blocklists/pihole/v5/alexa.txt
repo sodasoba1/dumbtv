@@ -1,0 +1,19 @@
+! DumbTV alexa list for Pi-hole v5.
+! Pi-hole Adblock/ABP format; requires FTL 5.22 or later.
+! Matches the listed domain and its subdomains.
+||api.amazonalexa.com^
+||api.eu.amazonalexa.com^
+||api.fe.amazonalexa.com^
+||avs-alexa-14-na.amazon.com^
+||avs-alexa-19-na.amazon.com^
+||avs-alexa-18-eu.amazon.com^
+||devices.amazonalexa.com^
+||idc-service-ga.amazon.com^
+||idc-service-be.amazon.com^
+||idc-service-ga-fe.amazon.com^
+||idc-service-ga-eu.amazon.com^
+||mlis.amazon.com^
+||rafs.amazon.com^
+||rafs-eu.amazon.com^
+||rafs-fe.amazon.com^
+||alexa-personality.amazon.dev^

@@ -34,6 +34,17 @@ esac
 command -v "$ADB" >/dev/null || { echo "error: adb not found — install Android platform-tools" >&2; exit 1; }
 state=$(adb_ get-state 2>/dev/null || true)
 [[ $state == device ]] || { echo "error: no TV connected (adb connect <tv-ip>:5555; set ADB_SERIAL if several)" >&2; exit 1; }
+target_serial=$(adb_ get-serialno 2>/dev/null | tr -d '\r')
+
+reconnect_after_vpn_change() {
+  [[ $target_serial == *:* ]] || return 0
+  for _ in $(seq 1 12); do
+    "$ADB" connect "$target_serial" >/dev/null 2>&1 || true
+    [[ $("$ADB" -s "$target_serial" get-state 2>/dev/null) == device ]] && return 0
+    sleep 2
+  done
+  return 1
+}
 
 dev_sdk=$(sh_ getprop ro.build.version.sdk | tr -d '\r')
 case $dev_sdk in ''|*[!0-9]*) dev_sdk=28 ;; esac
@@ -222,3 +233,36 @@ fi
 sleep 2
 printf 'accessibility: %s\n' "$(sh_ settings get secure enabled_accessibility_services)"
 printf 'front window:  %s\n' "$(sh_ dumpsys window | grep -m1 mCurrentFocus | sed 's/.* u0 //; s/}$//')"
+
+# Retire the old optional local DNS filter. Fire OS 6 can forget the always-on
+# setting at boot while personalDNSfilter's own receiver restarts its VPN, so
+# disable the package whenever present. Clear the setting only if it names this
+# app; other VPN apps are never changed. Keep this last because stopping a VPN
+# can briefly interrupt a network ADB connection.
+legacy_vpn=$(sh_ settings get secure always_on_vpn_app | tr -d '\r')
+if installed dnsfilter.android; then
+  echo "disabling the legacy personalDNSfilter app"
+  disable_rc=0
+  sh_ pm disable-user --user 0 dnsfilter.android >/dev/null 2>&1 || disable_rc=$?
+  reconnect_after_vpn_change || {
+    echo "error: ADB did not reconnect after disabling personalDNSfilter" >&2
+    exit 1
+  }
+  sh_ pm list packages -d | tr -d '\r' | grep -qx 'package:dnsfilter.android' || {
+    echo "error: personalDNSfilter is still enabled after the disable request (exit $disable_rc)" >&2
+    exit 1
+  }
+  echo "removing legacy personalDNSfilter privileges"
+  sh_ appops set dnsfilter.android ACTIVATE_VPN default >/dev/null 2>&1 || true
+  sh_ appops set dnsfilter.android AUTO_START default >/dev/null 2>&1 || true
+  sh_ dumpsys deviceidle whitelist -dnsfilter.android >/dev/null 2>&1 || true
+  sh_ pm revoke dnsfilter.android android.permission.READ_EXTERNAL_STORAGE >/dev/null 2>&1 || true
+  sh_ pm revoke dnsfilter.android android.permission.WRITE_EXTERNAL_STORAGE >/dev/null 2>&1 || true
+  echo "personalDNSfilter disabled; remove it from Settings > Applications if desired"
+fi
+if [[ $legacy_vpn == dnsfilter.android ]]; then
+  echo "clearing the legacy personalDNSfilter always-on VPN selection"
+  sh_ settings delete secure always_on_vpn_app >/dev/null
+  remaining=$(sh_ settings get secure always_on_vpn_app | tr -d '\r')
+  [[ $remaining != dnsfilter.android ]] || { echo "error: could not clear the legacy VPN selection" >&2; exit 1; }
+fi

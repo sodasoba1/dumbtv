@@ -10,12 +10,9 @@ A home screen for Fire TV that does one job: show your apps and your HDMI inputs
   Services or any other library.
 - **No network.** There is no `INTERNET` permission, so Android will not let it
   open a connection.
-- **One permission on Fire OS 7 and 8: run at startup.** personalDNSfilter only
-  takes a restart request from an app holding it, and dumbtv home uses it for
-  nothing else: when Android kills the filter under memory pressure, dumbtv home
-  starts it again (on HOME, at boot and every 15 minutes). Fire OS 6 adds usage
-  access and task order for the Keeper below, both limited to Android 8.1 and
-  earlier. Check: `aapt2 dump permissions dumbtv-home.apk`.
+- **Boot permission.** Used only to start the Keeper after boot or an app update.
+  Fire OS 6 also uses usage access and task order for the Keeper, both limited to
+  Android 8.1 and earlier. Check: `aapt2 dump permissions dumbtv-home.apk`.
 - **No ads, no recommended rows, no account, no analytics, no update checks.**
 - About 60–70 MB of memory with the home screen showing, about 37 MB while an app
   plays (measured on a Fire TV Edition television with 1.4 GB of RAM).
@@ -31,7 +28,12 @@ adb connect <tv-ip>:5555         # accept "Allow USB debugging?" on the TV
 
 The APK is built from this fork's launcher source and published in its
 [releases](https://github.com/sodasoba1/dumbtv/releases). The installer downloads
-the matching SHA-256 sidecar and verifies the APK before installation. See
+the matching SHA-256 sidecar and verifies the APK before installation. It also disables
+legacy personalDNSfilter if installed, resets its VPN app-ops, Doze exemption and
+storage grants, and clears its always-on VPN selection only if that setting names
+the filter; other VPN apps are untouched. If installing the APK
+manually with ADB, run `bash ./scripts/cleanup-legacy-dnsfilter.sh -y` once for the
+same migration. See
 [Building and releasing](../docs/BUILDING-LAUNCHER.md) for the signing-key setup
 and release process. Installing the APK by hand works, but HOME only switches
 over once `install.sh` (or `scripts/launcher.sh`) has set up the HOME hook

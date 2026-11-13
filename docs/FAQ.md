@@ -23,13 +23,14 @@ No. Everything runs as the `shell` user that ADB debugging gives you.
 **How do I undo it?**
 `./scripts/restore.sh`. It turns every package back on, clears the app-ops and
 network rules, puts back the settings your TV had before (saved by
-`preflight.sh`), switches the DNS filter off and returns HOME to Amazon. Apps you
-asked to have uninstalled come back from the Appstore.
+`preflight.sh`), disables personalDNSfilter if installed, resets its app-ops and Doze exemption, clears
+its always-on VPN selection only if it names that app, and returns HOME to Amazon.
+Other VPN apps are untouched. Apps you asked to have uninstalled come back from the Appstore.
 
 **Does the project itself phone home?**
-No. On your computer the scripts download the personalDNSfilter app from F-Droid,
-dumbtv home from this repository's releases (checked against a pinned SHA-256),
-and the HaGeZi tracker list; SmartTube too, if you ask for it. Nothing is
+No. The computer downloads dumbtv home from this repository's releases (checked
+against a pinned SHA-256), and SmartTube only if you request it. Optional Pi-hole
+lists are fetched by Pi-hole itself from their published sources. Nothing is
 uploaded. The launcher has no internet permission.
 
 ## Your apps
@@ -40,18 +41,22 @@ is only removed when you name it, in `configure.sh` or with
 `./scripts/configure.sh --remove <package>`.
 
 **Will Prime Video work?**
-Yes, by default. Prime Video needs its video CDN and Amazon's push service, and
-both stay reachable unless you answer no to Prime in `configure.sh` (`PRIME=0`).
+Yes, by default. DumbTV does not configure DNS filtering, and its supplemental
+list excludes Prime Video delivery endpoints. HaGeZi's upstream Amazon tracker list
+contains five AIV delivery/CDN hosts; use the Prime Video compatibility allowlist
+in [the Pi-hole guide](PI-HOLE.md) if playback is required. A separate opt-in blocklist
+is available for people who deliberately want to block Prime Video.
 
 **Will YouTube work?**
-Yes. The filter never blocks Google or YouTube, and `verify.sh` checks that. The
+Yes. The default Pi-hole lists do not target Google or YouTube. The
 YouTube app is only replaced if you ask for SmartTube; see
 [YOUTUBE.md](YOUTUBE.md) for why YouTube's own ads cannot be blocked by DNS.
 
 **Will the voice remote work?**
 Yes, by default: Alexa is kept. If you answer no to Alexa in `configure.sh`
 (`ALEXA=0`), Alexa and the app that owns the microphone are switched off and their
-servers blocked; the buttons and pairing keep working. To bring it back:
+servers only blocked if you separately add the optional Alexa Pi-hole list; the buttons
+and pairing keep working. To bring Alexa back:
 
 ```sh
 ./scripts/configure.sh --alexa 1   # then run ./scripts/restore.sh and ./scripts/all.sh
@@ -63,13 +68,15 @@ Yes. Its hosts are never blocked.
 ## Day to day
 
 **Does it survive a reboot?**
-Yes. Disabled packages, the filter and the home screen all come back on their own.
+Yes. Disabled packages and the home screen come back on their own. Pi-hole filtering
+continues independently on the network.
 
 **Does it survive an Amazon update?**
-Updates do not arrive while the DNS filter runs: it blocks the update servers. If
-an update does land, it can re-enable packages and reset settings; run
-`./scripts/all.sh` again. To update on purpose, run `./scripts/restore.sh`, let
-the TV update, then `./scripts/all.sh`.
+If you assigned the optional Pi-hole supplemental list, its update-host entries can
+block Fire TV updates. Remove or disable that list in Pi-hole before updating. An
+Amazon update can also re-enable packages and reset settings; run `./scripts/all.sh`
+afterward. To update on purpose, run `./scripts/restore.sh`, let the TV update, then
+`./scripts/all.sh`.
 
 **Does it survive a factory reset?**
 No. A factory reset undoes everything, including this. Run the scripts again.
@@ -98,17 +105,18 @@ No. Every current TV has a signed boot chain and a verified system partition.
 [WHY-NOT-REPLACE-OS.md](WHY-NOT-REPLACE-OS.md) explains why.
 
 **Why not just use a Pi-hole?**
-If your router lets you set DNS, a network blocker is a good choice. dumbtv's
-filter runs on the TV itself, so it works on any network, and it is paired with
-the rest of the cleanup: the packages, the settings and the home screen.
+Pi-hole is a good optional addition if you want network-wide DNS filtering and can
+configure your router or selected clients to use it. It is independent of DumbTV:
+the cleanup and launcher work without Pi-hole, and DumbTV no longer runs an
+on-device DNS filter.
 
 ## The project
 
 **Why its own launcher?**
 A home screen needs no internet access, no advertising ID and no permission to
 install apps. dumbtv home is open source and asks for one permission on Fire OS 7
-and 8: run at startup, which it uses only to restart the DNS filter after Android
-kills it. Check it yourself: `aapt2 dump permissions dumbtv-home.apk` lists three;
+and 8: run at startup, used to start the Keeper after boot or an app update.
+Check it yourself: `aapt2 dump permissions dumbtv-home.apk` lists three;
 the other two are limited to Android 8.1 and earlier, for Fire OS 6's Keeper.
 
 **Who made this?**

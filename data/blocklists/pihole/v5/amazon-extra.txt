@@ -1,0 +1,34 @@
+! DumbTV amazon-extra list for Pi-hole v5.
+! Pi-hole Adblock/ABP format; requires FTL 5.22 or later.
+! Matches the listed domain and its subdomains.
+||softwareupdates.amazon.com^
+||dubri19p4y5b.cloudfront.net^
+||distro-download.amazon.com^
+||amzdigital-a.akamaihd.net^
+||amzdigitaldownloads.edgesuite.net^
+||arcus-uswest.amazon.com^
+||arcus.amazon.com^
+||device-metrics-us.amazon.com^
+||device-metrics-us-2.amazon.com^
+||device-metrics-us-ud.amazon.com^
+||det-ta-g7g.amazon.com^
+||det-ta-g7g.integ.amazon.com^
+||unagi-zaz.amazon.com^
+||unagi-na.amazon.com^
+||metrics.media-amazon.com^
+||aan.amazon.com^
+||fls-na.amazon.com^
+||todo-ta-g7g.amazon.com^
+||pindorama.amazon.com^
+||latinum.amazon.com^
+||dcape-na.amazon.com^
+||ceviche.amazon.com^
+||minerva.amazon.com^
+||aax.amazon-adsystem.com^
+||aax-us.amazon-adsystem.com^
+||aax-us-east.amazon-adsystem.com^
+||aax-us-west.amazon-adsystem.com^
+||aax-eu.amazon-adsystem.com^
+||aax-fe.amazon-adsystem.com^
+||amazon-adsystem.com^
+||mads.amazon.com^

@@ -1,0 +1,18 @@
+# DumbTV alexa list for legacy Pi-hole v5.
+# Plain domain format for Pi-hole FTL before 5.22.
+api.amazonalexa.com
+api.eu.amazonalexa.com
+api.fe.amazonalexa.com
+avs-alexa-14-na.amazon.com
+avs-alexa-19-na.amazon.com
+avs-alexa-18-eu.amazon.com
+devices.amazonalexa.com
+idc-service-ga.amazon.com
+idc-service-be.amazon.com
+idc-service-ga-fe.amazon.com
+idc-service-ga-eu.amazon.com
+mlis.amazon.com
+rafs.amazon.com
+rafs-eu.amazon.com
+rafs-fe.amazon.com
+alexa-personality.amazon.dev

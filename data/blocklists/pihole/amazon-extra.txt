@@ -1,3 +1,5 @@
+# DumbTV supplemental Amazon blocklist; versioned exports are below.
+# Plain domain format for Pi-hole FTL before 5.22.
 softwareupdates.amazon.com
 dubri19p4y5b.cloudfront.net
 distro-download.amazon.com

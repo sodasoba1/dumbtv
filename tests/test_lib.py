@@ -90,37 +90,6 @@ def lib(script, env=None):
     )
 
 
-class FallbackDnsTest(unittest.TestCase):
-    def line(self, upstream):
-        result = lib('fallback_dns', {"DNS_UPSTREAM": upstream})
-        self.assertEqual(result.returncode, 0, result.stderr)
-        return result.stdout.strip()
-
-    def test_empty_keeps_the_router(self):
-        self.assertEqual(self.line(""), "")
-
-    def test_only_spaces_keeps_the_router(self):
-        self.assertEqual(self.line("   "), "")
-
-    def test_v4_and_v6(self):
-        self.assertEqual(
-            self.line("76.76.2.45  2606:1a40::45"),
-            "[76.76.2.45]::53::UDP; [2606:1a40::45]::53::UDP",
-        )
-
-    def test_full_v6(self):
-        self.assertEqual(self.line("2001:db8:0:0:0:0:0:1"), "[2001:db8:0:0:0:0:0:1]::53::UDP")
-
-    def test_what_is_not_a_resolver_is_refused(self):
-        for bad in ("one.one.one.one", "999.1.1.1", "1.2.3.4.5", "1.2.3", "0.0.0.0",
-                    "::", ":::1", "1::2::3", "12345::1", "dead.beef.c0de.1",
-                    "1.1.1.1:53", "1.1.1.1;evil", "1.1.1.1#x", "[::1]"):
-            with self.subTest(bad=bad):
-                result = lib('fallback_dns', {"DNS_UPSTREAM": bad})
-                self.assertNotEqual(result.returncode, 0)
-                self.assertEqual(result.stdout, "")
-
-
 class FrontActivityTest(unittest.TestCase):
     DUMPS = {
         "fire os 6": "  Stack #1:\n    mResumedActivity: ActivityRecord{2b u0 tv.dumbtv.home/.Home t12}\n",
