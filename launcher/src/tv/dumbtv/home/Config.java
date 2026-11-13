@@ -42,14 +42,22 @@ final class Config {
     static final class Choice {
         final String key, title;
         final String[] values, names;
+        /** Values retained for reading existing home.conf files; optionValues is the shorter UI list. */
+        final String[] optionValues;
         final String fallback;
 
         Choice(String key, String title, String fallback, String[] values, String[] names) {
+            this(key, title, fallback, values, names, values);
+        }
+
+        Choice(String key, String title, String fallback, String[] values, String[] names,
+                String[] optionValues) {
             this.key = key;
             this.title = title;
             this.fallback = fallback;
             this.values = values;
             this.names = names;
+            this.optionValues = optionValues;
         }
 
         String name(String value) {
@@ -64,7 +72,8 @@ final class Config {
                     "magenta", "purple", "indigo", "lavender", "sky", "ice", "gold", "copper", "custom"},
             new String[] {"White", "Blue", "Cyan", "Green", "Amber", "Red", "Pink", "Violet",
                     "Teal", "Mint", "Lime", "Yellow", "Orange", "Coral", "Crimson", "Rose",
-                    "Magenta", "Purple", "Indigo", "Lavender", "Sky", "Ice", "Gold", "Copper", "Custom colour"});
+                    "Magenta", "Purple", "Indigo", "Lavender", "Sky", "Ice", "Gold", "Copper", "Custom colour"},
+            new String[] {"white", "blue", "cyan", "green", "amber", "red", "pink", "violet", "custom"});
     static final Choice TILES = new Choice("tiles", "Tile size", "medium",
             new String[] {"small", "medium", "large"},
             new String[] {"Small", "Medium", "Large"});
@@ -98,7 +107,8 @@ final class Config {
                     "forest", "burgundy", "plum", "espresso", "sand", "image", "adaptive", "adaptive-tint", "custom"},
             new String[] {"Black", "Graphite", "Midnight", "Charcoal", "Slate", "Navy", "Ocean",
                     "Forest", "Burgundy", "Plum", "Espresso", "Sand", "Image file", "Adaptive solid",
-                    "Adaptive wallpaper tint", "Custom colour"});
+                    "Adaptive wallpaper tint", "Custom colour"},
+            new String[] {"black", "graphite", "midnight", "slate", "image", "adaptive", "adaptive-tint", "custom"});
     static final Choice DIM = new Choice("dim", "Image dim", "40",
             new String[] {"0", "20", "40", "60", "80"},
             new String[] {"0%", "20%", "40%", "60%", "80%"});
@@ -113,7 +123,8 @@ final class Config {
                     "purple", "indigo", "lavender", "sky", "ice", "gold", "copper", "custom"},
             new String[] {"Black", "White", "Blue", "Cyan", "Green", "Amber", "Red", "Pink", "Violet",
                     "Teal", "Mint", "Lime", "Yellow", "Orange", "Coral", "Crimson", "Rose", "Magenta",
-                    "Purple", "Indigo", "Lavender", "Sky blue", "Ice", "Gold", "Copper", "Custom colour"});
+                    "Purple", "Indigo", "Lavender", "Sky blue", "Ice", "Gold", "Copper", "Custom colour"},
+            new String[] {"black", "white", "blue", "red", "custom"});
     static final Choice GRADIENT_STRENGTH = new Choice("gradient_strength", "Gradient strength", "40",
             new String[] {"20", "40", "60", "80"},
             new String[] {"20%", "40%", "60%", "80%"});
