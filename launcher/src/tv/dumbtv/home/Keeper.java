@@ -49,6 +49,7 @@ public final class Keeper extends Service {
     private boolean recovering;
     private int attempts;
     private volatile boolean logcatStopping;
+    private long lastLogcatRecoveryMs;
     private Thread logcatThread;
     private Process logcatProcess;
     private final Object logcatLock = new Object();
@@ -260,12 +261,19 @@ public final class Keeper extends Service {
     private boolean isAmazonHomeLogLine(String line) {
         if (line == null || !line.contains(AMAZON_PKG)
                 || !line.contains("HomeActivity_vNext")) return false;
-        return line.contains("START u") || line.contains("Displayed ")
-                || line.contains("Resumed ") || line.contains("topResumedActivity");
+        // START only means an activity launch was requested, not that it became visible.
+        // Require a displayed/resumed record to avoid stealing focus during ordinary navigation.
+        return line.contains("Displayed ") || line.contains("Resumed ")
+                || line.contains("topResumedActivity");
     }
 
     private void handleAmazonHomeDetected() {
         if (paused) return;
+        long now = android.os.SystemClock.elapsedRealtime();
+        // A single foreground transition can produce both Displayed and Resumed records.
+        // Debounce them so one Amazon Home launch cannot cause repeated takeovers.
+        if (now - lastLogcatRecoveryMs < 3_000) return;
+        lastLogcatRecoveryMs = now;
         lastTop = AMAZON_PKG;
         lastTopClass = AMAZON_HOME;
         note("logcat detected Amazon Home foreground transition");
