@@ -14,6 +14,9 @@ import android.content.IntentFilter;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import java.io.BufferedReader;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
 
 /**
  * Watches for Amazon's launcher coming back to the foreground and restores dumbtv home.
@@ -31,6 +34,9 @@ public final class Keeper extends Service {
     private static final long VERIFY_MS = 800;
     private static final long RETRY_MS = 650;
     private static final int MAX_ATTEMPTS = 3;
+    private static final long LOGCAT_RESTART_MIN_MS = 5_000;
+    private static final long LOGCAT_RESTART_MAX_MS = 60_000;
+    private static final long DEBUG_LOG_MAX_BYTES = 128 * 1024;
 
     private static volatile boolean paused;
     private HandlerThread thread;
@@ -42,6 +48,10 @@ public final class Keeper extends Service {
     private String lastTopClass;
     private boolean recovering;
     private int attempts;
+    private volatile boolean logcatStopping;
+    private Thread logcatThread;
+    private Process logcatProcess;
+    private final Object logcatLock = new Object();
 
     private final Runnable poll = new Runnable() {
         @Override public void run() {
@@ -121,6 +131,7 @@ public final class Keeper extends Service {
             // or drops this dynamic receiver.
             note("screen receiver registration failed: " + e);
         }
+        startLogcatReader();
         worker.post(poll);
         worker.postDelayed(this::firstStart, 2500);
     }
@@ -135,6 +146,7 @@ public final class Keeper extends Service {
             unregisterReceiver(screen);
         } catch (IllegalArgumentException ignored) {
         }
+        stopLogcatReader();
         if (thread != null) thread.quitSafely();
         super.onDestroy();
     }
@@ -149,6 +161,10 @@ public final class Keeper extends Service {
         try {
             java.io.File f = new java.io.File(marker.getParentFile(), "keeper.log");
             if (f.getParentFile() != null) f.getParentFile().mkdirs();
+            if (f.length() > DEBUG_LOG_MAX_BYTES) {
+                // Bound optional diagnostics so the debug file cannot grow indefinitely.
+                new FileOutputStream(f, false).close();
+            }
             java.io.FileOutputStream out = new java.io.FileOutputStream(f, true);
             try {
                 out.write((System.currentTimeMillis() + " " + msg + "\n").getBytes("UTF-8"));
@@ -158,6 +174,100 @@ public final class Keeper extends Service {
         } catch (Exception e) {
             android.util.Log.w("dumbtvtest", "could not append keeper log", e);
         }
+    }
+
+
+    /**
+     * Reads only ActivityManager's log stream. Fire OS 6 installation grants READ_LOGS
+     * through ADB; if unavailable, UsageStats and screen broadcasts remain active.
+     */
+    private void startLogcatReader() {
+        if (android.os.Build.VERSION.SDK_INT >= 28) return;
+        if (checkSelfPermission(android.Manifest.permission.READ_LOGS)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            note("logcat reader unavailable: READ_LOGS not granted");
+            return;
+        }
+        logcatStopping = false;
+        logcatThread = new Thread(this::readLogcatLoop, "keeper-logcat");
+        logcatThread.setDaemon(true);
+        logcatThread.start();
+    }
+
+    private void stopLogcatReader() {
+        logcatStopping = true;
+        synchronized (logcatLock) {
+            if (logcatProcess != null) {
+                logcatProcess.destroy();
+                logcatProcess = null;
+            }
+        }
+        if (logcatThread != null) logcatThread.interrupt();
+    }
+
+    private void readLogcatLoop() {
+        long restartDelay = LOGCAT_RESTART_MIN_MS;
+        while (!logcatStopping) {
+            Process process = null;
+            BufferedReader reader = null;
+            boolean streamStarted = false;
+            try {
+                process = new ProcessBuilder("/system/bin/logcat", "-v", "brief",
+                        "-s", "ActivityManager:I").redirectErrorStream(true).start();
+                synchronized (logcatLock) {
+                    if (logcatStopping) {
+                        process.destroy();
+                        break;
+                    }
+                    logcatProcess = process;
+                }
+                reader = new BufferedReader(new InputStreamReader(process.getInputStream(), "UTF-8"));
+                note("ActivityManager logcat reader started");
+                streamStarted = true;
+                String line;
+                while (!logcatStopping && (line = reader.readLine()) != null) {
+                    if (isAmazonHomeLogLine(line) && worker != null) {
+                        // Do not persist raw system lines; they can contain other apps' data.
+                        worker.post(this::handleAmazonHomeDetected);
+                    }
+                }
+                if (!logcatStopping) note("ActivityManager logcat stream ended");
+            } catch (Exception e) {
+                if (!logcatStopping) note("ActivityManager logcat reader failed: " + e.getClass().getSimpleName());
+            } finally {
+                if (reader != null) {
+                    try { reader.close(); } catch (Exception ignored) {}
+                }
+                if (process != null) process.destroy();
+                synchronized (logcatLock) {
+                    if (logcatProcess == process) logcatProcess = null;
+                }
+            }
+            if (logcatStopping) break;
+            try {
+                Thread.sleep(restartDelay);
+            } catch (InterruptedException ignored) {
+                if (logcatStopping) break;
+            }
+            restartDelay = streamStarted ? LOGCAT_RESTART_MIN_MS
+                    : Math.min(LOGCAT_RESTART_MAX_MS, restartDelay * 2);
+        }
+    }
+
+    /** Match the exact Amazon Home activity and real activity-transition records. */
+    private boolean isAmazonHomeLogLine(String line) {
+        if (line == null || !line.contains(AMAZON_PKG)
+                || !line.contains("HomeActivity_vNext")) return false;
+        return line.contains("START u") || line.contains("Displayed ")
+                || line.contains("Resumed ") || line.contains("topResumedActivity");
+    }
+
+    private void handleAmazonHomeDetected() {
+        if (paused) return;
+        lastTop = AMAZON_PKG;
+        lastTopClass = AMAZON_HOME;
+        note("logcat detected Amazon Home foreground transition");
+        beginRecovery();
     }
 
     private void firstStart() {
