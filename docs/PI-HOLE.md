@@ -190,10 +190,11 @@ beside each check. It verifies representative deny and allow behaviour, not
 every domain in every upstream list. ICMP ping replies are not required; only
 the DNS resolution result is examined.
 
-After the test, open Pi-hole's Query Log and filter by the Fire TV's IP address.
-Confirm the `aax.amazon-adsystem.com` request appears as blocked and the AIV
-hostname appears as allowed. If either query is absent, Android may have returned
-a cached answer; rerun after the cache expires. This is the definitive cross-check that the
+After the test, open Pi-hole's Query Log and confirm the `aax.amazon-adsystem.com`
+request appears as blocked and the AIV hostname appears as allowed. If the router
+forwards DNS, Pi-hole may identify the router rather than the Fire TV as the client;
+use the query time and hostnames to identify these two requests. If either query is
+absent, Android may have returned a cached answer; rerun after the cache expires. This is the definitive cross-check that the
 queries reached the intended Pi-hole client/group. If DNS is routed through the
 router, the resolver check may warn even when Pi-hole is receiving the queries.
 
