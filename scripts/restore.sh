@@ -133,7 +133,11 @@ if present dnsfilter.android; then
       die "personalDNSfilter is still enabled after the disable request (exit $disable_rc)"
     fi
   fi
-  note "personalDNSfilter disabled; remove it from Settings > Applications if desired"
+  if [[ $DRY_RUN == 1 ]]; then
+    note "[dry-run] would disable personalDNSfilter"
+  else
+    note "personalDNSfilter disabled; remove it from Settings > Applications if desired"
+  fi
 fi
 if [[ $legacy_vpn == dnsfilter.android ]]; then
   step "clear legacy personalDNSfilter VPN selection"
