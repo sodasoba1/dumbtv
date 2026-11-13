@@ -51,7 +51,7 @@ final class Grid extends ViewGroup {
             int avail = Math.max(0, width - getPaddingLeft() - getPaddingRight());
             int cols = columns(avail, cw);
             int rows = (n + cols - 1) / cols;
-            height += rows * ch + (rows - 1) * vGap;
+            height += rows * ch + (rows - 1) * gap();
         }
         setMeasuredDimension(width, height);
     }
@@ -64,6 +64,7 @@ final class Grid extends ViewGroup {
         int cw = first.getMeasuredWidth(), ch = first.getMeasuredHeight();
         int avail = Math.max(0, (r - l) - getPaddingLeft() - getPaddingRight());
         int cols = columns(avail, cw);
+        int gap = gap();
         for (int i = 0; i < n; i++) {
             int col = i % cols, row = i / cols;
             int x = getPaddingLeft() + col * (cw + gap);
