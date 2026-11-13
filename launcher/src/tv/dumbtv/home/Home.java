@@ -799,7 +799,8 @@ public final class Home extends Activity {
 
     /** Text and padding for the chip style: the name always for text, on focus only for icons. */
     private void chipLook(TextView c, boolean focused) {
-        if (!iconChips()) {
+        // The All Apps navigation chip remains labelled even when Options › Chip style uses icons.
+        if (c.getTag() == null || !iconChips()) {
             c.setText(c.getContentDescription());
             c.setCompoundDrawablePadding(0);
             c.setPadding(dp(18), dp(9), dp(18), dp(9));
