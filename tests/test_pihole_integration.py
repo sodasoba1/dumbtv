@@ -48,7 +48,7 @@ class PiHoleIntegrationTest(unittest.TestCase):
         self.assertIn("if installed dnsfilter.android", installer)
         self.assertIn("pm disable-user --user 0 dnsfilter.android", installer)
         self.assertGreater(installer.index("if installed dnsfilter.android"),
-                           installer.index('echo "front window:'))
+                           installer.index("printf 'front window:"))
 
     def test_restore_only_clears_legacy_filter_vpn(self):
         restore = (ROOT / "scripts" / "restore.sh").read_text()
