@@ -50,7 +50,7 @@ public final class Options extends Activity {
 
         heading(list, R.string.options_appearance);
         addChoices(list, Config.ACCENT, Config.BACKGROUND, Config.DIM, Config.GRADIENT,
-                Config.GRADIENT_STRENGTH, Config.ROTATE, Config.TILES, Config.LAYOUT,
+                Config.GRADIENT_COLOR, Config.GRADIENT_STRENGTH, Config.ROTATE, Config.TILES, Config.LAYOUT,
                 Config.TILE_STYLE, Config.FOCUS_SCALE, Config.FOCUS_INDICATOR, Config.FOCUS_ANIMATION,
                 Config.TILE_RADIUS, Config.TILE_SPACING, Config.TILE_BORDER,
                 Config.TILE_BORDER_WIDTH, Config.TILE_SHADOW, Config.AFTERGLOW_STRENGTH,
@@ -154,7 +154,8 @@ public final class Options extends Activity {
                     || "adaptive-tint".equals(cfg.get(Config.BACKGROUND));
             boolean afterglow = "afterglow".equals(cfg.get(Config.TILE_STYLE));
             boolean off = (c == Config.DIM || c == Config.ROTATE) && !imageBackground
-                    || c == Config.GRADIENT_STRENGTH && "off".equals(cfg.get(Config.GRADIENT))
+                    || (c == Config.GRADIENT_COLOR || c == Config.GRADIENT_STRENGTH)
+                    && "off".equals(cfg.get(Config.GRADIENT))
                     || (c == Config.AFTERGLOW_STRENGTH || c == Config.AFTERGLOW_ICON) && !afterglow
                     || c == Config.TILE_BORDER_WIDTH && "off".equals(cfg.get(Config.TILE_BORDER))
                     || c == Config.SWITCH && "off".equals(cfg.get(Config.INPUTS))
