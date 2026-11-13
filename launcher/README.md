@@ -81,6 +81,13 @@ you open an app. On Fire OS 7 and 8 the Settings button opens Amazon's settings 
 | Image dim, wallpaper rotation | for image backgrounds |
 | Gradient overlay | off (default), dark at bottom, top, left or right; above the background but below all text, icons, tiles and banners |
 | Gradient strength | 20%, 40% (default), 60%, 80%; available when a gradient direction is selected |
+| Tile corners | square, soft (default), rounded |
+| Tile spacing | compact, normal (default), spacious; applies to rows and grid |
+| Tile border | off (default), subtle, accent |
+| Border thickness | thin (default), medium, thick; used when a border is enabled |
+| Tile shadow / glow | off (default), soft shadow, focus glow |
+| Afterglow strength | 20%, 40% (default), 60%, 80%; controls the dark fade over brand colours |
+| Afterglow icon | grayscale (default), original app icon colours |
 | Child lock | off, on: hides Options and Settings and turns off Hold OK and ☰ Menu on tiles, so the home screen only opens apps and inputs (see below) |
 | App tile style | original (default), Afterglow: uppercase names inside the tile, a brand-color fade into black, a grayscale installed app icon in the corner, and a thin focus border |
 | Chip style | text (default), icons: Options and Settings become round icon buttons whose knobs and gear hub take the accent color; the name shows next to the icon while it has the focus |
@@ -108,8 +115,10 @@ apps hidden from the pinned section stay hidden from this screen while it is loc
 Options or set `tile_style=afterglow` in `home.conf`. The name remains visible inside
 each tile regardless of the App names setting; input tiles are unchanged.
 Known apps use locally defined colors; other apps use the selected accent.
-Corner icons come from installed apps, so no brand-logo files or downloads are
-needed. Missing icons still leave the name visible. Switching back to Original
+Corner icons normally come from installed apps and are grayscale by default; their
+original colours can be selected separately. SmartTube uses a bundled monochrome
+YouTube mark, and Smart Kick TV uses a bundled monochrome Kick mark. Missing icons
+still leave the name visible. Afterglow fade strength is adjustable. Switching back to Original
 restores the normal banners and App names behavior. Background and layout remain
 separate choices.
 
