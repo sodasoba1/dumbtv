@@ -170,7 +170,7 @@ prompted at the end to run the live DNS check. Press Enter to skip. Unattended
 `-y` installs do not prompt. You can also run it later:
 
 ```sh
-./scripts/dns-check.sh 192.168.178.55
+bash ./scripts/dns-check.sh 192.168.178.55
 ```
 
 Replace the example address with your Pi-hole IP. The check runs DNS lookups
