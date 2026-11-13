@@ -1,6 +1,7 @@
 """Pi-hole integration stays external to the offline DumbTV launcher."""
 from pathlib import Path
 import csv
+import subprocess
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,6 +42,7 @@ class PiHoleIntegrationTest(unittest.TestCase):
         verify = (ROOT / "scripts" / "verify.sh").read_text()
         self.assertNotIn("dns-check.sh", all_script)
         self.assertNotIn("dns-preflight.sh", all_script)
+        self.assertFalse((ROOT / "scripts" / "dns-check.sh").exists())
         for path in (ROOT / "scripts").glob("*.sh"):
             if path.name in {"cleanup-legacy-dnsfilter.sh", "restore.sh"}:
                 continue
@@ -74,7 +76,12 @@ class PiHoleIntegrationTest(unittest.TestCase):
         self.assertIn("--pihole-ip", checker)
         self.assertIn("--unbound-ip", checker)
         self.assertIn("domain-purpose.tsv", checker)
+        self.assertIn("example.com", checker)
+        self.assertIn("Purpose:", checker)
         self.assertIn("dns-preflight.sh", preflight)
+        syntax = subprocess.run(["bash", "-n", str(ROOT / "scripts" / "dns-preflight.sh")],
+                                capture_output=True, text=True)
+        self.assertEqual(syntax.returncode, 0, syntax.stderr)
         self.assertNotIn("dns-preflight.sh", all_script)
         for forbidden in ("settings put", "pm disable", "pihole -w", "pihole -g"):
             self.assertNotIn(forbidden, checker)
