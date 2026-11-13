@@ -269,10 +269,15 @@ public final class Keeper extends Service {
 
     private void handleAmazonHomeDetected() {
         if (paused) return;
+        // Never launch an activity in response to a log event while the TV display is off.
+        // This watcher must not turn standby into an unintended screen wake.
+        android.os.PowerManager power = (android.os.PowerManager)
+                getSystemService(Context.POWER_SERVICE);
+        if (power == null || !power.isInteractive()) return;
         long now = android.os.SystemClock.elapsedRealtime();
         // A single foreground transition can produce both Displayed and Resumed records.
         // Debounce them so one Amazon Home launch cannot cause repeated takeovers.
-        if (now - lastLogcatRecoveryMs < 3_000) return;
+        if (lastLogcatRecoveryMs != 0 && now - lastLogcatRecoveryMs < 3_000) return;
         lastLogcatRecoveryMs = now;
         lastTop = AMAZON_PKG;
         lastTopClass = AMAZON_HOME;
