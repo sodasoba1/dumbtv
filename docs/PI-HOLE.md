@@ -179,8 +179,8 @@ from the Fire TV over ADB, not from the installer PC:
 - **resolver:** reports whether Android's `net.dns1` or `net.dns2` matches the
   Pi-hole address. A router that forwards DNS to Pi-hole may show a different
   resolver; use the Query Log to confirm that case.
-- **block:** asks for a unique hostname below `aax.amazon-adsystem.com`, a
-  domain in DumbTV's supplemental blocklist. It should fail to resolve or
+- **block:** queries `aax.amazon-adsystem.com`, a real hostname in DumbTV's supplemental
+  blocklist. It should fail to resolve or
   return a sinkhole address.
 - **allow:** resolves `api.eu-west-1.aiv-delivery.net`, one of the Prime Video
   compatibility allowlist entries. It should return an address.
@@ -191,8 +191,9 @@ every domain in every upstream list. ICMP ping replies are not required; only
 the DNS resolution result is examined.
 
 After the test, open Pi-hole's Query Log and filter by the Fire TV's IP address.
-Confirm the unique `dumbtv-probe-...` request appears as blocked and the AIV
-hostname appears as allowed. This is the definitive cross-check that the
+Confirm the `aax.amazon-adsystem.com` request appears as blocked and the AIV
+hostname appears as allowed. If either query is absent, Android may have returned
+a cached answer; rerun after the cache expires. This is the definitive cross-check that the
 queries reached the intended Pi-hole client/group. If DNS is routed through the
 router, the resolver check may warn even when Pi-hole is receiving the queries.
 
