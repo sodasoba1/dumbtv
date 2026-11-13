@@ -63,9 +63,8 @@ no root:
 - **Removes the ads and tracking.** Disables Amazon's sponsored rows, ad
   services, screen fingerprinting (ACR), telemetry and experiments, and turns off
   ad tracking and usage reporting.
-- **Optional DNS filtering.** dumbtv can install an open-source DNS filter on
-  the TV, but it is off by default. If your network already uses Pi-hole or another
-  DNS resolver, leave the on-device VPN filter off and use [the Pi-hole guide](docs/PI-HOLE.md).
+- **Advanced network DNS filtering.** DumbTV does not run a DNS filter or VPN on
+  the TV. If you want network-wide Amazon filtering, use the optional [Pi-hole guide](docs/PI-HOLE.md).
 - **Replaces the home screen** with [dumbtv home](launcher/README.md): your apps,
   your inputs and a clock. 107 KB, open source, no internet access.
 - **Leaves your apps alone.** Nothing you watch is removed unless you name it.
@@ -110,10 +109,8 @@ we will help.
 
 | Question | Default |
 |---|---|
-| Do you watch Prime Video? | yes: its servers stay reachable |
 | Keep Alexa and the voice button? | yes |
 | Replace Amazon's home screen with dumbtv home? | yes |
-| Run the optional DNS filter on the TV? | no (use network-wide DNS filtering if available) |
 | Any apps you want removed? | none |
 | Replace the YouTube app with SmartTube (no ads, no Shorts)? | no |
 
@@ -124,13 +121,13 @@ Your answers are saved in `dumbtv.conf`; run `configure.sh` again to change them
 | | |
 |---|---|
 | **Amazon packages** | About 50 disabled: ads, sponsored content, ACR, telemetry, crash and usage uploads, experiments, update nags. Disabled, never deleted. |
-| **Protected packages** | The few Amazon will not let anyone disable lose background running; optional DNS filtering can block their uploads. |
+| **Protected packages** | The few Amazon will not let anyone disable lose background running; Pi-hole can optionally block their telemetry requests. |
 | **Settings** | Ad tracking limited, interest-based ads off, usage reporting off, home-screen autoplay off. |
-| **DNS** | Optional [personalDNSfilter](https://github.com/IngoZenz/personaldnsfilter) runs as a local VPN on the TV. It is off by default; use [the Pi-hole guide](docs/PI-HOLE.md) for network-wide filtering without installing an APK or creating a TV VPN. |
+| **DNS** | No on-device DNS filter or VPN. Optional [Pi-hole setup](docs/PI-HOLE.md) provides network-level filtering using separate, version-compatible blocklists. |
 | **Home screen** | dumbtv home instead of Amazon's: no promo tiles, no sponsored rows. |
 | **Your apps** | Untouched. |
 
-[How it works](docs/HOW-IT-WORKS.md) explains each part and why it is needed. [Pi-hole setup](docs/PI-HOLE.md) covers network-wide Amazon filtering without the on-device VPN.
+[How it works](docs/HOW-IT-WORKS.md) explains each part and why it is needed. [Pi-hole setup](docs/PI-HOLE.md) covers advanced network-wide Amazon filtering.
 [dumbtv.org/blocked](https://dumbtv.org/blocked) lists every package, what it does
 and what you lose without it.
 
@@ -146,8 +143,8 @@ hiding, and the icons of an icon pack you install, all from the remote. HOME lan
 it in a fraction of a second.
 
 It is plain Java with no libraries and no internet permission, so it cannot send
-anything anywhere. On Fire OS 7 and 8 its only permission is run at startup, used
-to restart the DNS filter when Android kills it. It works
+anything anywhere. Its boot permission starts the Keeper after boot or an app update.
+It works
 on its own, without the rest of dumbtv:
 
 ```sh
@@ -237,17 +234,18 @@ for you. [CONTRIBUTING.md](CONTRIBUTING.md) has the details.
 ```
 
 It re-enables every package, clears the app and network rules, puts back the
-settings the TV had before (from the snapshot `preflight.sh` takes), removes the
-filter and gives HOME back to Amazon. An app you asked to have uninstalled comes
-back from the Appstore.
+settings the TV had before (from the snapshot `preflight.sh` takes), clears the
+legacy personalDNSfilter VPN selection and disables that app only when it is the
+selected always-on VPN. Other VPN apps and inactive filter installs are left alone;
+HOME is handed back to Amazon. An app you asked to have uninstalled comes back
+from the Appstore.
 
 ## Good to know
 
 - **Nothing is written to `/system`**, the part of the TV whose modification
   bricks it. A factory reset removes everything dumbtv did.
-- **Fire OS updates are blocked** while the DNS filter runs, since an update would
-  switch a lot of this back on. [The FAQ](docs/FAQ.md) explains how to update
-  anyway.
+- **Fire TV updates can be blocked by the optional Pi-hole supplemental list.**
+  Understand that trade-off before assigning the list to a device. [The Pi-hole guide](docs/PI-HOLE.md) explains it.
 - **It cannot replace Fire OS.** The boot chain is locked by Amazon.
   [Here is why](docs/WHY-NOT-REPLACE-OS.md).
 - **YouTube ads can't be blocked by DNS.** They come from the same servers as the
@@ -260,7 +258,7 @@ back from the Appstore.
 | [dumbtv.org](https://dumbtv.org) | the website: guides, every package, every device |
 | [How it works](docs/HOW-IT-WORKS.md) | each part and why it is needed |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | symptoms and fixes |
-| [Pi-hole](docs/PI-HOLE.md) | network-wide Amazon filtering without the on-device VPN |
+| [Pi-hole](docs/PI-HOLE.md) | advanced network-wide Amazon filtering and version-compatible lists |
 | [FAQ](docs/FAQ.md) | updates, Prime Video, factory reset, is this legal |
 | [Other TVs](docs/OTHER-TVS.md) | Android TV, Samsung, LG, Roku and the rest |
 | [YouTube](docs/YOUTUBE.md) | why its ads cannot be blocked, and SmartTube |
@@ -340,7 +338,6 @@ the devices above because of you.
 [@MisterKOak](https://github.com/MisterKOak)
 
 And to the projects dumbtv stands on:
-[personalDNSfilter](https://github.com/IngoZenz/personaldnsfilter) by Ingo Zenz,
 [HaGeZi's DNS blocklists](https://github.com/hagezi/dns-blocklists),
 [SmartTube](https://github.com/yuliskov/SmartTube) by Yuriy Liskov, and
 [cleanyourtv](https://github.com/Gathin23/cleanyourtv) by
@@ -358,6 +355,5 @@ not affiliated with or endorsed by Amazon. Use it at your own risk.
 Scripts, docs and the launcher are [MIT](LICENSE). The device catalog is
 [CC BY-SA 4.0](catalog/LICENSE).
 
-dumbtv bundles none of these, but downloads them when you ask for them:
-personalDNSfilter (GPL-2.0) from F-Droid, HaGeZi's Amazon tracker list (GPL-3.0),
-and SmartTube (MIT) from its own releases.
+DumbTV does not bundle third-party software. The optional HaGeZi Amazon tracker
+list (GPL-3.0) and SmartTube (MIT) are obtained from their upstream projects.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Undoes the package, app-op, network-policy, launcher and DNS changes.
+# Undoes the package, app-op, network-policy and launcher changes.
 # Apps that were uninstalled from /data have to be reinstalled from the store.
 # Usage: ./scripts/restore.sh [--dry-run] [-y]
 set -uo pipefail
@@ -21,7 +21,7 @@ restore_list() {
 step "plan"
 note "turn back on every package dumbtv can disable: the ads list, Alexa, apps you named, YouTube"
 note "clear app-ops and network blacklists"
-note "detach the DNS filter and the launcher hook"
+note "clear any legacy always-on VPN setting and detach the launcher hook"
 note "put back every setting from report/settings-before-*.txt, or the bundled defaults"
 note "the TV reboots when this finishes"
 if [[ $DRY_RUN == 0 ]]; then
@@ -102,16 +102,13 @@ fi
 acmd cmd netpolicy set restrict-background false >/dev/null 2>&1
 
 step "on-device hooks"
-# Without this the TV keeps sending DNS through a filter the user just tried to
-# undo, and HOME stays hijacked.
-acmd settings delete secure always_on_vpn_app >/dev/null 2>&1
 if [[ $DRY_RUN == 1 ]]; then
   note "[dry-run] ADB=$ADB ADB_SERIAL=$SERIAL launcher/install.sh --undo"
 else
   ADB=$ADB ADB_SERIAL=$SERIAL "$ROOT/launcher/install.sh" --undo >/dev/null ||
     die "could not hand HOME back to Amazon's launcher; run ./launcher/install.sh --undo"
 fi
-note "always_on_vpn_app cleared, HOME handed back to Amazon's launcher (apps stay installed)"
+note "HOME handed back to Amazon's launcher"
 
 step "settings"
 while read -r ns key value; do
@@ -121,17 +118,22 @@ while read -r ns key value; do
   printf '  %-46s %s\n' "$key" "$want"
 done < <(list_of "$(fos settings.restore.txt)" | sed 's/ = / /')
 
-# The filter also starts from its own boot receiver, so clearing always_on_vpn_app
-# alone leaves it filtering after the reboot. Disabling it stops the VPN, which can
-# cut a network adb session, so it goes last.
-if present dnsfilter.android; then
-  step "DNS filter"
-  acmd pm disable-user --user 0 dnsfilter.android >/dev/null 2>&1
-  note "personalDNSfilter disabled (it would start again at boot); dnsfilter.sh turns it back on"
+# Clear and disable only the legacy personalDNSfilter VPN integration. Do not
+# disturb another VPN app or an independently installed filter that is not active.
+legacy_vpn=$(dev1 settings get secure always_on_vpn_app)
+if [[ $legacy_vpn == dnsfilter.android ]]; then
+  step "legacy DNS filter cleanup"
+  acmd settings delete secure always_on_vpn_app
+  if present dnsfilter.android; then
+    acmd pm disable-user --user 0 dnsfilter.android
+    note "personalDNSfilter disabled; remove it from Settings > Applications if desired"
+  fi
   [[ $DRY_RUN == 1 ]] || { sleep 3; adb_reconnect; }
+else
+  note "no legacy personalDNSfilter always-on VPN selection"
 fi
 
 [[ $DRY_RUN == 1 ]] && { note "[dry-run] done"; exit 0; }
 reboot_wait
-note "restored. dumbtv home, personalDNSfilter and SmartTube (if you added it) are still"
-note "installed; remove them in Settings > Applications if you want them gone too."
+note "restored. dumbtv home and SmartTube (if added) remain installed; remove them in"
+note "Settings > Applications if you want them gone too."

@@ -147,6 +147,18 @@ case $out in
 esac
 echo "installed $PKG"
 
+# Retire the old optional local DNS filter only when it is the selected
+# always-on VPN. Never disturb a different VPN the owner may use.
+legacy_vpn=$(sh_ settings get secure always_on_vpn_app | tr -d '\r')
+if [[ $legacy_vpn == dnsfilter.android ]]; then
+  echo "disabling the legacy personalDNSfilter VPN integration"
+  sh_ settings delete secure always_on_vpn_app >/dev/null 2>&1 || true
+  if installed dnsfilter.android; then
+    sh_ pm disable-user --user 0 dnsfilter.android >/dev/null 2>&1 || true
+    echo "personalDNSfilter disabled; remove it from Settings > Applications if desired"
+  fi
+fi
+
 sh_ dumpsys deviceidle whitelist +$PKG >/dev/null
 # TCL's TclAppBoot refuses to bind the Guard of an app without the AUTO_START app-op (#176).
 # Builds without that op refuse the name. App-ops reach the disk lazily, so it is written

@@ -129,7 +129,6 @@ public final class Guard extends AccessibilityService {
         ((WindowManager) getSystemService(WINDOW_SERVICE)).addView(view, lp);
         cover = view;
         registerReceiver(screenOn, new IntentFilter(Intent.ACTION_SCREEN_ON));
-        Filter.watch(this);
     }
 
     @Override

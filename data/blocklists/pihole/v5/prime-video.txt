@@ -1,0 +1,6 @@
+! DumbTV prime-video list for Pi-hole v5.
+! Pi-hole Adblock/ABP format; requires FTL 5.22 or later.
+! Matches the listed domain and its subdomains.
+||aiv-delivery.net^
+||aiv-cdn.net^
+||device-messaging-na.amazon.com^

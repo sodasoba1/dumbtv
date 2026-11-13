@@ -23,60 +23,21 @@ SDK=${SDK:-0}
 REINSTALL=${REINSTALL:-0}
 
 # Preferences written by scripts/configure.sh. Absent file = defaults: remove no
-# app, keep Prime Video and Alexa, PRIME=1, ALEXA=1, LAUNCHER=1, DNSFILTER=0.
+# app, keep Alexa, ALEXA=1, LAUNCHER=1.
 load_conf() {
   KEEP_APPS=${KEEP_APPS:-}
   REMOVE_EXTRA=${REMOVE_EXTRA:-}
-  PRIME=${PRIME:-1}
   ALEXA=${ALEXA:-1}
   LAUNCHER=${LAUNCHER:-1}
-  DNSFILTER=${DNSFILTER:-0}
-  SYSTEM_DNS=${SYSTEM_DNS:-0}
-  FILTER_AUTOSTART=${FILTER_AUTOSTART:-1}
-  DNS_UPSTREAM=${DNS_UPSTREAM:-}
   [[ -f $CONF ]] && source "$CONF"
   KEEP_APPS=${KEEP_APPS:-}; REMOVE_EXTRA=${REMOVE_EXTRA:-}
-  PRIME=${PRIME:-1}; ALEXA=${ALEXA:-1}; LAUNCHER=${LAUNCHER:-1}; DNSFILTER=${DNSFILTER:-0}
-  SYSTEM_DNS=${SYSTEM_DNS:-0}
-  FILTER_AUTOSTART=${FILTER_AUTOSTART:-1}
-  DNS_UPSTREAM=${DNS_UPSTREAM:-}
+  ALEXA=${ALEXA:-1}; LAUNCHER=${LAUNCHER:-1}
 }
 
 # What debloat.sh disables: the ads and tracking list, plus Alexa only with ALEXA=0.
 cleanup_list() {
   list_of "$(fos packages.txt)" | awk '{print $1}'
   if [[ $ALEXA == 0 ]]; then list_of "$(fos alexa.txt)" | awk '{print $1}'; fi
-}
-
-# The DNS filter's list: the downloaded tracker feed $1 plus this repo's hosts.
-# Prime Video and Alexa need some of those hosts, so the owner's answers decide.
-compose_blocklist() {
-  {
-    tr -d '\r' < "$1" | grep -v '^#'
-    list_of "$DATA/blocklists/extra-hosts.txt"
-    if [[ $ALEXA == 0 ]]; then list_of "$DATA/blocklists/alexa-hosts.txt"; fi
-  } | awk 'NF' | if [[ $PRIME == 1 ]]; then
-    grep -viE 'aiv-delivery|aiv-cdn|^device-messaging-na\.amazon\.com$' || true
-  else cat; fi
-}
-
-# The downloaded tracker feed $1 is fit to push: at least FEED_MIN entries, every one a
-# domain name. A captive portal or CDN error page can arrive as a 200, and pushed as-is it
-# would leave the TV filtering little more than extra-hosts.txt without saying so.
-check_feed() {
-  local n bad
-  n=$(tr -d '\r' < "$1" | grep -v '^#' | awk 'NF' | wc -l | tr -d ' ')
-  bad=$(tr -d '\r' < "$1" | grep -v '^#' | awk 'NF' |
-    grep -vE '^(\*\.)?([A-Za-z0-9_]([A-Za-z0-9_-]*[A-Za-z0-9])?\.)+[A-Za-z][A-Za-z0-9-]*$' | head -1)
-  [[ -z $bad ]] || { note "the tracker list has a line that is not a domain: ${bad:0:60}"; return 1; }
-  [[ $n -ge ${FEED_MIN:-50} ]] || { note "the tracker list has only $n entries"; return 1; }
-}
-
-# Hosts verify.sh and the filter's self-test expect to be blocked.
-expected_blocked() {
-  list_of "$DATA/blocklists/verify-blocked.txt"
-  if [[ $ALEXA == 0 ]]; then echo api.amazonalexa.com; fi
-  if [[ $PRIME == 0 ]]; then echo device-messaging-na.amazon.com; fi
 }
 
 keep_pkg() {
@@ -177,36 +138,6 @@ fireos_name() {
   elif [[ $SDK -ge 28 ]]; then echo "Fire OS 7"
   elif [[ $SDK -ge 25 ]]; then echo "Fire OS 6"
   else echo "Fire OS 5 or older (unsupported)"; fi
-}
-
-# What personalDNSfilter asks for a name that is not on the local list.
-# DNS_UPSTREAM is a space-separated list of resolver IPs. Empty keeps the router,
-# which is the default: a second blocklist at the resolver also sinks hosts the
-# local list deliberately left alone. Port 53 over UDP only. personalDNSfilter drops
-# an entry it cannot parse without a word, and with no resolver left the TV resolves
-# nothing, so anything that is not a usable address stops here.
-fallback_dns() {
-  local ip o item out=""
-  local v4='^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$'
-  local h='[0-9A-Fa-f]{1,4}'
-  local v6full="^($h:){7}$h\$" v6short="^($h(:$h)*)?::($h(:$h)*)?\$"
-  for ip in ${DNS_UPSTREAM:-}; do
-    if [[ $ip =~ $v4 ]]; then
-      for o in "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}"; do
-        [[ $((10#$o)) -le 255 && ( $o == 0 || $o != 0* ) ]] ||
-          die "DNS_UPSTREAM entry '$ip' is not an IP address"
-      done
-      [[ $ip == 0.0.0.0 ]] && die "DNS_UPSTREAM entry '$ip' is not a resolver"
-    elif [[ $ip =~ $v6full || $ip =~ $v6short ]]; then
-      [[ $ip == :: ]] && die "DNS_UPSTREAM entry '$ip' is not a resolver"
-    else
-      die "DNS_UPSTREAM entry '$ip' is not an IP address"
-    fi
-    item="[$ip]::53::UDP"
-    if [[ -z $out ]]; then out=$item; else out="$out; $item"; fi
-  done
-  [[ -n $out ]] && printf '%s\n' "$out"
-  return 0
 }
 
 # The package lists and app-op calls are written for Fire OS 6 and later.
@@ -343,8 +274,7 @@ ask_reboot() {
   fi
 }
 
-# A network adb session can drop when the TV's network changes under it (an app that
-# holds the VPN being replaced). Brings it back, or stops the run.
+# A network adb session can drop when the TV changes network. Brings it back, or stops the run.
 adb_reconnect() {
   local i
   for i in $(seq 1 12); do

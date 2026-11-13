@@ -13,7 +13,7 @@ def entries(path):
     out = []
     for line in path.read_text().splitlines():
         line = line.split("#", 1)[0].strip()
-        if line:
+        if line and not line.startswith("!"):
             out.append(line.split()[0])
     return out
 

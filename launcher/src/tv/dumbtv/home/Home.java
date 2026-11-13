@@ -312,7 +312,6 @@ public final class Home extends Activity {
         super.onResume();
         resumed = true;
         Guard.arrived(this);
-        Filter.wake(this);
         cfg.refresh();
         cfg.visited();
         if (cfg.version() != applied) apply();

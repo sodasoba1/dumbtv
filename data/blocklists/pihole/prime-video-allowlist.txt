@@ -1,0 +1,9 @@
+# Prime Video compatibility allowlist for the current HaGeZi Amazon native list.
+# These five AIV delivery/CDN hosts are present in that upstream list and were
+# excluded by the old DumbTV PRIME=1 logic to keep playback working.
+# Pi-hole v6: subscribe as an allowlist. Pi-hole v5: add individually with pihole -w.
+api.eu-west-1.aiv-delivery.net
+api.us-east-1.aiv-delivery.net
+api.us-west-2.aiv-delivery.net
+s3-dub-ww.cf.videorolls.row.aiv-cdn.net
+s3-iad-ww.cf.videorolls.row.aiv-cdn.net
