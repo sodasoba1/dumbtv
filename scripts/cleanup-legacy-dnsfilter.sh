@@ -12,12 +12,6 @@ legacy_vpn=$(dev1 settings get secure always_on_vpn_app | tr -d '\r')
 # Stop the service before clearing Android's always-on selection. Stopping a VPN
 # can drop network ADB, so reconnect before issuing the next device command.
 if present dnsfilter.android; then
-  step "remove legacy personalDNSfilter privileges"
-  acmd appops set dnsfilter.android ACTIVATE_VPN default >/dev/null || true
-  acmd appops set dnsfilter.android AUTO_START default >/dev/null || true
-  acmd dumpsys deviceidle whitelist -dnsfilter.android >/dev/null || true
-  acmd pm revoke dnsfilter.android android.permission.READ_EXTERNAL_STORAGE >/dev/null || true
-  acmd pm revoke dnsfilter.android android.permission.WRITE_EXTERNAL_STORAGE >/dev/null || true
   step "disable legacy personalDNSfilter app"
   disable_rc=0
   acmd pm disable-user --user 0 dnsfilter.android || disable_rc=$?
@@ -28,6 +22,12 @@ if present dnsfilter.android; then
       die "personalDNSfilter is still enabled after the disable request (exit $disable_rc)"
     fi
   fi
+  step "remove legacy personalDNSfilter privileges"
+  acmd appops set dnsfilter.android ACTIVATE_VPN default >/dev/null || true
+  acmd appops set dnsfilter.android AUTO_START default >/dev/null || true
+  acmd dumpsys deviceidle whitelist -dnsfilter.android >/dev/null || true
+  acmd pm revoke dnsfilter.android android.permission.READ_EXTERNAL_STORAGE >/dev/null || true
+  acmd pm revoke dnsfilter.android android.permission.WRITE_EXTERNAL_STORAGE >/dev/null || true
   if [[ $DRY_RUN == 1 ]]; then
     note "[dry-run] would disable personalDNSfilter"
   else
