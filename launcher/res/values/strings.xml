@@ -108,6 +108,7 @@
     <string name="choice_accent_ice">Ice</string>
     <string name="choice_accent_gold">Gold</string>
     <string name="choice_accent_copper">Copper</string>
+    <string name="choice_accent_custom">Custom colour…</string>
     <string name="choice_gradient">Gradient direction</string>
     <string name="choice_gradient_off">Off</string>
     <string name="choice_gradient_bottom">Dark at bottom</string>
@@ -144,6 +145,7 @@
     <string name="choice_gradient_color_ice">Ice</string>
     <string name="choice_gradient_color_gold">Gold</string>
     <string name="choice_gradient_color_copper">Copper</string>
+    <string name="choice_gradient_color_custom">Custom colour…</string>
     <string name="choice_tiles">Tile size</string>
     <string name="choice_tiles_small">Small</string>
     <string name="choice_tiles_medium">Medium</string>
@@ -188,6 +190,7 @@
     <string name="choice_background_image">Image file</string>
     <string name="choice_background_adaptive">Adaptive solid</string>
     <string name="choice_background_adaptive_tint">Adaptive wallpaper tint</string>
+    <string name="choice_background_custom">Custom colour…</string>
     <string name="choice_dim">Image dim</string>
     <string name="choice_rotate">Wallpaper rotation</string>
     <string name="choice_rotate_off">Off</string>
@@ -214,4 +217,9 @@
     <string name="choice_library">Library banner</string>
     <string name="choice_library_on">Shown</string>
     <string name="choice_library_off">Hidden</string>
+    <string name="custom_color_title">Choose custom colour</string>
+    <string name="color_hue">Hue</string>
+    <string name="color_saturation">Saturation</string>
+    <string name="color_brightness">Brightness</string>
+    <string name="color_use">Use colour</string>
 </resources>
