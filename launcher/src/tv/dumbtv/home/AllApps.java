@@ -8,6 +8,7 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -70,7 +71,7 @@ public final class AllApps extends Activity {
         scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
         grid = new Grid(this);
         grid.setPadding(Ui.dp(this, 56), Ui.dp(this, 8), Ui.dp(this, 56), Ui.dp(this, 28));
-        scroll.addView(grid, new ScrollView.LayoutParams(MATCH, WRAP));
+        scroll.addView(grid, new FrameLayout.LayoutParams(MATCH, WRAP));
         page.addView(scroll, new LinearLayout.LayoutParams(MATCH, 0, 1f));
         setContentView(page);
         loadApps();
