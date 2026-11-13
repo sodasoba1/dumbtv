@@ -108,6 +108,27 @@ final class Config {
     static final Choice GRADIENT_STRENGTH = new Choice("gradient_strength", "Gradient strength", "40",
             new String[] {"20", "40", "60", "80"},
             new String[] {"20%", "40%", "60%", "80%"});
+    static final Choice TILE_RADIUS = new Choice("tile_radius", "Tile corners", "soft",
+            new String[] {"square", "soft", "rounded"},
+            new String[] {"Square", "Soft", "Rounded"});
+    static final Choice TILE_SPACING = new Choice("tile_spacing", "Tile spacing", "normal",
+            new String[] {"compact", "normal", "spacious"},
+            new String[] {"Compact", "Normal", "Spacious"});
+    static final Choice TILE_BORDER = new Choice("tile_border", "Tile border", "off",
+            new String[] {"off", "subtle", "accent"},
+            new String[] {"Off", "Subtle", "Accent"});
+    static final Choice TILE_BORDER_WIDTH = new Choice("tile_border_width", "Border thickness", "1",
+            new String[] {"1", "2", "3"},
+            new String[] {"Thin", "Medium", "Thick"});
+    static final Choice TILE_SHADOW = new Choice("tile_shadow", "Tile shadow / glow", "off",
+            new String[] {"off", "soft", "glow"},
+            new String[] {"Off", "Soft shadow", "Focus glow"});
+    static final Choice AFTERGLOW_STRENGTH = new Choice("afterglow_strength", "Afterglow strength", "40",
+            new String[] {"20", "40", "60", "80"},
+            new String[] {"20%", "40%", "60%", "80%"});
+    static final Choice AFTERGLOW_ICON = new Choice("afterglow_icon", "Afterglow icon", "grayscale",
+            new String[] {"grayscale", "original"},
+            new String[] {"Grayscale", "Original"});
 
     static final Choice ROTATE = new Choice("rotate", "Wallpaper rotation", "off",
             new String[] {"off", "visit", "hourly", "daily", "daytime"},
@@ -129,7 +150,7 @@ final class Config {
     /** The banner of hand-picked titles from {@link Library}; hidden anyway while it has none. */
     static final Choice LIBRARY = new Choice("library", "Library banner", "on",
             new String[] {"on", "off"}, new String[] {"Shown", "Hidden"});
-    static final Choice[] CHOICES = {ACCENT, TILES, LAYOUT, ORDER, ALL_APPS, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, GRADIENT, GRADIENT_STRENGTH, ROTATE, LOCK, TILE_STYLE, CHIPS, LIBRARY};
+    static final Choice[] CHOICES = {ACCENT, TILES, LAYOUT, ORDER, ALL_APPS, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, GRADIENT, GRADIENT_STRENGTH, ROTATE, LOCK, TILE_STYLE, TILE_RADIUS, TILE_SPACING, TILE_BORDER, TILE_BORDER_WIDTH, TILE_SHADOW, AFTERGLOW_STRENGTH, AFTERGLOW_ICON, CHIPS, LIBRARY};
 
     /** Folder of wallpapers, next to home.conf, that Background › Image file rotates through. */
     static final String WALLPAPERS = "wallpapers";
