@@ -49,7 +49,28 @@ apps = state['packages']
 settings = state.setdefault('settings', {})
 words = command.split()
 
-if words[:1] == ['settings']:
+if words[:2] == ['content', 'insert'] and '--uri' in words:
+    # Model the Settings provider fallback used when Fire OS ignores settings put.
+    uri = words[words.index('--uri') + 1]
+    namespace = uri.rsplit('/', 1)[-1]
+    bindings = {}
+    for index, word in enumerate(words[:-1]):
+        if word == '--bind':
+            name, separator, value = words[index + 1].partition(':')
+            if separator:
+                field, separator, value = value.partition(':')
+                if separator:
+                    bindings[field] = value
+    if namespace in ('secure', 'system', 'global') and 'name' in bindings and 'value' in bindings:
+        settings[f'{namespace}/{bindings["name"]}'] = bindings['value']
+        save()
+        print('Inserted 1 row')
+    else:
+        state.setdefault('bad', []).append(command)
+        save()
+        print('Error: unsupported content insert')
+        sys.exit(1)
+elif words[:1] == ['settings']:
     verb, rest = words[1], words[2:]
     if verb == 'put' and len(rest) == 3:
         settings[f'{rest[0]}/{rest[1]}'] = '' if rest[2] == '""' else rest[2]
