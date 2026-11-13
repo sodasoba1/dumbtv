@@ -231,10 +231,16 @@ printf 'front window:  %s\n' "$(sh_ dumpsys window | grep -m1 mCurrentFocus | se
 legacy_vpn=$(sh_ settings get secure always_on_vpn_app | tr -d '\r')
 if [[ $legacy_vpn == dnsfilter.android ]]; then
   echo "clearing the legacy personalDNSfilter always-on VPN selection"
-  sh_ settings delete secure always_on_vpn_app >/dev/null 2>&1 || true
+  sh_ settings delete secure always_on_vpn_app >/dev/null
+  remaining=$(sh_ settings get secure always_on_vpn_app | tr -d '\r')
+  [[ $remaining != dnsfilter.android ]] || { echo "error: could not clear the legacy VPN selection" >&2; exit 1; }
 fi
 if installed dnsfilter.android; then
   echo "disabling the legacy personalDNSfilter app"
-  sh_ pm disable-user --user 0 dnsfilter.android >/dev/null 2>&1 || true
+  sh_ pm disable-user --user 0 dnsfilter.android >/dev/null
+  sh_ pm list packages -d | tr -d '\r' | grep -qx 'package:dnsfilter.android' || {
+    echo "error: personalDNSfilter is still enabled after the disable request" >&2
+    exit 1
+  }
   echo "personalDNSfilter disabled; remove it from Settings > Applications if desired"
 fi
