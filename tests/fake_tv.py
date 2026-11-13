@@ -143,3 +143,20 @@ elif command == 'ps -A -o NAME':
     print('NAME')
 elif command == 'dumpsys activity activities':
     print('  mResumedActivity: ActivityRecord{1 u0 tv.dumbtv.home/.Home t1}')
+elif words[:1] == ['am'] and words[1:2] in (['force-stop'], ['start']):
+    # Activity-manager operations used by the launcher install/undo scripts.
+    pass
+elif words[:1] == ['appops']:
+    # App-op state is not relevant to these tests; retain the command in the log.
+    pass
+elif words[:2] == ['dumpsys', 'deviceidle']:
+    # The fake tracks command ordering; Doze whitelist state is not queried here.
+    pass
+elif words[:2] == ['input', 'keyevent']:
+    pass
+elif words[:2] == ['cmd', 'netpolicy']:
+    pass
+elif words[:2] == ['cmd', 'package']:
+    pass
+elif words[:2] == ['pm', 'grant'] or words[:2] == ['pm', 'revoke']:
+    pass
