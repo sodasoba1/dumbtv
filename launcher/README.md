@@ -79,6 +79,8 @@ you open an app. On Fire OS 7 and 8 the Settings button opens Amazon's settings 
 | Open inputs with | Automatic, the TV's app, dumbtv home (see below) |
 | Background | black, graphite, midnight, image, adaptive, adaptive tint |
 | Image dim, wallpaper rotation | for image backgrounds |
+| Gradient overlay | off (default), dark at bottom, top, left or right; above the background but below all text, icons, tiles and banners |
+| Gradient strength | 20%, 40% (default), 60%, 80%; available when a gradient direction is selected |
 | Child lock | off, on: hides Options and Settings and turns off Hold OK and ☰ Menu on tiles, so the home screen only opens apps and inputs (see below) |
 | App tile style | original (default), Afterglow: uppercase names inside the tile, a brand-color fade into black, a grayscale installed app icon in the corner, and a thin focus border |
 | Chip style | text (default), icons: Options and Settings become round icon buttons whose knobs and gear hub take the accent color; the name shows next to the icon while it has the focus |
