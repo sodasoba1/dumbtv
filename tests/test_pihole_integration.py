@@ -29,6 +29,14 @@ class PiHoleIntegrationTest(unittest.TestCase):
         configure = (ROOT / "scripts" / "configure.sh").read_text()
         verify = (ROOT / "scripts" / "verify.sh").read_text()
         self.assertNotIn('"$DIR/dnsfilter.sh"', all_script)
+        for path in (ROOT / "scripts").glob("*.sh"):
+            if path.name in {"cleanup-legacy-dnsfilter.sh", "restore.sh"}:
+                continue
+            with self.subTest(script=path.name):
+                source = path.read_text()
+                for obsolete in ("DNSFILTER", "SYSTEM_DNS", "FILTER_AUTOSTART",
+                                 "DNS_UPSTREAM", "fallback_dns"):
+                    self.assertNotIn(obsolete, source)
         self.assertNotIn("DNSFILTER", configure)
         self.assertNotIn("DNSFILTER", verify)
 
