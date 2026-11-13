@@ -113,7 +113,14 @@ public final class Keeper extends Service {
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_SCREEN_OFF);
         filter.addAction(Intent.ACTION_SCREEN_ON);
-        registerReceiver(screen, filter);
+        try {
+            registerReceiver(screen, filter);
+            note("screen receiver registered");
+        } catch (RuntimeException e) {
+            // UsageStats polling remains an independent recovery path if Fire OS refuses
+            // or drops this dynamic receiver.
+            note("screen receiver registration failed: " + e);
+        }
         worker.post(poll);
         worker.postDelayed(this::firstStart, 2500);
     }
@@ -161,7 +168,12 @@ public final class Keeper extends Service {
     }
 
     private void check() {
-        boolean changed = updateTop(System.currentTimeMillis() - 4000, System.currentTimeMillis());
+        long now = System.currentTimeMillis();
+        // Query from the last event we actually consumed, not an arbitrary four-second
+        // window. Handler callbacks pause during deep sleep, so the next poll may run long
+        // after wake and otherwise miss the foreground event that should trigger recovery.
+        long from = lastEventTime == 0 ? now - 10_000 : Math.max(0, lastEventTime - 1);
+        boolean changed = updateTop(from, now);
         if (!changed) return;
         if (isAmazonHome()) {
             if (!paused) beginRecovery();
@@ -249,7 +261,9 @@ public final class Keeper extends Service {
                 note("moveToFront failed: " + e);
             }
         }
-        if (!moved) raiseHome();
+        // If task reordering did not verify on the first pass, use the independent direct
+        // activity-launch path on subsequent attempts instead of repeating moveToFront only.
+        if (!moved || attempts > 1) raiseHome();
         worker.removeCallbacks(verify);
         worker.postDelayed(verify, VERIFY_MS);
     }
