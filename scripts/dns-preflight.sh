@@ -3,7 +3,7 @@
 # Usage: bash ./scripts/dns-preflight.sh [--pihole-ip IP] [--unbound-ip IP]
 #        [--block-alexa] [--block-prime-video]
 set -uo pipefail
-DIR=$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)
+DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ROOT=$(cd "$DIR/.." && pwd)
 source "$DIR/lib.sh"
 
@@ -40,19 +40,19 @@ note "Fire OS       $(fireos_name)"
 note "No settings, apps, packages, VPNs or Pi-hole configuration will be changed."
 
 step "configured DNS resolvers"
-declare -a resolvers
+RESOLVERS=""
 for prop in net.dns1 net.dns2 dhcp.wlan0.dns1 dhcp.wlan0.dns2; do
   value=$(dev1 getprop "$prop")
   if [[ -n $value && $value != "0.0.0.0" ]]; then
     found=0
-    for old in "\${resolvers[@]+"$\{resolvers[@]}"}"; do [[ $old == "$value" ]] && found=1; done
-    [[ $found == 1 ]] || resolvers+=("$value")
+    for old in $RESOLVERS; do [[ $old == "$value" ]] && found=1; done
+    [[ $found == 1 ]] || RESOLVERS="$RESOLVERS $value"
   fi
 done
-if [[ \${#resolvers[@]} -eq 0 ]]; then
+if [[ -z $RESOLVERS ]]; then
   note "DNS IPs        unavailable from Android properties"
 else
-  for ip in "\${resolvers[@]}"; do
+  for ip in $RESOLVERS; do
     role="IP only; resolver type not identifiable from address alone"
     if [[ -n $PIHOLE_IP && $ip == "$PIHOLE_IP" ]]; then role="Pi-hole (matched supplied Pi-hole IP)"
     elif [[ -n $UNBOUND_IP && $ip == "$UNBOUND_IP" ]]; then role="Unbound (matched supplied Unbound IP)"
