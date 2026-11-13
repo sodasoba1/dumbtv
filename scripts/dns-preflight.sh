@@ -41,14 +41,19 @@ note "No settings, apps, packages, VPNs or Pi-hole configuration will be changed
 
 step "configured DNS resolvers"
 RESOLVERS=""
+add_resolver() {
+  local value=$1 old found=0
+  [[ -z $value || $value == "0.0.0.0" ]] && return 0
+  for old in $RESOLVERS; do [[ $old == "$value" ]] && found=1; done
+  [[ $found == 1 ]] || RESOLVERS="$RESOLVERS $value"
+}
 for prop in net.dns1 net.dns2 dhcp.wlan0.dns1 dhcp.wlan0.dns2; do
-  value=$(dev1 getprop "$prop")
-  if [[ -n $value && $value != "0.0.0.0" ]]; then
-    found=0
-    for old in $RESOLVERS; do [[ $old == "$value" ]] && found=1; done
-    [[ $found == 1 ]] || RESOLVERS="$RESOLVERS $value"
-  fi
+  add_resolver "$(dev1 getprop "$prop")"
 done
+# Some Android builds expose active DNS servers in ConnectivityService.
+link_dns=$(dev 'dumpsys connectivity' | sed -nE 's/.*DnsAddresses: \[([^]]*)\].*/\1/p' | head -1 | tr '/,' '  ')
+for value in $link_dns; do add_resolver "$value"; done
+GATEWAY=$(gateway)
 if [[ -z $RESOLVERS ]]; then
   note "DNS IPs        unavailable from Android properties"
 else
@@ -56,7 +61,7 @@ else
     role="IP only; resolver type not identifiable from address alone"
     if [[ -n $PIHOLE_IP && $ip == "$PIHOLE_IP" ]]; then role="Pi-hole (matched supplied Pi-hole IP)"
     elif [[ -n $UNBOUND_IP && $ip == "$UNBOUND_IP" ]]; then role="Unbound (matched supplied Unbound IP)"
-    elif [[ $ip == "$(gateway)" ]]; then role="router/gateway; upstream resolver cannot be inferred"
+    elif [[ -n $GATEWAY && $ip == "$GATEWAY" ]]; then role="router/gateway; upstream resolver cannot be inferred"
     fi
     note "DNS server     $ip — $role"
   done
@@ -113,6 +118,7 @@ while IFS=$'\t' read -r domain profile service purpose confidence evidence; do
     result="MISMATCH ($actual)"
   fi
   printf '%-8s %-43s %-27s %s\n' "$expected" "$domain" "$service" "$result"
+  printf '         Purpose: %s (evidence: %s)\n' "$purpose" "$confidence"
 done < "$META"
 
 step "summary"
