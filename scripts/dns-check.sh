@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 # Verify that this Fire TV uses the expected Pi-hole and that representative
 # DumbTV deny/allow rules are effective. Runs DNS lookups on the TV itself.
-# Usage: ./scripts/dns-check.sh <pihole-ip>
+# Usage: bash ./scripts/dns-check.sh <pihole-ip>
 set -uo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+source "$(dirname "\${BASH_SOURCE[0]}")/lib.sh"
 
-[[ $# == 1 && -n $1 ]] || die "usage: ./scripts/dns-check.sh <pihole-ip>"
+[[ $# == 1 && -n $1 ]] || die "usage: bash ./scripts/dns-check.sh <pihole-ip>"
 PIHOLE_IP=$1
 case $PIHOLE_IP in *[!0-9a-fA-F:.]*|'') die "Pi-hole address must be an IPv4 or IPv6 address" ;; esac
 
 need_device
+fail=0
 printf '\nDumbTV DNS verification on %s\n' "$SERIAL"
 printf '%-9s %-42s %s\n' CHECK RESULT DETAILS
 printf '%-9s %-42s %s\n' '---------' '------------------------------------------' '-------------------------'
@@ -19,8 +20,8 @@ dns2=$(dev1 getprop net.dns2)
 if [[ $dns1 == "$PIHOLE_IP" || $dns2 == "$PIHOLE_IP" ]]; then
   printf '%-9s %-42s %s\n' resolver PASS "Fire TV lists Pi-hole ($PIHOLE_IP) as DNS"
 else
-  printf '%-9s %-42s %s\n' resolver WARN "net.dns1=${dns1:-unset}; net.dns2=${dns2:-unset}; expected $PIHOLE_IP"
-  printf '          %-42s %s\n' '' "A DNS lookup alone cannot prove the router is not redirecting queries."
+  printf '%-9s %-42s %s\n' resolver WARN "net.dns1=\${dns1:-unset}; net.dns2=\${dns2:-unset}; expected $PIHOLE_IP"
+  printf '          %-42s %s\n' '' "A router that forwards DNS to Pi-hole may show a different resolver; confirm in Query Log."
 fi
 
 # A unique child name avoids a stale positive cache entry. Pi-hole domain rules
@@ -33,8 +34,10 @@ if printf '%s\n' "$blocked_output" | grep -qiE 'unknown host|bad address|cannot 
   printf '%-9s %-42s %s\n' block PASS "DumbTV test hostname was blocked"
 elif [[ -n $blocked_ip ]]; then
   printf '%-9s %-42s %s\n' block FAIL "resolved to $blocked_ip; expected Pi-hole to block it"
+  fail=1
 else
   printf '%-9s %-42s %s\n' block UNKNOWN "could not interpret ping output; inspect device DNS support"
+  fail=1
 fi
 
 # This exact AIV delivery hostname is in DumbTV's Prime Video compatibility
@@ -47,10 +50,13 @@ if [[ -n $allowed_ip && $allowed_ip != 0.0.0.0 && $allowed_ip != 127.0.0.1 && $a
 elif printf '%s\n' "$allowed_output" | grep -qiE 'unknown host|bad address|cannot resolve|name or service not known' ||
      [[ $allowed_ip == 0.0.0.0 || $allowed_ip == 127.0.0.1 || $allowed_ip == :: ]]; then
   printf '%-9s %-42s %s\n' allow FAIL "compatibility hostname is blocked; check Pi-hole allowlist"
+  fail=1
 else
   printf '%-9s %-42s %s\n' allow UNKNOWN "could not interpret ping output; inspect device DNS support"
+  fail=1
 fi
 
-printf '\nPi-hole Query Log: filter by this Fire TV\'s IP and confirm both test names appear.\n'
+printf "\nPi-hole Query Log: filter by this Fire TV's IP and confirm both test names appear.\n"
 printf 'The block test should be blocked; the allow test should be allowed.\n'
 printf 'DNS results do not prove that every entry in every subscribed list is working.\n'
+exit "$fail"
