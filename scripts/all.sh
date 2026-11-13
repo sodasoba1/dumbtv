@@ -26,7 +26,7 @@ if [[ -f $CONF ]]; then
   source "$CONF" || exit 1
 fi
 
-run "$DIR/cleanup-legacy-dnsfilter.sh" || exit 1
+run bash "$DIR/cleanup-legacy-dnsfilter.sh" || exit 1
 run "$DIR/debloat.sh"   || exit 1
 run "$DIR/lockdown.sh"  || exit 1
 run "$DIR/launcher.sh"  || exit 1
