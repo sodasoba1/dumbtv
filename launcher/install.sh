@@ -90,6 +90,7 @@ if [[ $mode == undo ]]; then
   # force-stop also keeps the Fire OS 6 Keeper from restarting at the next boot.
   sh_ am force-stop $PKG >/dev/null 2>&1 || true
   sh_ appops set $PKG GET_USAGE_STATS default >/dev/null 2>&1 || true
+  sh_ pm revoke $PKG android.permission.READ_LOGS >/dev/null 2>&1 || true
   sh_ appops set $PKG AUTO_START default >/dev/null 2>&1 || true
   set_futurity off
   set_guard ""
@@ -171,6 +172,17 @@ sh_ appops write-settings >/dev/null 2>&1 || true
 if [[ $dev_sdk -lt 28 ]]; then
   set_guard ""
   sh_ appops set $PKG GET_USAGE_STATS allow
+  # READ_LOGS is a development permission on Fire OS 6; request it through ADB, without root.
+  if sh_ pm grant $PKG android.permission.READ_LOGS >/dev/null 2>&1; then
+    read_logs=$(sh_ pm check-permission android.permission.READ_LOGS $PKG | tr -d '\r')
+    if [[ $read_logs == granted ]]; then
+      echo "logcat monitoring: READ_LOGS granted"
+    else
+      echo "note: READ_LOGS grant did not verify ($read_logs); UsageStats fallback remains enabled"
+    fi
+  else
+    echo "note: Fire OS refused READ_LOGS; UsageStats fallback remains enabled"
+  fi
   start_home $PKG/.Home
   sleep 3
   if ! grep -q 'isForeground=true' <<<"$(sh_ dumpsys activity services $PKG 2>/dev/null)"; then
