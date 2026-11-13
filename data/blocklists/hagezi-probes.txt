@@ -1,0 +1,4 @@
+# Representative domains from HaGeZi's subscribed Amazon native tracker list.
+# These are DNS audit probes only; do not subscribe this file as a blocklist.
+sponsored-ads.amazon.com
+unagi.amazon.com
