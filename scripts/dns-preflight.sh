@@ -103,7 +103,7 @@ while IFS=$'\t' read -r domain profile service purpose confidence evidence; do
     alexa) if [[ $BLOCK_ALEXA == 1 ]]; then expected=BLOCKED; else expected=RESOLVES; fi ;;
     prime) if [[ $BLOCK_PRIME == 1 ]]; then expected=BLOCKED; else expected=RESOLVES; fi ;;
     allow) expected=RESOLVES ;;
-    prime-allow) [[ $BLOCK_PRIME == 1 ]] && continue; expected=RESOLVES ;;
+    prime-allow) if [[ $BLOCK_PRIME == 1 ]]; then expected=BLOCKED; else expected=RESOLVES; fi ;;
     *) continue ;;
   esac
 
