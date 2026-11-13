@@ -63,7 +63,7 @@ final class Tile extends View {
         outline.setStyle(Paint.Style.STROKE);
         outline.setStrokeWidth(Ui.dp(c, Float.parseFloat(Config.get(c).get(Config.TILE_BORDER_WIDTH))));
         String borderMode = Config.get(c).get(Config.TILE_BORDER);
-        outline.setColor("accent".equals(borderMode) ? accent : 0x447FFFFFFF);
+        outline.setColor("accent".equals(borderMode) ? accent : 0x44FFFFFF);
         glow.setStyle(Paint.Style.STROKE);
         glow.setStrokeWidth(Ui.dp(c, 5));
         glow.setColor((accent & 0x00FFFFFF) | 0x55000000);
