@@ -1,8 +1,11 @@
 package tv.dumbtv.home;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Outline;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
@@ -39,6 +42,10 @@ final class Tile extends View {
     private final TextPaint under = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private boolean moving;
     private final AfterglowTile afterglow;
+    private final boolean brandFocus;
+    private final Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final int brandColor;
+    private ValueAnimator brandAnimation;
 
     Tile(Context c, Item item, String kind, CharSequence title, int cardW, int cardH,
             String labels, int accent) {
@@ -49,16 +56,23 @@ final class Tile extends View {
         this.cardW = cardW;
         this.cardH = cardH;
         boolean app = Catalog.isApp(kind);
-        afterglow = app && "afterglow".equals(Config.get(c).get(Config.TILE_STYLE))
+        String tileStyle = Config.get(c).get(Config.TILE_STYLE);
+        brandFocus = app && "brand-focus".equals(tileStyle);
+        afterglow = app && "afterglow".equals(tileStyle)
                 ? new AfterglowTile(c, item.id, title, accent) : null;
         labelH = app && afterglow == null ? Ui.dp(c, 26) : 0;
+        int mappedColor = brandFocus ? BrandFocusColors.forPackage(item.id, title.toString()) : 0;
+        brandColor = mappedColor == 0 ? BrandFocusColors.fallback(accent) : mappedColor;
+        ColorMatrix mono = new ColorMatrix();
+        mono.setSaturation(0);
+        iconPaint.setColorFilter(new ColorMatrixColorFilter(mono));
         labelAlways = "always".equals(labels);
         labelOnFocus = "focus".equals(labels);
         String corners = Config.get(c).get(Config.TILE_RADIUS);
         radius = Ui.dp(c, "square".equals(corners) ? 0 : "rounded".equals(corners) ? 18 : 10);
         stroke = Ui.dp(c, afterglow == null ? 2.5f : 1f);
 
-        fill.setColor(app ? Ui.SURFACE : 0xFF17181B);
+        fill.setColor(brandFocus ? 0xFF17181B : app ? Ui.SURFACE : 0xFF17181B);
         ring.setStyle(Paint.Style.STROKE);
         ring.setStrokeWidth(stroke);
         ring.setColor(accent);
@@ -135,7 +149,21 @@ final class Tile extends View {
             if ("smooth".equals(config.get(Config.FOCUS_ANIMATION))) animate().scaleX(1f).scaleY(1f).setDuration(110).start();
             else { setScaleX(1f); setScaleY(1f); }
         }
+        if (brandFocus) animateBrand(focused);
         invalidate();
+    }
+
+    private void animateBrand(boolean focused) {
+        if (brandAnimation != null) brandAnimation.cancel();
+        int target = focused ? brandColor : 0xFF17181B;
+        if (fill.getColor() == target) return;
+        brandAnimation = ValueAnimator.ofArgb(fill.getColor(), target);
+        brandAnimation.setDuration(180);
+        brandAnimation.addUpdateListener(a -> {
+            fill.setColor((Integer) a.getAnimatedValue());
+            invalidate();
+        });
+        brandAnimation.start();
     }
 
     @Override
@@ -146,6 +174,8 @@ final class Tile extends View {
         canvas.drawRect(card, fill);
         if (afterglow != null) {
             afterglow.draw(canvas, icon, cardW, cardH);
+        } else if (brandFocus) {
+            drawBrandIcon(canvas, icon);
         } else if (banner != null) {
             banner.setBounds(0, 0, cardW, cardH);
             banner.draw(canvas);
@@ -204,9 +234,25 @@ final class Tile extends View {
         }
         if (moving) drawArrows(canvas);
         boolean label = banner != null && (labelAlways || labelOnFocus && isFocused());
-        if (labelH > 0 && label) {
+        if (labelH > 0 && (brandFocus || label)) {
             drawLine(canvas, under, cardW / 2f, cardH + labelH - Ui.dp(getContext(), 6));
         }
+    }
+
+    /** Draw the installed app artwork as a monochrome mark, preserving its aspect ratio. */
+    private void drawBrandIcon(Canvas canvas, Drawable icon) {
+        if (icon == null) return;
+        float max = cardH * 0.56f;
+        float aspect = (float) Math.max(1, icon.getIntrinsicWidth())
+                / Math.max(1, icon.getIntrinsicHeight());
+        float w = aspect >= 1f ? max : max * aspect;
+        float h = aspect >= 1f ? max / aspect : max;
+        float left = (cardW - w) / 2f;
+        float top = cardH * 0.08f;
+        int layer = canvas.saveLayer(left, top, left + w, top + h, iconPaint);
+        icon.setBounds(Math.round(left), Math.round(top), Math.round(left + w), Math.round(top + h));
+        icon.draw(canvas);
+        canvas.restoreToCount(layer);
     }
 
     private void drawLine(Canvas canvas, TextPaint paint, float x, float baseline) {
