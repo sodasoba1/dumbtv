@@ -161,18 +161,126 @@ proves one of these exact domains is being blocked and a required feature fails:
 YouTube, Appstore artwork and app delivery endpoints are intentionally not part of
 the default blocklists.
 
-## Verify and troubleshoot
+## Pre-installation DNS audit
 
-1. Confirm the Fire TV's DNS server is the Pi-hole address.
-2. Update Gravity after adding or changing subscribed lists.
-3. Open Pi-hole's Query Log and filter by the Fire TV's IP address.
-4. Test app launch, sign-in, playback, Alexa (if retained), and software-update
-   behaviour.
-5. If something fails, inspect the exact blocked hostname and allow only that
-   hostname if evidence shows it is required.
+Run the DNS audit **before** running the DumbTV installation. It is a separate,
+read-only diagnostic like the device preflight: it does not change Fire OS,
+Pi-hole, router settings, packages, VPNs or DNS configuration.
 
-Pi-hole's Query Log is the source of truth for what the Fire TV requests. Do not
-guess additional Amazon domains or allowlist whole parent domains without evidence.
+From the repository root, with ADB debugging enabled and the Fire Stick connected:
+
+```sh
+bash ./scripts/dns-preflight.sh
+```
+
+Optional labels let the report identify known resolver addresses:
+
+```sh
+bash ./scripts/dns-preflight.sh --pihole-ip <PIHOLE_IP> --unbound-ip <UNBOUND_IP>
+```
+
+The script reads Android's `net.dns1`, `net.dns2` and DHCP DNS properties.
+It prints the actual IP addresses. It labels an address Pi-hole or Unbound only
+when it matches an address you supplied; otherwise it reports the IP without
+guessing. If the Fire Stick points at the router, the report says router/gateway:
+the router may forward to Pi-hole, but that upstream cannot be identified from
+the Fire Stick's resolver property alone. In the common Pi-hole → Unbound
+arrangement, the Fire Stick sees Pi-hole; Unbound is Pi-hole's upstream.
+
+The audit queries every domain in DumbTV's local source lists, two representative
+domains from HaGeZi's subscribed Amazon tracker list, and the required allowlist
+controls from the Fire Stick itself. The HaGeZi probes are not a separate list to
+subscribe; they are sample hostnames used to check that the upstream subscription
+is taking effect. Use `--no-hagezi` if you have not subscribed to HaGeZi. Each row shows the expected
+policy, hostname, associated app/service and observed DNS result. By default,
+Alexa and Prime Video are expected to remain available. The five Prime Video
+compatibility hostnames are checked as resolving by default; with
+`--block-prime-video`, those same delivery/CDN hostnames are expected to be
+blocked. If you intend to block those services, select the matching profile:
+
+```sh
+bash ./scripts/dns-preflight.sh --block-alexa
+bash ./scripts/dns-preflight.sh --block-prime-video
+bash ./scripts/dns-preflight.sh --block-alexa --block-prime-video
+bash ./scripts/dns-preflight.sh --no-hagezi
+```
+
+The script first checks that `example.com` resolves, so a completely broken
+network is not mistaken for successful blocking. It exits `0` when all checks
+match, `1` when there are policy mismatches, and `2` when DNS is unavailable or
+results remain unknown.
+
+The report uses three outcomes:
+
+- **OK:** the observed DNS result matches the selected policy.
+- **MISMATCH:** a domain expected to be blocked resolves, or an expected
+  allowed domain returns a blocked-style response.
+- **UNKNOWN:** the Fire Stick lookup could not be classified (for example,
+  network/DNS timeout).
+
+A blocked-style DNS response is not, by itself, proof that Pi-hole blocked it:
+the domain might naturally return NXDOMAIN, or another resolver/filter might
+have answered. Check Pi-hole's Query Log at the test time to confirm the
+hostname and blocking status. DNS caching can also affect individual results.
+The audit checks exact hostnames; the two HaGeZi probes are representative only.
+It does not prove every entry in HaGeZi's subscribed upstream list is active or
+test wildcard matching.
+
+### Where the Pi-hole lists live
+
+The source files and generated Pi-hole exports are committed in the repository:
+
+| Purpose | Repository path |
+|---|---|
+| Baseline supplemental Amazon domains | `data/blocklists/extra-hosts.txt` |
+| Optional Alexa domains | `data/blocklists/alexa-hosts.txt` |
+| Optional Prime Video block domains | `data/blocklists/prime-video-hosts.txt` |
+| HaGeZi upstream audit probes (not a blocklist) | `data/blocklists/hagezi-probes.txt` |
+| Pi-hole v6 exports | `data/blocklists/pihole/v6/` |
+| Pi-hole v5 FTL 5.22+ exports | `data/blocklists/pihole/v5/` |
+| Older Pi-hole v5 exports | `data/blocklists/pihole/v5-legacy/` |
+| Prime Video compatibility allowlist | `data/blocklists/pihole/prime-video-allowlist.txt` |
+| Domain purpose, confidence and evidence | `data/blocklists/domain-purpose.tsv` |
+| Researched but not enabled candidates | `data/blocklists/research-candidates.tsv` |
+
+The Pi-hole admin interface subscribes to the raw GitHub URLs documented above.
+For v6, add them under **Settings → Lists**, selecting denylist or allowlist as
+appropriate. For v5, use **Group Management → Adlists** for blocklists; v5 does
+not support subscribed allowlist URLs, so add the five Prime Video compatibility
+entries individually with `pihole -w <domain>`. Then update Gravity with
+`sudo pihole -g`. Select the matching version directory: v6 and FTL 5.22+
+use Adblock/ABP exports; older FTL uses plain-domain exports.
+
+### Domain purpose and confidence
+
+Each active domain has an entry in `domain-purpose.tsv`. The report can therefore
+show the app/service association without pretending every internal Amazon
+hostname is fully understood. Confidence values mean:
+
+- **confirmed:** supported by official documentation or independent technical
+  research that directly identifies the endpoint/service.
+- **community:** appears in maintained community Fire TV lists or corroborating
+  network reports; exact function may still be uncertain.
+- **inferred:** grouped by source-list context or hostname pattern, not proven.
+- **unknown:** no reliable public endpoint-specific explanation found. The
+  report uses the generic description "Amazon service/analytics endpoint;
+  precise purpose undocumented".
+
+The existing list does not contain a domain that can confidently be called an
+ACR-only endpoint. Device-metrics and Unagi hosts are associated with device
+telemetry in community research, but that does not prove that a particular
+hostname carries Automatic Content Recognition data.
+
+### Additional online candidates (not enabled)
+
+Research found further Fire TV-associated domains that are not in the active
+DumbTV lists. They are recorded in `research-candidates.tsv`, but are **not
+automatically tested as blocked or added to Pi-hole**. Examples include
+`minerva.devices.a2z.com`, `insights.video.a2z.com`, and the Fire TV Bugsnag
+notification hostname. Community sources group some of these with telemetry,
+possible ACR or crash reporting, but the exact function and device-specific
+impact are not established. They should only be promoted after observing them
+in this Fire Stick's Pi-hole Query Log and testing the effect on apps.
 
 ## Limitations
 

@@ -70,5 +70,6 @@ else
 fi
 
 step "next"
+note "bash ./scripts/dns-preflight.sh  DNS and blocklist audit (read-only, before install)"
 note "./scripts/all.sh            full pass (asks first)"
 note "./scripts/debloat.sh --dry-run   see the exact package commands"
