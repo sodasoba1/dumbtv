@@ -1,4 +1,4 @@
-""""Pi-hole integration stays external to the offline DumbTV launcher."""
+"""Pi-hole integration stays external to the offline DumbTV launcher."""
 from pathlib import Path
 import csv
 import subprocess
@@ -96,7 +96,7 @@ class PiHoleIntegrationTest(unittest.TestCase):
         with metadata.open(encoding="utf-8", newline="") as stream:
             rows = list(csv.DictReader(
                 (line for line in stream if not line.startswith("#")),
-                delimiter="\\t",
+                delimiter="\t",
                 fieldnames=("domain", "profile", "service", "purpose", "confidence", "evidence"),
             ))
         mapped = {row["domain"]: row for row in rows}
@@ -118,7 +118,7 @@ class PiHoleIntegrationTest(unittest.TestCase):
         candidates = DATA / "research-candidates.tsv"
         with candidates.open(encoding="utf-8") as stream:
             candidate_domains = {
-                line.split("\\t", 1)[0] for line in stream
+                line.split("\t", 1)[0] for line in stream
                 if line.strip() and not line.startswith("#")
             }
         active = set()
