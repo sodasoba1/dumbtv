@@ -213,7 +213,9 @@ public final class Keeper extends Service {
             BufferedReader reader = null;
             boolean streamStarted = false;
             try {
-                process = new ProcessBuilder("/system/bin/logcat", "-v", "brief",
+                // Start at the live edge; replaying the existing ring buffer could mistake
+                // an old Amazon Home transition for a fresh wake event.
+                process = new ProcessBuilder("/system/bin/logcat", "-T", "1", "-v", "brief",
                         "-s", "ActivityManager:I").redirectErrorStream(true).start();
                 synchronized (logcatLock) {
                     if (logcatStopping) {
@@ -373,11 +375,13 @@ public final class Keeper extends Service {
         if (manager != null) {
             try {
                 for (ActivityManager.AppTask task : manager.getAppTasks()) {
-                    String top = task.getTaskInfo().topActivity == null ? ""
-                            : task.getTaskInfo().topActivity.getClassName();
-                    String base = task.getTaskInfo().baseActivity == null ? ""
-                            : task.getTaskInfo().baseActivity.getClassName();
-                    if (top.isEmpty() && base.isEmpty()) continue;
+                    ActivityManager.RecentTaskInfo info = task.getTaskInfo();
+                    String topPackage = info.topActivity == null ? ""
+                            : info.topActivity.getPackageName();
+                    String basePackage = info.baseActivity == null ? ""
+                            : info.baseActivity.getPackageName();
+                    // Never reorder an unrelated app task. Only the DumbTV task is eligible.
+                    if (!DUMBTV_PKG.equals(topPackage) && !DUMBTV_PKG.equals(basePackage)) continue;
                     task.moveToFront();
                     moved = true;
                     break;
