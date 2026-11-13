@@ -76,6 +76,18 @@ public final class ConfigTest {
             check(cfg.gradientColor() == 0xFF345678, "custom gradient colour is independent");
         }
         try (Fixture f = new Fixture()) {
+            Config cfg = f.open();
+            cfg.set("accent", "copper");
+            cfg.set("background", "navy");
+            cfg.set("gradient_color", "copper");
+            check("copper".equals(cfg.get(Config.ACCENT)), "legacy accent value remains valid");
+            check(cfg.accent() == 0xFFB87333, "legacy accent colour still resolves");
+            check(cfg.background() == 0xFF101B2D, "legacy background colour still resolves");
+            check(cfg.gradientColor() == 0xFFB87333, "legacy gradient colour still resolves");
+            check(!java.util.Arrays.asList(Config.ACCENT.optionValues).contains("copper"),
+                    "legacy accent is hidden from the shortened picker");
+        }
+        try (Fixture f = new Fixture()) {
             File blocked = new File(f.dir, Config.FILE + ".tmp");
             check(blocked.mkdir(), "block settings write");
             Config cfg = f.open();
