@@ -152,7 +152,8 @@ final class Config {
             new String[] {"Off", "On"});
 
     static final Choice TILE_STYLE = new Choice("tile_style", "App tile style", "original",
-            new String[] {"original", "afterglow"}, new String[] {"Original", "Afterglow"});
+            new String[] {"original", "afterglow", "brand-focus"},
+            new String[] {"Original", "Afterglow", "Brand Focus"});
     /** Options and Settings in the corner: text chips, or icon buttons whose name shows on focus. */
     static final Choice CHIPS = new Choice("chips", "Chip style", "text",
             new String[] {"text", "icons"}, new String[] {"Text", "Icons"});
