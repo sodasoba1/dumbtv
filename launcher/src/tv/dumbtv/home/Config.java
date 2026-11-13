@@ -103,8 +103,17 @@ final class Config {
             new String[] {"0", "20", "40", "60", "80"},
             new String[] {"0%", "20%", "40%", "60%", "80%"});
     static final Choice GRADIENT = new Choice("gradient", "Gradient overlay", "off",
-            new String[] {"off", "bottom", "top", "left", "right"},
-            new String[] {"Off", "Dark at bottom", "Dark at top", "Dark at left", "Dark at right"});
+            new String[] {"off", "bottom", "top", "left", "right",
+                    "top-left", "top-right", "bottom-left", "bottom-right"},
+            new String[] {"Off", "Dark at bottom", "Dark at top", "Dark at left", "Dark at right",
+                    "Dark at top left", "Dark at top right", "Dark at bottom left", "Dark at bottom right"});
+    static final Choice GRADIENT_COLOR = new Choice("gradient_color", "Gradient colour", "black",
+            new String[] {"black", "white", "blue", "cyan", "green", "amber", "red", "pink", "violet",
+                    "teal", "mint", "lime", "yellow", "orange", "coral", "crimson", "rose", "magenta",
+                    "purple", "indigo", "lavender", "sky", "ice", "gold", "copper"},
+            new String[] {"Black", "White", "Blue", "Cyan", "Green", "Amber", "Red", "Pink", "Violet",
+                    "Teal", "Mint", "Lime", "Yellow", "Orange", "Coral", "Crimson", "Rose", "Magenta",
+                    "Purple", "Indigo", "Lavender", "Sky blue", "Ice", "Gold", "Copper"});
     static final Choice GRADIENT_STRENGTH = new Choice("gradient_strength", "Gradient strength", "40",
             new String[] {"20", "40", "60", "80"},
             new String[] {"20%", "40%", "60%", "80%"});
@@ -160,7 +169,7 @@ final class Config {
     /** The banner of hand-picked titles from {@link Library}; hidden anyway while it has none. */
     static final Choice LIBRARY = new Choice("library", "Library banner", "on",
             new String[] {"on", "off"}, new String[] {"Shown", "Hidden"});
-    static final Choice[] CHOICES = {ACCENT, TILES, LAYOUT, ORDER, ALL_APPS, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, GRADIENT, GRADIENT_STRENGTH, ROTATE, LOCK, TILE_STYLE, FOCUS_SCALE, FOCUS_INDICATOR, FOCUS_ANIMATION, TILE_RADIUS, TILE_SPACING, TILE_BORDER, TILE_BORDER_WIDTH, TILE_SHADOW, AFTERGLOW_STRENGTH, AFTERGLOW_ICON, CHIPS, LIBRARY};
+    static final Choice[] CHOICES = {ACCENT, TILES, LAYOUT, ORDER, ALL_APPS, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, GRADIENT, GRADIENT_COLOR, GRADIENT_STRENGTH, ROTATE, LOCK, TILE_STYLE, FOCUS_SCALE, FOCUS_INDICATOR, FOCUS_ANIMATION, TILE_RADIUS, TILE_SPACING, TILE_BORDER, TILE_BORDER_WIDTH, TILE_SHADOW, AFTERGLOW_STRENGTH, AFTERGLOW_ICON, CHIPS, LIBRARY};
 
     /** Folder of wallpapers, next to home.conf, that Background › Image file rotates through. */
     static final String WALLPAPERS = "wallpapers";
@@ -393,6 +402,16 @@ final class Config {
 
     int background() {
         return BACKGROUNDS[Arrays.asList(BACKGROUND.values).indexOf(get(BACKGROUND))];
+    }
+
+    int gradientColor() {
+        return paletteColor(get(GRADIENT_COLOR));
+    }
+
+    static int paletteColor(String value) {
+        if ("black".equals(value)) return 0xFF000000;
+        int index = Arrays.asList(ACCENT.values).indexOf(value);
+        return index < 0 ? 0xFF000000 : ACCENTS[index];
     }
 
     /** Counts returns to the home screen, for the "visit" rotation. */

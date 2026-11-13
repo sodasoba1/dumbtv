@@ -796,6 +796,10 @@ public final class Home extends Activity {
             view.animate().scaleX(has ? 1.06f : 1f).scaleY(has ? 1.06f : 1f).setDuration(110).start();
             if (has) focusBackground(null);
         });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
+        lp.leftMargin = dp(10);
+        lp.topMargin = dp(6);
+        v.setLayoutParams(lp);
         v.setTag(null);
         chips.add(v);
         return v;
@@ -1252,7 +1256,9 @@ public final class Home extends Activity {
             return;
         }
         int strength = Integer.parseInt(cfg.get(Config.GRADIENT_STRENGTH));
-        int dark = Color.argb(strength * 255 / 100, 0, 0, 0);
+        int color = cfg.gradientColor();
+        int tinted = Color.argb(strength * 255 / 100,
+                Color.red(color), Color.green(color), Color.blue(color));
         GradientDrawable.Orientation orientation;
         switch (direction) {
             case "top":
@@ -1264,12 +1270,24 @@ public final class Home extends Activity {
             case "right":
                 orientation = GradientDrawable.Orientation.LEFT_RIGHT;
                 break;
+            case "top-left":
+                orientation = GradientDrawable.Orientation.BR_TL;
+                break;
+            case "top-right":
+                orientation = GradientDrawable.Orientation.BL_TR;
+                break;
+            case "bottom-left":
+                orientation = GradientDrawable.Orientation.TR_BL;
+                break;
+            case "bottom-right":
+                orientation = GradientDrawable.Orientation.TL_BR;
+                break;
             default:
                 orientation = GradientDrawable.Orientation.TOP_BOTTOM;
                 break;
         }
         gradient.setBackground(new GradientDrawable(orientation,
-                new int[] {Color.TRANSPARENT, dark}));
+                new int[] {Color.TRANSPARENT, tinted}));
     }
 
     private static Bitmap decode(File f, int w, int h) {

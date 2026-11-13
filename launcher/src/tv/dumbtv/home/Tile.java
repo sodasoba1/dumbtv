@@ -4,8 +4,6 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.ColorMatrix;
-import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Outline;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
@@ -43,7 +41,6 @@ final class Tile extends View {
     private boolean moving;
     private final AfterglowTile afterglow;
     private final boolean brandFocus;
-    private final Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final int brandColor;
     private ValueAnimator brandAnimation;
 
@@ -63,9 +60,6 @@ final class Tile extends View {
         labelH = app && afterglow == null ? Ui.dp(c, 26) : 0;
         int mappedColor = brandFocus ? BrandFocusColors.forPackage(item.id, title.toString()) : 0;
         brandColor = mappedColor == 0 ? BrandFocusColors.fallback(accent) : mappedColor;
-        ColorMatrix mono = new ColorMatrix();
-        mono.setSaturation(0);
-        iconPaint.setColorFilter(new ColorMatrixColorFilter(mono));
         labelAlways = "always".equals(labels);
         labelOnFocus = "focus".equals(labels);
         String corners = Config.get(c).get(Config.TILE_RADIUS);
@@ -239,20 +233,18 @@ final class Tile extends View {
         }
     }
 
-    /** Draw the installed app artwork as a monochrome mark, preserving its aspect ratio. */
+    /** Draw the pre-filtered monochrome app artwork at a balanced, centered size. */
     private void drawBrandIcon(Canvas canvas, Drawable icon) {
         if (icon == null) return;
-        float max = cardH * 0.56f;
+        float max = cardH * 0.64f;
         float aspect = (float) Math.max(1, icon.getIntrinsicWidth())
                 / Math.max(1, icon.getIntrinsicHeight());
         float w = aspect >= 1f ? max : max * aspect;
         float h = aspect >= 1f ? max / aspect : max;
         float left = (cardW - w) / 2f;
-        float top = cardH * 0.08f;
-        int layer = canvas.saveLayer(left, top, left + w, top + h, iconPaint);
+        float top = (cardH - h) / 2f;
         icon.setBounds(Math.round(left), Math.round(top), Math.round(left + w), Math.round(top + h));
         icon.draw(canvas);
-        canvas.restoreToCount(layer);
     }
 
     private void drawLine(Canvas canvas, TextPaint paint, float x, float baseline) {
