@@ -108,6 +108,15 @@ final class Config {
     static final Choice GRADIENT_STRENGTH = new Choice("gradient_strength", "Gradient strength", "40",
             new String[] {"20", "40", "60", "80"},
             new String[] {"20%", "40%", "60%", "80%"});
+    static final Choice FOCUS_SCALE = new Choice("focus_scale", "Focus scale", "normal",
+            new String[] {"off", "subtle", "normal", "strong"},
+            new String[] {"Off", "Subtle", "Normal", "Strong"});
+    static final Choice FOCUS_INDICATOR = new Choice("focus_indicator", "Focus indicator", "accent-ring",
+            new String[] {"accent-ring", "white-ring", "accent-glow", "white-glow"},
+            new String[] {"Accent ring", "White ring", "Accent glow", "White glow"});
+    static final Choice FOCUS_ANIMATION = new Choice("focus_animation", "Focus animation", "smooth",
+            new String[] {"immediate", "smooth"},
+            new String[] {"Immediate", "Smooth"});
     static final Choice TILE_RADIUS = new Choice("tile_radius", "Tile corners", "soft",
             new String[] {"square", "soft", "rounded"},
             new String[] {"Square", "Soft", "Rounded"});
@@ -150,7 +159,7 @@ final class Config {
     /** The banner of hand-picked titles from {@link Library}; hidden anyway while it has none. */
     static final Choice LIBRARY = new Choice("library", "Library banner", "on",
             new String[] {"on", "off"}, new String[] {"Shown", "Hidden"});
-    static final Choice[] CHOICES = {ACCENT, TILES, LAYOUT, ORDER, ALL_APPS, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, GRADIENT, GRADIENT_STRENGTH, ROTATE, LOCK, TILE_STYLE, TILE_RADIUS, TILE_SPACING, TILE_BORDER, TILE_BORDER_WIDTH, TILE_SHADOW, AFTERGLOW_STRENGTH, AFTERGLOW_ICON, CHIPS, LIBRARY};
+    static final Choice[] CHOICES = {ACCENT, TILES, LAYOUT, ORDER, ALL_APPS, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, GRADIENT, GRADIENT_STRENGTH, ROTATE, LOCK, TILE_STYLE, FOCUS_SCALE, FOCUS_INDICATOR, FOCUS_ANIMATION, TILE_RADIUS, TILE_SPACING, TILE_BORDER, TILE_BORDER_WIDTH, TILE_SHADOW, AFTERGLOW_STRENGTH, AFTERGLOW_ICON, CHIPS, LIBRARY};
 
     /** Folder of wallpapers, next to home.conf, that Background › Image file rotates through. */
     static final String WALLPAPERS = "wallpapers";
