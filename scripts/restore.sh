@@ -118,32 +118,28 @@ while read -r ns key value; do
   printf '  %-46s %s\n' "$key" "$want"
 done < <(list_of "$(fos settings.restore.txt)" | sed 's/ = / /')
 
-# Retire only the old personalDNSfilter integration. Clear the VPN selection
-# only when it names that app; disable the app if present even if Fire OS 6 has
-# forgotten the setting at boot. Other VPN apps are never changed.
-changed=0
+# Retire only the old personalDNSfilter integration. Disable the app if present,
+# then clear its always-on selection only if it names that app. Stopping a VPN
+# can drop network ADB, so reconnect before issuing further device commands.
 legacy_vpn=$(dev1 settings get secure always_on_vpn_app | tr -d '\r')
+if present dnsfilter.android; then
+  step "disable legacy personalDNSfilter app"
+  disable_rc=0
+  acmd pm disable-user --user 0 dnsfilter.android || disable_rc=$?
+  if [[ $DRY_RUN == 0 ]]; then
+    sleep 3
+    adb_reconnect
+    if ! dev 'pm list packages -d' | tr -d '\r' | grep -qx 'package:dnsfilter.android'; then
+      die "personalDNSfilter is still enabled after the disable request (exit $disable_rc)"
+    fi
+  fi
+  note "personalDNSfilter disabled; remove it from Settings > Applications if desired"
+fi
 if [[ $legacy_vpn == dnsfilter.android ]]; then
   step "clear legacy personalDNSfilter VPN selection"
   acmd settings delete secure always_on_vpn_app || die "could not clear the legacy personalDNSfilter VPN selection"
   if [[ $DRY_RUN == 0 && $(dev1 settings get secure always_on_vpn_app | tr -d '\r') == dnsfilter.android ]]; then
     die "the legacy personalDNSfilter VPN selection is still set"
-  fi
-  changed=1
-fi
-if present dnsfilter.android; then
-  step "disable legacy personalDNSfilter app"
-  acmd pm disable-user --user 0 dnsfilter.android || die "could not disable the legacy personalDNSfilter app"
-  note "personalDNSfilter disabled; remove it from Settings > Applications if desired"
-  changed=1
-fi
-if [[ $changed == 1 && $DRY_RUN == 0 ]]; then
-  sleep 3
-  adb_reconnect
-fi
-if [[ $changed == 1 && $DRY_RUN == 0 ]] && present dnsfilter.android; then
-  if ! dev 'pm list packages -d' | tr -d '\r' | grep -qx 'package:dnsfilter.android'; then
-    die "personalDNSfilter is still enabled after the disable request"
   fi
 fi
 
