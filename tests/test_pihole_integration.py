@@ -36,19 +36,24 @@ class PiHoleIntegrationTest(unittest.TestCase):
         all_script = (ROOT / "scripts" / "all.sh").read_text()
         migration = (ROOT / "scripts" / "cleanup-legacy-dnsfilter.sh").read_text()
         self.assertIn('cleanup-legacy-dnsfilter.sh', all_script)
-        self.assertIn("if [[ $legacy_vpn != dnsfilter.android ]]", migration)
+        self.assertIn("if [[ $legacy_vpn == dnsfilter.android ]]", migration)
         self.assertIn("settings delete secure always_on_vpn_app", migration)
+        self.assertIn("if present dnsfilter.android", migration)
         self.assertIn("pm disable-user --user 0 dnsfilter.android", migration)
 
     def test_launcher_upgrade_retires_only_the_legacy_filter_vpn(self):
         installer = (ROOT / "launcher" / "install.sh").read_text()
         self.assertIn("if [[ $legacy_vpn == dnsfilter.android ]]", installer)
         self.assertIn("settings delete secure always_on_vpn_app", installer)
+        self.assertIn("if installed dnsfilter.android", installer)
         self.assertIn("pm disable-user --user 0 dnsfilter.android", installer)
+        self.assertGreater(installer.index("if installed dnsfilter.android"),
+                           installer.index('echo "front window:'))
 
     def test_restore_only_clears_legacy_filter_vpn(self):
         restore = (ROOT / "scripts" / "restore.sh").read_text()
         self.assertIn("if [[ $legacy_vpn == dnsfilter.android ]]", restore)
+        self.assertIn("if present dnsfilter.android", restore)
         self.assertIn("disturb another VPN app", restore)
 
 
