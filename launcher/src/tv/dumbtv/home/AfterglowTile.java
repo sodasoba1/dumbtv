@@ -19,6 +19,7 @@ final class AfterglowTile {
     private final Context context;
     private final String title;
     private final int[] colors;
+    private final Drawable brandMark;
     private final Paint brand = new Paint();
     private final Paint fade = new Paint();
     private final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -31,6 +32,15 @@ final class AfterglowTile {
         title = label.toString().toUpperCase(Locale.ROOT);
         int[] known = BrandColors.forPackage(packageId);
         colors = known != null ? known : new int[] {accent, accent};
+        // Simple Icons marks (CC0), rendered in one neutral tone to match Afterglow.
+        if ("org.smarttube.stable".equals(packageId)) {
+            brandMark = c.getDrawable(R.drawable.ic_brand_youtube);
+        } else if ("Smart Kick TV".equalsIgnoreCase(label.toString().trim())) {
+            // Match the app's visible name: its package ID is not stable across forks.
+            brandMark = c.getDrawable(R.drawable.ic_brand_kick);
+        } else {
+            brandMark = null;
+        }
         text.setColor(Ui.TEXT);
         text.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
         text.setTextAlign(Paint.Align.CENTER);
@@ -58,15 +68,16 @@ final class AfterglowTile {
         canvas.drawRect(0, 0, w, h, fade);
         canvas.drawText(fitted, 0, fitted.length(), w / 2f,
                 h / 2f - (text.ascent() + text.descent()) / 2, text);
-        if (icon != null) {
-            float aspect = (float) Math.max(1, icon.getIntrinsicWidth())
-                    / Math.max(1, icon.getIntrinsicHeight());
+        Drawable corner = brandMark != null ? brandMark : icon;
+        if (corner != null) {
+            float aspect = (float) Math.max(1, corner.getIntrinsicWidth())
+                    / Math.max(1, corner.getIntrinsicHeight());
             int iw = Math.max(1, Math.min(Ui.dp(context, 28), Math.round(Ui.dp(context, 18) * aspect)));
             int ih = Math.max(1, Math.min(Ui.dp(context, 18), Math.round(iw / aspect)));
             int right = w - Ui.dp(context, 9), top = Ui.dp(context, 9);
             int layer = canvas.saveLayer(right - iw, top, right, top + ih, iconPaint);
-            icon.setBounds(right - iw, top, right, top + ih);
-            icon.draw(canvas);
+            corner.setBounds(right - iw, top, right, top + ih);
+            corner.draw(canvas);
             canvas.restoreToCount(layer);
         }
     }
