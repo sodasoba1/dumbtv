@@ -14,7 +14,7 @@ Pi-hole, and Pi-hole can be used without installing DumbTV.
 - Add the Prime Video compatibility allowlist to preserve the original default behaviour while using the HaGeZi Amazon tracker list.
 - Do not add the opt-in Prime Video blocklist unless you deliberately want playback blocked.
 - Pi-hole lists apply to the clients assigned to them. Create a group containing
-  only the Fire TV Stick if you do not want these rules affecting the whole network.
+  only the Fire TV devices if you do not want these rules affecting the whole network.
 - Make sure the Fire TV actually uses Pi-hole for DNS. If it uses another resolver,
   Pi-hole cannot filter its requests.
 - Keep a way to reach Pi-hole locally if a list causes problems.
