@@ -665,6 +665,7 @@ public final class Home extends Activity {
         under.leftMargin = dp(2);
         when.addView(meter, under);
         head.addView(when, new LinearLayout.LayoutParams(0, WRAP, 1f));
+        head.addView(allAppsChip());
         head.addView(chip(getString(R.string.options), R.drawable.chip_options, R.drawable.chip_options_mark,
                 v -> startActivity(new Intent(this, Options.class))));
         head.addView(chip(getString(R.string.settings), R.drawable.chip_settings, R.drawable.chip_settings_mark,
@@ -772,13 +773,34 @@ public final class Home extends Activity {
         return v;
     }
 
+    /** Text-only navigation chip; tapping it opens the full installed-app catalogue. */
+    private TextView allAppsChip() {
+        TextView v = Ui.text(this, 14, Ui.TEXT, Ui.MEDIUM);
+        v.setText(R.string.all_apps);
+        v.setContentDescription(getString(R.string.all_apps));
+        v.setGravity(Gravity.CENTER);
+        v.setFocusable(true);
+        v.setClickable(true);
+        v.setPadding(dp(18), dp(9), dp(18), dp(9));
+        v.setOnClickListener(view -> startActivity(new Intent(this, AllApps.class)));
+        v.setOnFocusChangeListener((view, has) -> {
+            chipLook(v, has);
+            view.animate().scaleX(has ? 1.06f : 1f).scaleY(has ? 1.06f : 1f).setDuration(110).start();
+            if (has) focusBackground(null);
+        });
+        v.setTag(null);
+        chips.add(v);
+        return v;
+    }
+
     private boolean iconChips() {
         return "icons".equals(cfg.get(Config.CHIPS));
     }
 
     /** Text and padding for the chip style: the name always for text, on focus only for icons. */
     private void chipLook(TextView c, boolean focused) {
-        if (!iconChips()) {
+        // The All Apps navigation chip remains labelled even when Options › Chip style uses icons.
+        if (c.getTag() == null || !iconChips()) {
             c.setText(c.getContentDescription());
             c.setCompoundDrawablePadding(0);
             c.setPadding(dp(18), dp(9), dp(18), dp(9));
@@ -796,8 +818,9 @@ public final class Home extends Activity {
         for (TextView c : chips) {
             Ui.focusStyle(c, accent, 0x14FFFFFF, dp(icons ? 21 : 18));
             int[] art = (int[]) c.getTag();
-            c.setCompoundDrawablesRelative(icons ? Ui.chipIcon(getDrawable(art[0]), getDrawable(art[1]),
+            c.setCompoundDrawablesRelative(icons && art != null ? Ui.chipIcon(getDrawable(art[0]), getDrawable(art[1]),
                     accent, dp(22)) : null, null, null, null);
+            if (art == null) c.setText(c.getContentDescription());
             chipLook(c, c.isFocused());
             c.setVisibility(locked() ? View.GONE : View.VISIBLE);
         }
