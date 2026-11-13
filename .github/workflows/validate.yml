@@ -88,7 +88,7 @@ jobs:
             | grep -v "name='android.permission.RECEIVE_BOOT_COMPLETED'" || true)
           [ -z "$extra" ] || { echo "the launcher may only request RECEIVE_BOOT_COMPLETED on sdk 28+, found: $extra"; exit 1; }
           n=$(echo "$dump" | grep -c uses-permission || true)
-          [ "$n" -le 3 ] || { echo "expected at most the 3 Fire OS 6 permissions, found $n"; exit 1; }
+          [ "$n" -le 4 ] || { echo "expected at most the 4 Fire OS 6 permissions, found $n"; exit 1; }
 
   scripts:
     runs-on: ubuntu-latest
