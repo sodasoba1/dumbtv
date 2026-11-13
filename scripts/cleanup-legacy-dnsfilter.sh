@@ -39,7 +39,3 @@ if [[ $legacy_vpn == dnsfilter.android ]]; then
     die "the legacy personalDNSfilter VPN selection is still set"
   fi
 fi
-
-if [[ $changed == 1 && $DRY_RUN == 0 ]]; then
-  adb_reconnect
-fi
