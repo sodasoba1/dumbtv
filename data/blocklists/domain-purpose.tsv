@@ -30,6 +30,8 @@ aax-eu.amazon-adsystem.com	base	Amazon advertising	Regional Amazon advertising h
 aax-fe.amazon-adsystem.com	base	Amazon advertising	Regional Amazon advertising hostname	confirmed	https://github.com/hagezi/dns-blocklists
 amazon-adsystem.com	base	Amazon advertising	Parent domain for Amazon advertising infrastructure	confirmed	https://radar.cloudflare.com/domains/domain/aax.amazon-adsystem.com
 mads.amazon.com	base	Amazon advertising / marketing	Amazon advertising-related hostname; exact product role is not publicly documented	community	https://github.com/Perflyst/PiHoleBlocklist/blob/master/AmazonFireTV.txt
+sponsored-ads.amazon.com	hagezi	Amazon advertising	Amazon sponsored-content advertising endpoint included in HaGeZi's native Amazon list	confirmed	https://github.com/hagezi/dns-blocklists/blob/main/adblock/native.amazon.txt
+unagi.amazon.com	hagezi	Amazon device telemetry	Amazon internal device-service hostname included in HaGeZi's native tracker list; exact feature and any ACR role are not independently confirmed	community	https://github.com/hagezi/dns-blocklists/blob/main/adblock/native.amazon.txt
 api.amazonalexa.com	alexa	Alexa voice/API	Official Alexa endpoint for US and Canada	confirmed	https://developer.amazon.com/en-US/docs/alexa/alexa-smart-properties/endpoint-settings-api.html
 api.eu.amazonalexa.com	alexa	Alexa voice/API	Official Alexa endpoint for Germany, Spain, France, Italy and the UK	confirmed	https://developer.amazon.com/en-US/docs/alexa/alexa-smart-properties/endpoint-settings-api.html
 api.fe.amazonalexa.com	alexa	Alexa voice/API	Official Alexa endpoint for Japan	confirmed	https://developer.amazon.com/en-US/docs/alexa/alexa-smart-properties/endpoint-settings-api.html
