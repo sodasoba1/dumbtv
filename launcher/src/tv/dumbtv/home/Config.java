@@ -61,10 +61,10 @@ final class Config {
     static final Choice ACCENT = new Choice("accent", "Accent color", "blue",
             new String[] {"white", "blue", "cyan", "green", "amber", "red", "pink", "violet",
                     "teal", "mint", "lime", "yellow", "orange", "coral", "crimson", "rose",
-                    "magenta", "purple", "indigo", "lavender", "sky", "ice", "gold", "copper"},
+                    "magenta", "purple", "indigo", "lavender", "sky", "ice", "gold", "copper", "custom"},
             new String[] {"White", "Blue", "Cyan", "Green", "Amber", "Red", "Pink", "Violet",
                     "Teal", "Mint", "Lime", "Yellow", "Orange", "Coral", "Crimson", "Rose",
-                    "Magenta", "Purple", "Indigo", "Lavender", "Sky", "Ice", "Gold", "Copper"});
+                    "Magenta", "Purple", "Indigo", "Lavender", "Sky", "Ice", "Gold", "Copper", "Custom colour"});
     static final Choice TILES = new Choice("tiles", "Tile size", "medium",
             new String[] {"small", "medium", "large"},
             new String[] {"Small", "Medium", "Large"});
