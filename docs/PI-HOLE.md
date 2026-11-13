@@ -193,8 +193,10 @@ controls from the Fire Stick itself. The HaGeZi probes are not a separate list t
 subscribe; they are sample hostnames used to check that the upstream subscription
 is taking effect. Use `--no-hagezi` if you have not subscribed to HaGeZi. Each row shows the expected
 policy, hostname, associated app/service and observed DNS result. By default,
-Alexa and Prime Video are expected to remain available. If you intend to block
-those services, select the matching profile:
+Alexa and Prime Video are expected to remain available. The five Prime Video
+compatibility hostnames are checked as resolving by default; with
+`--block-prime-video`, those same delivery/CDN hostnames are expected to be
+blocked. If you intend to block those services, select the matching profile:
 
 ```sh
 bash ./scripts/dns-preflight.sh --block-alexa
