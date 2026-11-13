@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Read-only DNS diagnostics. Runs before DumbTV changes anything on the TV.
 # Usage: bash ./scripts/dns-preflight.sh [--pihole-ip IP] [--unbound-ip IP]
-#        [--block-alexa] [--block-prime-video]
+#        [--block-alexa] [--block-prime-video] [--no-hagezi]
 set -uo pipefail
 DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ROOT=$(cd "$DIR/.." && pwd)
@@ -11,6 +11,7 @@ PIHOLE_IP=""
 UNBOUND_IP=""
 BLOCK_ALEXA=0
 BLOCK_PRIME=0
+TEST_HAGEZI=1
 while [[ $# -gt 0 ]]; do
   case $1 in
     --pihole-ip|--unbound-ip)
@@ -21,8 +22,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --block-alexa) BLOCK_ALEXA=1; shift ;;
     --block-prime-video) BLOCK_PRIME=1; shift ;;
+    --no-hagezi) TEST_HAGEZI=0; shift ;;
     --help|-h)
-      printf 'Usage: bash ./scripts/dns-preflight.sh [--pihole-ip IP] [--unbound-ip IP] [--block-alexa] [--block-prime-video]\n'
+      printf 'Usage: bash ./scripts/dns-preflight.sh [--pihole-ip IP] [--unbound-ip IP] [--block-alexa] [--block-prime-video] [--no-hagezi]\n'
       exit 0
       ;;
     *) die "unknown option: $1 (use --help)" ;;
@@ -97,6 +99,7 @@ while IFS=$'\t' read -r domain profile service purpose confidence evidence; do
   expected=""
   case $profile in
     base) expected=BLOCKED ;;
+    hagezi) if [[ $TEST_HAGEZI == 1 ]]; then expected=BLOCKED; else continue; fi ;;
     alexa) if [[ $BLOCK_ALEXA == 1 ]]; then expected=BLOCKED; else expected=RESOLVES; fi ;;
     prime) if [[ $BLOCK_PRIME == 1 ]]; then expected=BLOCKED; else expected=RESOLVES; fi ;;
     allow) expected=RESOLVES ;;
@@ -137,8 +140,8 @@ note "checks        $total"
 note "as expected   $matched"
 note "mismatches    $mismatch"
 note "unknown       $unknown"
-note "profile       Alexa=$([[ $BLOCK_ALEXA == 1 ]] && echo blocked || echo allowed); Prime Video=$([[ $BLOCK_PRIME == 1 ]] && echo blocked || echo allowed)"
-note "list sources  data/blocklists/extra-hosts.txt, alexa-hosts.txt, prime-video-hosts.txt"
+note "profile       Alexa=$([[ $BLOCK_ALEXA == 1 ]] && echo blocked || echo allowed); Prime Video=$([[ $BLOCK_PRIME == 1 ]] && echo blocked || echo allowed); HaGeZi probes=$([[ $TEST_HAGEZI == 1 ]] && echo enabled || echo skipped)"
+note "list sources  data/blocklists/extra-hosts.txt, alexa-hosts.txt, prime-video-hosts.txt, hagezi-probes.txt"
 note "Pi-hole files data/blocklists/pihole/v6/, v5/, v5-legacy/"
 note "setup guide   docs/PI-HOLE.md"
 note "metadata      data/blocklists/domain-purpose.tsv (purpose, confidence and evidence per domain)"
