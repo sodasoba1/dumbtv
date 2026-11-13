@@ -71,6 +71,17 @@ fi
 note "resolver note  Pi-hole forwarding to Unbound normally means the TV sees Pi-hole, not Unbound."
 note "verification   DNS replies alone cannot prove which server answered; cross-check Pi-hole Query Log."
 
+# Confirm ordinary DNS resolution works before interpreting NXDOMAIN-style
+# answers as blocking. Otherwise a disconnected device could look perfectly
+# filtered simply because every query fails.
+baseline=$(dev "ping -c 1 -W 1 example.com" 2>&1 || true)
+baseline_ip=$(printf '%s\n' "$baseline" | sed -nE 's/.*\(([0-9a-fA-F:.]+)\).*/\1/p' | head -1)
+if [[ -z $baseline_ip ]]; then
+  note "DNS baseline  FAIL — example.com did not resolve; cannot distinguish filtering from a DNS/network outage."
+  exit 2
+fi
+note "DNS baseline  PASS — example.com resolved to $baseline_ip"
+
 step "domain policy checks"
 note "BLOCKED means the device received an NXDOMAIN/sinkhole-style response."
 note "RESOLVES means DNS returned an address. UNKNOWN means the lookup could not be classified."
