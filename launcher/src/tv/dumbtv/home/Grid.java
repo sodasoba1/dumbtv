@@ -20,8 +20,10 @@ final class Grid extends ViewGroup {
         super(c);
         setClipChildren(false);
         setClipToPadding(false);
-        hGap = Ui.dp(c, 18);
-        vGap = Ui.dp(c, 18);
+        String spacing = Config.get(c).get(Config.TILE_SPACING);
+        int gap = Ui.dp(c, "compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
+        hGap = gap;
+        vGap = gap;
     }
 
     private int columns(int availableWidth, int childWidth) {
