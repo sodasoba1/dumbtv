@@ -49,6 +49,11 @@
     <string name="fire_device">Device &amp; Software</string>
 
     <!-- Options -->
+    <string name="options_appearance">Appearance</string>
+    <string name="options_applications">Applications</string>
+    <string name="options_inputs">Inputs</string>
+    <string name="options_system">System</string>
+    <string name="option_choose">Choose %1$s</string>
     <string name="next_wallpaper">Next wallpaper</string>
     <string name="apps_on_home">Apps on home screen</string>
     <string name="inputs_on_home">Inputs on home screen</string>
