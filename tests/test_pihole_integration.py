@@ -62,7 +62,8 @@ class PiHoleIntegrationTest(unittest.TestCase):
         restore = (ROOT / "scripts" / "restore.sh").read_text()
         self.assertIn("if [[ $legacy_vpn == dnsfilter.android ]]", restore)
         self.assertIn("if present dnsfilter.android", restore)
-        self.assertIn("disturb another VPN app", restore)
+        self.assertLess(restore.index("if present dnsfilter.android"),
+                        restore.index("if [[ $legacy_vpn == dnsfilter.android ]]"))
 
 
 if __name__ == "__main__":
