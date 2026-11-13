@@ -23,8 +23,8 @@ No. Everything runs as the `shell` user that ADB debugging gives you.
 **How do I undo it?**
 `./scripts/restore.sh`. It turns every package back on, clears the app-ops and
 network rules, puts back the settings your TV had before (saved by
-`preflight.sh`), disables the legacy filter only if it is the selected always-on VPN, and
-returns HOME to Amazon. Apps you asked to have uninstalled come back from the Appstore.
+`preflight.sh`), disables personalDNSfilter if installed, clears its always-on VPN
+selection only if it names that app, and returns HOME to Amazon. Other VPN apps are untouched. Apps you asked to have uninstalled come back from the Appstore.
 
 **Does the project itself phone home?**
 No. The computer downloads dumbtv home from this repository's releases (checked
