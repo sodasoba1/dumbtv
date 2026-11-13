@@ -67,7 +67,7 @@ you open an app. On Fire OS 7 and 8 the Settings button opens Amazon's settings 
 
 | Setting | Choices |
 |---|---|
-| Accent | white, blue, cyan, green, amber, red, pink, violet |
+| Accent | the 24 built-in colours, or a custom colour selected with the remote-friendly HSV picker |
 | Tiles | small, medium, large |
 | Layout | rows, or a grid that wraps to as many columns as fit |
 | App order | your order, or recently used: the apps row re-sorts on each return home, newest first. It counts apps opened from dumbtv home, plus apps opened any other way (voice, another app) on Fire OS 6, where the launcher already has usage access. Apps never opened keep your order after the rest |
@@ -77,10 +77,10 @@ you open an app. On Fire OS 7 and 8 the Settings button opens Amazon's settings 
 | Memory meter | hidden, shown: free memory under the date, with a bar of what is in use; amber, with "running low", when Android reports low memory or under 15% is free. It only shows the numbers: it closes and frees nothing, and needs no permission |
 | Inputs row | shown, hidden |
 | Open inputs with | Automatic, the TV's app, dumbtv home (see below) |
-| Background | built-in solid colours, a custom solid colour, image, adaptive, adaptive tint |
+| Background | built-in solid colours, a custom solid colour selected with the HSV picker, image, adaptive, adaptive tint |
 | Image dim, wallpaper rotation | for image backgrounds |
 | Gradient overlay | off (default), dark at bottom, top, left, right, or any of the four corners; above the background but below all text, icons, tiles and banners |
-| Gradient colour | black (default), any of the 24 accent palette colours, or a custom colour |
+| Gradient colour | black (default), any of the 24 accent palette colours, or a custom colour selected with the HSV picker |
 | Gradient strength | 20%, 40% (default), 60%, 80%; available when a gradient direction is selected |
 | Tile corners | square, soft (default), rounded |
 | Tile spacing | compact, normal (default), spacious; applies to rows and grid |
