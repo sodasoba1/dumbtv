@@ -119,7 +119,7 @@ preferences.
 
 Step by step instead, in this order:
 
-1. `./scripts/cleanup-legacy-dnsfilter.sh -y` (disables the old filter if installed; clears only its own always-on VPN selection).
+1. `bash ./scripts/cleanup-legacy-dnsfilter.sh -y` (disables the old filter if installed; clears only its own always-on VPN selection).
 2. `./scripts/debloat.sh -y`, then reboot and check the TV reaches a home screen.
 3. `./scripts/lockdown.sh -y`
 4. `./scripts/launcher.sh -y`
