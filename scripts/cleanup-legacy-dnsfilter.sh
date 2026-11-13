@@ -9,30 +9,37 @@ need_device
 
 changed=0
 legacy_vpn=$(dev1 settings get secure always_on_vpn_app | tr -d '\r')
-if [[ $legacy_vpn == dnsfilter.android ]]; then
-  step "clear legacy personalDNSfilter VPN selection"
-  acmd settings delete secure always_on_vpn_app || die "could not clear the legacy personalDNSfilter VPN selection"
-  if [[ $DRY_RUN == 0 && $(dev1 settings get secure always_on_vpn_app | tr -d '\r') == dnsfilter.android ]]; then
-    die "the legacy personalDNSfilter VPN selection is still set"
-  fi
-  changed=1
-fi
+app_present=0
 
+# Stop the service before clearing Android's always-on selection. Stopping a VPN
+# can drop network ADB, so reconnect before issuing the next device command.
 if present dnsfilter.android; then
   step "disable legacy personalDNSfilter app"
-  acmd pm disable-user --user 0 dnsfilter.android || die "could not disable the legacy personalDNSfilter app"
-  note "personalDNSfilter disabled; uninstall it from Settings > Applications if desired"
+  disable_rc=0
+  acmd pm disable-user --user 0 dnsfilter.android || disable_rc=$?
+  app_present=1
   changed=1
+  if [[ $DRY_RUN == 0 ]]; then
+    sleep 2
+    adb_reconnect
+    if ! dev 'pm list packages -d' | tr -d '\r' | grep -qx 'package:dnsfilter.android'; then
+      die "personalDNSfilter is still enabled after the disable request (exit $disable_rc)"
+    fi
+  fi
+  note "personalDNSfilter disabled; uninstall it from Settings > Applications if desired"
 else
   note "personalDNSfilter is not installed"
 fi
 
-if [[ $changed == 1 && $DRY_RUN == 0 ]]; then
-  sleep 2
-  adb_reconnect
-fi
-if [[ $changed == 1 && $DRY_RUN == 0 ]] && present dnsfilter.android; then
-  if ! dev 'pm list packages -d' | tr -d '\r' | grep -qx 'package:dnsfilter.android'; then
-    die "personalDNSfilter is still enabled after the disable request"
+if [[ $legacy_vpn == dnsfilter.android ]]; then
+  step "clear legacy personalDNSfilter VPN selection"
+  acmd settings delete secure always_on_vpn_app || die "could not clear the legacy personalDNSfilter VPN selection"
+  changed=1
+  if [[ $DRY_RUN == 0 && $(dev1 settings get secure always_on_vpn_app | tr -d '\r') == dnsfilter.android ]]; then
+    die "the legacy personalDNSfilter VPN selection is still set"
   fi
+fi
+
+if [[ $changed == 1 && $DRY_RUN == 0 ]]; then
+  adb_reconnect
 fi
