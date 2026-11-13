@@ -236,7 +236,7 @@ for you. [CONTRIBUTING.md](CONTRIBUTING.md) has the details.
 It re-enables every package, clears the app and network rules, puts back the
 settings the TV had before (from the snapshot `preflight.sh` takes), clears the
 legacy personalDNSfilter VPN selection only when it names that app, and disables
-personalDNSfilter if it is installed. Other VPN apps are left alone; HOME is handed
+personalDNSfilter if installed, and resets its VPN app-ops, Doze exemption and storage grants. Other VPN apps are left alone; HOME is handed
 back to Amazon. An app you asked to have uninstalled comes back
 from the Appstore.
 
