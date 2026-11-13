@@ -174,7 +174,7 @@ if [[ $dev_sdk -lt 28 ]]; then
   sh_ appops set $PKG GET_USAGE_STATS allow
   # READ_LOGS is a development permission on Fire OS 6; request it through ADB, without root.
   if sh_ pm grant $PKG android.permission.READ_LOGS >/dev/null 2>&1; then
-    read_logs=$(sh_ pm check-permission android.permission.READ_LOGS $PKG | tr -d '\r')
+    read_logs=$(sh_ pm check-permission android.permission.READ_LOGS $PKG 2>/dev/null | tr -d '\r' || true)
     if [[ $read_logs == granted ]]; then
       echo "logcat monitoring: READ_LOGS granted"
     else
