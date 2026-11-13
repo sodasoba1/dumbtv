@@ -33,22 +33,4 @@ run "$DIR/launcher.sh"  || exit 1
 if [[ ${YOUTUBE:-0} == 1 ]]; then run "$DIR/youtube.sh" || exit 1; fi
 "$DIR/verify.sh" || exit $?
 
-# DNS filtering is external and optional. Offer a live check only in an
-# interactive install; -y remains unattended and never prompts for a Pi-hole.
-case " ${FLAGS[*]} " in
-  *" --dry-run "*) ;;
-  *" -y "*|*" --yes "*) ;;
-  *)
-    printf '\n'
-    printf 'Pi-hole IP for a live DNS test (Enter to skip): '
-    read -r pihole_ip
-    if [[ -n $pihole_ip ]]; then
-      bash "$DIR/dns-check.sh" "$pihole_ip"
-      dns_rc=$?
-      if [[ $dns_rc != 0 ]]; then
-        printf '\nDNS verification reported a problem. The DumbTV install is complete; see docs/PI-HOLE.md.\n'
-      fi
-    fi
-    ;;
-esac
 exit 0
