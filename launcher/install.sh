@@ -34,6 +34,17 @@ esac
 command -v "$ADB" >/dev/null || { echo "error: adb not found — install Android platform-tools" >&2; exit 1; }
 state=$(adb_ get-state 2>/dev/null || true)
 [[ $state == device ]] || { echo "error: no TV connected (adb connect <tv-ip>:5555; set ADB_SERIAL if several)" >&2; exit 1; }
+target_serial=$(adb_ get-serialno 2>/dev/null | tr -d '\r')
+
+reconnect_after_vpn_change() {
+  [[ $target_serial == *:* ]] || return 0
+  for _ in $(seq 1 12); do
+    "$ADB" connect "$target_serial" >/dev/null 2>&1 || true
+    [[ $("$ADB" -s "$target_serial" get-state 2>/dev/null) == device ]] && return 0
+    sleep 2
+  done
+  return 1
+}
 
 dev_sdk=$(sh_ getprop ro.build.version.sdk | tr -d '\r')
 case $dev_sdk in ''|*[!0-9]*) dev_sdk=28 ;; esac
@@ -237,9 +248,14 @@ if [[ $legacy_vpn == dnsfilter.android ]]; then
 fi
 if installed dnsfilter.android; then
   echo "disabling the legacy personalDNSfilter app"
-  sh_ pm disable-user --user 0 dnsfilter.android >/dev/null
+  disable_rc=0
+  sh_ pm disable-user --user 0 dnsfilter.android >/dev/null 2>&1 || disable_rc=$?
+  reconnect_after_vpn_change || {
+    echo "error: ADB did not reconnect after disabling personalDNSfilter" >&2
+    exit 1
+  }
   sh_ pm list packages -d | tr -d '\r' | grep -qx 'package:dnsfilter.android' || {
-    echo "error: personalDNSfilter is still enabled after the disable request" >&2
+    echo "error: personalDNSfilter is still enabled after the disable request (exit $disable_rc)" >&2
     exit 1
   }
   echo "personalDNSfilter disabled; remove it from Settings > Applications if desired"
