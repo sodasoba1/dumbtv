@@ -102,6 +102,12 @@ final class Config {
     static final Choice DIM = new Choice("dim", "Image dim", "40",
             new String[] {"0", "20", "40", "60", "80"},
             new String[] {"0%", "20%", "40%", "60%", "80%"});
+    static final Choice GRADIENT = new Choice("gradient", "Gradient overlay", "off",
+            new String[] {"off", "bottom", "top", "left", "right"},
+            new String[] {"Off", "Dark at bottom", "Dark at top", "Dark at left", "Dark at right"});
+    static final Choice GRADIENT_STRENGTH = new Choice("gradient_strength", "Gradient strength", "40",
+            new String[] {"20", "40", "60", "80"},
+            new String[] {"20%", "40%", "60%", "80%"});
 
     static final Choice ROTATE = new Choice("rotate", "Wallpaper rotation", "off",
             new String[] {"off", "visit", "hourly", "daily", "daytime"},
@@ -123,7 +129,7 @@ final class Config {
     /** The banner of hand-picked titles from {@link Library}; hidden anyway while it has none. */
     static final Choice LIBRARY = new Choice("library", "Library banner", "on",
             new String[] {"on", "off"}, new String[] {"Shown", "Hidden"});
-    static final Choice[] CHOICES = {ACCENT, TILES, LAYOUT, ORDER, ALL_APPS, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, ROTATE, LOCK, TILE_STYLE, CHIPS, LIBRARY};
+    static final Choice[] CHOICES = {ACCENT, TILES, LAYOUT, ORDER, ALL_APPS, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, GRADIENT, GRADIENT_STRENGTH, ROTATE, LOCK, TILE_STYLE, CHIPS, LIBRARY};
 
     /** Folder of wallpapers, next to home.conf, that Background › Image file rotates through. */
     static final String WALLPAPERS = "wallpapers";
