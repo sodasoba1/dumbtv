@@ -75,6 +75,7 @@ class PiHoleIntegrationTest(unittest.TestCase):
         self.assertIn("getprop net.dns1", checker)
         self.assertIn("--pihole-ip", checker)
         self.assertIn("--unbound-ip", checker)
+        self.assertIn("--no-hagezi", checker)
         self.assertIn("domain-purpose.tsv", checker)
         self.assertIn("example.com", checker)
         self.assertIn("Purpose:", checker)
@@ -100,6 +101,7 @@ class PiHoleIntegrationTest(unittest.TestCase):
         active.update(domains(DATA / "prime-video-hosts.txt"))
         active.update(domains(DATA / "verify-allowed.txt"))
         active.update(domains(DATA / "pihole" / "prime-video-allowlist.txt"))
+        active.update(domains(DATA / "hagezi-probes.txt"))
         self.assertEqual(active, set(mapped))
         for domain, row in mapped.items():
             with self.subTest(domain=domain):
