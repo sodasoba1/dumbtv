@@ -953,7 +953,8 @@ public final class Home extends Activity {
                 target.addView(t, new ViewGroup.LayoutParams(WRAP, WRAP));
             } else {
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
-                lp.rightMargin = dp(18);
+                String spacing = cfg.get(Config.TILE_SPACING);
+                lp.rightMargin = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
                 target.addView(t, lp);
             }
             if (it.id.equals(keep)) restore = index;
