@@ -205,6 +205,11 @@ bash ./scripts/dns-preflight.sh --block-alexa --block-prime-video
 bash ./scripts/dns-preflight.sh --no-hagezi
 ```
 
+The script first checks that `example.com` resolves, so a completely broken
+network is not mistaken for successful blocking. It exits `0` when all checks
+match, `1` when there are policy mismatches, and `2` when DNS is unavailable or
+results remain unknown.
+
 The report uses three outcomes:
 
 - **OK:** the observed DNS result matches the selected policy.
