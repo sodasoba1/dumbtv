@@ -231,6 +231,8 @@ public final class Keeper extends Service {
                         worker.post(this::handleAmazonHomeDetected);
                     }
                 }
+                // An unexpected EOF is a failed stream, even if process creation succeeded.
+                streamStarted = false;
                 if (!logcatStopping) note("ActivityManager logcat stream ended");
             } catch (Exception e) {
                 if (!logcatStopping) note("ActivityManager logcat reader failed: " + e.getClass().getSimpleName());
