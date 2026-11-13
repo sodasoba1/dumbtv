@@ -28,7 +28,11 @@ adb connect <tv-ip>:5555         # accept "Allow USB debugging?" on the TV
 
 The APK is built from this fork's launcher source and published in its
 [releases](https://github.com/sodasoba1/dumbtv/releases). The installer downloads
-the matching SHA-256 sidecar and verifies the APK before installation. See
+the matching SHA-256 sidecar and verifies the APK before installation. It also disables
+legacy personalDNSfilter if installed and clears its always-on VPN selection only if
+that setting names the filter; other VPN apps are untouched. If installing the APK
+manually with ADB, run `bash ./scripts/cleanup-legacy-dnsfilter.sh -y` once for the
+same migration. See
 [Building and releasing](../docs/BUILDING-LAUNCHER.md) for the signing-key setup
 and release process. Installing the APK by hand works, but HOME only switches
 over once `install.sh` (or `scripts/launcher.sh`) has set up the HOME hook
