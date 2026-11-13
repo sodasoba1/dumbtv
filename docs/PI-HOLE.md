@@ -187,8 +187,11 @@ the router may forward to Pi-hole, but that upstream cannot be identified from
 the Fire Stick's resolver property alone. In the common Pi-hole → Unbound
 arrangement, the Fire Stick sees Pi-hole; Unbound is Pi-hole's upstream.
 
-The audit queries every domain in DumbTV's local source lists and the required
-allowlist controls from the Fire Stick itself. Each row shows the expected
+The audit queries every domain in DumbTV's local source lists, two representative
+domains from HaGeZi's subscribed Amazon tracker list, and the required allowlist
+controls from the Fire Stick itself. The HaGeZi probes are not a separate list to
+subscribe; they are sample hostnames used to check that the upstream subscription
+is taking effect. Use `--no-hagezi` if you have not subscribed to HaGeZi. Each row shows the expected
 policy, hostname, associated app/service and observed DNS result. By default,
 Alexa and Prime Video are expected to remain available. If you intend to block
 those services, select the matching profile:
@@ -197,6 +200,7 @@ those services, select the matching profile:
 bash ./scripts/dns-preflight.sh --block-alexa
 bash ./scripts/dns-preflight.sh --block-prime-video
 bash ./scripts/dns-preflight.sh --block-alexa --block-prime-video
+bash ./scripts/dns-preflight.sh --no-hagezi
 ```
 
 The report uses three outcomes:
@@ -211,8 +215,9 @@ A blocked-style DNS response is not, by itself, proof that Pi-hole blocked it:
 the domain might naturally return NXDOMAIN, or another resolver/filter might
 have answered. Check Pi-hole's Query Log at the test time to confirm the
 hostname and blocking status. DNS caching can also affect individual results.
-The audit checks exact hostnames; it does not prove every entry in HaGeZi's
-subscribed upstream list is active or test wildcard matching.
+The audit checks exact hostnames; the two HaGeZi probes are representative only.
+It does not prove every entry in HaGeZi's subscribed upstream list is active or
+test wildcard matching.
 
 ### Where the Pi-hole lists live
 
@@ -223,6 +228,7 @@ The source files and generated Pi-hole exports are committed in the repository:
 | Baseline supplemental Amazon domains | `data/blocklists/extra-hosts.txt` |
 | Optional Alexa domains | `data/blocklists/alexa-hosts.txt` |
 | Optional Prime Video block domains | `data/blocklists/prime-video-hosts.txt` |
+| HaGeZi upstream audit probes (not a blocklist) | `data/blocklists/hagezi-probes.txt` |
 | Pi-hole v6 exports | `data/blocklists/pihole/v6/` |
 | Pi-hole v5 FTL 5.22+ exports | `data/blocklists/pihole/v5/` |
 | Older Pi-hole v5 exports | `data/blocklists/pihole/v5-legacy/` |
