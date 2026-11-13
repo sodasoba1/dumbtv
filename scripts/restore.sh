@@ -118,19 +118,25 @@ while read -r ns key value; do
   printf '  %-46s %s\n' "$key" "$want"
 done < <(list_of "$(fos settings.restore.txt)" | sed 's/ = / /')
 
-# Clear and disable only the legacy personalDNSfilter VPN integration. Do not
-# disturb another VPN app or an independently installed filter that is not active.
-legacy_vpn=$(dev1 settings get secure always_on_vpn_app)
+# Retire only the old personalDNSfilter integration. Clear the VPN selection
+# only when it names that app; disable the app if present even if Fire OS 6 has
+# forgotten the setting at boot. Other VPN apps are never changed.
+changed=0
+legacy_vpn=$(dev1 settings get secure always_on_vpn_app | tr -d '\r')
 if [[ $legacy_vpn == dnsfilter.android ]]; then
-  step "legacy DNS filter cleanup"
+  step "clear legacy personalDNSfilter VPN selection"
   acmd settings delete secure always_on_vpn_app
-  if present dnsfilter.android; then
-    acmd pm disable-user --user 0 dnsfilter.android
-    note "personalDNSfilter disabled; remove it from Settings > Applications if desired"
-  fi
-  [[ $DRY_RUN == 1 ]] || { sleep 3; adb_reconnect; }
-else
-  note "no legacy personalDNSfilter always-on VPN selection"
+  changed=1
+fi
+if present dnsfilter.android; then
+  step "disable legacy personalDNSfilter app"
+  acmd pm disable-user --user 0 dnsfilter.android
+  note "personalDNSfilter disabled; remove it from Settings > Applications if desired"
+  changed=1
+fi
+if [[ $changed == 1 && $DRY_RUN == 0 ]]; then
+  sleep 3
+  adb_reconnect
 fi
 
 [[ $DRY_RUN == 1 ]] && { note "[dry-run] done"; exit 0; }
