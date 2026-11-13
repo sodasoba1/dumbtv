@@ -24,9 +24,9 @@ else
   printf '          %-42s %s\n' '' "A router that forwards DNS to Pi-hole may show a different resolver; confirm in Query Log."
 fi
 
-# A unique child name avoids a stale positive cache entry. Pi-hole domain rules
-# should match subdomains of a listed domain. This parent is in DumbTV's extras.
-blocked_host="dumbtv-probe-$(date +%s).aax.amazon-adsystem.com"
+# This real hostname is explicitly present in DumbTV's supplemental blocklist.
+# Check the Query Log after the test: a cached answer will not create a new entry.
+blocked_host=aax.amazon-adsystem.com
 blocked_output=$(dev "ping -c 1 -W 2 $blocked_host" 2>&1 || true)
 blocked_ip=$(printf '%s\n' "$blocked_output" | sed -nE 's/.*\(([0-9a-fA-F:.]+)\).*/\1/p' | head -1)
 if printf '%s\n' "$blocked_output" | grep -qiE 'unknown host|bad address|cannot resolve|name or service not known' ||
