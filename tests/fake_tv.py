@@ -56,11 +56,11 @@ if words[:2] == ['content', 'insert'] and '--uri' in words:
     bindings = {}
     for index, word in enumerate(words[:-1]):
         if word == '--bind':
-            name, separator, value = words[index + 1].partition(':')
+            binding_name, separator, remainder = words[index + 1].partition(':')
             if separator:
-                field, separator, value = value.partition(':')
-                if separator:
-                    bindings[field] = value
+                value_type, separator, value = remainder.partition(':')
+                if separator and value_type == 's':
+                    bindings[binding_name] = value
     if namespace in ('secure', 'system', 'global') and 'name' in bindings and 'value' in bindings:
         settings[f'{namespace}/{bindings["name"]}'] = bindings['value']
         save()
