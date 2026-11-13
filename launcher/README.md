@@ -106,10 +106,13 @@ apps hidden from the pinned section stay hidden from this screen while it is loc
 Options or set `tile_style=afterglow` in `home.conf`. The name remains visible inside
 each tile regardless of the App names setting; input tiles are unchanged.
 Known apps use locally defined colors; other apps use the selected accent.
-Corner icons come from installed apps, so no brand-logo files or downloads are
-needed. Missing icons still leave the name visible. Switching back to Original
-restores the normal banners and App names behavior. Background and layout remain
-separate choices.
+Corner icons normally come from installed apps and are shown in grayscale. Two
+brand marks are supplied locally in monochrome: SmartTube (`org.smarttube.stable`) uses
+the YouTube mark, and the app labelled **Smart Kick TV** uses the Kick mark. They
+are included as vector artwork, so no downloads or network permission are needed.
+Missing icons still leave the name visible. Switching back to Original restores
+the normal banners and App names behavior. Background and layout remain separate
+choices.
 
 | Grid layout | Adaptive background | Adaptive tint |
 |---|---|---|
