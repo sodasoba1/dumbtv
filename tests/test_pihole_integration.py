@@ -1,4 +1,4 @@
-"""Pi-hole integration stays external to the offline DumbTV launcher."""
+""""Pi-hole integration stays external to the offline DumbTV launcher."""
 from pathlib import Path
 import csv
 import subprocess
@@ -72,7 +72,11 @@ class PiHoleIntegrationTest(unittest.TestCase):
         preflight = (ROOT / "scripts" / "preflight.sh").read_text()
         all_script = (ROOT / "scripts" / "all.sh").read_text()
         self.assertIn("DNS pre-installation check (read-only)", checker)
-        self.assertIn("getprop net.dns1", checker)
+        # Resolver properties are passed individually through the dev1 helper,
+        # so assert the property names rather than a literal shell command.
+        for prop in ("net.dns1", "net.dns2", "dhcp.wlan0.dns1", "dhcp.wlan0.dns2"):
+            self.assertIn(prop, checker)
+        self.assertIn('dev1 getprop "$prop"', checker)
         self.assertIn("--pihole-ip", checker)
         self.assertIn("--unbound-ip", checker)
         self.assertIn("--no-hagezi", checker)
@@ -92,7 +96,7 @@ class PiHoleIntegrationTest(unittest.TestCase):
         with metadata.open(encoding="utf-8", newline="") as stream:
             rows = list(csv.DictReader(
                 (line for line in stream if not line.startswith("#")),
-                delimiter="\t",
+                delimiter="\\t",
                 fieldnames=("domain", "profile", "service", "purpose", "confidence", "evidence"),
             ))
         mapped = {row["domain"]: row for row in rows}
@@ -114,7 +118,7 @@ class PiHoleIntegrationTest(unittest.TestCase):
         candidates = DATA / "research-candidates.tsv"
         with candidates.open(encoding="utf-8") as stream:
             candidate_domains = {
-                line.split("\t", 1)[0] for line in stream
+                line.split("\\t", 1)[0] for line in stream
                 if line.strip() and not line.startswith("#")
             }
         active = set()
