@@ -62,7 +62,18 @@ final class Catalog {
      * name. Slow: off the UI thread.
      */
     static void art(PackageManager pm, Item it, boolean cornerIcon, Drawable replacement) {
+        art(pm, it, cornerIcon, replacement, false);
+    }
+
+    /** Brand Focus deliberately replaces TV banners with the installed app icon. */
+    static void art(PackageManager pm, Item it, boolean cornerIcon, Drawable replacement,
+            boolean brandFocus) {
         if (it.info == null) return;
+        if (brandFocus) {
+            it.banner = null;
+            it.icon = replacement != null ? replacement : it.info.loadIcon(pm);
+            return;
+        }
         boolean wide = replacement != null && isWide(replacement);
         it.banner = wide ? replacement : replacement == null ? it.info.loadBanner(pm) : null;
         it.icon = replacement != null && !wide ? replacement

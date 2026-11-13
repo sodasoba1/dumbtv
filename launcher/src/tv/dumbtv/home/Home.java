@@ -248,7 +248,8 @@ public final class Home extends Activity {
             return;
         }
         int fit = getResources().getDisplayMetrics().widthPixels / (cardSize()[0] + dp(18)) + 1;
-        boolean cornerIcon = "afterglow".equals(cfg.get(Config.TILE_STYLE));
+        String tileStyle = cfg.get(Config.TILE_STYLE);
+        boolean cornerIcon = "afterglow".equals(tileStyle) || "brand-focus".equals(tileStyle);
         List<Item> first = new ArrayList<>();
         List<Runnable> jobs = new ArrayList<>();
         // A chosen icon pack is read by parsing its whole appfilter; the first frame does not wait
@@ -274,14 +275,17 @@ public final class Home extends Activity {
 
     /** What the tiles' art depends on besides the apps themselves. */
     private String artState() {
-        return cfg.get(IconPack.KEY, IconPack.OFF) + "|" + cfg.joined(IconPack.CHOSEN);
+        return cfg.get(Config.TILE_STYLE) + "|" + cfg.get(IconPack.KEY, IconPack.OFF)
+                + "|" + cfg.joined(IconPack.CHOSEN);
     }
 
     /** Loads one tile's art: the settings are read here, on the UI thread; run it on io. */
     private Runnable artJob(Item it, boolean cornerIcon) {
         String pack = cfg.get(IconPack.KEY, IconPack.OFF);
         String chosen = cfg.get(IconPack.CHOSEN + it.id, null);
-        return () -> Catalog.art(getPackageManager(), it, cornerIcon, replacementArt(it, chosen, pack));
+        boolean brandFocus = "brand-focus".equals(cfg.get(Config.TILE_STYLE));
+        return () -> Catalog.art(getPackageManager(), it, cornerIcon,
+                replacementArt(it, chosen, pack), brandFocus);
     }
 
     /**
@@ -959,8 +963,10 @@ public final class Home extends Activity {
             }
             if (it.id.equals(keep)) restore = index;
             index++;
+            String tileStyle = cfg.get(Config.TILE_STYLE);
             if (Catalog.isApp(row.kind) && (!it.artRequested
-                    || "afterglow".equals(cfg.get(Config.TILE_STYLE)) && it.icon == null)) loadArt(it);
+                    || ("afterglow".equals(tileStyle) || "brand-focus".equals(tileStyle))
+                    && it.icon == null)) loadArt(it);
         }
         row.setVisible(!shown.isEmpty());
         adjustAppRowPosition();
@@ -1023,7 +1029,8 @@ public final class Home extends Activity {
 
     private void loadArt(Item it) {
         it.artRequested = true;
-        Runnable job = artJob(it, "afterglow".equals(cfg.get(Config.TILE_STYLE)));
+        String tileStyle = cfg.get(Config.TILE_STYLE);
+        Runnable job = artJob(it, "afterglow".equals(tileStyle) || "brand-focus".equals(tileStyle));
         io.execute(() -> {
             job.run();
             ui.post(() -> {
