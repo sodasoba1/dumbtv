@@ -29,6 +29,9 @@ if args[:1] == ['disconnect']:
 if args[-1:] == ['get-state']:
     print('device')
     sys.exit(0)
+if args[-1:] == ['get-serialno']:
+    print(args[1] if len(args) >= 3 and args[0] == '-s' else 'test-tv')
+    sys.exit(0)
 if len(args) == 5 and args[0] == '-s' and args[2] == 'push' and 'pushed' in state:
     # Keeps a copy of each pushed file, so a test can read what reached the TV.
     Path(state['pushed']).mkdir(parents=True, exist_ok=True)
