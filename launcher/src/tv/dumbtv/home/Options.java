@@ -173,15 +173,16 @@ public final class Options extends Activity {
     }
 
     private void choose(Config.Choice c) {
-        int n = c.values.length;
+        String[] options = c.optionValues;
+        int n = options.length;
         if (n < 2) return;
         CharSequence[] names = new CharSequence[n];
-        for (int i = 0; i < n; i++) names[i] = Text.name(this, c, c.values[i]);
-        int selected = Arrays.asList(c.values).indexOf(cfg.get(c));
+        for (int i = 0; i < n; i++) names[i] = Text.name(this, c, options[i]);
+        int selected = Arrays.asList(options).indexOf(cfg.get(c));
         AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle(getString(R.string.option_choose, Text.title(this, c)))
                 .setSingleChoiceItems(names, selected, (d, which) -> {
-                    String selectedValue = c.values[which];
+                    String selectedValue = options[which];
                     d.dismiss();
                     if ("custom".equals(selectedValue) && isColorChoice(c)) {
                         chooseCustomColor(c);
@@ -200,12 +201,15 @@ public final class Options extends Activity {
     }
 
     private boolean step(Config.Choice c, int by) {
-        int n = c.values.length;
+        String[] options = c.optionValues;
+        int n = options.length;
         // Nothing to switch to, as Icon pack with none installed: keep what is saved, so a pack
         // that comes back is still the chosen one.
         if (n < 2) return true;
-        int i = Arrays.asList(c.values).indexOf(cfg.get(c));
-        String next = c.values[((i + by) % n + n) % n];
+        int i = Arrays.asList(options).indexOf(cfg.get(c));
+        // A legacy saved value may no longer be in the shortened visible list.
+        if (i < 0) i = 0;
+        String next = options[((i + by) % n + n) % n];
         if ("custom".equals(next) && isColorChoice(c)) {
             chooseCustomColor(c);
             return true;
