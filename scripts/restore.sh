@@ -134,15 +134,17 @@ fi
 if present dnsfilter.android; then
   step "disable legacy personalDNSfilter app"
   acmd pm disable-user --user 0 dnsfilter.android || die "could not disable the legacy personalDNSfilter app"
-  if [[ $DRY_RUN == 0 ]] && ! dev 'pm list packages -d' | tr -d '\r' | grep -qx 'package:dnsfilter.android'; then
-    die "personalDNSfilter is still enabled after the disable request"
-  fi
   note "personalDNSfilter disabled; remove it from Settings > Applications if desired"
   changed=1
 fi
 if [[ $changed == 1 && $DRY_RUN == 0 ]]; then
   sleep 3
   adb_reconnect
+fi
+if [[ $changed == 1 && $DRY_RUN == 0 ]] && present dnsfilter.android; then
+  if ! dev 'pm list packages -d' | tr -d '\r' | grep -qx 'package:dnsfilter.android'; then
+    die "personalDNSfilter is still enabled after the disable request"
+  fi
 fi
 
 [[ $DRY_RUN == 1 ]] && { note "[dry-run] done"; exit 0; }
