@@ -80,7 +80,7 @@ you open an app. On Fire OS 7 and 8 the Settings button opens Amazon's settings 
 | Background | black, graphite, midnight, image, adaptive, adaptive tint |
 | Image dim, wallpaper rotation | for image backgrounds |
 | Gradient overlay | off (default), dark at bottom, top, left, right, or any of the four corners; above the background but below all text, icons, tiles and banners |
-| Gradient colour | black (default), white, or any of the 24 accent palette colours |
+| Gradient colour | black (default), or any of the 24 accent palette colours (including white) |
 | Gradient strength | 20%, 40% (default), 60%, 80%; available when a gradient direction is selected |
 | Tile corners | square, soft (default), rounded |
 | Tile spacing | compact, normal (default), spacious; applies to rows and grid |
@@ -256,6 +256,8 @@ dim=40
 gradient=off
 # black white blue cyan green amber red pink violet teal mint lime yellow orange coral crimson rose magenta purple indigo lavender sky ice gold copper
 gradient_color=black
+# 20 40 60 80
+gradient_strength=40
 # off visit hourly daily daytime (visit = every return to the home screen)
 rotate=off
 # off on
