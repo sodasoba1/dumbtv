@@ -14,6 +14,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.media.tv.TvInputManager;
 import android.net.Uri;
 import android.os.Build;
@@ -73,6 +74,7 @@ public final class Home extends Activity {
     private ImageView wall;
     private View shade;
     private View tint;
+    private View gradient;
     private LinearLayout head;
     private TextView clock, date;
     private Meter meter;
@@ -516,6 +518,9 @@ public final class Home extends Activity {
         root.addView(shade, new FrameLayout.LayoutParams(MATCH, MATCH));
         tint = new View(this);
         root.addView(tint, new FrameLayout.LayoutParams(MATCH, MATCH));
+        // Kept above the wallpaper, dim and adaptive tint, but below every home-screen element.
+        gradient = new View(this);
+        root.addView(gradient, new FrameLayout.LayoutParams(MATCH, MATCH));
 
         ScrollView scroll = new ScrollView(this) {
             /** Scrolls in whole rows: the focused row shows complete, and a row starts at the top edge. */
@@ -948,7 +953,8 @@ public final class Home extends Activity {
                 target.addView(t, new ViewGroup.LayoutParams(WRAP, WRAP));
             } else {
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
-                lp.rightMargin = dp(18);
+                String spacing = cfg.get(Config.TILE_SPACING);
+                lp.rightMargin = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
                 target.addView(t, lp);
             }
             if (it.id.equals(keep)) restore = index;
@@ -1214,6 +1220,7 @@ public final class Home extends Activity {
         }
         int dim = Integer.parseInt(cfg.get(Config.DIM));
         shade.setBackgroundColor(file == null ? Color.TRANSPARENT : Color.argb(dim * 255 / 100, 0, 0, 0));
+        applyGradient();
         String key = file == null ? null : file.getPath() + ":" + file.lastModified();
         if (key == null ? wallKey == null : key.equals(wallKey)) return;
         wallKey = key;
@@ -1228,6 +1235,34 @@ public final class Home extends Activity {
                 if (key.equals(wallKey)) wall.setImageBitmap(b);
             });
         });
+    }
+
+    /** Applies a configurable black gradient over the background, never over foreground UI. */
+    private void applyGradient() {
+        String direction = cfg.get(Config.GRADIENT);
+        if ("off".equals(direction)) {
+            gradient.setBackground(null);
+            return;
+        }
+        int strength = Integer.parseInt(cfg.get(Config.GRADIENT_STRENGTH));
+        int dark = Color.argb(strength * 255 / 100, 0, 0, 0);
+        GradientDrawable.Orientation orientation;
+        switch (direction) {
+            case "top":
+                orientation = GradientDrawable.Orientation.BOTTOM_TOP;
+                break;
+            case "left":
+                orientation = GradientDrawable.Orientation.RIGHT_LEFT;
+                break;
+            case "right":
+                orientation = GradientDrawable.Orientation.LEFT_RIGHT;
+                break;
+            default:
+                orientation = GradientDrawable.Orientation.TOP_BOTTOM;
+                break;
+        }
+        gradient.setBackground(new GradientDrawable(orientation,
+                new int[] {Color.TRANSPARENT, dark}));
     }
 
     private static Bitmap decode(File f, int w, int h) {

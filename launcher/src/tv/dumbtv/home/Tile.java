@@ -2,6 +2,7 @@ package tv.dumbtv.home;
 
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Outline;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -12,6 +13,7 @@ import android.media.tv.TvInputManager;
 import android.text.TextPaint;
 import android.text.TextUtils;
 import android.view.View;
+import android.view.ViewOutlineProvider;
 
 /** A card drawn in one pass: banner, or icon plus name, or an input name; focus ring on top. */
 final class Tile extends View {
@@ -28,6 +30,8 @@ final class Tile extends View {
     private final Path arrow = new Path();
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint outline = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint glow = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final TextPaint inner = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private final TextPaint under = new TextPaint(Paint.ANTI_ALIAS_FLAG);
@@ -48,13 +52,28 @@ final class Tile extends View {
         labelH = app && afterglow == null ? Ui.dp(c, 26) : 0;
         labelAlways = "always".equals(labels);
         labelOnFocus = "focus".equals(labels);
-        radius = Ui.dp(c, 10);
+        String corners = Config.get(c).get(Config.TILE_RADIUS);
+        radius = Ui.dp(c, "square".equals(corners) ? 0 : "rounded".equals(corners) ? 18 : 10);
         stroke = Ui.dp(c, afterglow == null ? 2.5f : 1f);
 
         fill.setColor(app ? Ui.SURFACE : 0xFF17181B);
         ring.setStyle(Paint.Style.STROKE);
         ring.setStrokeWidth(stroke);
         ring.setColor(accent);
+        outline.setStyle(Paint.Style.STROKE);
+        outline.setStrokeWidth(Ui.dp(c, Float.parseFloat(Config.get(c).get(Config.TILE_BORDER_WIDTH))));
+        String borderMode = Config.get(c).get(Config.TILE_BORDER);
+        outline.setColor("accent".equals(borderMode) ? accent : 0x44FFFFFF);
+        glow.setStyle(Paint.Style.STROKE);
+        glow.setStrokeWidth(Ui.dp(c, 5));
+        glow.setColor((accent & 0x00FFFFFF) | 0x55000000);
+        String shadow = Config.get(c).get(Config.TILE_SHADOW);
+        setElevation(Ui.dp(c, "soft".equals(shadow) ? 4 : 0));
+        setOutlineProvider(new ViewOutlineProvider() {
+            @Override public void getOutline(View view, Outline out) {
+                out.setRoundRect(0, 0, cardW, cardH, radius);
+            }
+        });
         dot.setColor(0xFF34C759);
         inner.setColor(Ui.TEXT);
         inner.setTypeface(Ui.MEDIUM);
@@ -96,8 +115,12 @@ final class Tile extends View {
         super.onFocusChanged(focused, direction, previous);
         animate().cancel();
         if (focused) {
+            if ("glow".equals(Config.get(getContext()).get(Config.TILE_SHADOW))) {
+                setElevation(Ui.dp(getContext(), 8));
+            }
             animate().scaleX(FOCUS_SCALE).scaleY(FOCUS_SCALE).setDuration(110).start();
         } else {
+            setElevation(Ui.dp(getContext(), "soft".equals(Config.get(getContext()).get(Config.TILE_SHADOW)) ? 4 : 0));
             setScaleX(1f);
             setScaleY(1f);
         }
@@ -128,6 +151,15 @@ final class Tile extends View {
         canvas.restore();
 
         if (afterglow != null) afterglow.edge(canvas, cardW, cardH, radius);
+        String borderMode = Config.get(getContext()).get(Config.TILE_BORDER);
+        if (!"off".equals(borderMode) && !isFocused()) {
+            float halfBorder = outline.getStrokeWidth() / 2f;
+            canvas.drawRoundRect(halfBorder, halfBorder, cardW - halfBorder, cardH - halfBorder,
+                    Math.max(0, radius - halfBorder), Math.max(0, radius - halfBorder), outline);
+        }
+        if (isFocused() && "glow".equals(Config.get(getContext()).get(Config.TILE_SHADOW))) {
+            canvas.drawRoundRect(3, 3, cardW - 3, cardH - 3, radius, radius, glow);
+        }
 
         if (item.state == TvInputManager.INPUT_STATE_CONNECTED) {
             float r = Ui.dp(getContext(), 3.5f);

@@ -49,8 +49,11 @@ public final class Options extends Activity {
         list.addView(title);
 
         heading(list, "APPEARANCE");
-        addChoices(list, Config.ACCENT, Config.BACKGROUND, Config.DIM, Config.ROTATE,
-                Config.TILES, Config.LAYOUT, Config.TILE_STYLE, Config.CHIPS, Config.LIBRARY);
+        addChoices(list, Config.ACCENT, Config.BACKGROUND, Config.DIM, Config.GRADIENT,
+                Config.GRADIENT_STRENGTH, Config.ROTATE, Config.TILES, Config.LAYOUT,
+                Config.TILE_STYLE, Config.TILE_RADIUS, Config.TILE_SPACING, Config.TILE_BORDER,
+                Config.TILE_BORDER_WIDTH, Config.TILE_SHADOW, Config.AFTERGLOW_STRENGTH,
+                Config.AFTERGLOW_ICON, Config.CHIPS, Config.LIBRARY);
         list.addView(action(getString(R.string.next_wallpaper), () -> {
             cfg.nextWallpaper();
             refresh();
@@ -145,9 +148,13 @@ public final class Options extends Activity {
                 value.setText(focused ? "‹  " + text + "  ›" : text);
             }
             value.setTextColor(focused ? Ui.TEXT : Ui.MUTED);
-            boolean off = (c == Config.DIM || c == Config.ROTATE)
-                    && !"image".equals(cfg.get(Config.BACKGROUND))
-                    && !"adaptive-tint".equals(cfg.get(Config.BACKGROUND))
+            boolean imageBackground = "image".equals(cfg.get(Config.BACKGROUND))
+                    || "adaptive-tint".equals(cfg.get(Config.BACKGROUND));
+            boolean afterglow = "afterglow".equals(cfg.get(Config.TILE_STYLE));
+            boolean off = (c == Config.DIM || c == Config.ROTATE) && !imageBackground
+                    || c == Config.GRADIENT_STRENGTH && "off".equals(cfg.get(Config.GRADIENT))
+                    || (c == Config.AFTERGLOW_STRENGTH || c == Config.AFTERGLOW_ICON) && !afterglow
+                    || c == Config.TILE_BORDER_WIDTH && "off".equals(cfg.get(Config.TILE_BORDER))
                     || c == Config.SWITCH && "off".equals(cfg.get(Config.INPUTS))
                     || c == Config.ALL_APPS && "on".equals(cfg.get(Config.LOCK));
             row.setAlpha(off ? 0.4f : 1f);

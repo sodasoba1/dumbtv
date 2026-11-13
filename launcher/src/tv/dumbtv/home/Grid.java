@@ -14,18 +14,19 @@ import android.view.ViewGroup;
  * its rows need.
  */
 final class Grid extends ViewGroup {
-    private final int hGap, vGap;
+    private int gap() {
+        String spacing = Config.get(getContext()).get(Config.TILE_SPACING);
+        return Ui.dp(getContext(), "compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
+    }
 
     Grid(Context c) {
         super(c);
         setClipChildren(false);
         setClipToPadding(false);
-        hGap = Ui.dp(c, 18);
-        vGap = Ui.dp(c, 18);
     }
 
     private int columns(int availableWidth, int childWidth) {
-        return Math.max(1, (availableWidth + hGap) / (childWidth + hGap));
+        return Math.max(1, (availableWidth + gap()) / (childWidth + gap()));
     }
 
     /** Columns in the current layout; 1 before the first layout pass or with no tiles. */
@@ -50,7 +51,7 @@ final class Grid extends ViewGroup {
             int avail = Math.max(0, width - getPaddingLeft() - getPaddingRight());
             int cols = columns(avail, cw);
             int rows = (n + cols - 1) / cols;
-            height += rows * ch + (rows - 1) * vGap;
+            height += rows * ch + (rows - 1) * gap();
         }
         setMeasuredDimension(width, height);
     }
@@ -63,10 +64,11 @@ final class Grid extends ViewGroup {
         int cw = first.getMeasuredWidth(), ch = first.getMeasuredHeight();
         int avail = Math.max(0, (r - l) - getPaddingLeft() - getPaddingRight());
         int cols = columns(avail, cw);
+        int gap = gap();
         for (int i = 0; i < n; i++) {
             int col = i % cols, row = i / cols;
-            int x = getPaddingLeft() + col * (cw + hGap);
-            int y = getPaddingTop() + row * (ch + vGap);
+            int x = getPaddingLeft() + col * (cw + gap);
+            int y = getPaddingTop() + row * (ch + gap);
             getChildAt(i).layout(x, y, x + cw, y + ch);
         }
     }

@@ -2,6 +2,7 @@ package tv.dumbtv.home;
 
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.LinearGradient;
@@ -19,6 +20,7 @@ final class AfterglowTile {
     private final Context context;
     private final String title;
     private final int[] colors;
+    private final Drawable brandMark;
     private final Paint brand = new Paint();
     private final Paint fade = new Paint();
     private final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -31,12 +33,21 @@ final class AfterglowTile {
         title = label.toString().toUpperCase(Locale.ROOT);
         int[] known = BrandColors.forPackage(packageId);
         colors = known != null ? known : new int[] {accent, accent};
+        if ("org.smarttube.stable".equals(packageId)) {
+            brandMark = c.getDrawable(R.drawable.ic_brand_youtube);
+        } else if ("Smart Kick TV".equalsIgnoreCase(label.toString().trim())) {
+            brandMark = c.getDrawable(R.drawable.ic_brand_kick);
+        } else {
+            brandMark = null;
+        }
         text.setColor(Ui.TEXT);
         text.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
         text.setTextAlign(Paint.Align.CENTER);
-        ColorMatrix mono = new ColorMatrix();
-        mono.setSaturation(0);
-        iconPaint.setColorFilter(new ColorMatrixColorFilter(mono));
+        if ("grayscale".equals(Config.get(c).get(Config.AFTERGLOW_ICON))) {
+            ColorMatrix mono = new ColorMatrix();
+            mono.setSaturation(0);
+            iconPaint.setColorFilter(new ColorMatrixColorFilter(mono));
+        }
         edge.setColor(0xFF000000);
         edge.setStyle(Paint.Style.STROKE);
         edge.setStrokeWidth(Ui.dp(c, 2));
@@ -44,8 +55,12 @@ final class AfterglowTile {
 
     void resize(int w, int h) {
         brand.setShader(new LinearGradient(0, 0, w, 0, colors, null, Shader.TileMode.CLAMP));
+        int strength = Integer.parseInt(Config.get(context).get(Config.AFTERGLOW_STRENGTH));
+        int a = Math.min(255, strength * 255 / 100);
         fade.setShader(new LinearGradient(0, 0, 0, h,
-                new int[] {0xFF101010, 0xFF101010, 0xD6101010, 0x87101010, 0x00101010},
+                new int[] {Color.argb(a, 16, 16, 16), Color.argb(a, 16, 16, 16),
+                        Color.argb(a * 214 / 255, 16, 16, 16),
+                        Color.argb(a * 135 / 255, 16, 16, 16), 0x00101010},
                 new float[] {0f, .25f, .5f, .75f, 1f}, Shader.TileMode.CLAMP));
         float size = Ui.dp(context, 17), room = w - Ui.dp(context, 24);
         text.setTextSize(size);
@@ -58,15 +73,16 @@ final class AfterglowTile {
         canvas.drawRect(0, 0, w, h, fade);
         canvas.drawText(fitted, 0, fitted.length(), w / 2f,
                 h / 2f - (text.ascent() + text.descent()) / 2, text);
-        if (icon != null) {
-            float aspect = (float) Math.max(1, icon.getIntrinsicWidth())
-                    / Math.max(1, icon.getIntrinsicHeight());
+        Drawable corner = brandMark != null ? brandMark : icon;
+        if (corner != null) {
+            float aspect = (float) Math.max(1, corner.getIntrinsicWidth())
+                    / Math.max(1, corner.getIntrinsicHeight());
             int iw = Math.max(1, Math.min(Ui.dp(context, 28), Math.round(Ui.dp(context, 18) * aspect)));
             int ih = Math.max(1, Math.min(Ui.dp(context, 18), Math.round(iw / aspect)));
             int right = w - Ui.dp(context, 9), top = Ui.dp(context, 9);
             int layer = canvas.saveLayer(right - iw, top, right, top + ih, iconPaint);
-            icon.setBounds(right - iw, top, right, top + ih);
-            icon.draw(canvas);
+            corner.setBounds(right - iw, top, right, top + ih);
+            corner.draw(canvas);
             canvas.restoreToCount(layer);
         }
     }
