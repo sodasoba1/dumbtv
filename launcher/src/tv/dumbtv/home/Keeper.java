@@ -59,24 +59,29 @@ public final class Keeper extends Service {
 
     private final BroadcastReceiver screen = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (Intent.ACTION_SCREEN_OFF.equals(action)) {
-                screenOffTime = System.currentTimeMillis();
-                screenWasAmazonHome = isAmazonHome();
-                note("screen off; amazon home=" + screenWasAmazonHome);
-            } else if (Intent.ACTION_SCREEN_ON.equals(action)) {
-                if (!screenWasAmazonHome || paused) return;
-                updateTop(screenOffTime, System.currentTimeMillis());
-                if (isAmazonHome()) {
-                    note("screen on; restoring last foreground Amazon Home");
-                    beginRecovery();
-                } else {
-                    cancelRecovery("foreground changed while screen was off");
-                }
-                screenWasAmazonHome = false;
-            }
+            final String action = intent.getAction();
+            if (worker != null) worker.post(() -> handleScreen(action));
         }
     };
+
+    /** All foreground/recovery state is confined to the Keeper worker thread. */
+    private void handleScreen(String action) {
+        if (Intent.ACTION_SCREEN_OFF.equals(action)) {
+            screenOffTime = System.currentTimeMillis();
+            screenWasAmazonHome = isAmazonHome();
+            note("screen off; amazon home=" + screenWasAmazonHome);
+        } else if (Intent.ACTION_SCREEN_ON.equals(action)) {
+            if (!screenWasAmazonHome || paused) return;
+            updateTop(screenOffTime, System.currentTimeMillis());
+            if (isAmazonHome()) {
+                note("screen on; restoring last foreground Amazon Home");
+                beginRecovery();
+            } else {
+                cancelRecovery("foreground changed while screen was off");
+            }
+            screenWasAmazonHome = false;
+        }
+    }
 
     static void pause() {
         paused = true;
