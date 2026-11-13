@@ -51,7 +51,8 @@ public final class Options extends Activity {
         heading(list, "APPEARANCE");
         addChoices(list, Config.ACCENT, Config.BACKGROUND, Config.DIM, Config.GRADIENT,
                 Config.GRADIENT_STRENGTH, Config.ROTATE, Config.TILES, Config.LAYOUT,
-                Config.TILE_STYLE, Config.TILE_RADIUS, Config.TILE_SPACING, Config.TILE_BORDER,
+                Config.TILE_STYLE, Config.FOCUS_SCALE, Config.FOCUS_INDICATOR, Config.FOCUS_ANIMATION,
+                Config.TILE_RADIUS, Config.TILE_SPACING, Config.TILE_BORDER,
                 Config.TILE_BORDER_WIDTH, Config.TILE_SHADOW, Config.AFTERGLOW_STRENGTH,
                 Config.AFTERGLOW_ICON, Config.CHIPS, Config.LIBRARY);
         list.addView(action(getString(R.string.next_wallpaper), () -> {
