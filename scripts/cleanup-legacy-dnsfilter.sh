@@ -1,22 +1,30 @@
 #!/usr/bin/env bash
 # One-time migration from DumbTV's former optional personalDNSfilter integration.
-# Only touches the VPN selection when it explicitly belongs to dnsfilter.android.
+# Disable only that app if present; clear the always-on VPN selection only if it
+# explicitly belongs to that app. Other VPN apps and settings are untouched.
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 parse_flags "$@"
 need_device
 
+changed=0
 legacy_vpn=$(dev1 settings get secure always_on_vpn_app | tr -d '\r')
-if [[ $legacy_vpn != dnsfilter.android ]]; then
-  note "no legacy personalDNSfilter always-on VPN selection"
-  exit 0
+if [[ $legacy_vpn == dnsfilter.android ]]; then
+  step "clear legacy personalDNSfilter VPN selection"
+  acmd settings delete secure always_on_vpn_app
+  changed=1
 fi
 
-step "retire legacy personalDNSfilter"
-note "clearing only the old personalDNSfilter VPN selection; other VPN apps are untouched"
-acmd settings delete secure always_on_vpn_app
 if present dnsfilter.android; then
+  step "disable legacy personalDNSfilter app"
   acmd pm disable-user --user 0 dnsfilter.android
-  note "personalDNSfilter disabled; remove it from Settings > Applications if desired"
+  note "personalDNSfilter disabled; uninstall it from Settings > Applications if desired"
+  changed=1
+else
+  note "personalDNSfilter is not installed"
 fi
-[[ $DRY_RUN == 1 ]] || { sleep 2; adb_reconnect; }
+
+if [[ $changed == 1 && $DRY_RUN == 0 ]]; then
+  sleep 2
+  adb_reconnect
+fi
