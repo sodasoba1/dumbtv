@@ -64,6 +64,19 @@ class PiHoleIntegrationTest(unittest.TestCase):
         self.assertGreater(installer.index("if installed dnsfilter.android"),
                            installer.index("printf 'front window:"))
 
+    def test_dns_check_runs_queries_on_fire_tv_and_checks_deny_and_allow(self):
+        checker = (ROOT / "scripts" / "dns-check.sh").read_text()
+        self.assertIn("getprop net.dns1", checker)
+        self.assertIn("ping -c 1 -W 2", checker)
+        self.assertIn("aax.amazon-adsystem.com", checker)
+        self.assertIn("api.eu-west-1.aiv-delivery.net", checker)
+        self.assertIn("Pi-hole Query Log", checker)
+
+    def test_install_offers_optional_live_dns_check(self):
+        all_script = (ROOT / "scripts" / "all.sh").read_text()
+        self.assertIn('bash "$DIR/dns-check.sh"', all_script)
+        self.assertIn("Pi-hole IP for a live DNS test", all_script)
+
     def test_restore_only_clears_legacy_filter_vpn(self):
         restore = (ROOT / "scripts" / "restore.sh").read_text()
         self.assertIn("if [[ $legacy_vpn == dnsfilter.android ]]", restore)
