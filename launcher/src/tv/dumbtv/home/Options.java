@@ -224,9 +224,12 @@ public final class Options extends Activity {
     }
 
     private int selectedColor(Config.Choice c) {
-        if (c == Config.ACCENT) return cfg.accent();
-        if (c == Config.BACKGROUND) return cfg.background();
-        return cfg.gradientColor();
+        int current;
+        if (c == Config.ACCENT) current = cfg.accent();
+        else if (c == Config.BACKGROUND) current = cfg.background();
+        else current = cfg.gradientColor();
+        String saved = cfg.get(c.key + "_custom", "");
+        return saved.startsWith("#") ? Config.parseColor(saved, current) : current;
     }
 
     private void chooseCustomColor(Config.Choice c) {
