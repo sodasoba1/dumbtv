@@ -409,9 +409,9 @@ final class Config {
     }
 
     static int paletteColor(String value) {
-        if ("black".equals(value)) return Color.BLACK;
+        if ("black".equals(value)) return 0xFF000000;
         int index = Arrays.asList(ACCENT.values).indexOf(value);
-        return index < 0 ? Color.BLACK : ACCENTS[index];
+        return index < 0 ? 0xFF000000 : ACCENTS[index];
     }
 
     /** Counts returns to the home screen, for the "visit" rotation. */
