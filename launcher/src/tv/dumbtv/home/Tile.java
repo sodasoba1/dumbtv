@@ -192,10 +192,14 @@ final class Tile extends View {
                 canvas.drawRoundRect(half, half, cardW - half, cardH - half,
                         Math.max(0, radius - half), Math.max(0, radius - half), ring);
             } else {
-                focusGlow.setColor((color & 0x00FFFFFF) | 0x99000000);
+                focusGlow.setColor((color & 0x00FFFFFF) | 0x55000000);
                 float half = focusGlow.getStrokeWidth() / 2;
                 canvas.drawRoundRect(half, half, cardW - half, cardH - half,
                         Math.max(0, radius - half), Math.max(0, radius - half), focusGlow);
+                ring.setColor(color);
+                float ringHalf = stroke / 2;
+                canvas.drawRoundRect(ringHalf, ringHalf, cardW - ringHalf, cardH - ringHalf,
+                        Math.max(0, radius - ringHalf), Math.max(0, radius - ringHalf), ring);
             }
         }
         if (moving) drawArrows(canvas);
