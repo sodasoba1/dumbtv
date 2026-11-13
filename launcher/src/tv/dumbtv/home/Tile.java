@@ -2,6 +2,7 @@ package tv.dumbtv.home;
 
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Outline;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
@@ -32,6 +33,7 @@ final class Tile extends View {
     private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint outline = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint glow = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint focusGlow = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final TextPaint inner = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private final TextPaint under = new TextPaint(Paint.ANTI_ALIAS_FLAG);
@@ -67,6 +69,8 @@ final class Tile extends View {
         glow.setStyle(Paint.Style.STROKE);
         glow.setStrokeWidth(Ui.dp(c, 5));
         glow.setColor((accent & 0x00FFFFFF) | 0x55000000);
+        focusGlow.setStyle(Paint.Style.STROKE);
+        focusGlow.setStrokeWidth(Ui.dp(c, 7));
         String shadow = Config.get(c).get(Config.TILE_SHADOW);
         setElevation(Ui.dp(c, "soft".equals(shadow) ? 4 : 0));
         setOutlineProvider(new ViewOutlineProvider() {
@@ -114,15 +118,22 @@ final class Tile extends View {
     protected void onFocusChanged(boolean focused, int direction, Rect previous) {
         super.onFocusChanged(focused, direction, previous);
         animate().cancel();
+        Config config = Config.get(getContext());
         if (focused) {
-            if ("glow".equals(Config.get(getContext()).get(Config.TILE_SHADOW))) {
-                setElevation(Ui.dp(getContext(), 8));
+            if ("glow".equals(config.get(Config.TILE_SHADOW))) setElevation(Ui.dp(getContext(), 8));
+            float scale;
+            switch (config.get(Config.FOCUS_SCALE)) {
+                case "off": scale = 1f; break;
+                case "subtle": scale = 1.04f; break;
+                case "strong": scale = 1.12f; break;
+                default: scale = FOCUS_SCALE; break;
             }
-            animate().scaleX(FOCUS_SCALE).scaleY(FOCUS_SCALE).setDuration(110).start();
+            if ("smooth".equals(config.get(Config.FOCUS_ANIMATION))) animate().scaleX(scale).scaleY(scale).setDuration(110).start();
+            else { setScaleX(scale); setScaleY(scale); }
         } else {
-            setElevation(Ui.dp(getContext(), "soft".equals(Config.get(getContext()).get(Config.TILE_SHADOW)) ? 4 : 0));
-            setScaleX(1f);
-            setScaleY(1f);
+            setElevation(Ui.dp(getContext(), "soft".equals(config.get(Config.TILE_SHADOW)) ? 4 : 0));
+            if ("smooth".equals(config.get(Config.FOCUS_ANIMATION))) animate().scaleX(1f).scaleY(1f).setDuration(110).start();
+            else { setScaleX(1f); setScaleY(1f); }
         }
         invalidate();
     }
@@ -165,10 +176,27 @@ final class Tile extends View {
             float r = Ui.dp(getContext(), 3.5f);
             canvas.drawCircle(cardW - r * 3, r * 3, r, dot);
         }
-        if (isFocused() || moving) {
+        if (moving) {
             float half = stroke / 2;
-            ring.setPathEffect(moving ? new DashPathEffect(new float[] {stroke * 3, stroke * 2}, 0) : null);
-            canvas.drawRoundRect(half, half, cardW - half, cardH - half, radius - half, radius - half, ring);
+            ring.setPathEffect(new DashPathEffect(new float[] {stroke * 3, stroke * 2}, 0));
+            canvas.drawRoundRect(half, half, cardW - half, cardH - half,
+                    Math.max(0, radius - half), Math.max(0, radius - half), ring);
+            ring.setPathEffect(null);
+        } else if (isFocused()) {
+            String indicator = Config.get(getContext()).get(Config.FOCUS_INDICATOR);
+            boolean white = indicator.startsWith("white");
+            int color = white ? Color.WHITE : Config.get(getContext()).accent();
+            if (indicator.endsWith("ring")) {
+                ring.setColor(color);
+                float half = stroke / 2;
+                canvas.drawRoundRect(half, half, cardW - half, cardH - half,
+                        Math.max(0, radius - half), Math.max(0, radius - half), ring);
+            } else {
+                focusGlow.setColor((color & 0x00FFFFFF) | 0x99000000);
+                float half = focusGlow.getStrokeWidth() / 2;
+                canvas.drawRoundRect(half, half, cardW - half, cardH - half,
+                        Math.max(0, radius - half), Math.max(0, radius - half), focusGlow);
+            }
         }
         if (moving) drawArrows(canvas);
         boolean label = banner != null && (labelAlways || labelOnFocus && isFocused());
