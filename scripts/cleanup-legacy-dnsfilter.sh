@@ -8,7 +8,6 @@ parse_flags "$@"
 need_device
 
 legacy_vpn=$(dev1 settings get secure always_on_vpn_app | tr -d '\r')
-app_present=0
 
 # Stop the service before clearing Android's always-on selection. Stopping a VPN
 # can drop network ADB, so reconnect before issuing the next device command.
@@ -16,7 +15,6 @@ if present dnsfilter.android; then
   step "disable legacy personalDNSfilter app"
   disable_rc=0
   acmd pm disable-user --user 0 dnsfilter.android || disable_rc=$?
-  app_present=1
   if [[ $DRY_RUN == 0 ]]; then
     sleep 2
     adb_reconnect
@@ -36,7 +34,6 @@ fi
 if [[ $legacy_vpn == dnsfilter.android ]]; then
   step "clear legacy personalDNSfilter VPN selection"
   acmd settings delete secure always_on_vpn_app || die "could not clear the legacy personalDNSfilter VPN selection"
-  changed=1
   if [[ $DRY_RUN == 0 && $(dev1 settings get secure always_on_vpn_app | tr -d '\r') == dnsfilter.android ]]; then
     die "the legacy personalDNSfilter VPN selection is still set"
   fi
