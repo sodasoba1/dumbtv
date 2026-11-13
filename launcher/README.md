@@ -86,6 +86,9 @@ you open an app. On Fire OS 7 and 8 the Settings button opens Amazon's settings 
 | Tile border | off (default), subtle, accent |
 | Border thickness | thin (default), medium, thick; used when a border is enabled |
 | Tile shadow / glow | off (default), soft shadow, focus glow |
+| Focus scale | off, subtle, normal (default), strong |
+| Focus indicator | accent ring (default), white ring, accent glow, white glow |
+| Focus animation | immediate, smooth (default) |
 | Afterglow strength | 20%, 40% (default), 60%, 80%; controls the dark fade over brand colours |
 | Afterglow icon | grayscale (default), original app icon colours |
 | Child lock | off, on: hides Options and Settings and turns off Hold OK and ☰ Menu on tiles, so the home screen only opens apps and inputs (see below) |
