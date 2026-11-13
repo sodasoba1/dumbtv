@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.drawable.Drawable;
 import android.media.tv.TvContract;
 import android.media.tv.TvInputInfo;
@@ -71,7 +73,11 @@ final class Catalog {
         if (it.info == null) return;
         if (brandFocus) {
             it.banner = null;
-            it.icon = replacement != null ? replacement : it.info.loadIcon(pm);
+            Drawable icon = (replacement != null ? replacement : it.info.loadIcon(pm)).mutate();
+            ColorMatrix grayscale = new ColorMatrix();
+            grayscale.setSaturation(0);
+            icon.setColorFilter(new ColorMatrixColorFilter(grayscale));
+            it.icon = icon;
             return;
         }
         boolean wide = replacement != null && isWide(replacement);
