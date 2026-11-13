@@ -73,10 +73,13 @@ final class Catalog {
         if (it.info == null) return;
         if (brandFocus) {
             it.banner = null;
-            Drawable icon = (replacement != null ? replacement : it.info.loadIcon(pm)).mutate();
-            ColorMatrix grayscale = new ColorMatrix();
-            grayscale.setSaturation(0);
-            icon.setColorFilter(new ColorMatrixColorFilter(grayscale));
+            Drawable icon = replacement != null ? replacement : it.info.loadIcon(pm);
+            if (icon != null) {
+                icon = icon.mutate();
+                ColorMatrix grayscale = new ColorMatrix();
+                grayscale.setSaturation(0);
+                icon.setColorFilter(new ColorMatrixColorFilter(grayscale));
+            }
             it.icon = icon;
             return;
         }
