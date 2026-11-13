@@ -7,61 +7,88 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 
 /**
- * Watches for Amazon's launcher coming back to the foreground and puts dumbtv home back on top.
+ * Watches for Amazon's launcher coming back to the foreground and restores dumbtv home.
  *
- * Fire OS 6.7 refuses third-party accessibility services, so Guard cannot run there. This service
- * needs no accessibility: it reads the foreground package from UsageStats (granted with
- * `appops set tv.dumbtv.home GET_USAGE_STATS allow`) and calls moveTaskToFront, which is not an
- * activity launch and therefore escapes the 5 s app-switch delay. The alarm path is only the
- * first-start fallback, before a Home task exists.
+ * Fire OS 6 does not permit the accessibility Guard to run on this device. Keeper therefore
+ * uses UsageStats foreground events. It only intervenes after a positive Amazon Home event,
+ * and stops as soon as another app is observed.
  */
 public final class Keeper extends Service {
     private static final String AMAZON_PKG = "com.amazon.tv.launcher";
-    // Only the home activity, never Settings/search/other KFTV screens.
     private static final String AMAZON_HOME = "com.amazon.tv.launcher.ui.HomeActivity_vNext";
+    private static final String SYSTEM_UI = "com.android.systemui";
+    private static final String DUMBTV_PKG = "tv.dumbtv.home";
     private static final long POLL_MS = 250;
-    private static final long DEBOUNCE_MS = 1500;
+    private static final long VERIFY_MS = 800;
+    private static final long RETRY_MS = 650;
+    private static final int MAX_ATTEMPTS = 3;
 
     private static volatile boolean paused;
     private HandlerThread thread;
     private Handler worker;
     private UsageStatsManager usage;
-    private long lastLaunch;
-    private String topClass;
+    private long lastEventTime;
+    private long screenOffTime;
+    private String lastTop;
+    private String lastTopClass;
+    private boolean screenWasAmazonHome;
+    private boolean recovering;
+    private int attempts;
 
-    /** Lets Amazon's home stay on screen until the user opens another app, like Guard.pause(). */
+    private final Runnable poll = new Runnable() {
+        @Override public void run() {
+            try {
+                check();
+            } catch (RuntimeException e) {
+                note("poll failed: " + e);
+            }
+            if (worker != null) worker.postDelayed(this, POLL_MS);
+        }
+    };
+
+    private final Runnable verify = this::verifyRecovery;
+
+    private final BroadcastReceiver screen = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (Intent.ACTION_SCREEN_OFF.equals(action)) {
+                screenOffTime = System.currentTimeMillis();
+                screenWasAmazonHome = isAmazonHome();
+                note("screen off; amazon home=" + screenWasAmazonHome);
+            } else if (Intent.ACTION_SCREEN_ON.equals(action)) {
+                if (!screenWasAmazonHome || paused) return;
+                updateTop(screenOffTime, System.currentTimeMillis());
+                if (isAmazonHome()) {
+                    note("screen on; restoring last foreground Amazon Home");
+                    beginRecovery();
+                } else {
+                    cancelRecovery("foreground changed while screen was off");
+                }
+                screenWasAmazonHome = false;
+            }
+        }
+    };
+
     static void pause() {
         paused = true;
     }
 
     static void start(Context c) {
-        // Fire OS 6 (Android 7.1) only; 7 and 8 use the accessibility Guard. Android 8.x would
-        // also need a notification channel and refuses background startService.
         if (android.os.Build.VERSION.SDK_INT >= 26) return;
         c.startService(new Intent(c, Keeper.class));
     }
 
-    private final Runnable poll = new Runnable() {
-        @Override
-        public void run() {
-            try {
-                check();
-            } catch (Throwable ignored) {
-                // Never let one bad query kill the watchdog.
-            }
-            worker.postDelayed(this, POLL_MS);
-        }
-    };
-
     @Override
-    @SuppressWarnings("deprecation") // the channel-less builder is the only one Android 7.1 has
+    @SuppressWarnings("deprecation")
     public void onCreate() {
         super.onCreate();
         usage = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
@@ -70,25 +97,32 @@ public final class Keeper extends Service {
                 .setContentTitle("dumbtv")
                 .setContentText("home keeper")
                 .build());
-        // Keep the binder queries off the UI thread: this process draws the home screen.
         thread = new HandlerThread("keeper");
         thread.start();
         worker = new Handler(thread.getLooper());
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_SCREEN_OFF);
+        filter.addAction(Intent.ACTION_SCREEN_ON);
+        registerReceiver(screen, filter);
         worker.post(poll);
         worker.postDelayed(this::firstStart, 2500);
     }
 
     @Override
     public void onDestroy() {
+        if (worker != null) {
+            worker.removeCallbacks(poll);
+            worker.removeCallbacks(verify);
+        }
+        try {
+            unregisterReceiver(screen);
+        } catch (IllegalArgumentException ignored) {
+        }
         if (thread != null) thread.quitSafely();
         super.onDestroy();
     }
 
-    /**
-     * Logs to logcat always, and to a file under the app's own external dir only
-     * while the {@code debug} marker exists there (touch it to enable, delete it
-     * to stop). The file survives reboots, which is the point.
-     */
+    /** Writes to logcat, and to keeper.log when the optional debug marker exists. */
     static void note(String msg) {
         android.util.Log.i("dumbtvtest", msg);
         java.io.File marker = new java.io.File(
@@ -104,78 +138,143 @@ public final class Keeper extends Service {
             } finally {
                 out.close();
             }
-        } catch (Throwable ignored) {
+        } catch (Exception e) {
+            android.util.Log.w("dumbtvtest", "could not append keeper log", e);
         }
     }
 
-    /** After a boot or an update there is no Home task yet, and UsageStats saw no new event. */
     private void firstStart() {
         ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
         if (manager == null || !manager.getAppTasks().isEmpty()) return;
-        android.util.Log.i("dumbtvtest", "keeper: first start");
-        launch(System.currentTimeMillis());
+        note("first start: no DumbTV task");
+        raiseHome();
     }
 
     private void check() {
-        long now = System.currentTimeMillis();
-        String top = top(now);
-        if (top == null) return;
-        if (!AMAZON_PKG.equals(top)) {
-            if (!"com.android.systemui".equals(top) && !"android".equals(top)) paused = false;
+        boolean changed = updateTop(System.currentTimeMillis() - 4000, System.currentTimeMillis());
+        if (!changed) return;
+        if (isAmazonHome()) {
+            if (!paused) beginRecovery();
             return;
         }
-        if (!AMAZON_HOME.equals(topClass)) return;
-        if (paused) return;
-        if (now - lastLaunch < DEBOUNCE_MS) return;
-        launch(now);
-    }
-
-    private String top(long now) {
-        if (usage == null) return null;
-        UsageEvents events = usage.queryEvents(now - 4000, now);
-        UsageEvents.Event e = new UsageEvents.Event();
-        String top = null;
-        while (events.hasNextEvent()) {
-            events.getNextEvent(e);
-            if (e.getEventType() == UsageEvents.Event.MOVE_TO_FOREGROUND) {
-                top = e.getPackageName();
-                topClass = e.getClassName();
-            }
+        if (lastTop == null || SYSTEM_UI.equals(lastTop) || "android".equals(lastTop)) {
+            cancelRecovery("system UI foreground");
+            return;
         }
-        return top;
+        if (!DUMBTV_PKG.equals(lastTop)) {
+            cancelRecovery("another app foreground: " + lastTop);
+            paused = false;
+        } else {
+            cancelRecovery("DumbTV foreground");
+        }
     }
 
-    private void launch(long now) {
-        lastLaunch = now;
+    /**
+     * UsageStats is an event history, not a current-window API. Keep the latest positively
+     * observed foreground event across empty polling windows; never infer a new foreground app
+     * from an empty result.
+     */
+    private boolean updateTop(long from, long now) {
+        if (usage == null) return false;
+        UsageEvents events = usage.queryEvents(Math.max(0, from), now);
+        if (events == null) return false;
+        boolean changed = false;
+        UsageEvents.Event event = new UsageEvents.Event();
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event);
+            if (event.getEventType() != UsageEvents.Event.MOVE_TO_FOREGROUND
+                    || event.getTimeStamp() < lastEventTime) continue;
+            lastEventTime = event.getTimeStamp();
+            lastTop = event.getPackageName();
+            lastTopClass = event.getClassName();
+            changed = true;
+        }
+        return changed;
+    }
+
+    private boolean isAmazonHome() {
+        return AMAZON_PKG.equals(lastTop) && AMAZON_HOME.equals(lastTopClass);
+    }
+
+    private void beginRecovery() {
+        if (paused || !isAmazonHome() || recovering) return;
+        recovering = true;
+        attempts = 0;
+        worker.removeCallbacks(verify);
+        note("recovery started");
+        attemptRecovery();
+    }
+
+    private void attemptRecovery() {
+        if (!recovering || paused || !isAmazonHome()) {
+            cancelRecovery("recovery no longer eligible");
+            return;
+        }
+        if (attempts >= MAX_ATTEMPTS) {
+            cancelRecovery("recovery exhausted after " + attempts + " attempts");
+            return;
+        }
+        attempts++;
+        note("recovery attempt " + attempts + "/" + MAX_ATTEMPTS);
+        boolean moved = false;
         ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
         if (manager != null) {
             try {
                 for (ActivityManager.AppTask task : manager.getAppTasks()) {
-                    // An empty task is one being torn down (its activity was just
-                    // finished by the task reset on a HOME press); moving it makes
-                    // Fire OS relaunch the dead activity, so never touch it.
                     String top = task.getTaskInfo().topActivity == null ? ""
                             : task.getTaskInfo().topActivity.getClassName();
                     String base = task.getTaskInfo().baseActivity == null ? ""
                             : task.getTaskInfo().baseActivity.getClassName();
                     if (top.isEmpty() && base.isEmpty()) continue;
                     task.moveToFront();
-                    android.util.Log.i("dumbtvtest", "keeper: moveToFront");
-                    return;
+                    moved = true;
+                    break;
                 }
-            } catch (Throwable t) {
-                note("moveToFront threw: " + t);
-                // Fall through to the alarm below.
+            } catch (RuntimeException e) {
+                note("moveToFront failed: " + e);
             }
         }
-        Intent i = new Intent(this, Home.class)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                        | Intent.FLAG_ACTIVITY_CLEAR_TOP
+        if (!moved) raiseHome();
+        worker.removeCallbacks(verify);
+        worker.postDelayed(verify, VERIFY_MS);
+    }
+
+    private void verifyRecovery() {
+        updateTop(System.currentTimeMillis() - 10_000, System.currentTimeMillis());
+        if (DUMBTV_PKG.equals(lastTop)) {
+            note("recovery verified: DumbTV foreground");
+            cancelRecovery("verified");
+            return;
+        }
+        if (!isAmazonHome() || paused) {
+            cancelRecovery("recovery stopped; foreground=" + lastTop + "/" + lastTopClass);
+            return;
+        }
+        if (attempts >= MAX_ATTEMPTS) {
+            cancelRecovery("recovery failed after " + attempts + " attempts");
+            return;
+        }
+        worker.postDelayed(this::attemptRecovery, RETRY_MS);
+    }
+
+    private void cancelRecovery(String reason) {
+        if (recovering) note("recovery stopped: " + reason);
+        recovering = false;
+        attempts = 0;
+        if (worker != null) worker.removeCallbacks(verify);
+    }
+
+    private void raiseHome() {
+        Intent intent = new Intent(this, Home.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP
                         | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        PendingIntent pi = PendingIntent.getActivity(this, 1, i, PendingIntent.FLAG_UPDATE_CURRENT);
-        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        am.setExact(AlarmManager.RTC, now, pi);
-        android.util.Log.i("dumbtvtest", "keeper: alarm set");
+        PendingIntent pending = PendingIntent.getActivity(this, 1, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT);
+        AlarmManager alarms = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        if (alarms != null) {
+            alarms.setExact(AlarmManager.RTC, System.currentTimeMillis(), pending);
+            note("Home activity alarm requested");
+        }
     }
 
     @Override
