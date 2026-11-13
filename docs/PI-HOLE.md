@@ -152,9 +152,14 @@ These are exact host exceptions, not broad wildcards. If a different hostname is
 blocked, inspect the Query Log and add only the proven requirement.
 
 The [essential-service candidates](https://raw.githubusercontent.com/sodasoba1/dumbtv/main/data/blocklists/pihole/allowed-essential.txt)
-are diagnostic references, not a list to import pre-emptively. YouTube,
-Appstore artwork and app delivery endpoints are intentionally not part of the
-default blocklists.
+are diagnostic references, not a list to import pre-emptively. If the Query Log
+proves one of these exact domains is being blocked and a required feature fails:
+
+- **Pi-hole v6:** add the raw URL under **Settings → Lists** and choose the allowlist type.
+- **Pi-hole v5:** add only the proven domain(s) manually with `sudo pihole -w domain`.
+
+YouTube, Appstore artwork and app delivery endpoints are intentionally not part of
+the default blocklists.
 
 ## Verify and troubleshoot
 
