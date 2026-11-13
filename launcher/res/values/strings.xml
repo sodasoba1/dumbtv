@@ -8,6 +8,8 @@
     <!-- Home screen -->
     <string name="options">Options</string>
     <string name="settings">Settings</string>
+    <string name="all_apps">All apps</string>
+    <string name="close_all_apps">Close all apps</string>
     <string name="row_apps">Apps</string>
     <string name="row_inputs">Inputs</string>
     <string name="row_all_apps">All apps</string>
@@ -133,6 +135,15 @@
     <string name="choice_background_black">Black</string>
     <string name="choice_background_graphite">Graphite</string>
     <string name="choice_background_midnight">Midnight</string>
+    <string name="choice_background_charcoal">Charcoal</string>
+    <string name="choice_background_slate">Slate</string>
+    <string name="choice_background_navy">Navy</string>
+    <string name="choice_background_ocean">Ocean</string>
+    <string name="choice_background_forest">Forest</string>
+    <string name="choice_background_burgundy">Burgundy</string>
+    <string name="choice_background_plum">Plum</string>
+    <string name="choice_background_espresso">Espresso</string>
+    <string name="choice_background_sand">Sand</string>
     <string name="choice_background_image">Image file</string>
     <string name="choice_background_adaptive">Adaptive solid</string>
     <string name="choice_background_adaptive_tint">Adaptive wallpaper tint</string>
