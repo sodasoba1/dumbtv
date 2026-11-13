@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/** Every setting is a row: left/right or OK cycles it, and the change is saved at once. */
+/** TV-friendly options: OK opens a value list; left/right remains a quick adjustment. */
 public final class Options extends Activity {
     private static final int WRAP = ViewGroup.LayoutParams.WRAP_CONTENT;
 
@@ -48,7 +48,7 @@ public final class Options extends Activity {
         title.setPadding(dp(16), 0, 0, dp(20));
         list.addView(title);
 
-        heading(list, "APPEARANCE");
+        heading(list, R.string.options_appearance);
         addChoices(list, Config.ACCENT, Config.BACKGROUND, Config.DIM, Config.GRADIENT,
                 Config.GRADIENT_STRENGTH, Config.ROTATE, Config.TILES, Config.LAYOUT,
                 Config.TILE_STYLE, Config.FOCUS_SCALE, Config.FOCUS_INDICATOR, Config.FOCUS_ANIMATION,
@@ -60,7 +60,7 @@ public final class Options extends Activity {
             refresh();
         }));
 
-        heading(list, "APPLICATIONS");
+        heading(list, R.string.options_applications);
         addChoices(list, Config.ORDER, Config.ALL_APPS, Config.LABELS);
         LinearLayout packRow = new LinearLayout(this);
         packRow.setOrientation(LinearLayout.VERTICAL);
@@ -76,11 +76,11 @@ public final class Options extends Activity {
         list.addView(action(getString(R.string.apps_on_home), () -> pick(Catalog.APPS)));
         list.addView(action(getString(R.string.reset_layout), this::reset));
 
-        heading(list, "INPUTS");
+        heading(list, R.string.options_inputs);
         addChoices(list, Config.INPUTS, Config.SWITCH);
         list.addView(action(getString(R.string.inputs_on_home), () -> pick(Catalog.INPUTS)));
 
-        heading(list, "SYSTEM");
+        heading(list, R.string.options_system);
         addChoices(list, Config.CLOCK, Config.MEMORY, Config.LOCK);
         list.addView(action(getString(R.string.export_settings), this::export));
         list.addView(action(getString(R.string.open_amazon_home), () -> {
@@ -110,11 +110,12 @@ public final class Options extends Activity {
         for (Runnable r : refreshers) r.run();
     }
 
-    private void heading(LinearLayout list, String title) {
-        TextView heading = Ui.text(this, 14, Ui.FAINT, Ui.MEDIUM);
+    private void heading(LinearLayout list, int title) {
+        TextView heading = Ui.text(this, 13, Ui.FAINT, Ui.MEDIUM);
         heading.setText(title);
-        heading.setLetterSpacing(0.08f);
-        heading.setPadding(dp(16), dp(24), 0, dp(8));
+        heading.setAllCaps(true);
+        heading.setLetterSpacing(0.1f);
+        heading.setPadding(dp(16), dp(26), 0, dp(10));
         list.addView(heading);
     }
 
@@ -129,7 +130,7 @@ public final class Options extends Activity {
         value.setGravity(Gravity.END);
         row.addView(name, new LinearLayout.LayoutParams(0, WRAP, 1f));
         row.addView(value, new LinearLayout.LayoutParams(WRAP, WRAP));
-        row.setOnClickListener(v -> step(c, 1));
+        row.setOnClickListener(v -> choose(c));
         row.setOnKeyListener((v, code, e) -> {
             if (e.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (code == KeyEvent.KEYCODE_DPAD_LEFT) return step(c, -1);
@@ -144,9 +145,9 @@ public final class Options extends Activity {
                 s.setSpan(new ForegroundColorSpan(cfg.accent()), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 value.setText(focused ? "‹  " : "");
                 value.append(s);
-                if (focused) value.append("  ›");
+                value.append(focused ? "  ▾" : "  ⌄");
             } else {
-                value.setText(focused ? "‹  " + text + "  ›" : text);
+                value.setText(focused ? "‹  " + text + "  ▾" : text + "  ⌄");
             }
             value.setTextColor(focused ? Ui.TEXT : Ui.MUTED);
             boolean imageBackground = "image".equals(cfg.get(Config.BACKGROUND))
@@ -164,6 +165,28 @@ public final class Options extends Activity {
         refreshers.add(show);
         refreshers.add(() -> style(row));
         return row;
+    }
+
+    private void choose(Config.Choice c) {
+        int n = c.values.length;
+        if (n < 2) return;
+        CharSequence[] names = new CharSequence[n];
+        for (int i = 0; i < n; i++) names[i] = Text.name(this, c, c.values[i]);
+        int selected = Arrays.asList(c.values).indexOf(cfg.get(c));
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
+                .setTitle(getString(R.string.option_choose, Text.title(this, c)))
+                .setSingleChoiceItems(names, selected, (d, which) -> {
+                    cfg.set(c.key, c.values[which]);
+                    refresh();
+                    if (c == Config.LOCK && "on".equals(cfg.get(c))) {
+                        Toast.makeText(this, getString(R.string.lock_on, (int) (Home.UNLOCK_MS / 1000)),
+                                Toast.LENGTH_LONG).show();
+                    }
+                    d.dismiss();
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+        dialog.show();
     }
 
     private boolean step(Config.Choice c, int by) {
@@ -208,7 +231,7 @@ public final class Options extends Activity {
         StateListDrawable bg = new StateListDrawable();
         bg.addState(new int[] {android.R.attr.state_focused},
                 Ui.round((cfg.accent() & 0x00FFFFFF) | 0x33000000, dp(10)));
-        bg.addState(new int[0], Ui.round(0x00000000, dp(10)));
+        bg.addState(new int[0], Ui.round(0xFF15161A, dp(10)));
         row.setBackground(bg);
     }
 
