@@ -163,12 +163,45 @@ the default blocklists.
 
 ## Verify and troubleshoot
 
-1. Confirm the Fire TV's DNS server is the Pi-hole address.
-2. Update Gravity after adding or changing subscribed lists.
-3. Open Pi-hole's Query Log and filter by the Fire TV's IP address.
-4. Test app launch, sign-in, playback, Alexa (if retained), and software-update
+### Quick live test from the Fire TV
+
+During an interactive `./scripts/all.sh` install, enter the Pi-hole IP when
+prompted at the end to run the live DNS check. Press Enter to skip. Unattended
+`-y` installs do not prompt. You can also run it later:
+
+```sh
+./scripts/dns-check.sh 192.168.178.55
+```
+
+Replace the example address with your Pi-hole IP. The check runs DNS lookups
+from the Fire TV over ADB, not from the installer PC:
+
+- **resolver:** reports whether Android's `net.dns1` or `net.dns2` matches the
+  Pi-hole address. A router that forwards DNS to Pi-hole may show a different
+  resolver; use the Query Log to confirm that case.
+- **block:** asks for a unique hostname below `aax.amazon-adsystem.com`, a
+  domain in DumbTV's supplemental blocklist. It should fail to resolve or
+  return a sinkhole address.
+- **allow:** resolves `api.eu-west-1.aiv-delivery.net`, one of the Prime Video
+  compatibility allowlist entries. It should return an address.
+
+The test is deliberately small and readable: **PASS / FAIL / UNKNOWN** appears
+beside each check. It verifies representative deny and allow behaviour, not
+every domain in every upstream list. ICMP ping replies are not required; only
+the DNS resolution result is examined.
+
+After the test, open Pi-hole's Query Log and filter by the Fire TV's IP address.
+Confirm the unique `dumbtv-probe-...` request appears as blocked and the AIV
+hostname appears as allowed. This is the definitive cross-check that the
+queries reached the intended Pi-hole client/group. If DNS is routed through the
+router, the resolver check may warn even when Pi-hole is receiving the queries.
+
+### Manual checks
+
+1. Update Gravity after adding or changing subscribed lists.
+2. Test app launch, sign-in, playback, Alexa (if retained), and software-update
    behaviour.
-5. If something fails, inspect the exact blocked hostname and allow only that
+3. If something fails, inspect the exact blocked hostname and allow only that
    hostname if evidence shows it is required.
 
 Pi-hole's Query Log is the source of truth for what the Fire TV requests. Do not
