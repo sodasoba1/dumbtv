@@ -229,7 +229,7 @@ final class Config {
         version++;
     }
 
-    /** Both files count: a settings file pushed into the media folder has to be noticed too. */
+    /** Signature of the app-private home.conf file. */
     private long signature() {
         return file.lastModified() * 31 + file.length();
     }
