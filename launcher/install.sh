@@ -13,8 +13,6 @@ APK_URL=https://github.com/sodasoba1/dumbtv/releases/download/launcher-v$VERSION
 SHA_URL=$APK_URL.sha256
 
 PKG=tv.dumbtv.home
-GUARD=$PKG/$PKG.Guard
-OLD_GUARD=com.spocky.projengmenu/com.spocky.projengmenu.services.ProjectivyAccessibilityService
 ADB=${ADB:-adb}
 
 adb_() { "$ADB" ${ADB_SERIAL:+-s "$ADB_SERIAL"} "$@"; }
@@ -47,39 +45,10 @@ reconnect_after_vpn_change() {
 }
 
 dev_sdk=$(sh_ getprop ro.build.version.sdk | tr -d '\r')
-case $dev_sdk in ''|*[!0-9]*) dev_sdk=28 ;; esac
-
-# Fire OS 6's `settings` command silently drops writes to enabled_accessibility_services
-# (exit code 0, value unchanged); the settings content provider still takes them.
-put_secure() {
-  local got
-  sh_ settings put secure "$1" "${2:-\"\"}"
-  got=$(sh_ settings get secure "$1" | tr -d '\r')
-  [[ $got == "$2" || ( -z $2 && $got == null ) ]] && return 0
-  sh_ content insert --uri content://settings/secure --bind "name:s:$1" --bind "value:s:$2"
-}
-
-# Puts $1 (or nothing) in place of any launcher's service, keeping every other service.
-set_guard() {
-  local cur
-  orig=$(sh_ settings get secure enabled_accessibility_services | tr -d '\r')
-  [[ $orig == null ]] && orig=
-  cur=$(printf '%s' "$orig" | tr ':' '\n' | { grep -vxF -e "$GUARD" -e "$PKG/.Guard" -e "$OLD_GUARD" -e '' || true; } | paste -sd: -)
-  if [[ -n ${1:-} ]]; then cur=${cur:+$cur:}$1; fi
-  # Clearing first makes the accessibility manager rebind a service whose process died. The
-  # other services live only in $orig meanwhile: if this is cut short, the trap puts them back.
-  trap 'put_secure enabled_accessibility_services "$orig" || true' EXIT
-  trap 'exit 130' INT TERM
-  put_secure enabled_accessibility_services ""
-  sleep 1
-  if [[ -n $cur ]]; then
-    put_secure enabled_accessibility_services "$cur"
-    put_secure accessibility_enabled 1
-  else
-    put_secure accessibility_enabled 0
-  fi
-  trap - EXIT INT TERM
-}
+if [[ $dev_sdk != 25 ]]; then
+  echo "error: this launcher APK is built only for Fire OS 6 / Android 7.1.2 (API 25); device reports API ${dev_sdk:-unknown}" >&2
+  exit 1
+fi
 
 sha256() {
   if command -v sha256sum >/dev/null; then sha256sum "$1" | awk '{print $1}'
@@ -91,9 +60,6 @@ if [[ $mode == undo ]]; then
   sh_ am force-stop $PKG >/dev/null 2>&1 || true
   sh_ appops set $PKG GET_USAGE_STATS default >/dev/null 2>&1 || true
   sh_ pm revoke $PKG android.permission.READ_LOGS >/dev/null 2>&1 || true
-  sh_ appops set $PKG AUTO_START default >/dev/null 2>&1 || true
-  set_futurity off
-  set_guard ""
   sh_ dumpsys deviceidle whitelist -$PKG >/dev/null 2>&1 || true
   sh_ am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null 2>&1 || true
   echo "HOME handed back to Amazon's launcher (dumbtv home stays installed: adb uninstall $PKG)"
@@ -135,14 +101,6 @@ else
 fi
 
 install_apk
-# Releases up to 1.1 were built for Android 9+. On Fire OS 6 (sdk 25) fall back to a
-# source build; the default build already targets sdk 25.
-if [[ $mode == release && $out == *INSTALL_FAILED_OLDER_SDK* ]]; then
-  echo "release $VERSION needs a newer Android than sdk $dev_sdk, building from source"
-  mode=build
-  build_apk
-  install_apk
-fi
 case $out in
   *Success*) ;;
   *INSTALL_FAILED_UPDATE_INCOMPATIBLE*)
@@ -153,94 +111,43 @@ case $out in
       echo "  it is probably the release: this build's key cannot update it." >&2
     fi
     echo "  Replacing it means uninstalling it (adb uninstall $PKG), which deletes its settings;" >&2
-    echo "  on Fire OS 8 they cannot be backed up over adb first." >&2
     exit 1 ;;
   *) echo "error: adb install failed: $(printf '%s' "$out" | tail -1)" >&2; exit 1 ;;
 esac
 echo "installed $PKG"
 
 sh_ dumpsys deviceidle whitelist +$PKG >/dev/null
-# TCL's TclAppBoot refuses to bind the Guard of an app without the AUTO_START app-op (#176).
-# Builds without that op refuse the name. App-ops reach the disk lazily, so it is written
-# now, before a reboot can drop it.
-sh_ appops set $PKG AUTO_START allow >/dev/null 2>&1 || true
-sh_ appops write-settings >/dev/null 2>&1 || true
-
-# Fire OS 6.7 refuses third-party accessibility services (A11yAuthorizer), so the Guard
-# cannot bind there. Keeper combines UsageStats with ActivityManager logcat when
-# READ_LOGS is granted, then restores DumbTV with moveTaskToFront (no 5 s delay).
-if [[ $dev_sdk -lt 28 ]]; then
-  set_guard ""
-  sh_ appops set $PKG GET_USAGE_STATS allow
-  # READ_LOGS is a development permission on Fire OS 6; request it through ADB, without root.
-  if sh_ pm grant $PKG android.permission.READ_LOGS >/dev/null 2>&1; then
-    read_logs=$(sh_ pm check-permission android.permission.READ_LOGS $PKG 2>/dev/null | tr -d '\r' || true)
-    if [[ $read_logs == granted ]]; then
-      echo "logcat monitoring: READ_LOGS granted"
-    else
-      echo "note: READ_LOGS grant did not verify ($read_logs); UsageStats fallback remains enabled"
-    fi
+# Fire OS 6 only: Keeper uses UsageStats and ActivityManager logcat; no accessibility service.
+sh_ appops set $PKG GET_USAGE_STATS allow
+if sh_ pm grant $PKG android.permission.READ_LOGS >/dev/null 2>&1; then
+  read_logs=$(sh_ pm check-permission android.permission.READ_LOGS $PKG 2>/dev/null | tr -d '\r' || true)
+  if [[ $read_logs == granted ]]; then
+    echo "logcat monitoring: READ_LOGS granted"
   else
-    echo "note: Fire OS refused READ_LOGS; UsageStats fallback remains enabled"
+    echo "note: READ_LOGS grant did not verify ($read_logs); UsageStats fallback remains enabled"
   fi
-  start_home $PKG/.Home
-  sleep 3
-  if ! grep -q 'isForeground=true' <<<"$(sh_ dumpsys activity services $PKG 2>/dev/null)"; then
-    echo "error: the Fire OS 6 home keeper did not start ($PKG/.Keeper)" >&2
-    exit 1
-  fi
-  # Right after the start nothing may be resumed yet, and a single empty read stopped
-  # the whole pass on a TV where the home screen was fine.
-  for _ in 1 2 3 4 5 6 7 8 9 10; do
-    front=$(sh_ dumpsys activity activities | grep -m1 'ResumedActivity: ' || true)
-    [[ $front == *"$PKG"* ]] && break
-    sleep 1
-  done
-  if [[ -z $front ]]; then
-    echo "note: could not read which app is in front; ./scripts/verify.sh checks the Keeper"
-  elif [[ $front != *"$PKG"* ]]; then
-    echo "error: dumbtv home is installed but not in front ($front)" >&2
-    exit 1
-  fi
-  echo "home: dumbtv (Keeper, no accessibility; sdk $dev_sdk)"
-  exit 0
-fi
-
-sh_ cmd package set-home-activity $PKG/.Home >/dev/null 2>&1 || true
-set_futurity on
-set_guard $GUARD
-sleep 2
-# The setting alone proves nothing: Fire OS decides whether the service is bound. On
-# Fire OS 6.7 its A11yAuthorizer refuses services from packages Amazon does not trust.
-# The dump names the service by its label, not its package, so match the label inside the
-# current user's bound-services section (same parser verify.sh uses). Right after a fresh
-# install a Fire TV Cube took about 8 s to bind it.
-source ../scripts/accessibility.sh
-user=$(sh_ am get-current-user | tr -d '\r')
-bound=0
-for _ in $(seq 1 15); do
-  if sh_ dumpsys accessibility | guard_bound "${user:-0}"; then bound=1; break; fi
-  sleep 1
-done
-if [[ $bound == 0 ]]; then
-  echo "error: Fire OS did not bind the HOME guard ($GUARD)." >&2
-  denied=$(sh_ logcat -d -b all | grep A11yAuthorizer | grep -c "$PKG" || true)
-  if [[ ${denied:-0} -gt 0 ]]; then
-    echo "  this build only runs accessibility services Amazon trusts (FireOSFwk A11yAuthorizer)," >&2
-    echo "  so HOME cannot be taken over here. dumbtv home stays installed as a normal app;" >&2
-    echo "  remove it with: adb uninstall $PKG" >&2
-  else
-    echo "  if parental controls are on, turn them off (Settings > Preferences > Parental Controls)" >&2
-    echo "  and run this again; that is what stopped it on an AFTTI43 (issue #123)" >&2
-  fi
-  set_futurity off
-  set_guard ""
-  exit 1
+else
+  echo "note: Fire OS refused READ_LOGS; UsageStats fallback remains enabled"
 fi
 start_home $PKG/.Home
-if installed com.spocky.projengmenu; then
-  echo "note: Projectivy is still installed but no longer used — adb uninstall com.spocky.projengmenu"
+sleep 3
+if ! grep -q 'isForeground=true' <<<"$(sh_ dumpsys activity services $PKG 2>/dev/null)"; then
+  echo "error: the Fire OS 6 home keeper did not start ($PKG/.Keeper)" >&2
+  exit 1
 fi
+front=""
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  front=$(sh_ dumpsys activity activities | grep -m1 'ResumedActivity: ' || true)
+  [[ $front == *"$PKG"* ]] && break
+  sleep 1
+done
+if [[ -z $front ]]; then
+  echo "note: could not read which app is in front; ./scripts/verify.sh checks the Keeper"
+elif [[ $front != *"$PKG"* ]]; then
+  echo "error: dumbtv home is installed but not in front ($front)" >&2
+  exit 1
+fi
+echo "home: dumbtv (Keeper, Fire OS 6 / API 25)"
 
 sleep 2
 printf 'accessibility: %s\n' "$(sh_ settings get secure enabled_accessibility_services)"
