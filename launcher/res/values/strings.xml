@@ -64,7 +64,7 @@
     <string name="reset_message">Order, names, picked icons and hidden tiles go back to default. Colors and sizes stay.</string>
     <string name="reset">Reset</string>
     <string name="lock_on">Options and Settings are hidden on the home screen now. Hold ☰ Menu for %1$d seconds to come back here.</string>
-    <string name="about">Settings file: %1$s\nOne wallpaper: name it exactly wallpaper.jpg (or .png) and put it in that folder\nSeveral wallpapers: put them in %2$s/ with any names, and pick a rotation\nThen pick Background › Image file or Adaptive wallpaper tint. No permission is needed\nAdaptive wallpaper tint shows graphite until you add a wallpaper\nLibrary banner: put pictures and %4$s in %5$s/ in that folder\nIcon pack: install one, then pick it above; hold OK on a tile › Icon to pick one app\'s icon\nNo internet permission. No tracking, no ads, no accounts.</string>
+    <string name="about">Settings file: %1$s\nOne wallpaper: name it exactly wallpaper.jpg (or .png) and put it in that folder\nSeveral wallpapers: put them in %2$s/ with any names, and pick a rotation\nThen pick Background › Image file or Adaptive wallpaper tint. No permission is needed\nAdaptive wallpaper tint shows graphite until you add a wallpaper\nLibrary banner: put pictures and %3$s in %4$s/ in that folder\nIcon pack: install one, then pick it above; hold OK on a tile › Icon to pick one app\'s icon\nNo internet permission. No tracking, no ads, no accounts.</string>
 
     <string name="icon_for">Icon for %1$s</string>
     <string name="icon_filter">Filter by name</string>
