@@ -85,7 +85,7 @@ public final class Options extends Activity {
         addChoices(list, Config.CLOCK, Config.MEMORY, Config.LOCK);
         list.addView(action(getString(R.string.export_settings), this::export));
         list.addView(action(getString(R.string.open_amazon_home), () -> {
-            Guard.amazon(this);
+            Keeper.openAmazonHome(this);
             finish();
         }));
 
