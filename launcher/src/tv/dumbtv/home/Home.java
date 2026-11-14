@@ -56,7 +56,6 @@ public final class Home extends Activity {
     static final long UNLOCK_MS = 3000;
     private static final int MATCH = ViewGroup.LayoutParams.MATCH_PARENT;
     private static final int WRAP = ViewGroup.LayoutParams.WRAP_CONTENT;
-    private static final String APPSTORE = "com.amazon.venezia";
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
