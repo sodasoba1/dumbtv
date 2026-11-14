@@ -128,6 +128,12 @@ public final class HomeRetryTest {
     private static void amazonPause() {
         check(!KeeperPause.shouldResume("com.amazon.tv.launcher"),
                 "Amazon settings remain inside the paused launcher");
+        check(!KeeperPause.shouldResume("com.amazon.tv.settings.v2"),
+                "Amazon Network and Applications settings keep the pause");
+        check(!KeeperPause.shouldResume("com.amazon.tv.notificationcenter"),
+                "Amazon notification centre keeps the pause");
+        check(!KeeperPause.shouldResume("com.amazon.tv.devicecontrolsettings"),
+                "Amazon device control settings keep the pause");
         check(!KeeperPause.shouldResume("tv.dumbtv.home"), "DumbTV does not resume its own pause");
         check(!KeeperPause.shouldResume("com.android.systemui"), "System UI is not an app departure");
         check(!KeeperPause.shouldResume("android"), "Android system UI is not an app departure");
