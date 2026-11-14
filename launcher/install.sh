@@ -121,15 +121,19 @@ echo "installed $PKG"
 sh_ dumpsys deviceidle whitelist +$PKG >/dev/null
 # Fire OS 6 only: Keeper uses UsageStats and ActivityManager logcat; no accessibility service.
 sh_ appops set $PKG GET_USAGE_STATS allow
-if sh_ pm grant $PKG android.permission.READ_LOGS >/dev/null 2>&1; then
-  read_logs=$(sh_ pm check-permission android.permission.READ_LOGS $PKG 2>/dev/null | tr -d '\r' || true)
-  if [[ $read_logs == granted ]]; then
-    echo "logcat monitoring: READ_LOGS granted"
-  else
-    echo "note: READ_LOGS grant did not verify ($read_logs); UsageStats fallback remains enabled"
-  fi
+# Request READ_LOGS on every install/update, then verify the resulting package
+# permission state. Fire OS 6 does not reliably implement pm check-permission.
+grant_error=""
+sh_ pm grant $PKG android.permission.READ_LOGS >/dev/null 2>&1 || grant_error="pm grant returned a failure"
+package_dump=$(sh_ dumpsys package $PKG 2>/dev/null || true)
+if grep -Eq '^[[:space:]]*android\.permission\.READ_LOGS:[[:space:]]*granted=true([[:space:]]|$)' <<<"$package_dump"; then
+  echo "logcat monitoring: READ_LOGS granted"
 else
-  echo "note: Fire OS refused READ_LOGS; UsageStats fallback remains enabled"
+  if [[ -n $grant_error ]]; then
+    echo "note: READ_LOGS could not be confirmed ($grant_error); UsageStats fallback remains enabled"
+  else
+    echo "note: READ_LOGS grant could not be verified; UsageStats fallback remains enabled"
+  fi
 fi
 start_home $PKG/.Home
 sleep 3
