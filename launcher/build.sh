@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Builds launcher/build/dumbtv-home.apk from the bare SDK tools: no Gradle, no libraries.
 # Needs JDK 17 and Android SDK platforms;android-$MIN_SDK plus build-tools.
-# MIN_SDK=25 is the shared Fire OS 6/7/8 build. Keep Java APIs at Android 7.1 level.
+# This APK is intentionally limited to Fire OS 6 / Android 7.1.2 (API 25).
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 # shellcheck disable=SC1091
 source version.env
-MIN_SDK=${MIN_SDK:-25}
+MIN_SDK=25
 
 SDK=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
 if [[ -z $SDK ]]; then
@@ -65,7 +65,7 @@ mkdir -p "$WORK/gen" "$WORK/classes" build
 
 "$BT/aapt2" compile --dir res -o "$WORK/res.zip"
 "$BT/aapt2" link -I "$JAR" --manifest AndroidManifest.xml "$WORK/res.zip" \
-  --min-sdk-version "$MIN_SDK" --target-sdk-version 28 \
+  --min-sdk-version "$MIN_SDK" --target-sdk-version 25 \
   --version-code "$VERSION_CODE" --version-name "$VERSION_NAME" \
   --java "$WORK/gen" -o "$WORK/app.apk"
 
