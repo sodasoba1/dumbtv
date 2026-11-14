@@ -11,8 +11,8 @@ A home screen for Fire TV that does one job: show your apps and your HDMI inputs
 - **No network.** There is no `INTERNET` permission, so Android will not let it
   open a connection.
 - **Boot permission.** Used only to start the Keeper after boot or an app update.
-  Fire OS 6 also uses usage access and task order for the Keeper, both limited to
-  Android 8.1 and earlier. Check: `aapt2 dump permissions dumbtv-home.apk`.
+  The Fire OS 6 Keeper uses UsageStats and task reordering; ActivityManager logcat
+  is an additional foreground signal when its ADB-granted permission is available.
 - **No ads, no recommended rows, no account, no analytics, no update checks.**
 - About 60–70 MB of memory with the home screen showing, about 37 MB while an app
   plays (measured on a Fire TV Edition television with 1.4 GB of RAM).
@@ -61,7 +61,7 @@ directly: Notifications, Network, Applications, Equipment Control, Controllers &
 and Device & Software. Any of them the TV lacks is left out. Below them, **All settings…** opens
 Amazon's settings row for the rest (Display & Sounds, Preferences, Accessibility and more), which need
 Amazon's own signature to open. Like Options › Open Amazon's home screen, that stays on Amazon's home until
-you open an app. On Fire OS 7 and 8 the Settings button opens Amazon's settings page as before.
+you open an app.
 
 **Options** cycles each setting with ◀ ▶ or OK:
 
@@ -70,7 +70,7 @@ you open an app. On Fire OS 7 and 8 the Settings button opens Amazon's settings 
 | Accent | White, Blue, Cyan, Green, Amber, Red, Pink, Violet, or a custom colour selected with the remote-friendly HSV picker. The other legacy palette values remain supported in existing `home.conf` files. |
 | Tiles | small, medium, large |
 | Layout | rows, or a grid that wraps to as many columns as fit |
-| App order | your order, or recently used: the apps row re-sorts on each return home, newest first. It counts apps opened from dumbtv home, plus apps opened any other way (voice, another app) on Fire OS 6, where the launcher already has usage access. Apps never opened keep your order after the rest |
+| App order | your order, or recently used: the apps row re-sorts on each return home, newest first. It counts apps opened from dumbtv home, plus apps opened any other way (voice, another app) on this device, where the launcher already has usage access. Apps never opened keep your order after the rest |
 | All apps section | hidden (default), shown: a separate alphabetical list of every launchable app below your pinned apps. Child lock hides this section |
 | App names | on focus, always, never |
 | Clock | system, 24-hour, 12-hour |
@@ -288,7 +288,7 @@ Comments go on their own line. Back it up with `adb pull`, restore it with
 
 No permission is needed: the launcher reads its own folder.
 
-The quickest way, on any Fire OS, is `scripts/wallpaper.sh` from the computer. It crops
+The quickest way on this Fire OS 6 device is `scripts/wallpaper.sh` from the computer. It crops
 each image to the TV's screen and scales it to its size when ImageMagick (`magick`) is
 installed, pushes the images to the media folder below, and turns the image background
 on:
@@ -330,7 +330,7 @@ seinfeld.jpg | Seinfeld | com.netflix.ninja | https://www.netflix.com/title/7015
 - The deep link is sent to that app only. When the app does not answer it, the app
   opens on its own home screen. Lines whose picture is missing, or whose app is not
   installed, are skipped.
-- Links that open the title's page, checked on a Fire TV Stick (AFTSSS, Fire OS 7):
+- Links that open the title's page in supported streaming apps:
   Netflix `https://www.netflix.com/title/<id>`, Hulu `https://www.hulu.com/series/<slug-id>`,
   HBO Max `https://play.hbomax.com/show/<id>` and `/movie/<id>` (the id from an
   hbomax.com address), Paramount+ `https://www.paramountplus.com/shows/<name>/` and
@@ -344,102 +344,38 @@ crops each picture to the banner on macOS (`sips`; an optional `crop.conf` of
 `image fraction` lines moves the crop, 0 top to 1 bottom), replaces the TV's library
 folder and returns to the home screen so the banner reloads.
 
-### Fire OS 8: where adb can write
+## How HOME works on Fire OS 6
 
-On Fire OS 8 (Android 11) `/sdcard/Android/data/<app>` is closed to `adb`: listing,
-reading and pushing all fail with `Permission denied`, so none of the commands above
-work there. The launcher also looks in its own media folder, which `adb` can still
-write:
+This launcher build targets the Fire TV Stick 4K (1st generation, AFTMM) on
+Fire OS 6.7.1.1 / Android 7.1.2 (API 25). Amazon's launcher remains the protected
+system HOME handler, so DumbTV does not try to replace it or intercept the HOME key.
 
-```
-/sdcard/Android/media/tv.dumbtv.home/home.conf
-/sdcard/Android/media/tv.dumbtv.home/wallpapers/
-```
+Keeper is the only HOME recovery service:
 
-```sh
-adb shell mkdir -p /sdcard/Android/media/tv.dumbtv.home/wallpapers
-adb push *.jpg /sdcard/Android/media/tv.dumbtv.home/wallpapers/
-adb push home.conf /sdcard/Android/media/tv.dumbtv.home/home.conf
-```
+1. A boot receiver starts Keeper after the user is unlocked. The service runs in
+   the foreground so Fire OS is less likely to stop it.
+2. UsageStats foreground events are polled as the primary signal. The installer
+   grants GET_USAGE_STATS through AppOps.
+3. When ADB grants READ_LOGS, Keeper also watches ActivityManager logcat for
+   the exact Amazon Home activity becoming displayed or resumed. If that grant
+   is unavailable, UsageStats and screen on/off broadcasts remain active.
+4. Keeper only intervenes after a positive Amazon Home foreground event and
+   only while the display is interactive. It moves the existing DumbTV task
+   to the foreground, then verifies recovery; a limited direct activity-launch
+   fallback is used if task reordering does not succeed.
+5. Opening Amazon's own settings pauses takeover. The pause remains while
+   Amazon/system settings screens are foregrounded and clears when a third-party
+   app is opened.
 
-Wallpapers are read from both folders, in name order. A settings file pushed there
-is applied once, the next time the home screen comes back, and wins over what the TV
-has; what was applied is remembered, so the same push is not applied twice and a
-later change in Options is not overwritten by it.
-
-To back the settings up there, pick Options › Export settings for adb pull. It
-writes a copy named `home-export.conf`, which the launcher never reads, so it is
-not taken for a push. Push it back as `home.conf` to restore it:
-
-```sh
-adb pull /sdcard/Android/media/tv.dumbtv.home/home-export.conf home.conf
-adb push home.conf /sdcard/Android/media/tv.dumbtv.home/home.conf
-```
-
-`rotate=daytime` matches wallpapers to the time of day by name: `morning` or `day`
-(06:00 to 13:00), `afternoon` or `evening` (13:00 to 20:00), `night` (the rest), as
-in `morning-coast.jpg`.
-
-`background=adaptive` takes a dark colour from the focused app's artwork.
-`background=adaptive-tint` keeps the wallpaper and adds a light wash of that
-colour; without a wallpaper it shows graphite.
-
-## How HOME works on Fire OS
-
-Fire OS has no working "default launcher" setting, and Amazon's launcher is a
-protected package. Measured on a Fire OS 7 television:
-
-1. **The HOME key cannot be intercepted.** Fire OS handles it before any
-   accessibility key filter runs. So `Guard`, a small accessibility service, waits
-   for Amazon's home window instead. It sees window changes only and reads no
-   screen content.
-2. **Android delays app launches for 5 s after HOME** (`APP_SWITCH_DELAY_TIME`),
-   which is why other launchers flash Amazon's home. A launch fired by
-   AlarmManager comes from `system_server` and is exempt.
-   `install.sh` sets `min_futurity=0` so the alarm fires at once; `--undo` removes
-   it. Up to Android 11 that is `settings global alarm_manager_constants`; Android
-   12 and later ignore it and read `device_config` namespace `alarm_manager`.
-3. **Amazon's home is covered before it draws.** `Guard` keeps an overlay ready,
-   with no surface while idle so it costs nothing during video, and removes it once
-   dumbtv home is on screen.
-4. **Fire OS 8 (Android 11) only lets an app with a visible window start an
-   activity.** The cover is that window, so `Guard` launches once it has drawn.
-
-HOME from an app shows about 0.3 s of black, then this home screen.
-
-### Fire OS 6
-
-Fire OS 6.7 refuses third-party accessibility services, so it uses `Keeper`, a
-small foreground service:
-
-1. UsageStats (`GET_USAGE_STATS`) provides the foreground-event fallback.
-2. When `READ_LOGS` is granted by ADB, Keeper also watches ActivityManager logcat
-   for Amazon's exact HOME activity becoming displayed or resumed. The installer
-   attempts the grant and verifies it; if Fire OS refuses it, UsageStats remains active.
-3. `ActivityManager.moveTaskToFront` brings the existing DumbTV task back. That is
-   not an activity launch, so the 5 s app-switch delay does not apply. If task
-   reordering does not work, Keeper verifies a direct activity-launch fallback.
-4. At boot there is no DumbTV task yet, so the first start uses an alarm.
-
-The logcat reader restarts after stream termination, backs off after repeated
-failures, and has a low-frequency watchdog for an unexpectedly dead reader thread.
-A quiet stream is normal and does not trigger a restart. UsageStats and screen
-on/off broadcasts remain independent recovery paths.
-
-After a long standby, wake recovery still depends on Fire OS delivering usable
-activity state/events. These mechanisms improve recovery but cannot guarantee
-that every firmware deep-sleep path behaves identically; physical long-standby
-testing is still required.
-
-**Options › Open Amazon's home screen** pauses the takeover while you navigate
-within Amazon's launcher, including its settings screens. The takeover resumes
-when you open another app.
+Keeper does not reboot the device or force the display on. Long deep-standby
+recovery still depends on Fire OS delivering usable foreground state/events and
+must be validated on the physical AFTMM.
 
 ## Build it yourself
 
 Needs JDK 17 and the Android SDK (`platforms;android-25`, `build-tools`). There is
-no Gradle: `build.sh` runs aapt2, javac, d8, zipalign and apksigner directly, and
-compiles against Android 7.1 so one APK runs on Fire OS 6, 7 and 8.
+no Gradle: `build.sh` runs aapt2, javac, d8, zipalign and apksigner directly,
+with both minimum and target SDK fixed at Android 7.1 / API 25.
 
 ```sh
 brew install openjdk@17
@@ -487,8 +423,7 @@ Delete both to stop.
 | `src/.../IconPicker.java` | the screen that picks one app's icon |
 | `src/.../IconMatch.java` | the icon pack text rules, kept free of Android for the host test |
 | `src/.../Ui.java` | shared colours, text and sizes |
-| `src/.../Guard.java` | the Fire OS 7 and 8 HOME takeover |
-| `src/.../Keeper.java` | the Fire OS 6 HOME takeover |
+| `src/.../Keeper.java` | the Fire OS 6 HOME recovery service |
 | `src/.../Recent.java` | when each app was last opened, for App order › Recently used |
 | `src/.../Hero.java` | the library banner: cross-fade, slow zoom, ◀ ▶ and OK |
 | `src/.../Library.java` | reads `library/library.conf` and opens a title in its app |
