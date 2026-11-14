@@ -90,13 +90,6 @@ you open an app. On Fire OS 7 and 8 the Settings button opens Amazon's settings 
 | Focus scale | off, subtle, normal (default), strong |
 | Focus indicator | accent ring (default), white ring, accent glow, white glow |
 | Focus animation | immediate, smooth (default) |
-| Tile corners | square, soft (default), rounded |
-| Tile spacing | compact, normal (default), spacious; applies to rows and grid |
-| Tile border | off (default), subtle, accent |
-| Border thickness | thin (default), medium, thick; used when a border is enabled |
-| Tile shadow / glow | off (default), soft shadow, focus glow |
-| Focus indicator | accent ring (default), white ring, accent glow, white glow |
-| Focus animation | immediate, smooth (default) |
 | Afterglow strength | 20%, 40% (default), 60%, 80%; controls the dark fade over brand colours |
 | Afterglow icon | grayscale (default), original app icon colours |
 | Child lock | off, on: hides Options and Settings and turns off Hold OK and ☰ Menu on tiles, so the home screen only opens apps and inputs (see below) |
@@ -109,6 +102,11 @@ Below them: Next wallpaper, which apps and inputs appear on the home screen, a
 reset for order, names, picked icons and hidden tiles, **Export settings** (for backup
 or transfer), and **Open Amazon's home screen**. Apps
 without a TV banner, like the Appstore, start hidden; tick them to add them.
+
+The **All apps** chip is in the top-right header beside Options and Settings.
+It opens the full installed-app catalogue. This navigation button is separate from
+Options › All apps section: that setting adds an alphabetical **All apps** row below
+your pinned apps on the home screen.
 
 **All apps** is optional. Turn on Options › All apps section to keep the current
 Apps section as **Pinned apps** and add **All apps** below it, in either rows or
