@@ -1314,7 +1314,7 @@ public final class Home extends Activity {
                 .setTitle(R.string.settings)
                 .setItems(labels, (d, which) -> {
                     Item s = sections.get(which);
-                    if (Keeper.AMAZON_PKG.equals(s.id)) Keeper.pause();
+                    Keeper.pause();
                     launch(new Intent(s.intent), null);
                 })
                 .show();
