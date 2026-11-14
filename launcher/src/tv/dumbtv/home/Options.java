@@ -21,6 +21,7 @@ import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 /** TV-friendly options: OK opens a value list; left/right remains a quick adjustment. */
 public final class Options extends Activity {
@@ -140,6 +141,9 @@ public final class Options extends Activity {
         Runnable show = () -> {
             boolean focused = row.isFocused();
             String text = Text.name(this, c, cfg.get(c));
+            if ("custom".equals(cfg.get(c)) && isColorChoice(c)) {
+                text = String.format(Locale.US, "#%06X", selectedColor(c) & 0x00FFFFFF);
+            }
             if (c == Config.ACCENT) {
                 SpannableString s = new SpannableString("●  " + text);
                 s.setSpan(new ForegroundColorSpan(cfg.accent()), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -169,21 +173,27 @@ public final class Options extends Activity {
     }
 
     private void choose(Config.Choice c) {
-        int n = c.values.length;
+        String[] options = c.optionValues;
+        int n = options.length;
         if (n < 2) return;
         CharSequence[] names = new CharSequence[n];
-        for (int i = 0; i < n; i++) names[i] = Text.name(this, c, c.values[i]);
-        int selected = Arrays.asList(c.values).indexOf(cfg.get(c));
+        for (int i = 0; i < n; i++) names[i] = Text.name(this, c, options[i]);
+        int selected = Arrays.asList(options).indexOf(cfg.get(c));
         AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle(getString(R.string.option_choose, Text.title(this, c)))
                 .setSingleChoiceItems(names, selected, (d, which) -> {
-                    cfg.set(c.key, c.values[which]);
-                    refresh();
-                    if (c == Config.LOCK && "on".equals(cfg.get(c))) {
-                        Toast.makeText(this, getString(R.string.lock_on, (int) (Home.UNLOCK_MS / 1000)),
-                                Toast.LENGTH_LONG).show();
-                    }
+                    String selectedValue = options[which];
                     d.dismiss();
+                    if ("custom".equals(selectedValue) && isColorChoice(c)) {
+                        chooseCustomColor(c);
+                    } else {
+                        cfg.set(c.key, selectedValue);
+                        refresh();
+                        if (c == Config.LOCK && "on".equals(cfg.get(c))) {
+                            Toast.makeText(this, getString(R.string.lock_on, (int) (Home.UNLOCK_MS / 1000)),
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    }
                 })
                 .setNegativeButton(R.string.cancel, null)
                 .create();
@@ -191,18 +201,48 @@ public final class Options extends Activity {
     }
 
     private boolean step(Config.Choice c, int by) {
-        int n = c.values.length;
+        String[] options = c.optionValues;
+        int n = options.length;
         // Nothing to switch to, as Icon pack with none installed: keep what is saved, so a pack
         // that comes back is still the chosen one.
         if (n < 2) return true;
-        int i = Arrays.asList(c.values).indexOf(cfg.get(c));
-        cfg.set(c.key, c.values[((i + by) % n + n) % n]);
+        int i = Arrays.asList(options).indexOf(cfg.get(c));
+        // A legacy saved value may no longer be in the shortened visible list.
+        if (i < 0) i = 0;
+        String next = options[((i + by) % n + n) % n];
+        if ("custom".equals(next) && isColorChoice(c)) {
+            chooseCustomColor(c);
+            return true;
+        }
+        cfg.set(c.key, next);
         refresh();
         if (c == Config.LOCK && "on".equals(cfg.get(c))) {
             Toast.makeText(this, getString(R.string.lock_on, (int) (Home.UNLOCK_MS / 1000)),
                     Toast.LENGTH_LONG).show();
         }
         return true;
+    }
+
+    private boolean isColorChoice(Config.Choice c) {
+        return c == Config.ACCENT || c == Config.BACKGROUND || c == Config.GRADIENT_COLOR;
+    }
+
+    private int selectedColor(Config.Choice c) {
+        int current;
+        if (c == Config.ACCENT) current = cfg.accent();
+        else if (c == Config.BACKGROUND) current = cfg.background();
+        else current = cfg.gradientColor();
+        String saved = cfg.get(c.key + "_custom", "");
+        return saved.startsWith("#") ? Config.parseColor(saved, current) : current;
+    }
+
+    private void chooseCustomColor(Config.Choice c) {
+        ColorPicker.show(this, selectedColor(c), color -> {
+            String hex = String.format(Locale.US, "#%06X", color & 0x00FFFFFF);
+            cfg.set(c.key + "_custom", hex);
+            cfg.set(c.key, "custom");
+            refresh();
+        });
     }
 
     private View action(String text, Runnable run) {

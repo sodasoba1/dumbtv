@@ -1,9 +1,12 @@
 package android.graphics;
 
-/** The file tests do not exercise Android color parsing. */
+/** Minimal #RRGGBB parser for Config's host-side colour persistence tests. */
 public final class Color {
     private Color() {}
     public static int parseColor(String value) {
-        throw new UnsupportedOperationException("not used by the host file tests");
+        if (value != null && value.matches("#[0-9a-fA-F]{6}")) {
+            return 0xFF000000 | Integer.parseInt(value.substring(1), 16);
+        }
+        throw new IllegalArgumentException("unsupported colour: " + value);
     }
 }

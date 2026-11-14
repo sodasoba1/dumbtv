@@ -64,6 +64,30 @@ public final class ConfigTest {
             check("green".equals(f.open().get(Config.ACCENT)), "same import never replaces UI edit");
         }
         try (Fixture f = new Fixture()) {
+            Config cfg = f.open();
+            cfg.set("accent", "custom");
+            cfg.set("accent_custom", "#123456");
+            cfg.set("background", "custom");
+            cfg.set("background_custom", "#234567");
+            cfg.set("gradient_color", "custom");
+            cfg.set("gradient_color_custom", "#345678");
+            check(cfg.accent() == 0xFF123456, "custom accent is independent");
+            check(cfg.background() == 0xFF234567, "custom solid background is independent");
+            check(cfg.gradientColor() == 0xFF345678, "custom gradient colour is independent");
+        }
+        try (Fixture f = new Fixture()) {
+            Config cfg = f.open();
+            cfg.set("accent", "copper");
+            cfg.set("background", "navy");
+            cfg.set("gradient_color", "copper");
+            check("copper".equals(cfg.get(Config.ACCENT)), "legacy accent value remains valid");
+            check(cfg.accent() == 0xFFB87333, "legacy accent colour still resolves");
+            check(cfg.background() == 0xFF101B2D, "legacy background colour still resolves");
+            check(cfg.gradientColor() == 0xFFB87333, "legacy gradient colour still resolves");
+            check(!java.util.Arrays.asList(Config.ACCENT.optionValues).contains("copper"),
+                    "legacy accent is hidden from the shortened picker");
+        }
+        try (Fixture f = new Fixture()) {
             File blocked = new File(f.dir, Config.FILE + ".tmp");
             check(blocked.mkdir(), "block settings write");
             Config cfg = f.open();

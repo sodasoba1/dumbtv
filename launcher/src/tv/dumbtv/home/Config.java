@@ -42,14 +42,22 @@ final class Config {
     static final class Choice {
         final String key, title;
         final String[] values, names;
+        /** Values retained for reading existing home.conf files; optionValues is the shorter UI list. */
+        final String[] optionValues;
         final String fallback;
 
         Choice(String key, String title, String fallback, String[] values, String[] names) {
+            this(key, title, fallback, values, names, values);
+        }
+
+        Choice(String key, String title, String fallback, String[] values, String[] names,
+                String[] optionValues) {
             this.key = key;
             this.title = title;
             this.fallback = fallback;
             this.values = values;
             this.names = names;
+            this.optionValues = optionValues;
         }
 
         String name(String value) {
@@ -61,10 +69,11 @@ final class Config {
     static final Choice ACCENT = new Choice("accent", "Accent color", "blue",
             new String[] {"white", "blue", "cyan", "green", "amber", "red", "pink", "violet",
                     "teal", "mint", "lime", "yellow", "orange", "coral", "crimson", "rose",
-                    "magenta", "purple", "indigo", "lavender", "sky", "ice", "gold", "copper"},
+                    "magenta", "purple", "indigo", "lavender", "sky", "ice", "gold", "copper", "custom"},
             new String[] {"White", "Blue", "Cyan", "Green", "Amber", "Red", "Pink", "Violet",
                     "Teal", "Mint", "Lime", "Yellow", "Orange", "Coral", "Crimson", "Rose",
-                    "Magenta", "Purple", "Indigo", "Lavender", "Sky", "Ice", "Gold", "Copper"});
+                    "Magenta", "Purple", "Indigo", "Lavender", "Sky", "Ice", "Gold", "Copper", "Custom colour"},
+            new String[] {"white", "blue", "cyan", "green", "amber", "red", "pink", "violet", "custom"});
     static final Choice TILES = new Choice("tiles", "Tile size", "medium",
             new String[] {"small", "medium", "large"},
             new String[] {"Small", "Medium", "Large"});
@@ -95,10 +104,11 @@ final class Config {
             new String[] {"Automatic", "The TV's app", "dumbtv home"});
     static final Choice BACKGROUND = new Choice("background", "Background", "black",
             new String[] {"black", "graphite", "midnight", "charcoal", "slate", "navy", "ocean",
-                    "forest", "burgundy", "plum", "espresso", "sand", "image", "adaptive", "adaptive-tint"},
+                    "forest", "burgundy", "plum", "espresso", "sand", "image", "adaptive", "adaptive-tint", "custom"},
             new String[] {"Black", "Graphite", "Midnight", "Charcoal", "Slate", "Navy", "Ocean",
                     "Forest", "Burgundy", "Plum", "Espresso", "Sand", "Image file", "Adaptive solid",
-                    "Adaptive wallpaper tint"});
+                    "Adaptive wallpaper tint", "Custom colour"},
+            new String[] {"black", "graphite", "midnight", "slate", "image", "adaptive", "adaptive-tint", "custom"});
     static final Choice DIM = new Choice("dim", "Image dim", "40",
             new String[] {"0", "20", "40", "60", "80"},
             new String[] {"0%", "20%", "40%", "60%", "80%"});
@@ -110,10 +120,11 @@ final class Config {
     static final Choice GRADIENT_COLOR = new Choice("gradient_color", "Gradient colour", "black",
             new String[] {"black", "white", "blue", "cyan", "green", "amber", "red", "pink", "violet",
                     "teal", "mint", "lime", "yellow", "orange", "coral", "crimson", "rose", "magenta",
-                    "purple", "indigo", "lavender", "sky", "ice", "gold", "copper"},
+                    "purple", "indigo", "lavender", "sky", "ice", "gold", "copper", "custom"},
             new String[] {"Black", "White", "Blue", "Cyan", "Green", "Amber", "Red", "Pink", "Violet",
                     "Teal", "Mint", "Lime", "Yellow", "Orange", "Coral", "Crimson", "Rose", "Magenta",
-                    "Purple", "Indigo", "Lavender", "Sky blue", "Ice", "Gold", "Copper"});
+                    "Purple", "Indigo", "Lavender", "Sky blue", "Ice", "Gold", "Copper", "Custom colour"},
+            new String[] {"black", "white", "blue", "red", "custom"});
     static final Choice GRADIENT_STRENGTH = new Choice("gradient_strength", "Gradient strength", "40",
             new String[] {"20", "40", "60", "80"},
             new String[] {"20%", "40%", "60%", "80%"});
@@ -390,22 +401,27 @@ final class Config {
 
     int accent() {
         String v = values.get(ACCENT.key);
-        if (v != null && v.startsWith("#")) {
-            try {
-                return Color.parseColor(v) | 0xFF000000;
-            } catch (IllegalArgumentException ignored) {
-                // falls through to the named palette
-            }
-        }
+        if (v != null && v.startsWith("#")) return parseColor(v, ACCENTS[1]);
+        if ("custom".equals(get(ACCENT))) return parseColor(get("accent_custom", ""), ACCENTS[1]);
         return ACCENTS[Arrays.asList(ACCENT.values).indexOf(get(ACCENT))];
     }
 
     int background() {
+        if ("custom".equals(get(BACKGROUND))) return parseColor(get("background_custom", ""), BACKGROUNDS[0]);
         return BACKGROUNDS[Arrays.asList(BACKGROUND.values).indexOf(get(BACKGROUND))];
     }
 
     int gradientColor() {
+        if ("custom".equals(get(GRADIENT_COLOR))) return parseColor(get("gradient_color_custom", ""), 0xFF000000);
         return paletteColor(get(GRADIENT_COLOR));
+    }
+
+    static int parseColor(String value, int fallback) {
+        try {
+            return Color.parseColor(value) | 0xFF000000;
+        } catch (RuntimeException ignored) {
+            return fallback;
+        }
     }
 
     static int paletteColor(String value) {
