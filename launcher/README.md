@@ -432,7 +432,7 @@ Delete both to stop.
 | `release-check.sh` | checks that the version, the built APK and the GitHub release agree |
 | `tests/FocusColorTest.java` | host-side tests for focus colours and curated/legacy colour options, run by CI |
 | `tests/RecentTest.java` | host-side test for the Recently used order, run by CI |
-| `tests/HomeRetryTest.java` | host-side tests for Keeper recovery retry behaviour, run by CI |
+| `tests/KeeperPauseTest.java` | host-side tests for Amazon Settings pause and resume classification, run by CI |
 | `tests/LibraryTest.java` | host-side test for `library.conf` parsing, run by CI |
 | `tests/ConfigTest.java` | file import and failed-write recovery tests, run by CI |
 | `tests/AppSectionsTest.java` | pinned and All apps selection tests, run by CI |
