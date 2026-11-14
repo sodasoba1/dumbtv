@@ -6,7 +6,7 @@ run commands on it, without root and without opening the case?
 | Platform | Disable vendor apps | Replace the home screen | On-device DNS filter | Status |
 |---|---|---|---|---|
 | **Fire OS 5** (Android 5.1, e.g. Fire TV Stick 2nd gen) | no, `pm disable-user` is refused | no, the launcher needs Android 7.1 | yes, privacy settings work too | not supported: the scripts stop on it (issue #42) |
-| **Fire OS 6** (2017–2018 devices) | yes, some are protected | yes, `Keeper` + usage stats | yes | tested on a Stick 4K (AFTMM); own lists in `data/fireos6/` |
+| **Fire OS 6** (2017–2018 devices) | yes, some are protected | yes, `Keeper` + usage stats on AFTMM only | yes | launcher tested on Stick 4K (AFTMM); scripts use `data/fireos6/` |
 | **Fire OS 7** (Android 9) | yes, some are protected | no: this fork's launcher is API 25 only | yes | debloat scripts supported; launcher not targeted |
 | **Fire OS 8** (Android 11) | yes, protected list differs | no: this fork's launcher is API 25 only | yes, with one step in the app | debloat scripts supported; launcher not targeted |
 | **Android TV / Google TV** (Sony, TCL, Philips, Hisense, Xiaomi, onn…) | yes, by hand with `pm disable-user` | no: this fork's launcher is AFTMM / API 25 only | yes, Private DNS or a local-VPN app | manual cleanup reports in the catalog; the scripts are Fire OS only |
