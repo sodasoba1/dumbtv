@@ -21,9 +21,9 @@ import java.io.InputStreamReader;
 /**
  * Watches for Amazon's launcher coming back to the foreground and restores dumbtv home.
  *
- * Fire OS 6 does not permit the accessibility Guard to run on this device. Keeper therefore
- * uses UsageStats foreground events. It only intervenes after a positive Amazon Home event,
- * and stops as soon as another app is observed.
+ * Fire OS 6 does not permit the accessibility Guard to run on this device. Keeper combines
+ * UsageStats foreground events with ActivityManager logcat when READ_LOGS is granted. It only
+ * intervenes after a positive Amazon Home event and stops as soon as another app is observed.
  */
 public final class Keeper extends Service {
     private static final String AMAZON_PKG = "com.amazon.tv.launcher";
@@ -36,6 +36,8 @@ public final class Keeper extends Service {
     private static final int MAX_ATTEMPTS = 3;
     private static final long LOGCAT_RESTART_MIN_MS = 5_000;
     private static final long LOGCAT_RESTART_MAX_MS = 60_000;
+    // A quiet ActivityManager stream is normal; this only detects a reader thread that died.
+    private static final long LOGCAT_WATCHDOG_MS = 30_000;
     private static final long DEBUG_LOG_MAX_BYTES = 128 * 1024;
 
     private static volatile boolean paused;
@@ -50,7 +52,7 @@ public final class Keeper extends Service {
     private int attempts;
     private volatile boolean logcatStopping;
     private long lastLogcatRecoveryMs;
-    private Thread logcatThread;
+    private volatile Thread logcatThread;
     private Process logcatProcess;
     private final Object logcatLock = new Object();
 
@@ -66,6 +68,27 @@ public final class Keeper extends Service {
     };
 
     private final Runnable verify = this::verifyRecovery;
+
+    /** Restarts only a dead reader thread; an idle logcat stream is not considered unhealthy. */
+    private final Runnable logcatWatchdog = new Runnable() {
+        @Override public void run() {
+            if (logcatStopping) return;
+            Thread reader = logcatThread;
+            if (reader != null && !reader.isAlive()) {
+                note("ActivityManager logcat reader thread stopped unexpectedly; restarting");
+                synchronized (logcatLock) {
+                    if (logcatProcess != null) {
+                        logcatProcess.destroy();
+                        logcatProcess = null;
+                    }
+                }
+                startLogcatReader();
+            }
+            if (worker != null && !logcatStopping) {
+                worker.postDelayed(this, LOGCAT_WATCHDOG_MS);
+            }
+        }
+    };
 
     private final BroadcastReceiver screen = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
@@ -133,6 +156,7 @@ public final class Keeper extends Service {
             note("screen receiver registration failed: " + e);
         }
         startLogcatReader();
+        worker.postDelayed(logcatWatchdog, LOGCAT_WATCHDOG_MS);
         worker.post(poll);
         worker.postDelayed(this::firstStart, 2500);
     }
@@ -142,6 +166,7 @@ public final class Keeper extends Service {
         if (worker != null) {
             worker.removeCallbacks(poll);
             worker.removeCallbacks(verify);
+            worker.removeCallbacks(logcatWatchdog);
         }
         try {
             unregisterReceiver(screen);
@@ -310,9 +335,16 @@ public final class Keeper extends Service {
             cancelRecovery("system UI foreground");
             return;
         }
+        // Amazon's launcher package contains screens other than Home (for example its
+        // settings grid). Treat those as part of the paused Amazon interface, not as the
+        // user leaving it. Resume takeover only after a genuinely different app appears.
+        if (AMAZON_PKG.equals(lastTop)) {
+            cancelRecovery("Amazon launcher foreground outside Home");
+            return;
+        }
         if (!DUMBTV_PKG.equals(lastTop)) {
             cancelRecovery("another app foreground: " + lastTop);
-            paused = false;
+            if (KeeperPause.shouldResume(lastTop)) paused = false;
         } else {
             cancelRecovery("DumbTV foreground");
         }
