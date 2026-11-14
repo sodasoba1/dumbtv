@@ -126,7 +126,7 @@ sh_ appops set $PKG GET_USAGE_STATS allow
 grant_error=""
 sh_ pm grant $PKG android.permission.READ_LOGS >/dev/null 2>&1 || grant_error="pm grant returned a failure"
 package_dump=$(sh_ dumpsys package $PKG 2>/dev/null || true)
-if grep -Eq '^[[:space:]]*android\.permission\.READ_LOGS:[[:space:]]*granted=true([[:space:]]|$)' <<<"$package_dump"; then
+if grep -Eq '^[[:space:]]*android\.permission\.READ_LOGS:[[:space:]]*granted=true([,[:space:]]|$)' <<<"$package_dump"; then
   echo "logcat monitoring: READ_LOGS granted"
 else
   if [[ -n $grant_error ]]; then
