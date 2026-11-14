@@ -150,7 +150,6 @@ fi
 echo "home: dumbtv (Keeper, Fire OS 6 / API 25)"
 
 sleep 2
-printf 'accessibility: %s\n' "$(sh_ settings get secure enabled_accessibility_services)"
 printf 'front window:  %s\n' "$(sh_ dumpsys window | grep -m1 mCurrentFocus | sed 's/.* u0 //; s/}$//')"
 
 # Retire the old optional local DNS filter. Fire OS 6 can forget the always-on
