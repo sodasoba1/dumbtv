@@ -83,35 +83,33 @@ prints `Success` and changes nothing: HOME still resolves to
 `com.amazon.tv.launcher`, which Amazon protects, as it does
 `com.amazon.firehomestarter`.
 
-So dumbtv home ([launcher/](../launcher/README.md)) watches for Amazon's home
-instead and replaces it.
+So dumbtv home ([launcher/](../launcher/README.md)) is built specifically for
+the Fire TV Stick 4K (1st generation, AFTMM), Fire OS 6.7.1.1 / Android 7.1.2
+(API 25). This fork does not ship the old cross-version accessibility takeover.
 
-**Fire OS 7 and 8: an accessibility service, `Guard`.** It receives window changes
-only and reads no screen content.
+Amazon's protected launcher remains the system HOME handler. The launcher uses
+one recovery service, Keeper:
 
-- The HOME key never reaches an accessibility key filter on Fire OS, so `Guard`
-  reacts to Amazon's home window appearing.
-- Android holds back app launches for 5 s after HOME (`APP_SWITCH_DELAY_TIME`),
-  which is why other launchers flash Amazon's home for seconds. `Guard` launches
-  through an alarm `PendingIntent`, which `system_server` sends and which is exempt
-  from the delay. `launcher/install.sh` sets `min_futurity=0` so the alarm fires
-  at once: in `settings global alarm_manager_constants` up to Android 11, and in
-  `device_config` namespace `alarm_manager` on Android 12 and later, which ignore
-  the global setting.
-- A plain overlay covers Amazon's home before it draws and is removed once dumbtv
-  home is on screen. HOME from an app shows about 0.3 s of black.
-- Fire OS 8 (Android 11) only lets an app start an activity while it has a visible
-  window. The cover is that window, so `Guard` fires the launch after the cover has
-  drawn. No permission is involved.
+- A boot receiver starts Keeper after the user is unlocked. Keeper runs as a
+  foreground service.
+- UsageStats foreground events are polled every 250 ms. The installer grants
+  GET_USAGE_STATS through AppOps.
+- If ADB grants READ_LOGS, Keeper also reads ActivityManager logcat for the exact
+  Amazon Home activity becoming displayed or resumed. UsageStats and screen
+  broadcasts remain active if READ_LOGS is unavailable.
+- Keeper only intervenes after a positive Amazon Home foreground event and only
+  while the display is interactive. It moves the existing DumbTV task to the
+  foreground and verifies the result; a bounded direct activity-launch fallback
+  handles a failed task move.
+- Opening Amazon's own settings pauses takeover. It remains paused through known
+  Amazon settings screens and resumes when a third-party app is opened.
 
-**Fire OS 6: a foreground service, `Keeper`.** Fire OS 6.7 refuses third-party
-accessibility services. `Keeper` reads the foreground app from UsageStats and calls
-`moveTaskToFront` when Amazon's home appears. That is not an activity launch, so
-the 5 s delay does not apply. Its usage-access and task-order permissions are
-capped at Android 8.1, so Fire OS 7 and 8 never see them.
+Keeper does not reboot the device or force the display on. Recovery after long
+deep standby still depends on Fire OS delivering usable foreground state/events;
+that behaviour needs physical-device validation.
 
-Holding HOME still opens Fire OS's quick menu, and the launcher's Options can open
-Amazon's home on purpose.
+Holding HOME still opens Fire OS's quick menu, and Options can open Amazon's home
+on purpose.
 
 ### HDMI inputs
 

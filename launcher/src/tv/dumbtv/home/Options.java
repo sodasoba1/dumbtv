@@ -85,7 +85,7 @@ public final class Options extends Activity {
         addChoices(list, Config.CLOCK, Config.MEMORY, Config.LOCK);
         list.addView(action(getString(R.string.export_settings), this::export));
         list.addView(action(getString(R.string.open_amazon_home), () -> {
-            Guard.amazon(this);
+            Keeper.openAmazonHome(this);
             finish();
         }));
 
@@ -93,7 +93,7 @@ public final class Options extends Activity {
         about.setLineSpacing(0, 1.4f);
         about.setPadding(dp(16), dp(28), 0, 0);
         about.setText(getString(R.string.about, cfg.dir + "/" + Config.FILE, Config.WALLPAPERS,
-                "/sdcard/Android/media/" + getPackageName() + "/", Library.FILE, Library.DIR));
+                Library.FILE, Library.DIR));
         list.addView(about);
 
         setContentView(scroll);

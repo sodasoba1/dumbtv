@@ -92,7 +92,7 @@ public final class Input extends Activity {
 
     /**
      * Amazon's Live TV claims every passthrough URI, then redirects to its own settings or a
-     * channel scan instead of showing the input (seen on Fire OS 7 and 8 televisions).
+     * channel scan instead of showing the input on this device.
      */
     private static boolean viewerIsLiveTv(ResolveInfo app) {
         return app.activityInfo != null && AMAZON_LIVE_TV.equals(app.activityInfo.packageName);

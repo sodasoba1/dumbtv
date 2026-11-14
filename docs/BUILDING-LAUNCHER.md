@@ -41,9 +41,9 @@ The keystore alias must be `home`.
 
 Every push and pull request runs the existing validation workflow. It builds
 the launcher with JDK 17, Android platform 25 and pinned Android build-tools
-34.0.0, then checks the source tests, package permissions and Fire OS 6 minimum
-SDK. The release workflow performs additional checks on the signed APK:
-package ID, version code/name, min SDK 25, target SDK 28, ZIP alignment,
+34.0.0, then checks the source tests, package permissions and Fire OS 6 target.
+The release workflow performs additional checks on the signed APK:
+package ID, version code/name, min SDK 25, target SDK 25, ZIP alignment,
 signature verification and SHA-256 sidecar.
 
 For a local build, install JDK 17 and Android SDK platform 25/build-tools

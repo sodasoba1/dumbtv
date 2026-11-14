@@ -114,10 +114,10 @@ on-device DNS filter.
 
 **Why its own launcher?**
 A home screen needs no internet access, no advertising ID and no permission to
-install apps. dumbtv home is open source and asks for one permission on Fire OS 7
-and 8: run at startup, used to start the Keeper after boot or an app update.
-Check it yourself: `aapt2 dump permissions dumbtv-home.apk` lists three;
-the other two are limited to Android 8.1 and earlier, for Fire OS 6's Keeper.
+install apps. This fork's dumbtv home APK targets only Fire OS 6 / API 25. It asks
+for boot, UsageStats, task-reordering and log-reading permissions; the installer
+grants UsageStats and attempts the optional READ_LOGS development permission.
+Check the manifest yourself with `aapt2 dump permissions dumbtv-home.apk`.
 
 **Who made this?**
 [Muzzammil](https://x.com/DevMuzzammil), with people who ran it on their own TVs

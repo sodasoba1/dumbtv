@@ -7,81 +7,37 @@ To put the TV back the way it was: `./scripts/restore.sh`.
 
 **Contents:** [Home screen](#home-screen) · [Inputs](#inputs) · [Pi-hole DNS](#pihole-dns-filtering) ·
 [Packages and apps](#packages-and-apps) · [Updates](#updates) ·
-[Fire OS 6](#fire-os-6) · [Fire OS 8](#fire-os-8) · [Testing like a remote](#testing-like-a-remote)
+[Fire OS 6](#fire-os-6) · [Testing like a remote](#testing-like-a-remote)
 
 ## Home screen
 
 ### Amazon's home screen came back
 
-The launcher's HOME hook is an accessibility service, and it can be switched off
-by an update, a settings reset, or a force-stop of the launcher (which every APK
-update does). Check:
+This launcher build supports only the AFTMM on Fire OS 6 / Android API 25.
+Keeper must be running as a foreground service, and UsageStats access must be
+granted. Check:
 
 ```sh
-adb shell settings get secure enabled_accessibility_services   # empty = off
-adb shell settings get secure accessibility_enabled             # 0 = off
+adb shell dumpsys activity services tv.dumbtv.home
+adb shell appops get tv.dumbtv.home GET_USAGE_STATS
+adb shell pm check-permission android.permission.READ_LOGS tv.dumbtv.home
 ```
 
-Run `./scripts/launcher.sh -y`. It switches the service off and on again, which is
-what makes Android bind it.
+READ_LOGS is an additional signal, not a hard requirement: if Fire OS refuses
+it, Keeper still uses UsageStats and screen on/off broadcasts. Re-arm the
+launcher with `./scripts/launcher.sh -y` and then run `./scripts/verify.sh`.
 
-On Fire OS 8 this also happens when the TV runs out of memory, for example while
-Prime Video plays HDR on a TV with 2 GB or less (#162). Android 11 kills the launcher
-along with other apps and then never binds a killed accessibility service again until
-the setting changes; Fire OS 7 binds it again by itself. The same
-`./scripts/launcher.sh -y` fixes it.
+### Amazon's Settings stays on screen
 
-### `verify.sh` says the home hook is enabled but not bound
-
-Enabled is a setting; bound means the service is actually running. `verify.sh`
-reads `dumpsys accessibility` and only passes when "dumbtv home button" is in the
-current user's bound services. Run `./scripts/launcher.sh -y`.
-
-On a TCL G08 the service stayed unbound because TCL's `TclAppBoot` refused it
-(`callee doesn't have OP_AUTO_START permission`). Granting the app's `AUTO_START`
-app-op fixed it. That is a TCL rule, not something to grant on every TV; see
-[docs/devices/tcl-g08.md](devices/tcl-g08.md).
-
-### `launcher.sh` says Fire OS did not bind the HOME guard
-
-The service was switched on and Fire OS never started it. Two causes are known:
-
-- **Parental controls.** On an AFTTI43 the guard bound once parental controls
-  were off (Settings > Preferences > Parental Controls), with nothing else changed
-  (#123). With a PIN on app launch, `launcher.sh` can also stop on Amazon's PIN
-  screen; enter the PIN and run it again.
-- **A11yAuthorizer.** Some builds run only accessibility services Amazon trusts.
-  `launcher.sh` says so when the log shows it; nothing on the adb side gets past it.
-
-### Amazon's Network status screen has nothing highlighted
-
-Settings > Network > your network > Network status opens with no button
-highlighted, so Advanced and Run Speed Test cannot be reached (#130). That screen
-(`com.amazon.ssmsys`) asks Android for enabled accessibility services of any kind,
-and while one is on it skips setting its first focus, assuming a screen reader.
-The HOME guard is such a service, whatever type it declares. Turn it off, open the
-screen, and turn it back on; a button that has focus keeps it:
-
-```sh
-adb shell settings put secure accessibility_enabled 0
-# open Network status on the TV now
-./scripts/launcher.sh -y
-```
-
-### Amazon's home shows for about five seconds before dumbtv home
-
-The `min_futurity=0` alarm setting was lost (an update or a settings reset). Check
-with `adb shell settings get global alarm_manager_constants` (Fire OS 7 and 8), or
-`adb shell device_config get alarm_manager min_futurity` on a Fire TV built on
-Android 12 or later, then run `./scripts/launcher.sh -y`. With it set, HOME shows
-about 0.3 s of black. Fire OS 6 does not use this setting: its Keeper moves the
-home screen to the front without an alarm.
+This is intentional. Opening Amazon's own settings pauses takeover so that
+navigation is not interrupted. Opening a third-party app clears the pause and
+allows Keeper to resume recovery.
 
 ### Settings bounces back to the home screen
 
-On Fire OS, `android.settings.SETTINGS` opens a stub that forwards to Amazon's
-home, which the launcher then replaces. The launcher's Settings button already
-avoids this. From adb, open settings with:
+On Fire OS 6, the generic Android Settings action can open a stub that forwards
+to Amazon's home. The launcher's Settings button uses the Fire OS 6 section list
+instead. From ADB, open the TV settings entry point with:
 
 ```sh
 adb shell am start -a android.intent.action.MAIN -c android.intent.category.LEANBACK_SETTINGS
@@ -89,7 +45,7 @@ adb shell am start -a android.intent.action.MAIN -c android.intent.category.LEAN
 
 ### A blank screen for about 15 seconds after boot
 
-That is Android's `FallbackHome` while the system starts. Nothing is broken.
+That is Android's FallbackHome while the system starts. Nothing is broken.
 
 ### HOME from an HDMI input takes about five seconds
 
@@ -100,9 +56,8 @@ releases the picture about 0.4 s after HOME.
 
 ### An HDMI tile opens Live TV settings instead of the input
 
-Amazon's Live TV app claims every input and then shows its settings or a channel
-scan. Set Options › Open inputs with › **Automatic** (the default from launcher
-1.2), which uses the launcher's own input screen when that happens.
+Amazon's Live TV claims every input and then shows its settings. Set Options ›
+Open inputs with › dumbtv home to show the input directly.
 
 ## Inputs
 
@@ -222,29 +177,23 @@ run `./scripts/all.sh`.
 
 ## Fire OS 6
 
-Found on a Fire TV Stick 4K (AFTMM, Fire OS 6.7.1.1). The scripts read the API
-level and switch to `data/fireos6/` on their own.
+The launcher target is the Fire TV Stick 4K (AFTMM), Fire OS 6.7.1.1 / API 25.
+The scripts select `data/fireos6/` automatically.
 
-- **HOME never switches to dumbtv home.** Fire OS 6.7 refuses third-party
-  accessibility services (`A11yAuthorizer ... "trust"#"false"` in
-  `logcat -b all`). The launcher uses its Keeper service there instead; run
-  `./scripts/launcher.sh -y` to re-arm it.
-- **dumbtv home will not install.** Releases up to 1.1 needed Android 9. Install
-  1.2 or later with `./launcher/install.sh`.
-- **`monkey` launches nothing** and says `SYS_KEYS has no physical keys` when the
-  remote is asleep. Use `am start -n`, or pass `--pct-syskeys 0`.
+- **Keeper is not running.** Re-run `./scripts/launcher.sh -y`; then check
+  `dumpsys activity services tv.dumbtv.home`.
+- **UsageStats is unavailable.** The installer grants `GET_USAGE_STATS`; check
+  it with `appops get tv.dumbtv.home GET_USAGE_STATS`.
+- **READ_LOGS is denied.** This is optional. Keeper continues with UsageStats
+  and screen broadcasts, but loses the additional ActivityManager signal.
+- **`monkey` launches nothing** and says `SYS_KEYS has no physical keys` when
+  the remote is asleep. Use `am start -n`, or pass `--pct-syskeys 0`.
 
-## Fire OS 8
+## Fire OS 7 and 8
 
-- **The launcher's own folder is closed to adb,** so `home.conf` and wallpapers
-  cannot be pushed to `/sdcard/Android/data/tv.dumbtv.home/files/`. Write them to
-  `/sdcard/Android/media/tv.dumbtv.home/` instead: the launcher reads both,
-  wallpapers in name order, and a settings file pushed to the media folder is
-  applied once, then remembered. [launcher/README.md](../launcher/README.md) has
-  the commands.
-- **HOME stays on Amazon's home with launcher 1.1.** Android 11 needs the launcher
-  to have a visible window first; 1.2 waits for its cover window. Update with
-  `./launcher/install.sh`.
+The wider debloat scripts still support these Fire OS versions, but this fork's
+launcher APK and installer are intentionally restricted to API 25 / Fire OS 6.
+Do not use this launcher build on Fire OS 7 or 8.
 
 ## Testing like a remote
 

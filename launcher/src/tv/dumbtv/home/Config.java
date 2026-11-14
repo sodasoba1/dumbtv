@@ -6,12 +6,10 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
@@ -29,14 +27,13 @@ import java.util.Map;
 import java.util.TimeZone;
 
 /**
- * All settings live in one plain {@code key=value} file in the app's external files dir,
- * so {@code adb pull}/{@code adb push} is the whole export/import story and a hand edit is
- * picked up on the next return to the home screen. Where adb cannot reach that folder
- * (Fire OS 8), the same file can be pushed into the app's media folder instead.
+ * All settings live in one plain {@code key=value} file in the app's external files dir.
+ * On this Fire OS 6 target, {@code adb pull}/{@code adb push} is the whole export/import
+ * story and a hand edit is picked up on the next return to the home screen.
  */
 final class Config {
     static final String FILE = "home.conf";
-    /** Options › Export settings writes this copy into the media folder, for adb pull. */
+    /** Options › Export settings writes this copy beside home.conf, for adb pull. */
     static final String EXPORT = "home-export.conf";
 
     static final class Choice {
@@ -201,11 +198,6 @@ final class Config {
 
     final File dir;
     private final File file;
-    /** The app's media folder, /sdcard/Android/media/tv.dumbtv.home: adb can write there. */
-    private final File shared;
-    private final File sharedFile;
-    /** What was last applied from the media folder, so the same push is not applied twice. */
-    private final File appliedFile;
     private final Map<String, String> values = new LinkedHashMap<>();
     private long signature = Long.MIN_VALUE;
     private int version;
@@ -220,14 +212,6 @@ final class Config {
         File external = c.getExternalFilesDir(null);
         dir = external != null ? external : c.getFilesDir();
         file = new File(dir, FILE);
-        // Fire OS 8 (Android 11) hides /sdcard/Android/data/<pkg> from adb, so nothing can be
-        // pushed into the app's own folder. The app's media folder is still writable by adb,
-        // so it is used as a second source: wallpapers are read from it, and a settings file
-        // pushed there is merged in once.
-        File[] media = c.getExternalMediaDirs();
-        shared = (media != null && media.length > 0 && media[0] != null) ? media[0] : null;
-        sharedFile = shared == null ? null : new File(shared, FILE);
-        appliedFile = new File(dir, FILE + ".applied");
         refresh();
     }
 
@@ -242,57 +226,12 @@ final class Config {
         signature = sig;
         values.clear();
         if (file.isFile()) read();
-        mergeShared();
         version++;
     }
 
-    /** Both files count: a settings file pushed into the media folder has to be noticed too. */
+    /** Signature of the app-private home.conf file. */
     private long signature() {
-        long sig = file.lastModified() * 31 + file.length();
-        if (sharedFile != null) sig = sig * 31 + hash(sharedFile);
-        return sig;
-    }
-
-    /** Content hash, so a push is noticed even when it carries an old timestamp. */
-    private static long hash(File f) {
-        if (!f.isFile()) return 0;
-        try (InputStream in = new FileInputStream(f)) {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            byte[] buf = new byte[4096];
-            int n;
-            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-            return Arrays.hashCode(out.toByteArray());
-        } catch (IOException e) {
-            return 0;
-        }
-    }
-
-    /**
-     * Takes the settings from a file pushed into the media folder, the one folder adb can still
-     * write on Fire OS 8. The push is applied once: what was applied is remembered, so the same
-     * file is not applied again and a later change on the TV is not overwritten by it.
-     */
-    private void mergeShared() {
-        if (sharedFile == null || !sharedFile.isFile()) return;
-        Map<String, String> incoming = parse(sharedFile);
-        if (incoming.isEmpty()) return;
-        if (incoming.equals(parse(appliedFile))) return;
-        Map<String, String> merged = new LinkedHashMap<>(values);
-        merged.putAll(incoming);
-        // The marker goes first and is taken back if the settings cannot be saved, so an import
-        // is applied exactly once: a saved import without its marker would be applied again on
-        // the next refresh, over whatever was changed in Options since.
-        if (!writeSettings(appliedFile, incoming)) {
-            signature = Long.MIN_VALUE;
-            return;
-        }
-        if (!writeSettings(file, merged)) {
-            if (!appliedFile.delete()) Log.w("dumbtv", "could not withdraw " + appliedFile);
-            signature = Long.MIN_VALUE;
-            return;
-        }
-        values.putAll(incoming);
-        signature = signature();
+        return file.lastModified() * 31 + file.length();
     }
 
     private void read() {
@@ -319,14 +258,9 @@ final class Config {
         signature = writeSettings(file, values) ? signature() : Long.MIN_VALUE;
     }
 
-    /**
-     * Writes a copy of the settings into the media folder, the one folder adb can read on Fire OS
-     * 8. It has its own name so it is never taken for a push: pushing it back as home.conf
-     * restores it. Returns the copy, or null when it could not be written.
-     */
+    /** Writes a separately named copy beside home.conf for adb pull and later restore. */
     File export() {
-        if (shared == null || (!shared.isDirectory() && !shared.mkdirs())) return null;
-        File copy = new File(shared, EXPORT);
+        File copy = new File(dir, EXPORT);
         return writeSettings(copy, values) ? copy : null;
     }
 
@@ -485,7 +419,6 @@ final class Config {
     List<File> wallpapers() {
         List<File> out = new ArrayList<>();
         addPictures(new File(dir, WALLPAPERS), out);
-        if (shared != null) addPictures(new File(shared, WALLPAPERS), out);
         Collections.sort(out, new Comparator<File>() {
             @Override
             public int compare(File a, File b) {
@@ -496,15 +429,10 @@ final class Config {
         return out;
     }
 
-    /** The library folder that holds a library.conf: the app's own first, then the media one. */
+    /** The library folder that holds library.conf, beside home.conf. */
     File libraryDir() {
         File own = new File(dir, LIBRARY_DIR);
-        if (new File(own, LIBRARY_FILE).isFile()) return own;
-        if (shared != null) {
-            File media = new File(shared, LIBRARY_DIR);
-            if (new File(media, LIBRARY_FILE).isFile()) return media;
-        }
-        return null;
+        return new File(own, LIBRARY_FILE).isFile() ? own : null;
     }
 
     private static void addPictures(File folder, List<File> out) {
@@ -548,10 +476,6 @@ final class Config {
         for (String name : new String[] {"wallpaper.jpg", "wallpaper.jpeg", "wallpaper.png", "wallpaper.webp"}) {
             File f = new File(dir, name);
             if (f.isFile()) return f;
-            if (shared != null) {
-                File s = new File(shared, name);
-                if (s.isFile()) return s;
-            }
         }
         return null;
     }

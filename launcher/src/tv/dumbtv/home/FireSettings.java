@@ -51,7 +51,6 @@ final class FireSettings {
 
     /** True where the chip should open {@link #sections} rather than the TV's settings page. */
     static boolean applies(PackageManager pm, Intent tvSettings) {
-        if (android.os.Build.VERSION.SDK_INT >= 26) return false;
         ComponentName target = tvSettings.resolveActivity(pm);
         return target != null && MAIN_SETTINGS.equals(target.getClassName());
     }
@@ -71,8 +70,8 @@ final class FireSettings {
         // The node key Amazon's own menu navigation sends to its home activity; the settings
         // row draws in full there. Opening it pauses the HOME takeover, as Options › Open
         // Amazon's home screen does.
-        out.add(new Item(Guard.AMAZON, c.getString(ALL), new Intent(Intent.ACTION_MAIN)
-                .addCategory(Intent.CATEGORY_HOME).setPackage(Guard.AMAZON)
+        out.add(new Item(Keeper.AMAZON_PKG, c.getString(ALL), new Intent(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_HOME).setPackage(Keeper.AMAZON_PKG)
                 .putExtra("navigate_node", "l_settings")));
         return out;
     }

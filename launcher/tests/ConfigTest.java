@@ -7,7 +7,7 @@ import java.lang.reflect.Constructor;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
-/** Real file imports and failed writes, with directory-only Android stubs and no TV. */
+/** Fire OS 6 settings persistence, export and failed-write checks; no TV required. */
 public final class ConfigTest {
     private ConfigTest() {}
 
@@ -19,11 +19,10 @@ public final class ConfigTest {
         Files.write(file.toPath(), text.getBytes(StandardCharsets.UTF_8));
     }
 
-    static Config open(final File dir, final File media) throws Exception {
+    static Config open(final File dir) throws Exception {
         Context context = new Context() {
             @Override public File getExternalFilesDir(String type) { return dir; }
             @Override public File getFilesDir() { return dir; }
-            @Override public File[] getExternalMediaDirs() { return new File[] {media}; }
         };
         Constructor<Config> ctor = Config.class.getDeclaredConstructor(Context.class);
         ctor.setAccessible(true);
@@ -32,17 +31,15 @@ public final class ConfigTest {
 
     private static final class Fixture implements AutoCloseable {
         final File root = Files.createTempDirectory("dumbtv-config-").toFile();
-        final File dir = new File(root, "files"), media = new File(root, "media");
+        final File dir = new File(root, "files");
         final File settings = new File(dir, Config.FILE);
-        final File applied = new File(dir, Config.FILE + ".applied");
 
         Fixture() throws Exception {
-            check(dir.mkdir() && media.mkdir(), "create folders");
+            check(dir.mkdir(), "create settings folder");
             write(settings, "accent=blue\nunknown=keep me\n");
-            write(new File(media, Config.FILE), "accent=red\n");
         }
 
-        Config open() throws Exception { return ConfigTest.open(dir, media); }
+        Config open() throws Exception { return ConfigTest.open(dir); }
 
         @Override public void close() { remove(root); }
 
@@ -53,16 +50,26 @@ public final class ConfigTest {
         }
     }
 
-    public static void main(String[] args) throws Exception {
+    private static void settingsReadWriteAndExport() throws Exception {
         try (Fixture f = new Fixture()) {
             Config cfg = f.open();
-            check("red".equals(cfg.get(Config.ACCENT)), "import wins");
+            check("blue".equals(cfg.get(Config.ACCENT)), "read persisted accent");
             check("keep me".equals(cfg.get("unknown", "")), "unknown keys retained");
-            check(f.applied.isFile(), "successful import acknowledged");
             cfg.set("accent", "green");
-            cfg.refresh();
-            check("green".equals(f.open().get(Config.ACCENT)), "same import never replaces UI edit");
+            Config reopened = f.open();
+            check("green".equals(reopened.get(Config.ACCENT)), "setting survives restart");
+            check("keep me".equals(reopened.get("unknown", "")), "unknown setting survives write");
+            File exported = reopened.export();
+            check(exported != null && exported.isFile(), "export copy written");
+            check(Config.EXPORT.equals(exported.getName()), "export has separate filename");
+            String copy = new String(Files.readAllBytes(exported.toPath()), StandardCharsets.UTF_8);
+            check(copy.contains("accent=green"), "export contains current values");
+            check(copy.contains("unknown=keep me"), "export retains unknown values");
+            check("green".equals(reopened.get(Config.ACCENT)), "export does not alter live settings");
         }
+    }
+
+    private static void customColoursIndependent() throws Exception {
         try (Fixture f = new Fixture()) {
             Config cfg = f.open();
             cfg.set("accent", "custom");
@@ -75,6 +82,9 @@ public final class ConfigTest {
             check(cfg.background() == 0xFF234567, "custom solid background is independent");
             check(cfg.gradientColor() == 0xFF345678, "custom gradient colour is independent");
         }
+    }
+
+    private static void legacyValuesRemainReadable() throws Exception {
         try (Fixture f = new Fixture()) {
             Config cfg = f.open();
             cfg.set("accent", "copper");
@@ -87,47 +97,27 @@ public final class ConfigTest {
             check(!java.util.Arrays.asList(Config.ACCENT.optionValues).contains("copper"),
                     "legacy accent is hidden from the shortened picker");
         }
+    }
+
+    private static void failedWriteCanRecover() throws Exception {
         try (Fixture f = new Fixture()) {
             File blocked = new File(f.dir, Config.FILE + ".tmp");
             check(blocked.mkdir(), "block settings write");
             Config cfg = f.open();
-            check("blue".equals(cfg.get(Config.ACCENT)), "failed import keeps persisted values");
-            check(!f.applied.exists(), "failed write not acknowledged");
-            check(blocked.delete(), "unblock settings write");
-            cfg.refresh();
-            check("red".equals(cfg.get(Config.ACCENT)), "unchanged import retried on refresh");
-            check("red".equals(f.open().get(Config.ACCENT)), "retry survives restart");
-        }
-        try (Fixture f = new Fixture()) {
-            File blocked = new File(f.dir, Config.FILE + ".tmp");
-            check(blocked.mkdir(), "block before restart");
-            f.open();
-            check(blocked.delete(), "recover before restart");
-            check("red".equals(f.open().get(Config.ACCENT)), "failed import retried after restart");
-        }
-        try (Fixture f = new Fixture()) {
-            check(f.settings.delete() && f.settings.mkdir(), "block settings rename");
-            write(new File(f.settings, "child"), "keep target nonempty");
-            Config cfg = f.open();
-            check(!f.applied.exists(), "failed rename not acknowledged");
-            check(new File(f.settings, "child").delete() && f.settings.delete(), "unblock rename");
-            cfg.refresh();
-            check("red".equals(f.open().get(Config.ACCENT)), "rename failure can recover");
-        }
-        try (Fixture f = new Fixture()) {
-            File blocked = new File(f.dir, Config.FILE + ".applied.tmp");
-            check(blocked.mkdir(), "block acknowledgement");
-            Config cfg = f.open();
-            check("blue".equals(f.open().get(Config.ACCENT)), "nothing applied without a marker");
-            check(!f.applied.exists(), "marker failure visible on disk");
-            check(blocked.delete(), "unblock acknowledgement");
-            cfg.refresh();
-            check("red".equals(cfg.get(Config.ACCENT)), "import applied once the marker can be written");
-            check(f.applied.isFile(), "marker retried without a source change");
             cfg.set("accent", "green");
             cfg.refresh();
-            check("green".equals(f.open().get(Config.ACCENT)), "an applied import never comes back");
+            check("blue".equals(cfg.get(Config.ACCENT)), "failed write does not replace persisted value");
+            check(blocked.delete(), "unblock settings write");
+            cfg.set("accent", "red");
+            check("red".equals(f.open().get(Config.ACCENT)), "write succeeds after storage recovers");
         }
-        System.out.println("ConfigTest passed (import, write/rename failure, retry, acknowledgement)");
+    }
+
+    public static void main(String[] args) throws Exception {
+        settingsReadWriteAndExport();
+        customColoursIndependent();
+        legacyValuesRemainReadable();
+        failedWriteCanRecover();
+        System.out.println("ConfigTest passed (settings persistence, export, custom colours, legacy values, failed-write recovery)");
     }
 }

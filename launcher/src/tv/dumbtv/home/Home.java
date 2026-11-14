@@ -17,7 +17,6 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.media.tv.TvInputManager;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -57,7 +56,6 @@ public final class Home extends Activity {
     static final long UNLOCK_MS = 3000;
     private static final int MATCH = ViewGroup.LayoutParams.MATCH_PARENT;
     private static final int WRAP = ViewGroup.LayoutParams.WRAP_CONTENT;
-    private static final String APPSTORE = "com.amazon.venezia";
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
@@ -317,7 +315,6 @@ public final class Home extends Activity {
     protected void onResume() {
         super.onResume();
         resumed = true;
-        Guard.arrived(this);
         cfg.refresh();
         cfg.visited();
         if (cfg.version() != applied) apply();
@@ -330,11 +327,6 @@ public final class Home extends Activity {
         f.addAction(Intent.ACTION_TIMEZONE_CHANGED);
         registerReceiver(time, f);
         tick();
-    }
-
-    @Override
-    public void onEnterAnimationComplete() {
-        Guard.shown();
     }
 
     @Override
@@ -1302,11 +1294,7 @@ public final class Home extends Activity {
         return BitmapFactory.decodeFile(f.getPath(), o);
     }
 
-    /**
-     * Fire OS answers the generic settings action with a stub that reopens Amazon's home, which
-     * Guard then replaces with ours. The TV settings entry point opens the real settings screen,
-     * except on Fire OS 6, where that page draws off the top of the screen: see FireSettings.
-     */
+    /** Fire OS 6's standalone settings page draws its first row above the screen. */
     private void openSettings() {
         Intent tvSettings = new Intent(Intent.ACTION_MAIN)
                 .addCategory("android.intent.category.LEANBACK_SETTINGS");
@@ -1326,23 +1314,13 @@ public final class Home extends Activity {
                 .setTitle(R.string.settings)
                 .setItems(labels, (d, which) -> {
                     Item s = sections.get(which);
-                    if (Guard.AMAZON.equals(s.id)) Guard.pause();
+                    Keeper.pause();
                     launch(new Intent(s.intent), null);
                 })
                 .show();
     }
 
-    /**
-     * On Fire OS 8 the Appstore's launcher entry opens Amazon's home with its apps grid, which
-     * Guard then replaces with ours, so the tile seemed to do nothing (#133). Its store screen is
-     * opened instead. On Fire OS 7 the entry opens the store itself.
-     */
     private Intent appIntent(Item it) {
-        if (Build.VERSION.SDK_INT >= 30 && APPSTORE.equals(it.id)) {
-            Intent store = new Intent(Intent.ACTION_MAIN)
-                    .setClassName(APPSTORE, APPSTORE + ".ade.ADEHomeActivity");
-            if (store.resolveActivity(getPackageManager()) != null) return store;
-        }
         return new Intent(it.intent);
     }
 
@@ -1361,7 +1339,7 @@ public final class Home extends Activity {
     }
 
     private void launch(Intent i, String pkg) {
-        if (Guard.AMAZON.equals(pkg)) Guard.pause();
+        if (Keeper.AMAZON_PKG.equals(pkg)) Keeper.pause();
         try {
             // No transition: on a warm start of an app with a trampoline activity, such as
             // Prime Video, the animation showed home again between the two (#169).
