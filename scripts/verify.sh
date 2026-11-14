@@ -14,27 +14,27 @@ printf '%-10s %-38s %s\n' '----------' '--------------------------------------' 
 
 home=$(front_activity)
 if [[ $LAUNCHER == 0 ]]; then
-  printf '%-10s %-38s %s\\n' skip home "LAUNCHER=0, not checked"
+  printf '%-10s %-38s %s\n' skip home "LAUNCHER=0, not checked"
 elif [[ $SDK != 25 ]]; then
-  printf '%-10s %-38s %s\\n' FAIL home "launcher supports only Fire OS 6 / API 25 (device reports API $SDK)"; fail=1
+  printf '%-10s %-38s %s\n' FAIL home "launcher supports only Fire OS 6 / API 25 (device reports API $SDK)"; fail=1
 else
   keeper=$(dev 'dumpsys activity services tv.dumbtv.home' | grep -c 'isForeground=true' || true)
   if [[ ${keeper:-0} -gt 0 ]]; then
-    printf '%-10s %-38s %s\\n' ok home "Keeper armed, front is ${home:-unknown}"
+    printf '%-10s %-38s %s\n' ok home "Keeper armed, front is ${home:-unknown}"
   else
-    printf '%-10s %-38s %s\\n' FAIL home "Keeper not running; re-run launcher.sh"; fail=1
+    printf '%-10s %-38s %s\n' FAIL home "Keeper not running; re-run launcher.sh"; fail=1
   fi
-  usage_access=$(dev 'appops get tv.dumbtv.home GET_USAGE_STATS' | tr -d '\\r')
+  usage_access=$(dev 'appops get tv.dumbtv.home GET_USAGE_STATS' | tr -d '\r')
   if grep -q 'GET_USAGE_STATS: allow' <<<"$usage_access"; then
-    printf '%-10s %-38s %s\\n' ok usage-access "UsageStats permission granted"
+    printf '%-10s %-38s %s\n' ok usage-access "UsageStats permission granted"
   else
-    printf '%-10s %-38s %s\\n' FAIL usage-access "${usage_access:-could not read app-op}"; fail=1
+    printf '%-10s %-38s %s\n' FAIL usage-access "${usage_access:-could not read app-op}"; fail=1
   fi
-  read_logs=$(dev 'pm check-permission android.permission.READ_LOGS tv.dumbtv.home' | tr -d '\\r')
+  read_logs=$(dev 'pm check-permission android.permission.READ_LOGS tv.dumbtv.home' | tr -d '\r')
   if [[ $read_logs == granted ]]; then
-    printf '%-10s %-38s %s\\n' ok logcat "READ_LOGS granted"
+    printf '%-10s %-38s %s\n' ok logcat "READ_LOGS granted"
   else
-    printf '%-10s %-38s %s\\n' warn logcat "READ_LOGS unavailable; Keeper will use UsageStats and screen broadcasts"
+    printf '%-10s %-38s %s\n' warn logcat "READ_LOGS unavailable; Keeper will use UsageStats and screen broadcasts"
   fi
 fi
 
@@ -103,15 +103,8 @@ fi
 
 if [[ $LAUNCHER == 0 ]]; then
   printf '%-10s %-38s %s\n' skip alarm "LAUNCHER=0, not checked"
-elif [[ $SDK -lt 28 ]]; then
-  printf '%-10s %-38s %s\n' skip alarm "Fire OS 6 Keeper uses moveTaskToFront"
 else
-  # dumbtv home needs this to answer HOME immediately; an update can drop it.
-  if [[ $futurity == 0 ]]; then
-    printf '%-10s %-38s %s\n' ok alarm "min_futurity=0"
-  else
-    printf '%-10s %-38s %s\n' warn alarm "missing min_futurity=0 (HOME is slower, still works)"
-  fi
+  printf '%-10s %-38s %s\n' skip alarm "Keeper recovery does not modify AlarmManager timing"
 fi
 
 if [[ $fail == 0 ]]; then
