@@ -60,6 +60,7 @@ if [[ $mode == undo ]]; then
   sh_ am force-stop $PKG >/dev/null 2>&1 || true
   sh_ appops set $PKG GET_USAGE_STATS default >/dev/null 2>&1 || true
   sh_ appops set $PKG AUTO_START default >/dev/null 2>&1 || true
+  sh_ appops write-settings >/dev/null 2>&1 || true
   sh_ pm revoke $PKG android.permission.READ_LOGS >/dev/null 2>&1 || true
   sh_ dumpsys deviceidle whitelist -$PKG >/dev/null 2>&1 || true
   sh_ am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null 2>&1 || true
