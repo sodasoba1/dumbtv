@@ -38,7 +38,7 @@ jobs:
       - name: host-side launcher tests
         run: |
           jar="$ANDROID_HOME/platforms/android-25/android.jar"
-          javac --release 8 -Xlint:all -Werror -d /tmp/host launcher/src/tv/dumbtv/home/HomeRetry.java \
+          javac --release 8 -Xlint:all -Werror -d /tmp/host launcher/src/tv/dumbtv/home/HomeRetry.java launcher/src/tv/dumbtv/home/KeeperPause.java \
             launcher/tests/HomeRetryTest.java
           java -cp /tmp/host tv.dumbtv.home.HomeRetryTest
           javac --release 8 -Xlint:all -Werror -d /tmp/config-host \
