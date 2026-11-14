@@ -412,21 +412,28 @@ HOME from an app shows about 0.3 s of black, then this home screen.
 Fire OS 6.7 refuses third-party accessibility services, so it uses `Keeper`, a
 small foreground service:
 
-1. UsageStats (`GET_USAGE_STATS`) provides a fallback way to detect when Amazon's
-   launcher comes to the front.
+1. UsageStats (`GET_USAGE_STATS`) provides the foreground-event fallback.
 2. When `READ_LOGS` is granted by ADB, Keeper also watches ActivityManager logcat
-   events to detect Amazon's HOME activity returning. The installer attempts the
-   grant and verifies it; if Fire OS refuses it, UsageStats remains available.
-3. `ActivityManager.moveTaskToFront` brings dumbtv home back. That is not an
-   activity launch, so the 5 s delay does not apply.
-4. At boot there is no dumbtv task yet, so the first start uses an alarm.
+   for Amazon's exact HOME activity becoming displayed or resumed. The installer
+   attempts the grant and verifies it; if Fire OS refuses it, UsageStats remains active.
+3. `ActivityManager.moveTaskToFront` brings the existing DumbTV task back. That is
+   not an activity launch, so the 5 s app-switch delay does not apply. If task
+   reordering does not work, Keeper verifies a direct activity-launch fallback.
+4. At boot there is no DumbTV task yet, so the first start uses an alarm.
 
-After a long standby, wake recovery depends on Fire OS delivering usable activity
-state/events. The logcat listener is a recovery aid, not a guarantee that every
-firmware deep-sleep path has been tested.
+The logcat reader restarts after stream termination, backs off after repeated
+failures, and has a low-frequency watchdog for an unexpectedly dead reader thread.
+A quiet stream is normal and does not trigger a restart. UsageStats and screen
+on/off broadcasts remain independent recovery paths.
 
-**Options › Open Amazon's home screen** pauses the takeover until another app is
-opened.
+After a long standby, wake recovery still depends on Fire OS delivering usable
+activity state/events. These mechanisms improve recovery but cannot guarantee
+that every firmware deep-sleep path behaves identically; physical long-standby
+testing is still required.
+
+**Options › Open Amazon's home screen** pauses the takeover while you navigate
+within Amazon's launcher, including its settings screens. The takeover resumes
+when you open another app.
 
 ## Build it yourself
 

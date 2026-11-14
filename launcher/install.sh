@@ -167,8 +167,8 @@ sh_ appops set $PKG AUTO_START allow >/dev/null 2>&1 || true
 sh_ appops write-settings >/dev/null 2>&1 || true
 
 # Fire OS 6.7 refuses third-party accessibility services (A11yAuthorizer), so the Guard
-# cannot bind there. Keeper watches Amazon's home through UsageStats and calls
-# moveTaskToFront instead, which is not subject to the 5 s app-switch delay.
+# cannot bind there. Keeper combines UsageStats with ActivityManager logcat when
+# READ_LOGS is granted, then restores DumbTV with moveTaskToFront (no 5 s delay).
 if [[ $dev_sdk -lt 28 ]]; then
   set_guard ""
   sh_ appops set $PKG GET_USAGE_STATS allow
