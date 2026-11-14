@@ -137,7 +137,7 @@ and what you lose without it.
 |---|---|---|
 | ![Rows layout](docs/assets/screens/home.png) | ![Grid layout](docs/assets/screens/grid.png) | ![Options](docs/assets/screens/options.png) |
 
-A home screen that shows your apps and your HDMI inputs, and nothing else. Choose
+A home screen that shows your apps and your HDMI inputs, and nothing else. This fork's launcher APK is intentionally restricted to the Fire TV Stick 4K (1st generation, AFTMM) on Fire OS 6 / Android API 25; the wider debloat scripts have their own device support. Choose
 rows or a grid, custom accent/background/gradient colours, wallpapers and adaptive
 backgrounds. Tune tile styles, focus rings and animation, borders, spacing, shadows,
 app ordering, and icon packs; rename, hide or pin apps from the remote. HOME lands on
