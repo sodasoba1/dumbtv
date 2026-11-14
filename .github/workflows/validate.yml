@@ -93,6 +93,15 @@ jobs:
             android.permission.RECEIVE_BOOT_COMPLETED \
             android.permission.REORDER_TASKS | sort)
           diff -u <(printf '%s\n' "$expected") <(printf '%s\n' "$actual")
+      - name: upload Fire OS 6 APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dumbtv-home-api25
+          path: |
+            launcher/build/dumbtv-home.apk
+            launcher/build/dumbtv-home.apk.sha256
+          if-no-files-found: error
+          retention-days: 14
 
 
   scripts:
