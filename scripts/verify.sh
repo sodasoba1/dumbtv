@@ -4,7 +4,6 @@
 # Usage: ./scripts/verify.sh
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
-source "$ROOT/scripts/accessibility.sh"
 parse_flags "$@"
 need_device
 load_conf
@@ -14,86 +13,28 @@ printf '\n%-10s %-38s %s\n' check result details
 printf '%-10s %-38s %s\n' '----------' '--------------------------------------' '----------------------'
 
 home=$(front_activity)
-wake=$(dev 'dumpsys power' | sed -n 's/.*mWakefulness=\([A-Za-z]*\).*/\1/p' | head -1)
-# Android 12 and later read min_futurity from DeviceConfig, not from the global setting.
-if [[ $SDK -ge 31 ]]; then
-  futurity=$(dev 'device_config get alarm_manager min_futurity' | tr -d '\r')
-else
-  futurity=$(dev 'settings get global alarm_manager_constants' | tr -d '\r' | tr ',' '\n' |
-    sed -n 's/^min_futurity=//p' | head -1)
-fi
 if [[ $LAUNCHER == 0 ]]; then
-  printf '%-10s %-38s %s\n' skip home "LAUNCHER=0, not checked"
-elif [[ $SDK -lt 28 ]]; then
-  # Fire OS 6: the Keeper, not the accessibility service, owns HOME.
+  printf '%-10s %-38s %s\\n' skip home "LAUNCHER=0, not checked"
+elif [[ $SDK != 25 ]]; then
+  printf '%-10s %-38s %s\\n' FAIL home "launcher supports only Fire OS 6 / API 25 (device reports API $SDK)"; fail=1
+else
   keeper=$(dev 'dumpsys activity services tv.dumbtv.home' | grep -c 'isForeground=true' || true)
   if [[ ${keeper:-0} -gt 0 ]]; then
-    printf '%-10s %-38s %s\n' ok home "Keeper armed, front is ${home:-unknown}"
+    printf '%-10s %-38s %s\\n' ok home "Keeper armed, front is ${home:-unknown}"
   else
-    printf '%-10s %-38s %s\n' FAIL home "Keeper not running; re-run launcher.sh"; fail=1
+    printf '%-10s %-38s %s\\n' FAIL home "Keeper not running; re-run launcher.sh"; fail=1
   fi
-else
-  # An enabled setting can outlive the process/binding. Check the current user's
-  # exact component AND the live bound-service section, without sending HOME.
-  current_user=$(dev 'am get-current-user' | tr -d '\r')
-  hook=unknown
-  case $current_user in
-    ''|*[!0-9]*) ;;
-    *)
-      a11y=$(dev "settings --user $current_user get secure enabled_accessibility_services" | tr -d '\r')
-      enabled=$(dev "settings --user $current_user get secure accessibility_enabled" | tr -d '\r')
-      case :$a11y: in
-        *:tv.dumbtv.home/.Guard:*|*:tv.dumbtv.home/tv.dumbtv.home.Guard:*)
-          if [[ $enabled == 1 ]]; then
-            if dump=$(dev 'dumpsys accessibility'); then
-              printf '%s\n' "$dump" | guard_bound "$current_user"
-              case $? in 0) hook=bound ;; 1) hook=unbound ;; esac
-            fi
-          else
-            hook=disabled
-          fi ;;
-        *) hook=disabled ;;
-      esac ;;
-  esac
-  case $hook in
-    bound) printf '%-10s %-38s %s\n' ok home "bound, front is ${home:-unknown}" ;;
-    unbound)
-      printf '%-10s %-38s %s\n' FAIL home "enabled but not bound; see docs/TROUBLESHOOTING.md"; fail=1 ;;
-    disabled)
-      printf '%-10s %-38s %s\n' FAIL home "hook disabled (front: ${home:-unknown}, wakefulness: ${wake:-?})"; fail=1 ;;
-    *) printf '%-10s %-38s %s\n' FAIL home "cannot verify accessibility binding; inspect dumpsys accessibility"; fail=1 ;;
-  esac
-  if [[ $futurity != 0 ]]; then
-    # Without it HOME still works, but Amazon's home shows for 5 s first.
-    printf '%-10s %-38s %s\n' FAIL home-speed "min_futurity=0 missing; re-run launcher.sh"; fail=1
-  fi
-  # A bound accessibility service proves nothing about the swap: on Fire OS 8 the
-  # launch can be refused by the background-activity-start rule even when the
-  # service is enabled and bound. The only proof is the HOME key itself.
-  # Leave the home screen first: a swap that starts while our own activity is
-  # still resumed is allowed anyway, and that would hide a takeover that is
-  # broken.
-  [[ $wake == Awake ]] || { dev 'input keyevent KEYCODE_WAKEUP' >/dev/null 2>&1 || true; sleep 2; }
-  dev 'am start -a android.intent.action.MAIN -c android.intent.category.LEANBACK_SETTINGS' >/dev/null 2>&1 || true
-  for i in 1 2 3 4 5 6; do
-    away=$(front_activity)
-    [[ -n $away && $away != tv.dumbtv.home/* ]] && break
-    sleep 1
-  done
-  if [[ -z $away || $away == tv.dumbtv.home/* ]]; then
-    printf '%-10s %-38s %s\n' skip home-key "could not leave the home screen; press HOME to check"
+  usage_access=$(dev 'appops get tv.dumbtv.home GET_USAGE_STATS' | tr -d '\\r')
+  if grep -q 'GET_USAGE_STATS: allow' <<<"$usage_access"; then
+    printf '%-10s %-38s %s\\n' ok usage-access "UsageStats permission granted"
   else
-    dev 'input keyevent KEYCODE_HOME' >/dev/null 2>&1 || true
-    # Amazon's home can show first while the swap is under way.
-    for i in 1 2 3 4 5 6 7 8; do
-      sleep 1
-      landed=$(front_activity)
-      [[ $landed == tv.dumbtv.home/* ]] && break
-    done
-    case $landed in
-      tv.dumbtv.home/*) printf '%-10s %-38s %s\n' ok home-key "HOME lands on $landed" ;;
-      *) printf '%-10s %-38s %s\n' FAIL home-key "HOME lands on ${landed:-unknown}"; fail=1 ;;
-    esac
+    printf '%-10s %-38s %s\\n' FAIL usage-access "${usage_access:-could not read app-op}"; fail=1
+  fi
+  read_logs=$(dev 'pm check-permission android.permission.READ_LOGS tv.dumbtv.home' | tr -d '\\r')
+  if [[ $read_logs == granted ]]; then
+    printf '%-10s %-38s %s\\n' ok logcat "READ_LOGS granted"
+  else
+    printf '%-10s %-38s %s\\n' warn logcat "READ_LOGS unavailable; Keeper will use UsageStats and screen broadcasts"
   fi
 fi
 
