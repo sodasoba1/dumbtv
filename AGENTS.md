@@ -60,6 +60,8 @@ Every step is undone by `./scripts/restore.sh`.
 | Android TV, Google TV | by hand, from `data/androidtv/packages.txt` and its `never-disable.txt`; read [docs/OTHER-TVS.md](docs/OTHER-TVS.md) first. The scripts refuse these. |
 | Samsung, LG, Roku, Vizio, Hisense VIDAA, Panasonic, Philips Saphi | no shell for an owner. Say so plainly, point at [docs/OTHER-TVS.md](docs/OTHER-TVS.md), and do not invent steps. |
 
+The debloat scripts support Fire OS 6, 7 and 8, but this fork's launcher APK is deliberately restricted to the AFTMM on Fire OS 6 / Android API 25. Do not reintroduce the Fire OS 7/8 Guard accessibility path; both launcher installers must reject devices whose SDK is not 25.
+
 Check [catalog/devices/](catalog/devices/) for the model first: the menu path,
 where the IP is shown and the dialogs that need a person are recorded there. If the
 model has no entry, say so instead of guessing a menu path.
