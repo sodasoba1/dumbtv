@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# The HOME takeover helpers of launcher/install.sh. They use the caller's sh_ (adb shell),
-# and do not modify device-wide alarm timing.
+# HOME launch helper used by launcher/install.sh. It uses the caller's sh_ (adb shell)
+# and does not modify device-wide alarm timing.
 
 # Starts dumbtv home at the end of the install.
 #
