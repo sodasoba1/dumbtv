@@ -66,7 +66,7 @@ no root:
 - **Advanced network DNS filtering.** DumbTV does not run a DNS filter or VPN on
   the TV. If you want network-wide Amazon filtering, use the optional [Pi-hole guide](docs/PI-HOLE.md).
 - **Replaces the home screen** with [dumbtv home](launcher/README.md): your apps,
-  your inputs and a clock. 107 KB, open source, no internet access.
+  your inputs and a clock. About 120 KB, open source, no internet access.
 - **Leaves your apps alone.** Nothing you watch is removed unless you name it.
 - **Can all be undone** with one command.
 
@@ -137,9 +137,10 @@ and what you lose without it.
 |---|---|---|
 | ![Rows layout](docs/assets/screens/home.png) | ![Grid layout](docs/assets/screens/grid.png) | ![Options](docs/assets/screens/options.png) |
 
-A home screen that shows your apps and your HDMI inputs, and nothing else. Accent
-colours, tile sizes, rows or a grid, wallpapers, adaptive backgrounds, renaming and
-hiding, and the icons of an icon pack you install, all from the remote. HOME lands on
+A home screen that shows your apps and your HDMI inputs, and nothing else. Choose
+rows or a grid, custom accent/background/gradient colours, wallpapers and adaptive
+backgrounds. Tune tile styles, focus rings and animation, borders, spacing, shadows,
+app ordering, and icon packs; rename, hide or pin apps from the remote. HOME lands on
 it in a fraction of a second.
 
 It is plain Java with no libraries and no internet permission, so it cannot send

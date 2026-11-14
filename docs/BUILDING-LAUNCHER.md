@@ -69,8 +69,8 @@ GitHub release workflow uses only the persistent Actions secrets.
    ```sh
    git checkout main
    git pull
-   git tag launcher-v1.9
-   git push origin launcher-v1.9
+   git tag launcher-v1.11
+   git push origin launcher-v1.11
    ```
 
 4. The `release launcher` workflow builds and verifies the signed APK, then

@@ -6,7 +6,7 @@ A home screen for Fire TV that does one job: show your apps and your HDMI inputs
   <img src="../docs/assets/screens/home.png" alt="dumbtv home: a clock, an Apps row and an Inputs row" width="720">
 </p>
 
-- **107 KB.** Plain Java and Android views. No AndroidX, Kotlin, Compose, Play
+- **About 120 KB.** Plain Java and Android views. No AndroidX, Kotlin, Compose, Play
   Services or any other library.
 - **No network.** There is no `INTERNET` permission, so Android will not let it
   open a connection.
@@ -67,7 +67,7 @@ you open an app. On Fire OS 7 and 8 the Settings button opens Amazon's settings 
 
 | Setting | Choices |
 |---|---|
-| Accent | the 24 built-in colours, or a custom colour selected with the remote-friendly HSV picker |
+| Accent | White, Blue, Cyan, Green, Amber, Red, Pink, Violet, or a custom colour selected with the remote-friendly HSV picker. The other legacy palette values remain supported in existing `home.conf` files. |
 | Tiles | small, medium, large |
 | Layout | rows, or a grid that wraps to as many columns as fit |
 | App order | your order, or recently used: the apps row re-sorts on each return home, newest first. It counts apps opened from dumbtv home, plus apps opened any other way (voice, another app) on Fire OS 6, where the launcher already has usage access. Apps never opened keep your order after the rest |
@@ -77,10 +77,10 @@ you open an app. On Fire OS 7 and 8 the Settings button opens Amazon's settings 
 | Memory meter | hidden, shown: free memory under the date, with a bar of what is in use; amber, with "running low", when Android reports low memory or under 15% is free. It only shows the numbers: it closes and frees nothing, and needs no permission |
 | Inputs row | shown, hidden |
 | Open inputs with | Automatic, the TV's app, dumbtv home (see below) |
-| Background | built-in solid colours, a custom solid colour selected with the HSV picker, image, adaptive, adaptive tint |
+| Background | Black, Graphite, Midnight, Slate, Image file, Adaptive solid, Adaptive wallpaper tint, or a custom solid colour selected with the HSV picker. Legacy solid-colour values remain readable. |
 | Image dim, wallpaper rotation | for image backgrounds |
-| Gradient overlay | off (default), dark at bottom, top, left, right, or any of the four corners; above the background but below all text, icons, tiles and banners |
-| Gradient colour | black (default), any of the 24 accent palette colours, or a custom colour selected with the HSV picker |
+| Gradient overlay | off (default), dark at bottom, top, left, right, top-left, top-right, bottom-left or bottom-right; above the background but below all text, icons, tiles and banners |
+| Gradient colour | Black (default), White, Blue, Red, or a custom colour selected with the HSV picker. The full legacy palette remains supported in existing settings files. |
 | Gradient strength | 20%, 40% (default), 60%, 80%; available when a gradient direction is selected |
 | Tile corners | square, soft (default), rounded |
 | Tile spacing | compact, normal (default), spacious; applies to rows and grid |
@@ -93,14 +93,20 @@ you open an app. On Fire OS 7 and 8 the Settings button opens Amazon's settings 
 | Afterglow strength | 20%, 40% (default), 60%, 80%; controls the dark fade over brand colours |
 | Afterglow icon | grayscale (default), original app icon colours |
 | Child lock | off, on: hides Options and Settings and turns off Hold OK and ☰ Menu on tiles, so the home screen only opens apps and inputs (see below) |
-| App tile style | original (default), Afterglow, or Brand Focus: monochrome app artwork replaces the TV banner; Brand Focus changes from graphite to the mapped app colour when focused |
-| Chip style | text (default), icons: Options and Settings become round icon buttons whose knobs and gear hub take the accent color; the name shows next to the icon while it has the focus |
+| App tile style | Original (default), Afterglow, or Brand Focus: monochrome app artwork replaces the TV banner; Brand Focus changes from graphite to the mapped app colour when focused |
+| Chip style | Text (default), Icons: Options and Settings become round icon buttons whose knobs and gear hub take the accent colour; the name shows next to the icon while it has focus |
 | Library banner | shown (default), hidden. It only appears once a library folder holds titles (see below) |
 | Icon pack | off, or an installed icon pack; reads "None installed" until one is ([Icon packs](#icon-packs)) |
 
 Below them: Next wallpaper, which apps and inputs appear on the home screen, a
-reset for order, names, picked icons and hidden tiles, and **Open Amazon's home screen**. Apps
+reset for order, names, picked icons and hidden tiles, **Export settings** (for backup
+or transfer), and **Open Amazon's home screen**. Apps
 without a TV banner, like the Appstore, start hidden; tick them to add them.
+
+The **All apps** chip is in the top-right header beside Options and Settings.
+It opens the full installed-app catalogue. This navigation button is separate from
+Options › All apps section: that setting adds an alphabetical **All apps** row below
+your pinned apps on the home screen.
 
 **All apps** is optional. Turn on Options › All apps section to keep the current
 Apps section as **Pinned apps** and add **All apps** below it, in either rows or
@@ -406,12 +412,18 @@ HOME from an app shows about 0.3 s of black, then this home screen.
 Fire OS 6.7 refuses third-party accessibility services, so it uses `Keeper`, a
 small foreground service:
 
-1. UsageStats (`appops set tv.dumbtv.home GET_USAGE_STATS allow`, granted by
-   `install.sh`) tells it when Amazon's launcher comes to the front.
-2. `ActivityManager.moveTaskToFront` brings dumbtv home back. That is not an
-   activity launch, so the 5 s delay does not apply: under 0.25 s with a real
-   remote.
-3. At boot there is no dumbtv task yet, so the first start uses an alarm.
+1. UsageStats (`GET_USAGE_STATS`) provides a fallback way to detect when Amazon's
+   launcher comes to the front.
+2. When `READ_LOGS` is granted by ADB, Keeper also watches ActivityManager logcat
+   events to detect Amazon's HOME activity returning. The installer attempts the
+   grant and verifies it; if Fire OS refuses it, UsageStats remains available.
+3. `ActivityManager.moveTaskToFront` brings dumbtv home back. That is not an
+   activity launch, so the 5 s delay does not apply.
+4. At boot there is no dumbtv task yet, so the first start uses an alarm.
+
+After a long standby, wake recovery depends on Fire OS delivering usable activity
+state/events. The logcat listener is a recovery aid, not a guarantee that every
+firmware deep-sleep path has been tested.
 
 **Options › Open Amazon's home screen** pauses the takeover until another app is
 opened.
@@ -476,10 +488,11 @@ Delete both to stop.
 | `src/.../BootReceiver.java` | restarts the Keeper after a boot or an update |
 | `build.sh` | aapt2, javac, d8, zipalign, apksigner |
 | `install.sh` | download and checksum (or `--build`), install, HOME hook, `--undo` |
-| `version.env` | the version and the release's SHA-256, read by the three scripts |
+| `version.env` | the single source of truth for version name and version code |
 | `release-check.sh` | checks that the version, the built APK and the GitHub release agree |
-| `tests/FocusColorTest.java` | host-side test for `FocusColor`, run by CI |
+| `tests/FocusColorTest.java` | host-side tests for focus colours and curated/legacy colour options, run by CI |
 | `tests/RecentTest.java` | host-side test for the Recently used order, run by CI |
+| `tests/HomeRetryTest.java` | host-side tests for Keeper recovery retry behaviour, run by CI |
 | `tests/LibraryTest.java` | host-side test for `library.conf` parsing, run by CI |
 | `tests/ConfigTest.java` | file import and failed-write recovery tests, run by CI |
 | `tests/AppSectionsTest.java` | pinned and All apps selection tests, run by CI |
@@ -487,9 +500,20 @@ Delete both to stop.
 
 ## Releasing
 
-1. Bump `VERSION`, `VERSION_CODE` and `VERSION_NAME` in `version.env`.
-2. `./build.sh`, copy `build/dumbtv-home.apk` to `build/dumbtv-home-<VERSION>.apk`,
-   and put its SHA-256 in `version.env`.
-3. Upload it as `dumbtv-home.apk` to a release tagged `launcher-v<VERSION>`.
-4. `./launcher/release-check.sh` fails if the tag, the APK and the hash disagree.
-   CI runs `--manifest` on every push.
+The fork's release workflow builds and publishes the signed APK automatically when
+it receives a tag matching the version manifest. Before the first release, configure
+the persistent signing-key secrets described in
+[Building and releasing](../docs/BUILDING-LAUNCHER.md).
+
+1. Update `VERSION`, `VERSION_CODE` and `VERSION_NAME` together in `version.env`;
+   increase the version code for every update.
+2. Merge the change to `main` after validation passes.
+3. From the updated `main`, create and push the matching tag, for example:
+   `git tag launcher-v1.11 && git push origin launcher-v1.11`.
+4. The `release launcher` workflow builds and verifies the signed APK, then creates
+   or updates that GitHub Release with `dumbtv-home.apk` and its `.sha256` sidecar.
+5. Run `./launcher/release-check.sh --remote` to download both assets and verify
+   that the APK matches its checksum.
+
+`version.env` does not store the APK checksum; the checksum is generated from the
+release build and published beside the APK.
