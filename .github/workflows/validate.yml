@@ -87,12 +87,12 @@ jobs:
           dump=$("$ANDROID_HOME/build-tools/34.0.0/aapt2" dump permissions launcher/build/dumbtv-home.apk)
           echo "$dump"
           actual=$(echo "$dump" | sed -n "s/^uses-permission: name='\\([^']*\\)'.*/\\1/p" | sort)
-          expected=$(printf '%s\\n' \
+          expected=$(printf '%s\n' \
             android.permission.PACKAGE_USAGE_STATS \
             android.permission.READ_LOGS \
             android.permission.RECEIVE_BOOT_COMPLETED \
             android.permission.REORDER_TASKS | sort)
-          diff -u <(printf '%s\\n' "$expected") <(printf '%s\\n' "$actual")
+          diff -u <(printf '%s\n' "$expected") <(printf '%s\n' "$actual")
 
 
   scripts:
