@@ -5,13 +5,14 @@ set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 parse_flags "$@"
 need_device
-[[ $SDK == 25 ]] || die "dumbtv home supports only Fire OS 6 / Android 7.1.2 (API 25); this device reports API $SDK"
 load_conf
 
 if [[ $LAUNCHER == 0 ]]; then
   note "LAUNCHER=0 in dumbtv.conf — keeping Amazon's home screen. Re-run ./scripts/configure.sh to change that."
   exit 0
 fi
+
+[[ $SDK == 25 ]] || die "dumbtv home supports only Fire OS 6 / Android 7.1.2 (API 25); this device reports API $SDK"
 
 PKG=tv.dumbtv.home
 
