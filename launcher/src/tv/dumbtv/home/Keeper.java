@@ -44,7 +44,7 @@ public final class Keeper extends Service {
     private HandlerThread thread;
     private Handler worker;
     private UsageStatsManager usage;
-    private long lastEventTime;
+    private final UsageEventCursor eventCursor = new UsageEventCursor();
     private long screenOffTime;
     private String lastTop;
     private String lastTopClass;
@@ -324,7 +324,8 @@ public final class Keeper extends Service {
         // Query from the last event we actually consumed, not an arbitrary four-second
         // window. Handler callbacks pause during deep sleep, so the next poll may run long
         // after wake and otherwise miss the foreground event that should trigger recovery.
-        long from = lastEventTime == 0 ? now - 10_000 : Math.max(0, lastEventTime - 1);
+        long from = eventCursor.lastTimestamp() == 0 ? now - 10_000
+                : Math.max(0, eventCursor.lastTimestamp() - 1);
         boolean changed = updateTop(from, now);
         if (!changed) return;
         if (isAmazonHome()) {
@@ -361,12 +362,13 @@ public final class Keeper extends Service {
             UsageEvents events = usage.queryEvents(Math.max(0, from), now);
             if (events == null) return false;
             boolean changed = false;
+            eventCursor.beginQuery();
             UsageEvents.Event event = new UsageEvents.Event();
             while (events.hasNextEvent()) {
                 events.getNextEvent(event);
                 if (event.getEventType() != UsageEvents.Event.MOVE_TO_FOREGROUND
-                        || event.getTimeStamp() < lastEventTime) continue;
-                lastEventTime = event.getTimeStamp();
+                        || !eventCursor.accept(event.getTimeStamp(),
+                                event.getPackageName(), event.getClassName())) continue;
                 lastTop = event.getPackageName();
                 lastTopClass = event.getClassName();
                 changed = true;
