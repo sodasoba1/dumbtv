@@ -125,12 +125,24 @@ public final class HomeRetryTest {
         check(restarted.attempts == 0 && restarted.due == -1, "new instance has no pending work");
     }
 
+    private static void amazonPause() {
+        check(!KeeperPause.shouldResume("com.amazon.tv.launcher"),
+                "Amazon settings remain inside the paused launcher");
+        check(!KeeperPause.shouldResume("tv.dumbtv.home"), "DumbTV does not resume its own pause");
+        check(!KeeperPause.shouldResume("com.android.systemui"), "System UI is not an app departure");
+        check(!KeeperPause.shouldResume("android"), "Android system UI is not an app departure");
+        check(!KeeperPause.shouldResume(null), "unknown foreground does not clear pause");
+        check(KeeperPause.shouldResume("com.netflix.ninja"),
+                "opening another app resumes takeover");
+    }
+
     public static void main(String[] args) {
+        amazonPause();
         lostFinalEvent();
         burst();
         boundaryAndOrdering();
         lateDispatch();
         cancellation();
-        System.out.println("HomeRetryTest passed (lost event, burst, boundaries, ordering, late dispatch, cancellation)");
+        System.out.println("HomeRetryTest passed (Amazon pause, lost event, burst, boundaries, ordering, late dispatch, cancellation)");
     }
 }
