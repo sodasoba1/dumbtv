@@ -21,12 +21,12 @@ import java.io.InputStreamReader;
 /**
  * Watches for Amazon's launcher coming back to the foreground and restores dumbtv home.
  *
- * Fire OS 6 does not permit the accessibility Guard to run on this device. Keeper combines
- * UsageStats foreground events with ActivityManager logcat when READ_LOGS is granted. It only
+ * This build targets Fire OS 6 (Android 7.1.2, API 25). Keeper combines UsageStats
+ * foreground events with ActivityManager logcat when READ_LOGS is granted. It only
  * intervenes after a positive Amazon Home event and stops as soon as another app is observed.
  */
 public final class Keeper extends Service {
-    private static final String AMAZON_PKG = "com.amazon.tv.launcher";
+    static final String AMAZON_PKG = "com.amazon.tv.launcher";
     private static final String AMAZON_HOME = "com.amazon.tv.launcher.ui.HomeActivity_vNext";
     private static final String SYSTEM_UI = "com.android.systemui";
     private static final String DUMBTV_PKG = "tv.dumbtv.home";
@@ -127,7 +127,6 @@ public final class Keeper extends Service {
     }
 
     static void start(Context c) {
-        if (android.os.Build.VERSION.SDK_INT >= 26) return;
         c.startService(new Intent(c, Keeper.class));
     }
 
@@ -208,7 +207,6 @@ public final class Keeper extends Service {
      * through ADB; if unavailable, UsageStats and screen broadcasts remain active.
      */
     private void startLogcatReader() {
-        if (android.os.Build.VERSION.SDK_INT >= 28) return;
         if (checkSelfPermission(android.Manifest.permission.READ_LOGS)
                 != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             note("logcat reader unavailable: READ_LOGS not granted");
