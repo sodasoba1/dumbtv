@@ -1,360 +1,177 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
-    <img src="docs/assets/logo-light.svg" alt="dumbtv" width="300">
-  </picture>
-</p>
+# dumbtv — Fire TV Stick 4K (1st generation)
 
-<p align="center"><b>Your TV should do what you paid for.</b><br>
-Ads, tracking and clutter out of your Fire TV. Your apps and HDMI inputs stay.</p>
+A focused, reversible Fire TV cleanup and replacement home-screen project, maintained as a fork of [the original DumbTV project](https://github.com/humblemuzzu/dumbtv).
 
-<p align="center">
-  <a href="https://dumbtv.org"><b>dumbtv.org</b></a> ·
-  <a href="https://dumbtv.org/start">Get started</a> ·
-  <a href="https://dumbtv.org/blocked">What it blocks</a> ·
-  <a href="https://dumbtv.org/tv">Devices</a> ·
-  <a href="https://dumbtv.org/help">Get help</a>
-</p>
+**This fork's launcher is built specifically for one device family:**
 
-<p align="center">
-  <a href="https://github.com/humblemuzzu/dumbtv/stargazers"><img src="https://img.shields.io/github/stars/humblemuzzu/dumbtv?style=flat&color=4C8DFF" alt="Stars"></a>
-  <a href="https://github.com/humblemuzzu/dumbtv/releases/latest"><img src="https://img.shields.io/github/v/release/humblemuzzu/dumbtv?label=dumbtv%20home&color=4C8DFF" alt="Latest launcher release"></a>
-  <a href="https://github.com/humblemuzzu/dumbtv/actions/workflows/validate.yml"><img src="https://github.com/humblemuzzu/dumbtv/actions/workflows/validate.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-4C8DFF" alt="MIT licence"></a>
-  <a href="#thanks"><img src="https://img.shields.io/github/contributors/humblemuzzu/dumbtv?color=4C8DFF" alt="Contributors"></a>
-</p>
+- **Device:** Amazon Fire TV Stick 4K, 1st generation
+- **Model identifier:** AFTMM
+- **Fire OS:** 6.7.1.1
+- **Android base:** Android 7.1.2
+- **SDK/API:** 25
 
-<p align="center">
-  <img src="docs/assets/hero.png" alt="dumbtv home on a television: a clock, an Apps row and an Inputs row" width="880">
-</p>
+The launcher APK and its installer deliberately reject other Android SDK versions. This is not a general-purpose launcher build for Fire OS 7, 8 or newer Fire TV hardware.
 
-<p align="center"><sub>As seen in
-<a href="https://techcrunch.com/2026/10/19/people-are-using-ai-to-make-their-smart-tvs-dumb-again/">TechCrunch</a> ·
-<a href="https://www.techradar.com/entertainment/streaming/your-tv-should-do-what-you-paid-for-people-are-vibe-coding-apps-to-banish-ads-from-their-smart-tvs-and-android-tv-and-its-catching-on">TechRadar</a> ·
-<a href="https://www.tomsguide.com/ai/people-are-using-ai-to-turn-their-smart-tvs-into-dumb-tvs-and-you-might-want-to-do-the-same">Tom's Guide</a> ·
-<a href="https://gizmodo.com/people-using-ai-to-make-smart-tvs-dumb-again-is-the-most-2026-thing-ever-2000828213">Gizmodo</a> ·
-<a href="https://www.xda-developers.com/people-are-now-vibe-coding-their-smart-tvs-to-strip-them-of-ads-and-unwanted-features/">XDA</a> ·
-<a href="https://itsfoss.com/news/debloat-smart-tv/">It's FOSS</a> ·
-<a href="docs/PRESS.md">and more than 150 others</a></sub></p>
+The repository retains the wider DumbTV debloat scripts and device catalogue. Their support matrix is separate from the launcher target; do not assume that a device supported by the scripts can also run this fork's launcher APK.
 
 ---
 
-## The story
+## What this fork is for
 
-I had a Fire TV Edition television that had become painful to use. Menus lagged,
-apps took ages to open, and the home screen was mostly ads. When I looked, it had
-129 MB of free memory, and much of the rest went to apps that started on their own
-and to Amazon services that report what you watch.
+The goal is a Fire TV Stick that starts reliably into a clean, fast home screen without Amazon's promotional home experience getting in the way.
 
-So I asked a coding agent to clean it up over ADB, and
-[posted what happened](https://x.com/DevMuzzammil/status/2111595814099591535). People
-asked for the scripts, so I put them here and
-[shared them](https://x.com/DevMuzzammil/status/2111912547318395338). Since then,
-owners of about twenty other TVs and sticks have run it and sent back what they
-found.
+This repository has two distinct parts:
 
-dumbtv is that cleanup, made safe to run on someone else's TV.
+1. **DumbTV home** — the custom launcher UI and Keeper recovery service. This is the part specifically adapted and restricted to the AFTMM / Fire OS 6 target.
+2. **DumbTV cleanup scripts** — ADB-based configuration and reversible package-disabling tools inherited from the wider project. These retain their own device checks and compatibility information.
 
-## What it does
+The launcher does not root the stick, replace Fire OS, modify the bootloader, bypass DRM or remove streaming applications.
 
-On a Fire TV stick, Cube or Fire TV Edition television, from your computer, with
-no root:
+## Changes made in this fork
 
-- **Removes the ads and tracking.** Disables Amazon's sponsored rows, ad
-  services, screen fingerprinting (ACR), telemetry and experiments, and turns off
-  ad tracking and usage reporting.
-- **Advanced network DNS filtering.** DumbTV does not run a DNS filter or VPN on
-  the TV. If you want network-wide Amazon filtering, use the optional [Pi-hole guide](docs/PI-HOLE.md).
-- **Replaces the home screen** with [dumbtv home](launcher/README.md): your apps,
-  your inputs and a clock. About 120 KB, open source, no internet access.
-- **Leaves your apps alone.** Nothing you watch is removed unless you name it.
-- **Can all be undone** with one command.
+The launcher has been adapted rather than treated as a generic Android TV application.
 
-## Quick start
+### Platform and build
 
-You need a computer with [`adb`](https://developer.android.com/tools/releases/platform-tools)
-and about ten minutes. On the TV, turn on ADB: **Settings → My Fire TV → About**,
-press OK on the device name 7 times, then **Developer Options → ADB debugging**.
-The TV's IP address is under **Settings → My Fire TV → About → Network** (on a
-Fire TV Edition television: **Settings → Network**, then the connected network).
+- Fixed the launcher build to **minimum SDK 25 and target SDK 25**.
+- Restricted the installer and release validation to **API 25**. An incompatible device is rejected instead of being offered an APK built for a different Fire OS generation.
+- Kept the launcher in plain Java with Android framework views. The build uses JDK 17 and Android SDK platform 25/build-tools; it does not require Gradle, AndroidX, Kotlin, Compose or Play Services.
+- Kept the APK free of the Android `INTERNET` permission. The launcher does not need network access, phone-home services, analytics or update checks.
+- Added host-side tests and CI checks for launcher logic, manifest permissions, SDK levels, APK alignment and signing/verification.
+- Added a validation APK artifact workflow and a separate signed release workflow. Release builds use signing credentials stored as GitHub Actions secrets; signing material is not committed to the repository.
 
-**With a coding agent** (Claude Code, Codex, Cursor, Gemini and others): clone this
-repository, open the agent in it, and say:
+### HOME takeover and Keeper
 
-> Clean up my Fire TV. Its IP address is _(the address from the Network screen)_.
+Amazon's launcher is a protected system HOME handler on this device. This fork does not attempt to replace Amazon's protected component or depend on winning the HOME intent-resolution priority.
 
-It reads [AGENTS.md](AGENTS.md), asks you a few questions, and runs the steps
-below.
+Instead, **Keeper** detects when Amazon's Home activity becomes foregrounded and returns the existing DumbTV home task to the foreground.
 
-**By hand:**
+The Fire OS 6 implementation has been hardened specifically for the AFTMM:
+
+- Starts after boot and after the launcher package is updated.
+- Runs as a foreground service and is exempted from Doze by the installer.
+- Uses UsageStats foreground events as its primary detection path. The installer grants the required UsageStats AppOp.
+- Uses ActivityManager logcat as an additional, more immediate signal when ADB grants `READ_LOGS`.
+- Verifies the exact Amazon Home activity rather than reacting to every Amazon activity or every launch request.
+- Keeps screen-on/off handling and UsageStats polling as independent recovery paths.
+- Debounces duplicate foreground events, handles stale UsageStats event windows after deep standby, and restarts a failed logcat reader with backoff.
+- Attempts task reordering first and verifies that DumbTV actually returned. A limited activity-launch fallback is used if task reordering does not recover the launcher.
+- Pauses takeover while the user is navigating Amazon's own settings screens, then resumes when a third-party app is opened.
+- Does not intentionally wake the display, reboot the stick or interfere while the display is off.
+
+The revised standby-wake takeover has now passed an initial physical test on the target stick. Longer overnight-standby testing is still pending; it should not yet be described as universally proven across every standby duration or firmware state.
+
+### Installer and release delivery
+
+`launcher/install.sh` is designed around the AFTMM/API 25 deployment:
+
+- Reads the launcher version from `launcher/version.env`.
+- Downloads the matching APK from this repository's GitHub Release, not from an arbitrary build artifact.
+- Downloads and verifies the matching SHA-256 sidecar before installation.
+- Installs or updates the APK, applies the required Fire OS 6 AppOps/permissions, adds the Doze exemption and starts the launcher.
+- Checks that Keeper is running and that DumbTV is in the foreground.
+- Requests `READ_LOGS` on each install/update and verifies the resulting permission state using `dumpsys package`. Fire OS 6's `pm check-permission` output is not reliable on this device.
+- Retains UsageStats recovery if `READ_LOGS` cannot be granted or verified.
+- Provides an undo path to return HOME to Amazon's launcher.
+
+The release workflow is tag-driven (`launcher-v*`). The validation workflow builds and tests the source; the signed release workflow publishes the APK and checksum sidecar. See [Building and releasing the launcher](docs/BUILDING-LAUNCHER.md).
+
+### Launcher UI and usability
+
+The inherited launcher UI has also been refined for remote control and the target screen:
+
+- Rows and adaptive grid layouts, app ordering and pinned/all-app views.
+- Remote-friendly options navigation and custom HSV colour selection.
+- Custom backgrounds, wallpapers, gradients and adaptive background/tint modes.
+- Configurable tile shape, spacing, borders, shadows, focus rings and focus animation.
+- Original, Afterglow and Brand Focus app-tile styles.
+- Icon-pack support and per-app icon selection.
+- HDMI input tiles, child lock, memory display and optional library banner.
+- Fire OS 6-specific settings navigation to avoid Amazon's partially off-screen settings layout.
+
+See [launcher/README.md](launcher/README.md) for the full controls, settings and configuration reference.
+
+---
+
+## Removed or intentionally unsupported
+
+These are deliberate scope decisions, not unfinished features to re-enable by default.
+
+| Removed / excluded item | Reason |
+|---|---|
+| **Guard accessibility service** | Fire OS 6.7 on the target AFTMM does not provide a dependable path for the third-party accessibility-service takeover used by newer Fire OS variants. Keeper is the single recovery mechanism for this build. Removing Guard also removes its accessibility declaration, configuration/resources, installer setup and related retry logic. |
+| **Fire OS 7/8 launcher compatibility paths** | They served different Android versions and used a different takeover model. Keeping them in an API 25-only build added branches and permissions that this device does not need and made the supported target less clear. |
+| **Accessibility-based HOME interception and overlay/alarm takeover logic** | These belonged to the removed Guard path. The AFTMM build uses foreground detection and task recovery instead. |
+| **Fire OS 8 media-folder compatibility handling** | The launcher is restricted to API 25, so the newer storage compatibility branch is unnecessary. |
+| **Legacy Guard-only alarm timing/retry helpers** | They existed to support the removed accessibility takeover and are not part of Keeper's Fire OS 6 recovery path. |
+| **On-device personalDNSfilter lifecycle integration in the launcher** | The launcher should not start, restart or supervise a separate VPN/DNS-filter app. This reduces coupling and avoids making launcher reliability depend on another app. The installer retains a one-time migration cleanup for legacy personalDNSfilter configuration; it does not install or run that filter. |
+| **Generic multi-version launcher release target** | A single APK intended for multiple Fire OS generations obscures the actual permission and takeover requirements. This fork publishes an API 25 launcher for the AFTMM only. |
+
+The wider repository's optional network filtering guidance is separate. DumbTV itself does not run a DNS filter or VPN on the stick. For network-wide filtering, use the separate [Pi-hole guide](docs/PI-HOLE.md).
+
+## Install the launcher
+
+On the Fire TV Stick, enable ADB debugging and note its IP address. On a computer with Android platform-tools installed:
 
 ```sh
-git clone https://github.com/humblemuzzu/dumbtv && cd dumbtv
-adb connect <tv-ip>:5555        # press Allow on the TV
-./scripts/preflight.sh          # what the TV is and what would change; changes nothing
-./scripts/configure.sh          # a few questions
-./scripts/all.sh                # asks before each step, reboots the TV twice
-./scripts/verify.sh             # checks the result
-```
-
-Works from macOS, Linux and Windows (WSL or Git Bash). The same steps, one at a
-time, are at [dumbtv.org/start](https://dumbtv.org/start).
-
-**Rather not do it yourself?** [Tell us about your TV](https://dumbtv.org/help) and
-we will help.
-
-## What you choose
-
-`configure.sh` asks, and nothing is decided for you:
-
-| Question | Default |
-|---|---|
-| Keep Alexa and the voice button? | yes |
-| Replace Amazon's home screen with dumbtv home? | yes |
-| Any apps you want removed? | none |
-| Replace the YouTube app with SmartTube (no ads, no Shorts)? | no |
-
-Your answers are saved in `dumbtv.conf`; run `configure.sh` again to change them.
-
-## What changes
-
-| | |
-|---|---|
-| **Amazon packages** | About 50 disabled: ads, sponsored content, ACR, telemetry, crash and usage uploads, experiments, update nags. Disabled, never deleted. |
-| **Protected packages** | The few Amazon will not let anyone disable lose background running; Pi-hole can optionally block their telemetry requests. |
-| **Settings** | Ad tracking limited, interest-based ads off, usage reporting off, home-screen autoplay off. |
-| **DNS** | No on-device DNS filter or VPN. Optional [Pi-hole setup](docs/PI-HOLE.md) provides network-level filtering using separate, version-compatible blocklists. |
-| **Home screen** | dumbtv home instead of Amazon's: no promo tiles, no sponsored rows. |
-| **Your apps** | Untouched. |
-
-[How it works](docs/HOW-IT-WORKS.md) explains each part and why it is needed. [Pi-hole setup](docs/PI-HOLE.md) covers advanced network-wide Amazon filtering.
-[dumbtv.org/blocked](https://dumbtv.org/blocked) lists every package, what it does
-and what you lose without it.
-
-## dumbtv home
-
-| Rows | Grid | Options |
-|---|---|---|
-| ![Rows layout](docs/assets/screens/home.png) | ![Grid layout](docs/assets/screens/grid.png) | ![Options](docs/assets/screens/options.png) |
-
-A home screen that shows your apps and your HDMI inputs, and nothing else. This fork's launcher APK is intentionally restricted to the Fire TV Stick 4K (1st generation, AFTMM) on Fire OS 6 / Android API 25; the wider debloat scripts have their own device support. Choose
-rows or a grid, custom accent/background/gradient colours, wallpapers and adaptive
-backgrounds. Tune tile styles, focus rings and animation, borders, spacing, shadows,
-app ordering, and icon packs; rename, hide or pin apps from the remote. HOME lands on
-it in a fraction of a second.
-
-It is plain Java with no libraries and no internet permission, so it cannot send
-anything anywhere. Its boot permission starts the Keeper after boot or an app update.
-It works
-on its own, without the rest of dumbtv:
-
-```sh
-adb connect <tv-ip>:5555
+adb connect <firestick-ip>:5555
 ./launcher/install.sh
 ```
 
-[launcher/README.md](launcher/README.md) covers the settings, wallpapers, icon
-packs and how it takes over the HOME button.
+Accept the ADB authorisation prompt on the television. The installer checks the device SDK and refuses to proceed if it is not API 25.
 
-## Tested on
+To undo the launcher takeover:
 
-Each row is a report from the person who ran it. **tested** means the whole pass ran
-and `verify.sh` passed on that device. [dumbtv.org/tv](https://dumbtv.org/tv) has
-every model with its menu paths and quirks.
+```sh
+./launcher/install.sh --undo
+```
 
-| Device | Fire OS | Status | Tested by |
-|---|---|---|---|
-| [Fire TV Stick 4K, 1st gen (AFTMM)](catalog/devices/fireos-amazon-aftmm.yaml) | 6.7 | tested | [@niz-coder](https://github.com/niz-coder) |
-| [Insignia Fire TV Edition (AFTEAMR311)](catalog/devices/fireos-insignia-afteamr311.yaml) | 6.7 | tested | [@gtalusan](https://github.com/gtalusan) |
-| [Toshiba 50LF621U19, 55LF711U20 Fire TV Edition (AFTKMST12)](catalog/devices/fireos-toshiba-aftkmst12.yaml) | 6.7 | tested | [@ryanlucht](https://github.com/ryanlucht), [@zekesax](https://github.com/zekesax) |
-| [Insignia NS-43DF710NA19 Fire TV Edition (AFTJMST12)](catalog/devices/fireos-insignia-aftjmst12.yaml) | 6.7 | tested | [@Muffy0906](https://github.com/Muffy0906) |
-| [Fire TV, 3rd gen (AFTN)](catalog/devices/fireos-amazon-aftn.yaml) | 6.2 | tested | [@adi-c](https://github.com/adi-c) |
-| [Grundig 50 UHD AGA Fire TV Edition (AFTEU014)](catalog/devices/fireos-grundig-afteu014.yaml) | 7.6 | tested | [@mzmonkey](https://github.com/mzmonkey) |
-| [Fire TV Cube, 2nd gen (AFTR)](catalog/devices/fireos-amazon-aftr.yaml) | 7.7 | tested | [@podulator](https://github.com/podulator) |
-| [Fire TV Cube, 3rd gen (AFTGAZL)](catalog/devices/fireos-amazon-aftgazl.yaml) | 7.7 | tested | [@sakalliAI](https://github.com/sakalliAI) |
-| [Amazon AFTALMO](catalog/devices/fireos-amazon-aftalmo.yaml) | 7.7 | tested | [@TheiMacNoob](https://github.com/TheiMacNoob) |
-| [Xiaomi L55M7-FVEU Fire TV (AFTANNA0)](catalog/devices/fireos-xiaomi-aftanna0.yaml) | 7.7 | tested | [@jmcerrejon](https://github.com/jmcerrejon) |
-| [Fire TV Stick 4K Max, 1st gen (AFTKA)](catalog/devices/fireos-amazon-aftka-ps7713.yaml) | 7.7 | tested | [@harupong](https://github.com/harupong), [@Elv1sh](https://github.com/Elv1sh) |
-| [Insignia 50" F30 (AFTDCT31)](catalog/devices/fireos-insignia-aftdct31.yaml) | 7.7 | tested | [@timcunningham-sv](https://github.com/timcunningham-sv), [@twwebb3](https://github.com/twwebb3) |
-| [Onida 43" Fire TV Edition (AFTGRO001)](catalog/devices/fireos-onida-aftgro001.yaml) | 7.7 | tested | [@humblemuzzu](https://github.com/humblemuzzu) |
-| [Fire TV Stick HD 2024, Stick Lite 2020 (AFTSS)](catalog/devices/fireos-amazon-aftss.yaml) | 7.7 | tested | [@RabeJonas](https://github.com/RabeJonas), [@Prathamesh913](https://github.com/Prathamesh913), [@arielvieira](https://github.com/arielvieira) |
-| [Hisense 55QD65NF (AFTHA004)](catalog/devices/fireos-hisense-aftha004.yaml) | 7.7 | tested | [@stedrow](https://github.com/stedrow) |
-| [Fire TV 4-Series 43" (AFTTI43)](catalog/devices/fireos-amazon-aftti43.yaml) | 7.7 | tested | [@ScottDavidCA](https://github.com/ScottDavidCA), [@dleslie](https://github.com/dleslie) |
-| [TCL Fire TV (AFTSHN02)](catalog/devices/fireos-tcl-aftshn02.yaml) | 7.7 | tested | [@scaongithub](https://github.com/scaongithub) |
-| [Ember 55, Fire TV Omni Mini-LED (AFTOMNA003)](catalog/devices/fireos-amazon-aftomna003.yaml) | 8.0 | tested | [@zaco-tm](https://github.com/zaco-tm) |
-| [Fire TV Stick 4K Max, 2nd gen (AFTKRT)](catalog/devices/fireos-amazon-aftkrt.yaml) | 8.1 | tested | [@gerardo-galvez-hl](https://github.com/gerardo-galvez-hl), [@derkstample](https://github.com/derkstample), [@aboubakrine](https://github.com/aboubakrine), [@s-razaq](https://github.com/s-razaq) |
-| [Fire TV Stick 4K Plus (AFTMA08C15)](catalog/devices/fireos-amazon-aftma08c15.yaml) | 8.1 | tested | [@edrmundy](https://github.com/edrmundy) |
-| [Fire TV Edition television (AFTOLCBC82)](catalog/devices/fireos-amazon-aftolcbc82.yaml) | 8.1 | tested | [@koconnorgit](https://github.com/koconnorgit), [@iotemylabs](https://github.com/iotemylabs), [@gmckeever](https://github.com/gmckeever) |
-| [Fire TV smart TV (AFTHY7ABBA)](catalog/devices/fireos-amazon-afthy7abba.yaml) | 8.1 | tested | [@bring-nirachornkul](https://github.com/bring-nirachornkul) |
-| [Fire TV Stick 4K, 2nd gen (AFTKM), RS8185](catalog/devices/fireos-amazon-aftkm-rs8185.yaml) | 8.1 | tested | [@Rouchekoff](https://github.com/Rouchekoff) |
-| [Amazon AFTNA1322D](catalog/devices/fireos-amazon-aftna1322d.yaml) | 8.1 | tested | [@1xretr0](https://github.com/1xretr0) |
-| [Xiaomi TV F Pro 75 Fire TV (AFTBR92D74)](catalog/devices/fireos-xiaomi-aftbr92d74.yaml) | 8.1 | tested | [@Jeff909Dev](https://github.com/Jeff909Dev) |
-| [Hisense 55QD75SFC Fire TV (AFTCU9343B)](catalog/devices/fireos-hisense-aftcu9343b.yaml) | 14 | tested | [@sockmonkey0223](https://github.com/sockmonkey0223) |
-| [TCL 65M8LF Fire TV (AFTCHE92D8)](catalog/devices/fireos-tcl-aftche92d8.yaml) | 14 | tested | [@alexanderkoh](https://github.com/alexanderkoh) |
-| [Fire TV Stick, 3rd gen (AFTSSS)](catalog/devices/fireos-amazon-aftsss.yaml) | 7.7 | partial | [@B3NR1S](https://github.com/B3NR1S) |
-| [Fire TV Stick 4K Max, 1st gen (AFTKA)](catalog/devices/fireos-amazon-aftka-ps7697.yaml) | 7.6 | partial | [@dchuk](https://github.com/dchuk) |
-| [Fire TV Cube, 2nd gen (AFTR), PS7699](catalog/devices/fireos-amazon-aftr-ps7699.yaml) | 7.6 | partial | [@sant1ago](https://github.com/sant1ago) |
-| [Hisense 58U6HF (AFTHA001)](catalog/devices/fireos-hisense-aftha001.yaml) | 7.7 | partial | [@murilaiooo](https://github.com/murilaiooo) |
-| [Redmi Smart Fire TV 32 (AFTMV00)](catalog/devices/fireos-redmi-aftmv00.yaml) | 7.7 | partial | [@NeutronZero](https://github.com/NeutronZero) |
-| [Fire TV Stick 4K, 2nd gen (AFTKM)](catalog/devices/fireos-amazon-aftkm.yaml) | 8.1 | partial | [@gleesonb](https://github.com/gleesonb), [@humblemuzzu](https://github.com/humblemuzzu) |
-| [Insignia 50" F50 (AFTHY7ABBA)](catalog/devices/fireos-insignia-afthy7abba.yaml) | 8.1 | partial | [@dave137-beep](https://github.com/dave137-beep) |
-| [Fire TV 4-Series 55" EU (AFTNA67200)](catalog/devices/fireos-amazon-aftna67200.yaml) | 8.1 | partial | [@Chartmann96](https://github.com/Chartmann96) |
+This returns HOME handling to Amazon's launcher. It does not factory-reset the stick or uninstall the user's streaming apps.
 
-Android TV and Google TV reports, run by hand from the lists in
-`data/androidtv/`:
-
-| Device | Android | Tested by |
-|---|---|---|
-| [Andersson Android TV (Vestel, MediaTek m7632)](catalog/devices/androidtv-andersson-shandao.yaml) | 14 | [@PicaPicaDev](https://github.com/PicaPicaDev) |
-| [BenQ GP520 projector](catalog/devices/androidtv-benq-gp01.yaml) | 11 | [@KasperHonore](https://github.com/KasperHonore) |
-| [Chromecast with Google TV 4K](catalog/devices/androidtv-google-chromecast-4k.yaml) | 14 | [@KasperHonore](https://github.com/KasperHonore) |
-| [Changhong AI PONT](catalog/devices/androidtv-changhong-ai-pont.yaml) | 14 | [@frogu](https://github.com/frogu) |
-| [Hisense SmartTV 4K FFM](catalog/devices/androidtv-hisense-smarttv-4k-ffm.yaml) | 11 | [@aswinaasokan18-spec](https://github.com/aswinaasokan18-spec) |
-| [Hisense 65U8QG](catalog/devices/androidtv-hisense-65u8qg.yaml) | 14 | [@jlaska](https://github.com/jlaska) |
-| [onn. Streaming Device 4K Pro](catalog/devices/androidtv-onn-streaming-device-4k-pro.yaml) | 14 | [@OSikorsky](https://github.com/OSikorsky) |
-| [Philips 24NA 4K](catalog/devices/androidtv-philips-24na-4k.yaml) | 14 | [@lsukev](https://github.com/lsukev) |
-| [Philips TA6 LT](catalog/devices/androidtv-philips-ta6-lt.yaml) | 14 | [@fabricio00101](https://github.com/fabricio00101) |
-| [OnePlus TV Y Series](catalog/devices/androidtv-oneplus-y-series.yaml) | 11 | [@priyank-saarthios-ai](https://github.com/priyank-saarthios-ai) |
-| [Philips OLED705, PUS7304, PUS7334 (TPM191E)](catalog/devices/androidtv-philips-tpm191e.yaml) | 12 | [@tkightly](https://github.com/tkightly), [@damsma](https://github.com/damsma), [@PazkaL](https://github.com/PazkaL) |
-| [TCL Smart TV Pro G08](catalog/devices/androidtv-tcl-g08.yaml) | 14 | [@maam00](https://github.com/maam00) |
-| [Xiaomi Mi TV Stick](catalog/devices/androidtv-xiaomi-mi-tv-stick.yaml) | 9 | [@pfTheTrial](https://github.com/pfTheTrial) |
-| [Xiaomi Mi TV (MSSP3)](catalog/devices/androidtv-xiaomi-mitv-mssp3.yaml) | 9 | [@frogu](https://github.com/frogu) |
-
-For a full Android TV and Google TV tool, see
-[cleanyourtv](https://github.com/Gathin23/cleanyourtv). Samsung, LG, Roku and other
-TVs give owners no way in; [docs/OTHER-TVS.md](docs/OTHER-TVS.md) explains each
-one and what you can still do.
-
-**Your TV not here?** Run it, then `./scripts/contribute.sh`. It writes the report
-for you. [CONTRIBUTING.md](CONTRIBUTING.md) has the details.
-
-## Undo
+For the full debloat workflow, start with [scripts/preflight.sh](scripts/preflight.sh), review the proposed changes, and use the scripts' confirmation prompts. The package-disabling workflow is separate from installing the launcher. Every package change made by the cleanup scripts is designed to be reversible with:
 
 ```sh
 ./scripts/restore.sh
 ```
 
-It re-enables every package, clears the app and network rules, puts back the
-settings the TV had before (from the snapshot `preflight.sh` takes), clears the
-legacy personalDNSfilter VPN selection only when it names that app, and disables
-personalDNSfilter if installed, and resets its VPN app-ops, Doze exemption and storage grants. Other VPN apps are left alone; HOME is handed
-back to Amazon. An app you asked to have uninstalled comes back
-from the Appstore.
+Do not run the cleanup scripts blindly. Review the device-specific notes in [catalog/](catalog/README.md) and [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) first.
 
-## Good to know
+## Build and release
 
-- **Nothing is written to `/system`**, the part of the TV whose modification
-  bricks it. A factory reset removes everything dumbtv did.
-- **Fire TV updates can be blocked by the optional Pi-hole supplemental list.**
-  Understand that trade-off before assigning the list to a device. [The Pi-hole guide](docs/PI-HOLE.md) explains it.
-- **It cannot replace Fire OS.** The boot chain is locked by Amazon.
-  [Here is why](docs/WHY-NOT-REPLACE-OS.md).
-- **YouTube ads can't be blocked by DNS.** They come from the same servers as the
-  videos. [docs/YOUTUBE.md](docs/YOUTUBE.md) explains, and what to use instead.
+The launcher is built directly from the checked-in source:
 
-## Documentation
+- JDK 17
+- Android SDK platform 25
+- Android build-tools 34.0.0
+- `launcher/build.sh` — local build
+- `.github/workflows/validate.yml` — source tests and unsigned validation build
+- `.github/workflows/release-launcher.yml` — signed APK release on `launcher-v*` tags
 
-| | |
+No prebuilt third-party launcher binary is pulled into the build. The release installer downloads the APK and checksum from this repository's matching release tag.
+
+See [docs/BUILDING-LAUNCHER.md](docs/BUILDING-LAUNCHER.md) for SDK setup, signing secrets and release steps.
+
+## Repository guide
+
+| Path | Purpose |
 |---|---|
-| [dumbtv.org](https://dumbtv.org) | the website: guides, every package, every device |
-| [How it works](docs/HOW-IT-WORKS.md) | each part and why it is needed |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | symptoms and fixes |
-| [Pi-hole](docs/PI-HOLE.md) | advanced network-wide Amazon filtering and version-compatible lists |
-| [FAQ](docs/FAQ.md) | updates, Prime Video, factory reset, is this legal |
-| [Other TVs](docs/OTHER-TVS.md) | Android TV, Samsung, LG, Roku and the rest |
-| [YouTube](docs/YOUTUBE.md) | why its ads cannot be blocked, and SmartTube |
-| [Why not replace the OS](docs/WHY-NOT-REPLACE-OS.md) | the locked boot chain |
-| [dumbtv home](launcher/README.md) | the launcher |
-| [Device catalog](catalog/README.md) | per-model notes |
-| [AGENTS.md](AGENTS.md) | instructions for coding agents |
-| [Press](docs/PRESS.md) | coverage |
+| `launcher/` | Launcher source, Keeper, manifest, build and installer |
+| `scripts/` | ADB cleanup, setup, verification and restore scripts |
+| `docs/` | Technical explanations, troubleshooting and Pi-hole guidance |
+| `catalog/` | Device identifiers, Fire OS versions and device-specific notes |
+| `.github/workflows/` | Validation and signed launcher release workflows |
+| `AGENTS.md` | Repository instructions for coding agents |
 
-## Thanks
+## Relationship to the original project
 
-To everyone who tested a TV, wrote code, or reported a problem. dumbtv works on all
-the devices above because of you.
+This repository is a fork of [humblemuzzu/dumbtv](https://github.com/humblemuzzu/dumbtv). The original project's debloat approach, documentation structure, device catalogue and much of the launcher foundation remain upstream-derived.
 
-<a href="https://github.com/humblemuzzu/dumbtv/graphs/contributors"><img src="https://contrib.rocks/image?repo=humblemuzzu/dumbtv" alt="Contributors"></a>
+The AFTMM-specific launcher changes documented above are maintained here for a single known Fire TV Stick and Fire OS version. They should not be assumed to apply to the upstream project or to other Fire TV devices.
 
-**Code, fixes and device reports:**
-[@fabricio00101](https://github.com/fabricio00101),
-[@MrVoicer](https://github.com/MrVoicer),
-[@Jovci](https://github.com/Jovci),
-[@niz-coder](https://github.com/niz-coder),
-[@centsandcode](https://github.com/centsandcode),
-[@maam00](https://github.com/maam00),
-[@alfibi](https://github.com/alfibi),
-[@theChef613](https://github.com/theChef613),
-[@rachit-jain](https://github.com/rachit-jain),
-[@daviavmello](https://github.com/daviavmello),
-[@yuriwc](https://github.com/yuriwc),
-[@lsukev](https://github.com/lsukev),
-[@dchuk](https://github.com/dchuk),
-[@gerardo-galvez-hl](https://github.com/gerardo-galvez-hl),
-[@koconnorgit](https://github.com/koconnorgit),
-[@pfTheTrial](https://github.com/pfTheTrial),
-[@frogu](https://github.com/frogu),
-[@podulator](https://github.com/podulator),
-[@tkightly](https://github.com/tkightly),
-[@OSikorsky](https://github.com/OSikorsky),
-[@nolanvargas](https://github.com/nolanvargas),
-[@harupong](https://github.com/harupong),
-[@gtalusan](https://github.com/gtalusan),
-[@B3NR1S](https://github.com/B3NR1S),
-[@bglaszcz](https://github.com/bglaszcz),
-[@murilaiooo](https://github.com/murilaiooo),
-[@dnpkuk](https://github.com/dnpkuk),
-[@timcunningham-sv](https://github.com/timcunningham-sv),
-[@iotemylabs](https://github.com/iotemylabs),
-[@aswinaasokan18-spec](https://github.com/aswinaasokan18-spec),
-[@edrmundy](https://github.com/edrmundy),
-[@MarioMartReq](https://github.com/MarioMartReq),
-[@ravishan16](https://github.com/ravishan16),
-[@jonathanrzarzuela-cloud](https://github.com/jonathanrzarzuela-cloud),
-[@Loadedrakeman](https://github.com/Loadedrakeman),
-[@ryanlucht](https://github.com/ryanlucht),
-[@tharun634](https://github.com/tharun634),
-[@NimorM](https://github.com/NimorM),
-[@RabeJonas](https://github.com/RabeJonas),
-[@Prathamesh913](https://github.com/Prathamesh913),
-[@zaco-tm](https://github.com/zaco-tm),
-[@NeutronZero](https://github.com/NeutronZero),
-[@adi-c](https://github.com/adi-c),
-[@derkstample](https://github.com/derkstample),
-[@KasperHonore](https://github.com/KasperHonore),
-[@damsma](https://github.com/damsma),
-[@arielvieira](https://github.com/arielvieira),
-[@stedrow](https://github.com/stedrow),
-[@zekesax](https://github.com/zekesax)
+When upstream changes are adopted, they must be checked against the API 25 manifest, Keeper lifecycle, installer, release workflow and physical AFTMM behaviour before being merged.
 
-**Bug reports:**
-[@gleesonb](https://github.com/gleesonb),
-[@dennus280-ship-it](https://github.com/dennus280-ship-it),
-[@FyllyMan](https://github.com/FyllyMan),
-[@nairyash](https://github.com/nairyash),
-[@PWannop](https://github.com/PWannop),
-[@jt-at-home](https://github.com/jt-at-home),
-[@thearchivist9778-ai](https://github.com/thearchivist9778-ai),
-[@GrackleCrow](https://github.com/GrackleCrow),
-[@MisterKOak](https://github.com/MisterKOak)
+## Licence and disclaimer
 
-And to the projects dumbtv stands on:
-[HaGeZi's DNS blocklists](https://github.com/hagezi/dns-blocklists),
-[SmartTube](https://github.com/yuliskov/SmartTube) by Yuriy Liskov, and
-[cleanyourtv](https://github.com/Gathin23/cleanyourtv) by
-[@Gathin23](https://github.com/Gathin23) for Android TV and Google TV.
+Scripts, documentation and launcher source are licensed under the repository's [MIT licence](LICENSE), except where a subdirectory states otherwise. The device catalogue has its own [licence](catalog/LICENSE).
 
-## Legal
-
-dumbtv changes settings on a device you own, through the developer tools the
-manufacturer ships. It does not bypass DRM, unlock anything or touch anyone's
-account. Fire TV, Fire OS, Alexa and Prime Video are trademarks of Amazon; dumbtv is
-not affiliated with or endorsed by Amazon. Use it at your own risk.
-
-## Licence
-
-Scripts, docs and the launcher are [MIT](LICENSE). The device catalog is
-[CC BY-SA 4.0](catalog/LICENSE).
-
-DumbTV does not bundle third-party software. The optional HaGeZi Amazon tracker
-list (GPL-3.0) and SmartTube (MIT) are obtained from their upstream projects.
+Fire TV and Fire OS are trademarks of Amazon. This project is independent and is not affiliated with or endorsed by Amazon. Use ADB changes at your own risk and keep a working restore path.
