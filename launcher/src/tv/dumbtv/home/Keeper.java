@@ -126,6 +126,19 @@ public final class Keeper extends Service {
         paused = true;
     }
 
+    /** Opens Amazon's own home/settings screen without allowing Keeper to reclaim it. */
+    static void openAmazonHome(Context c) {
+        pause();
+        Intent intent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+                .setPackage(AMAZON_PKG).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            c.startActivity(intent);
+        } catch (android.content.ActivityNotFoundException e) {
+            paused = false;
+            note("Amazon Home could not be opened: " + e);
+        }
+    }
+
     static void start(Context c) {
         c.startService(new Intent(c, Keeper.class));
     }
