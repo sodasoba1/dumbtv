@@ -1,6 +1,6 @@
 # dumbtv home
 
-A home screen for Fire TV that does one job: show your apps and your HDMI inputs.
+A home screen for the Fire TV Stick 4K (1st generation, AFTMM) on Fire OS 6.7.1.1 / Android 7.1.2 (API 25). It shows your apps and HDMI inputs; this fork's APK and installer intentionally support API 25 only.
 
 <p align="center">
   <img src="../docs/assets/screens/home.png" alt="dumbtv home: a clock, an Apps row and an Inputs row" width="720">
