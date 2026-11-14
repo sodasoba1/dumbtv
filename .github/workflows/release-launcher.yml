@@ -56,7 +56,7 @@ jobs:
           badging=$("$tools/aapt2" dump badging "$apk")
           grep -F "package: name='tv.dumbtv.home' versionCode='$VERSION_CODE' versionName='$VERSION_NAME'" <<<"$badging"
           grep -Fx "sdkVersion:'25'" <<<"$badging"
-          grep -Fx "targetSdkVersion:'28'" <<<"$badging"
+          grep -Fx "targetSdkVersion:'25'" <<<"$badging"
           "$tools/zipalign" -c -v 4 "$apk"
           "$tools/apksigner" verify --verbose --print-certs "$apk"
           test -s launcher/build/dumbtv-home.apk.sha256
@@ -78,5 +78,5 @@ jobs:
             gh release create "$tag" "$RUNNER_TEMP/dumbtv-release/dumbtv-home.apk" \
               "$RUNNER_TEMP/dumbtv-release/dumbtv-home.apk.sha256" \
               --title "dumbtv home $tag" \
-              --notes "Built from sodasoba1/dumbtv at $GITHUB_SHA. Android min SDK 25 (Fire OS 6+)."
+              --notes "Built from sodasoba1/dumbtv at $GITHUB_SHA. Android min and target SDK 25 (Fire OS 6 / AFTMM target)."
           fi
