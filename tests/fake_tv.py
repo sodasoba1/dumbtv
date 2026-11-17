@@ -162,7 +162,9 @@ elif words[:4] == ['pm', 'uninstall', '--user', '0']:
 elif words[:2] == ['dumpsys', 'package']:
     print('    userId=10050')
     if words[2:] and words[2] in state.get('versions', {}):
-        print(f"    versionCode={state['versions'][words[2]]} minSdk=21 targetSdk=29")
+        print(f"    versionCode={state['versions'][words[2]]} minSdk=21 targetSdk=25")
+    for permission, granted in state.get('permissions', {}).get(words[2] if len(words) > 2 else '', {}).items():
+        print(f"    {permission}: granted={str(granted).lower()}")
 elif command == 'ps -A -o NAME':
     print('NAME')
 elif command == 'dumpsys activity activities':
@@ -170,8 +172,17 @@ elif command == 'dumpsys activity activities':
 elif words[:1] == ['am'] and words[1:2] in (['force-stop'], ['start']):
     # Activity-manager operations used by the launcher install/undo scripts.
     pass
+elif words[:2] == ['appops', 'set'] and len(words) >= 5:
+    package, operation, mode = words[2], words[3], words[4]
+    state.setdefault('appops', {}).setdefault(package, {})[operation] = mode
+    save()
+elif words[:2] == ['appops', 'get'] and len(words) >= 4:
+    package, operation = words[2], words[3]
+    value = state.get('appops', {}).get(package, {}).get(operation, 'default')
+    print(f'{operation}: {value}')
+elif words[:2] == ['appops', 'write-settings']:
+    pass
 elif words[:1] == ['appops']:
-    # App-op state is not relevant to these tests; retain the command in the log.
     pass
 elif words[:2] == ['dumpsys', 'deviceidle']:
     # The fake tracks command ordering; Doze whitelist state is not queried here.
@@ -182,5 +193,11 @@ elif words[:2] == ['cmd', 'netpolicy']:
     pass
 elif words[:2] == ['cmd', 'package']:
     pass
-elif words[:2] == ['pm', 'grant'] or words[:2] == ['pm', 'revoke']:
-    pass
+elif words[:2] == ['pm', 'grant'] and len(words) >= 4:
+    package, permission = words[2], words[3]
+    state.setdefault('permissions', {}).setdefault(package, {})[permission] = True
+    save()
+elif words[:2] == ['pm', 'revoke'] and len(words) >= 4:
+    package, permission = words[2], words[3]
+    state.setdefault('permissions', {}).setdefault(package, {})[permission] = False
+    save()
