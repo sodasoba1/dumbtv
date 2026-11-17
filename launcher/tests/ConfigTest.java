@@ -99,6 +99,19 @@ public final class ConfigTest {
         }
     }
 
+    private static void themeAndTileSizePresets() throws Exception {
+        try (Fixture f = new Fixture()) {
+            Config cfg = f.open();
+            check("classic".equals(cfg.get(Config.THEME)), "classic theme is the backward-compatible default");
+            cfg.set(Config.THEME.key, "glass");
+            check("glass".equals(f.open().get(Config.THEME)), "Glass theme persists");
+            cfg.set(Config.THEME.key, "not-a-theme");
+            check("classic".equals(f.open().get(Config.THEME)), "invalid theme falls back safely");
+            cfg.set(Config.TILES.key, "extra-large");
+            check("extra-large".equals(f.open().get(Config.TILES)), "extra-large tile preset persists");
+        }
+    }
+
     private static void failedWriteCanRecover() throws Exception {
         try (Fixture f = new Fixture()) {
             File blocked = new File(f.dir, Config.FILE + ".tmp");
@@ -117,6 +130,7 @@ public final class ConfigTest {
         settingsReadWriteAndExport();
         customColoursIndependent();
         legacyValuesRemainReadable();
+        themeAndTileSizePresets();
         failedWriteCanRecover();
         System.out.println("ConfigTest passed (settings persistence, export, custom colours, legacy values, failed-write recovery)");
     }
