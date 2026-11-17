@@ -219,4 +219,5 @@
     <string name="color_saturation">Saturation</string>
     <string name="color_brightness">Brightness</string>
     <string name="color_use">Use colour</string>
+    <string name="tile_customize">Customise tile</string>
 </resources>
