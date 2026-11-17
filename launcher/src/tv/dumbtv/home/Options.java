@@ -52,40 +52,16 @@ public final class Options extends Activity {
         title.setPadding(dp(16), 0, 0, dp(20));
         list.addView(title);
 
-        heading(list, "Home screen");
+        heading(list, R.string.options_home_screen);
         addChoices(list, Config.LAYOUT, Config.TILES, Config.ORDER, Config.ALL_APPS, Config.LABELS,
                 Config.LIBRARY);
         list.addView(action(getString(R.string.apps_on_home), () -> pick(Catalog.APPS)));
         list.addView(action(getString(R.string.reset_layout), this::reset));
 
-        heading(list, "App tiles");
+        heading(list, R.string.options_app_tiles);
         addChoices(list, Config.TILE_STYLE, Config.TILE_RADIUS, Config.TILE_SPACING,
                 Config.TILE_BORDER, Config.TILE_BORDER_WIDTH, Config.TILE_SHADOW,
                 Config.AFTERGLOW_STRENGTH, Config.AFTERGLOW_ICON);
-
-        heading(list, "Theme & background");
-        addChoices(list, Config.THEME, Config.ACCENT, Config.BACKGROUND, Config.DIM,
-                Config.GRADIENT, Config.GRADIENT_COLOR, Config.GRADIENT_STRENGTH, Config.ROTATE);
-        list.addView(action(getString(R.string.next_wallpaper), () -> {
-            cfg.nextWallpaper();
-            refresh();
-        }));
-
-        heading(list, "Top bar & favourites");
-        addChoices(list, Config.TOOLBAR_ALIGN, Config.TOOLBAR_AUTO_HIDE,
-                Config.FAVOURITES_ALIGN, Config.CHIPS);
-
-        heading(list, "Focus & navigation");
-        addChoices(list, Config.FOCUS_SCALE, Config.FOCUS_INDICATOR, Config.FOCUS_ANIMATION);
-
-        heading(list, "Widgets");
-        addChoices(list, Config.CLOCK, Config.WIDGET_EDITING);
-        list.addView(action("Show / hide widgets", () ->
-                startActivity(new Intent(this, WidgetSettings.class))));
-        list.addView(action("Edit widget layout", () ->
-                startActivity(new Intent(this, WidgetEditor.class))));
-
-        heading(list, "Applications");
         LinearLayout packRow = new LinearLayout(this);
         list.addView(packRow);
         // Finding the packs opens every theme app's resources: keep it off the UI thread.
@@ -97,11 +73,33 @@ public final class Options extends Activity {
             });
         }, "icon-packs").start();
 
+        heading(list, R.string.options_theme_background);
+        addChoices(list, Config.THEME, Config.ACCENT, Config.BACKGROUND, Config.DIM,
+                Config.GRADIENT, Config.GRADIENT_COLOR, Config.GRADIENT_STRENGTH, Config.ROTATE);
+        list.addView(action(getString(R.string.next_wallpaper), () -> {
+            cfg.nextWallpaper();
+            refresh();
+        }));
+
+        heading(list, R.string.options_topbar_favourites);
+        addChoices(list, Config.TOOLBAR_ALIGN, Config.TOOLBAR_AUTO_HIDE,
+                Config.FAVOURITES_ALIGN, Config.CHIPS);
+
+        heading(list, R.string.options_focus_navigation);
+        addChoices(list, Config.FOCUS_SCALE, Config.FOCUS_INDICATOR, Config.FOCUS_ANIMATION);
+
+        heading(list, R.string.options_widgets);
+        addChoices(list, Config.CLOCK, Config.WIDGET_EDITING);
+        list.addView(action("Show / hide widgets", () ->
+                startActivity(new Intent(this, WidgetSettings.class))));
+        list.addView(action("Edit widget layout", () ->
+                startActivity(new Intent(this, WidgetEditor.class))));
+
         heading(list, R.string.options_inputs);
         addChoices(list, Config.INPUTS, Config.SWITCH);
         list.addView(action(getString(R.string.inputs_on_home), () -> pick(Catalog.INPUTS)));
 
-        heading(list, "System");
+        heading(list, R.string.options_system_security);
         addChoices(list, Config.LOCK);
         list.addView(action(getString(R.string.export_settings), this::export));
         list.addView(action(getString(R.string.open_amazon_home), () -> {
