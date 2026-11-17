@@ -216,7 +216,7 @@ public final class Home extends Activity {
         Future<List<Item>> catalog = io.submit(() -> Catalog.apps(this));
         cfg = Config.get(this);
         boolean needsRecent = recentFor(Catalog.APPS) != null
-                || WidgetLayout.load(cfg).find("recent") != null;
+                || WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, "")).find("recent") != null;
         Future<Map<String, Long>> times = needsRecent ? io.submit(() -> Recent.times(this)) : null;
         tv = (TvInputManager) getSystemService(Context.TV_INPUT_SERVICE);
         setContentView(build());
@@ -721,7 +721,7 @@ public final class Home extends Activity {
 
         if (!"1".equals(cfg.get("widgets.initialized", ""))) {
             widgetLayout = WidgetLayout.defaults();
-            widgetLayout.save(cfg);
+            cfg.set(WidgetLayout.CONFIG_KEY, widgetLayout.encode());
             cfg.set("widgets.initialized", "1");
         } else {
             widgetLayout = WidgetLayout.load(cfg);
