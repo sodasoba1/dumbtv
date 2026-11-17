@@ -47,6 +47,7 @@ final class Hero extends FrameLayout {
     private final TextView title, sub;
     private final LinearLayout dots;
     private final LinearLayout caption;
+    private final View glassEdge;
     private final GradientDrawable ring = new GradientDrawable();
     private List<Library.Entry> entries = new ArrayList<>();
     private String entriesKey = "";
@@ -96,6 +97,11 @@ final class Hero extends FrameLayout {
                 new int[] {0xB0000000, 0x00000000}));
         addView(bottom, new LayoutParams(MATCH, MATCH));
 
+        glassEdge = new View(c);
+        glassEdge.setFocusable(false);
+        glassEdge.setClickable(false);
+        addView(glassEdge, new LayoutParams(MATCH, MATCH));
+
         caption = new LinearLayout(c);
         caption.setOrientation(LinearLayout.VERTICAL);
         title = Ui.text(c, 28, Ui.TEXT, Ui.MEDIUM);
@@ -124,6 +130,8 @@ final class Hero extends FrameLayout {
 
     void setAccent(int accent) {
         ring.setStroke(dp(3), accent);
+        glassEdge.setVisibility(Ui.isGlass(getContext()) ? VISIBLE : GONE);
+        glassEdge.setBackground(Ui.surface(getContext(), 0x00000000, dp(14)));
         refreshDots();
         invalidate();
     }
