@@ -22,6 +22,9 @@ def save():
 
 if args == ['start-server'] or args[:1] == ['connect']:
     sys.exit(0)
+if len(args) >= 4 and args[0] == '-s' and args[2] == 'install':
+    print('Success')
+    sys.exit(0)
 if args[:1] == ['disconnect']:
     state['dropped'] = False
     save()
@@ -174,6 +177,9 @@ elif words[:1] == ['am'] and words[1:2] in (['force-stop'], ['start']):
     pass
 elif words[:2] == ['appops', 'set'] and len(words) >= 5:
     package, operation, mode = words[2], words[3], words[4]
+    if state.get('appops_refused') and operation == 'AUTO_START':
+        print('Security exception: app-op denied')
+        sys.exit(1)
     state.setdefault('appops', {}).setdefault(package, {})[operation] = mode
     save()
 elif words[:2] == ['appops', 'get'] and len(words) >= 4:
@@ -187,6 +193,11 @@ elif words[:1] == ['appops']:
 elif words[:2] == ['dumpsys', 'deviceidle']:
     # The fake tracks command ordering; Doze whitelist state is not queried here.
     pass
+elif words[:3] == ['dumpsys', 'activity', 'services']:
+    if state.get('keeper_running', True):
+        print('ServiceRecord tv.dumbtv.home/.Keeper isForeground=true')
+elif words[:2] == ['dumpsys', 'window']:
+    print('mCurrentFocus=Window{1 u0 tv.dumbtv.home/.Home}')
 elif words[:2] == ['input', 'keyevent']:
     pass
 elif words[:2] == ['cmd', 'netpolicy']:
