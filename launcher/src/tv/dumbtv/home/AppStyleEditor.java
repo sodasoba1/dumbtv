@@ -79,15 +79,17 @@ final class AppStyleEditor {
         } catch (java.io.IOException e) {
             assets = new String[] {"Use app's original banner"};
         }
-        new AlertDialog.Builder(activity, Ui.DIALOG)
+        AlertDialog dialog = new AlertDialog.Builder(activity, Ui.DIALOG)
                 .setTitle("Banner image")
-                .setItems(assets, (dialog, which) -> {
+                .setItems(assets, (d, which) -> {
                     config.set("appstyle." + item.id + ".banner", which == 0 ? null : assets[which]);
                     changed.run();
                     showMenu(activity, config, item, changed);
                 })
                 .setNegativeButton(R.string.cancel, null)
-                .show();
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private static void editProperty(Activity activity, Config config, Item item,
