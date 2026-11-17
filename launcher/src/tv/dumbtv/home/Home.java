@@ -905,17 +905,8 @@ public final class Home extends Activity {
             chip.setFocusable(enabled);
             chip.setClickable(enabled);
         }
-        FrameLayout.LayoutParams headParams = (FrameLayout.LayoutParams) head.getLayoutParams();
-        if (visible) {
-            headParams.height = dp(56);
-            head.setLayoutParams(headParams);
-        }
-        FrameLayout.LayoutParams widgetParams = (FrameLayout.LayoutParams) widgetGrid.getLayoutParams();
-        widgetParams.topMargin = visible ? dp(64) : dp(8);
-        widgetGrid.setLayoutParams(widgetParams);
-        FrameLayout.LayoutParams scrollParams = (FrameLayout.LayoutParams) homeScroll.getLayoutParams();
-        scrollParams.topMargin = dp((visible ? 64 : 8) + widgetHeight + 12);
-        homeScroll.setLayoutParams(scrollParams);
+        // The toolbar owns a permanent top slot. Hiding it changes only its visual state:
+        // the widget grid, scrolling content and bottom favourites never reflow or overlap.
         head.setClipChildren(false);
         head.setClipToPadding(false);
         head.animate().cancel();
@@ -923,16 +914,7 @@ public final class Home extends Activity {
         head.setTranslationY(visible ? -dp(60) : 0f);
         toolbarCollapsed = !visible;
         head.animate().alpha(visible ? 1f : 0f)
-                .translationY(visible ? 0f : -dp(60)).setDuration(160)
-                .withEndAction(() -> {
-                    if (!visible && toolbarCollapsed) {
-                        FrameLayout.LayoutParams collapsed = (FrameLayout.LayoutParams) head.getLayoutParams();
-                        collapsed.height = 0;
-                        head.setLayoutParams(collapsed);
-                        head.setClipChildren(true);
-                        head.setClipToPadding(true);
-                    }
-                }).start();
+                .translationY(visible ? 0f : -dp(60)).setDuration(160).start();
     }
 
     private View nearestWidget(View from) {
