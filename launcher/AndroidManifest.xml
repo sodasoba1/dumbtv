@@ -7,6 +7,8 @@
 
     <!-- Fire OS 6 Keeper: foreground events from UsageStats. -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
+    <!-- Read connection state for the optional local network widget; no Internet permission. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Starts Keeper after boot so dumbtv home can recover the HOME experience. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REORDER_TASKS" />
