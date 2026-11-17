@@ -1805,12 +1805,16 @@ public final class Home extends Activity {
             if (property != 4 && cfg.get(AppStyle.key(tile.item, "labels"), null) == null)
                 appLabels = cfg.get(Config.LABELS);
 
-            GradientDrawable shape = new GradientDrawable();
-            shape.setColor(Ui.tileSurface(this, true));
-            shape.setCornerRadius(radius);
-            if ("off".equals(border)) shape.setStroke(dp(Ui.isGlass(this) ? 1 : 0), Ui.isGlass(this) ? 0x66FFFFFF : 0x00000000);
-            else shape.setStroke(dp(2), "accent".equals(border) ? cfg.accent() : 0x66FFFFFF);
-            preview.setBackground(shape);
+            int previewSurface = AppStyle.backgroundColor(cfg, tile.item, Ui.tileSurface(this, true));
+            preview.setBackground(Ui.surface(this, previewSurface, radius));
+            GradientDrawable shape = (GradientDrawable) preview.getBackground();
+            if ("off".equals(border)) {
+                shape.setStroke(dp(Ui.isGlass(this) ? 1 : 0),
+                        Ui.isGlass(this) ? 0x66FFFFFF : 0x00000000);
+            } else {
+                shape.setStroke(dp(2), "accent".equals(border) ? cfg.accent() : 0x66FFFFFF);
+            }
+            preview.setTextColor(Ui.ink(previewSurface));
             preview.setElevation(dp("off".equals(shadow) ? 0 : "soft".equals(shadow) ? 4 : 8));
             float focus = "off".equals(scale) ? 1f : "subtle".equals(scale) ? 1.04f : "strong".equals(scale) ? 1.12f : 1.08f;
             preview.setScaleX(focus);
