@@ -25,11 +25,14 @@ public final class WidgetLayoutTest {
         WidgetLayout legacy = new WidgetLayout();
         check(legacy.add("clock", "clock", 0, 0, 2, 2), "add legacy clock");
         check(legacy.add("network", "network", 2, 0, 2, 2), "add legacy network");
+        check(legacy.add("text", "text", 0, 2, 4, 2), "add manually resized widget");
         WidgetLayout compact = WidgetLayout.compactDefaults(legacy);
         check(compact.find("clock").width == 1 && compact.find("clock").height == 2,
                 "migrate existing clock to 1x2");
         check(compact.find("network").width == 1 && compact.find("network").height == 2,
                 "migrate existing network to 1x2");
+        check(compact.find("text").width == 4 && compact.find("text").height == 2,
+                "preserve manually resized widgets");
         check(grid.move("memory", 4, 0), "move into free cells");
         check(!grid.move("memory", 1, 0), "reject move into occupied cells");
         check(!grid.resize("clock", 5, 2), "reject resize into occupied cells");
