@@ -158,7 +158,7 @@ final class WidgetGridView extends ViewGroup {
         final String widgetId;
 
         LayoutParams(String id) {
-            super(WRAP_CONTENT, WRAP_CONTENT);
+            super(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             widgetId = id;
         }
 
