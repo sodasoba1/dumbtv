@@ -1314,9 +1314,9 @@ public final class Home extends Activity {
                 if (it.id.equals(keep) && (!loopingFavourites || copy == 1)) restore = index;
                 index++;
                 String tileStyle = cfg.get(Config.TILE_STYLE);
-                if (Catalog.isApp(row.kind) && (!it.artRequested
-                        || ("afterglow".equals(tileStyle) || "brand-focus".equals(tileStyle))
-                        && it.icon == null)) loadArt(it);
+                boolean needsStyleIcon = ("afterglow".equals(tileStyle) || "brand-focus".equals(tileStyle))
+                        && cfg.get(AppStyle.key(it, "banner"), null) == null && it.icon == null;
+                if (Catalog.isApp(row.kind) && (!it.artRequested || needsStyleIcon)) loadArt(it);
             }
         }
         if (loopingFavourites) {
