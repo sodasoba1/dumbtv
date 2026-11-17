@@ -779,11 +779,7 @@ public final class Home extends Activity {
         widgetGrid.addWidgetView("diagnostics", diagnosticsWidget);
         widgetGrid.addWidgetView("device", deviceWidget);
 
-        int widgetContentWidth = getResources().getDisplayMetrics().widthPixels
-                - dp(48) - dp(8 * (WidgetLayout.COLUMNS - 1));
-        int widgetCellHeight = Math.max(dp(44),
-                Math.round((widgetContentWidth / (float) WidgetLayout.COLUMNS) * 0.36f));
-        widgetHeight = widgetCellHeight * WidgetLayout.ROWS + dp(8 * (WidgetLayout.ROWS - 1));
+        widgetHeight = WidgetGridView.preferredHeight(this);
         FrameLayout.LayoutParams widgetLp = new FrameLayout.LayoutParams(MATCH, widgetHeight, Gravity.TOP);
         widgetLp.leftMargin = dp(24);
         widgetLp.rightMargin = dp(24);
