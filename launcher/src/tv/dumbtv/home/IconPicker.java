@@ -85,7 +85,8 @@ public final class IconPicker extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF0C0C0E);
+        root.setBackgroundColor("classic".equals(cfg.get(Config.THEME))
+                ? 0xFF0C0C0E : Ui.optionSurface(this));
         root.setPadding(dp(56), dp(32), dp(56), 0);
 
         TextView title = Ui.text(this, 26, Ui.TEXT, Ui.LIGHT);
@@ -97,6 +98,10 @@ public final class IconPicker extends Activity {
         filter.setHint(R.string.icon_filter);
         filter.setTextColor(Ui.TEXT);
         filter.setHintTextColor(Ui.FAINT);
+        if (Ui.isGlass(this)) {
+            filter.setBackground(Ui.surface(this, Ui.optionSurface(this), dp(8)));
+            filter.setPadding(dp(12), dp(8), dp(12), dp(8));
+        }
         filter.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
@@ -268,7 +273,8 @@ public final class IconPicker extends Activity {
             LinearLayout cell = new LinearLayout(IconPicker.this);
             cell.setOrientation(LinearLayout.VERTICAL);
             FrameLayout card = new FrameLayout(IconPicker.this);
-            card.setBackground(Ui.round(Ui.SURFACE, dp(10)));
+            card.setBackground(Ui.surface(IconPicker.this,
+                    Ui.tileSurface(IconPicker.this, true), dp(10)));
             card.setDuplicateParentStateEnabled(true);
             GradientDrawable ring = new GradientDrawable();
             ring.setCornerRadius(dp(10));
