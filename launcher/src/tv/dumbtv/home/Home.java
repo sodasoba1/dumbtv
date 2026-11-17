@@ -1131,7 +1131,8 @@ public final class Home extends Activity {
         textWidget.setBackground(widgetBackgrounds ? Ui.surface(this, widgetSurface, dp(12)) : null);
         diagnosticsWidget.setBackground(widgetBackgrounds ? Ui.surface(this, widgetSurface, dp(12)) : null);
         deviceWidget.setBackground(widgetBackgrounds ? Ui.surface(this, widgetSurface, dp(12)) : null);
-        favoritesPanel.setBackgroundColor(Color.TRANSPARENT);
+        favoritesPanel.setBackground(Ui.isGlass(this)
+                ? Ui.surface(this, Ui.optionSurface(this), dp(16)) : null);
         FrameLayout.LayoutParams scrollParams = (FrameLayout.LayoutParams) homeScroll.getLayoutParams();
         scrollParams.bottomMargin = favoriteBottomReserve();
         homeScroll.setLayoutParams(scrollParams);
