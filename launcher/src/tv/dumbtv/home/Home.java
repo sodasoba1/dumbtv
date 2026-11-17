@@ -73,7 +73,7 @@ public final class Home extends Activity {
     private View shade;
     private View tint;
     private View gradient;
-    private LinearLayout head;
+    private LinearLayout head, toolbar;
     private TextView clock, date;
     private Meter meter;
     private Row apps, allApps, inputs;
@@ -645,10 +645,23 @@ public final class Home extends Activity {
         scroll.addView(column, new FrameLayout.LayoutParams(MATCH, WRAP));
 
         head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.VERTICAL);
         head.setClipChildren(false);
         head.setClipToPadding(false);
         head.setGravity(Gravity.TOP);
         head.setPadding(dp(56), 0, dp(56), dp(12));
+
+        toolbar = new LinearLayout(this);
+        toolbar.setOrientation(LinearLayout.HORIZONTAL);
+        toolbar.setClipChildren(false);
+        toolbar.setClipToPadding(false);
+        toolbar.addView(allAppsChip());
+        toolbar.addView(chip(getString(R.string.options), R.drawable.chip_options, R.drawable.chip_options_mark,
+                v -> startActivity(new Intent(this, Options.class))));
+        toolbar.addView(chip(getString(R.string.settings), R.drawable.chip_settings, R.drawable.chip_settings_mark,
+                v -> openSettings()));
+        head.addView(toolbar, new LinearLayout.LayoutParams(MATCH, WRAP));
+
         LinearLayout when = new LinearLayout(this);
         when.setOrientation(LinearLayout.VERTICAL);
         clock = Ui.text(this, 52, Ui.TEXT, Ui.LIGHT);
@@ -664,12 +677,9 @@ public final class Home extends Activity {
         under.topMargin = dp(12);
         under.leftMargin = dp(2);
         when.addView(meter, under);
-        head.addView(when, new LinearLayout.LayoutParams(0, WRAP, 1f));
-        head.addView(allAppsChip());
-        head.addView(chip(getString(R.string.options), R.drawable.chip_options, R.drawable.chip_options_mark,
-                v -> startActivity(new Intent(this, Options.class))));
-        head.addView(chip(getString(R.string.settings), R.drawable.chip_settings, R.drawable.chip_settings_mark,
-                v -> openSettings()));
+        LinearLayout.LayoutParams whenLp = new LinearLayout.LayoutParams(WRAP, WRAP);
+        whenLp.topMargin = dp(18);
+        head.addView(when, whenLp);
         column.addView(head, new LinearLayout.LayoutParams(MATCH, WRAP));
 
         hero = new Hero(this, ui, io);
@@ -819,6 +829,9 @@ public final class Home extends Activity {
         applied = cfg.version();
         int accent = cfg.accent();
         boolean icons = iconChips();
+        int align = "left".equals(cfg.get(Config.TOOLBAR_ALIGN)) ? Gravity.LEFT
+                : "center".equals(cfg.get(Config.TOOLBAR_ALIGN)) ? Gravity.CENTER_HORIZONTAL : Gravity.RIGHT;
+        toolbar.setGravity(Gravity.CENTER_VERTICAL | align);
         for (TextView c : chips) {
             Ui.focusStyle(c, accent, 0x14FFFFFF, dp(icons ? 21 : 18));
             int[] art = (int[]) c.getTag();
