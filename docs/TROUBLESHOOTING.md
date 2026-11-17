@@ -195,8 +195,9 @@ The scripts select `data/fireos6/` automatically.
 ## Fire OS 7 and 8
 
 The wider debloat scripts still support these Fire OS versions, but this fork's
-launcher APK and installer are intentionally restricted to API 25 / Fire OS 6.
-Do not use this launcher build on Fire OS 7 or 8.
+launcher APK and install/build path are intentionally restricted to API 25 / Fire OS 6.
+Do not install this launcher build on Fire OS 7 or 8. Its `--undo` path remains
+available on those versions to hand HOME back to Amazon.
 
 ## Testing like a remote
 
