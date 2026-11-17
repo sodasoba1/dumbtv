@@ -950,7 +950,7 @@ public final class Home extends Activity {
                 best = chip;
             }
         }
-        return best != null ? best : chips.get(0);
+        return best;
     }
 
     private static int belowInGrid(ViewGroup parent, Tile tile) {
