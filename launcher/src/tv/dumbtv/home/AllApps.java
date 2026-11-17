@@ -133,6 +133,16 @@ public final class AllApps extends Activity {
         }
     }
 
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_MENU && getCurrentFocus() instanceof Tile) {
+            Item item = ((Tile) getCurrentFocus()).item;
+            AppStyleEditor.show(this, cfg, item, this::recreate);
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
     private void launch(Item item) {
         try {
             startActivity(new Intent(item.intent));
