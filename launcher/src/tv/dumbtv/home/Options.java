@@ -274,8 +274,8 @@ public final class Options extends Activity {
     private void style(View row) {
         StateListDrawable bg = new StateListDrawable();
         bg.addState(new int[] {android.R.attr.state_focused},
-                Ui.round(Ui.optionFocus(this), dp(10)));
-        bg.addState(new int[0], Ui.round(Ui.optionSurface(this), dp(10)));
+                Ui.surface(this, Ui.optionFocus(this), dp(10)));
+        bg.addState(new int[0], Ui.surface(this, Ui.optionSurface(this), dp(10)));
         row.setBackground(bg);
     }
 
