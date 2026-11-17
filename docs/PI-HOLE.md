@@ -25,9 +25,10 @@ on the network.
    proxying DNS; Pi-hole cannot distinguish the Fire Stick from other clients
    in that arrangement. Configure clients to use Pi-hole directly, or use a
    router/Pi-hole integration that preserves per-client identity.
-5. When adding or editing each DumbTV list, assign it to the `Fire TV` group
-   rather than the default group. Leave the list assigned to the default group
-   only if you deliberately want it to affect all clients.
+5. When adding or editing each DumbTV-specific list, set its group assignment
+   to `Fire TV` and remove `Default` from that list's group selection. This
+   scopes the supplemental rules to Fire TV clients. Leave `Default` selected
+   only if you deliberately want that list to affect every client.
 
 The labels differ slightly between Pi-hole releases, but the underlying steps
 are the same: create the group, register the client, assign the client to the
