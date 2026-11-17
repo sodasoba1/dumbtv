@@ -243,7 +243,6 @@ public final class WidgetEditor extends Activity {
             message("Select a widget first");
             return;
         }
-        pendingAddType = null;
         pendingMove = selectedId;
         updateSelectionInfo();
         message("Choose its new top-left cell");
@@ -256,8 +255,6 @@ public final class WidgetEditor extends Activity {
             message("Select a widget first");
             return;
         }
-        pendingMove = null;
-        pendingAddType = null;
         String[] sizes = {"2 × 2", "3 × 2", "4 × 2", "2 × 3", "3 × 3", "4 × 3"};
         int[][] dimensions = {{2, 2}, {3, 2}, {4, 2}, {2, 3}, {3, 3}, {4, 3}};
         new AlertDialog.Builder(this, Ui.DIALOG)
@@ -283,8 +280,6 @@ public final class WidgetEditor extends Activity {
         }
         layout.remove(selectedId);
         selectedId = null;
-        pendingMove = null;
-        pendingAddType = null;
         renderGrid(0);
     }
 
@@ -295,8 +290,6 @@ public final class WidgetEditor extends Activity {
             message("Select the custom text widget first");
             return;
         }
-        pendingMove = null;
-        pendingAddType = null;
         EditText input = new EditText(this);
         input.setText(pendingText);
         input.setSingleLine(false);
