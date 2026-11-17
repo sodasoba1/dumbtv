@@ -92,6 +92,7 @@ public final class Home extends Activity {
     private int libraryGeneration;
     private Map<String, Long> recent = new HashMap<>();
     private Tile moving;
+    private TextView allAppsButton;
     private String wallKey;
     private String backgroundMode;
     private ValueAnimator colorAnimation;
@@ -165,7 +166,7 @@ public final class Home extends Activity {
 
         Row(String kind, String name, LinearLayout parent) {
             this.kind = kind;
-            int edge = Catalog.APPS.equals(kind) ? dp(24) : dp(56), bleed = dp(14);
+            int edge = dp(24), bleed = dp(14);
             title = Ui.text(Home.this, 12, Ui.FAINT, Ui.MEDIUM);
             title.setText(name.toUpperCase(Locale.ROOT));
             title.setLetterSpacing(0.14f);
@@ -201,17 +202,20 @@ public final class Home extends Activity {
 
         /** Whichever container currently holds the tiles, following Options › Layout. */
         ViewGroup tiles() {
-            return !Catalog.APPS.equals(kind) && "grid".equals(cfg.get(Config.LAYOUT)) ? grid : strip;
+            return strip;
         }
 
         void setVisible(boolean on) {
-            boolean gridMode = !Catalog.APPS.equals(kind) && "grid".equals(cfg.get(Config.LAYOUT));
             if (Catalog.APPS.equals(kind) && favoritesPanel != null) {
                 favoritesPanel.setVisibility(on ? View.VISIBLE : View.GONE);
+                title.setVisibility(View.GONE);
+                scroll.setVisibility(on ? View.VISIBLE : View.GONE);
+                grid.setVisibility(View.GONE);
+                return;
             }
             title.setVisibility(on ? View.VISIBLE : View.GONE);
-            scroll.setVisibility(on && !gridMode ? View.VISIBLE : View.GONE);
-            grid.setVisibility(on && gridMode ? View.VISIBLE : View.GONE);
+            scroll.setVisibility(on ? View.VISIBLE : View.GONE);
+            grid.setVisibility(View.GONE);
         }
     }
 
@@ -759,7 +763,7 @@ public final class Home extends Activity {
                 v -> openSettings()));
         head.addView(toolbar, new LinearLayout.LayoutParams(WRAP, WRAP));
 
-        head.setPadding(dp(48), 0, dp(48), 0);
+        head.setPadding(dp(24), 0, dp(24), 0);
         root.addView(head, new FrameLayout.LayoutParams(MATCH, dp(56), Gravity.TOP));
 
         if (!"1".equals(cfg.get("widgets.initialized", ""))) {
@@ -841,15 +845,16 @@ public final class Home extends Activity {
         favoritesPanel.setOrientation(LinearLayout.VERTICAL);
         favoritesPanel.setClipChildren(false);
         favoritesPanel.setClipToPadding(false);
-        favoritesPanel.setBackground(Ui.surface(this, Ui.optionSurface(this), dp(14)));
+        favoritesPanel.setBackgroundColor(Color.TRANSPARENT);
         favoritesPanel.setVisibility(View.GONE);
         FrameLayout.LayoutParams favoritesLp = new FrameLayout.LayoutParams(MATCH, WRAP, Gravity.BOTTOM);
-        favoritesLp.leftMargin = dp(32);
-        favoritesLp.rightMargin = dp(32);
+        favoritesLp.leftMargin = dp(24);
+        favoritesLp.rightMargin = dp(24);
         favoritesLp.bottomMargin = dp(8);
         root.addView(favoritesPanel, favoritesLp);
 
         apps = new Row(Catalog.APPS, getString(R.string.row_apps), favoritesPanel);
+        apps.title.setVisibility(View.GONE);
         allApps = new Row(Catalog.ALL_APPS, getString(R.string.row_all_apps), column);
         allApps.setVisible(false);
         inputs = new Row(Catalog.INPUTS, getString(R.string.row_inputs), column);
@@ -872,12 +877,7 @@ public final class Home extends Activity {
     }
 
     private int[] favoriteCardSize() {
-        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
-        int spacing = dp("compact".equals(cfg.get(Config.TILE_SPACING)) ? 10
-                : "spacious".equals(cfg.get(Config.TILE_SPACING)) ? 28 : 18);
-        int available = metrics.widthPixels - dp(112) - spacing * 5;
-        int width = Math.max(dp(96), Math.min(dp(180), available / 6));
-        return new int[] {width, Math.round(width * 9f / 16f)};
+        return cardSize();
     }
 
     private void toolbarFocusChanged(boolean focused) {
@@ -1063,13 +1063,14 @@ public final class Home extends Activity {
     /** Text-only navigation chip; tapping it opens the full installed-app catalogue. */
     private TextView allAppsChip() {
         TextView v = Ui.text(this, 14, Ui.TEXT, Ui.MEDIUM);
+        allAppsButton = v;
         v.setText(R.string.all_apps);
         v.setContentDescription(getString(R.string.all_apps));
         v.setGravity(Gravity.CENTER);
         v.setFocusable(true);
         v.setClickable(true);
         v.setPadding(dp(18), dp(9), dp(18), dp(9));
-        v.setOnClickListener(view -> startActivity(new Intent(this, AllApps.class)));
+        v.setOnClickListener(view -> openAllApps());
         v.setOnFocusChangeListener((view, has) -> {
             chipLook(v, has);
             view.animate().scaleX(has ? 1.06f : 1f).scaleY(has ? 1.06f : 1f).setDuration(110).start();
@@ -1080,7 +1081,7 @@ public final class Home extends Activity {
         lp.leftMargin = dp(10);
         lp.topMargin = dp(6);
         v.setLayoutParams(lp);
-        v.setTag(null);
+        v.setTag(new int[] {R.drawable.chip_apps, R.drawable.chip_apps_mark});
         chips.add(v);
         return v;
     }
@@ -1091,7 +1092,6 @@ public final class Home extends Activity {
 
     /** Text and padding for the chip style: the name always for text, on focus only for icons. */
     private void chipLook(TextView c, boolean focused) {
-        // The All Apps navigation chip remains labelled even when Options › Chip style uses icons.
         if (c.getTag() == null || !iconChips()) {
             c.setText(c.getContentDescription());
             c.setCompoundDrawablePadding(0);
@@ -1110,7 +1110,7 @@ public final class Home extends Activity {
         view.setPadding(dp(16), dp(8), dp(16), dp(8));
         view.setMaxLines(3);
         view.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        view.setBackground(Ui.surface(this, Ui.tileSurface(this, true), dp(12)));
+        view.setBackground(null);
         view.setFocusable(false);
         return view;
     }
@@ -1183,8 +1183,7 @@ public final class Home extends Activity {
                 : "center".equals(cfg.get(Config.TOOLBAR_ALIGN)) ? Gravity.CENTER_HORIZONTAL : Gravity.RIGHT;
         head.setGravity(Gravity.TOP | align);
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        toolbar.setBackground(Ui.isGlass(this)
-                ? Ui.surface(this, Ui.optionSurface(this), dp(14)) : null);
+        toolbar.setBackground(null);
         widgetLayout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         widgetGrid.setLayout(widgetLayout);
         int widgetSurface = Ui.tileSurface(this, true);
