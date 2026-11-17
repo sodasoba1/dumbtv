@@ -721,6 +721,9 @@ public final class Home extends Activity {
 
         if (!"1".equals(cfg.get("widgets.initialized", ""))) {
             widgetLayout = WidgetLayout.defaults();
+            if ("on".equals(cfg.get(Config.MEMORY))) {
+                widgetLayout.add("memory", "memory", 2, 0, 2, 2);
+            }
             cfg.set(WidgetLayout.CONFIG_KEY, widgetLayout.encode());
             cfg.set("widgets.initialized", "1");
         } else {
