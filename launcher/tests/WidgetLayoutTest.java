@@ -16,7 +16,7 @@ public final class WidgetLayoutTest {
         check(!grid.add("outside", "text", 5, 3, 2, 1), "reject horizontal overflow");
         check(!grid.add("bad", "unknown", 0, 2, 1, 1), "reject unknown widget type");
         check(!grid.add("too-small", "clock", 0, 2, 1, 2), "reject unreadably narrow widget");
-        check(WidgetLayout.defaults().items().size() == 2, "first-run layout includes clock and memory");
+        check(WidgetLayout.defaults().items().size() == 1, "first-run layout starts with the clock only");
         check(grid.move("memory", 4, 0), "move into free cells");
         check(!grid.move("memory", 1, 0), "reject move into occupied cells");
         check(!grid.resize("clock", 5, 2), "reject resize into occupied cells");
