@@ -1,8 +1,6 @@
 package tv.dumbtv.home;
 
 import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Paint;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -10,26 +8,20 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Fixed 6x4 native widget surface. Child bounds are driven exclusively by WidgetLayout;
- * the same cell measurements are used in normal and edit modes.
+ * Fixed 6x4 native widget surface. Child bounds are driven exclusively by WidgetLayout.
  */
 final class WidgetGridView extends ViewGroup {
     private static final int COLUMNS = WidgetLayout.COLUMNS;
     private static final int ROWS = WidgetLayout.ROWS;
     private static final int GAP_DP = 8;
 
-    private final Paint gridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private WidgetLayout layout = new WidgetLayout();
     private final Set<String> disabled = new HashSet<>();
-    private boolean editing;
 
     WidgetGridView(Context context) {
         super(context);
         setClipChildren(false);
         setClipToPadding(false);
-        gridPaint.setStyle(Paint.Style.STROKE);
-        gridPaint.setStrokeWidth(Ui.dp(context, 1));
-        gridPaint.setColor(0x55FFFFFF);
     }
 
     void setLayout(WidgetLayout value) {
@@ -50,16 +42,6 @@ final class WidgetGridView extends ViewGroup {
 
     boolean isWidgetEnabled(String id) {
         return !disabled.contains(id);
-    }
-
-    void setEditing(boolean value) {
-        if (editing == value) return;
-        editing = value;
-        invalidate();
-    }
-
-    boolean isEditing() {
-        return editing;
     }
 
     void addWidgetView(String widgetId, View child) {
@@ -116,26 +98,6 @@ final class WidgetGridView extends ViewGroup {
             int y = getPaddingTop() + widget.y * (cellHeight + gap);
             child.layout(x, y, x + child.getMeasuredWidth(), y + child.getMeasuredHeight());
         }
-    }
-
-    @Override
-    protected void dispatchDraw(Canvas canvas) {
-        if (editing) {
-            int contentWidth = Math.max(0, getWidth() - getPaddingLeft() - getPaddingRight());
-            int contentHeight = Math.max(0, getHeight() - getPaddingTop() - getPaddingBottom());
-            int gap = Ui.dp(getContext(), GAP_DP);
-            int cellWidth = Math.max(0, (contentWidth - gap * (COLUMNS - 1)) / COLUMNS);
-            int cellHeight = Math.max(0, (contentHeight - gap * (ROWS - 1)) / ROWS);
-            for (int row = 0; row < ROWS; row++) {
-                for (int column = 0; column < COLUMNS; column++) {
-                    float x = getPaddingLeft() + column * (cellWidth + gap);
-                    float y = getPaddingTop() + row * (cellHeight + gap);
-                    canvas.drawRoundRect(x, y, x + cellWidth, y + cellHeight,
-                            Ui.dp(getContext(), 6), Ui.dp(getContext(), 6), gridPaint);
-                }
-            }
-        }
-        super.dispatchDraw(canvas);
     }
 
     @Override
