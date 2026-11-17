@@ -833,7 +833,7 @@ public final class Home extends Activity {
                 : "center".equals(cfg.get(Config.TOOLBAR_ALIGN)) ? Gravity.CENTER_HORIZONTAL : Gravity.RIGHT;
         toolbar.setGravity(Gravity.CENTER_VERTICAL | align);
         for (TextView c : chips) {
-            Ui.focusStyle(c, accent, 0x14FFFFFF, dp(icons ? 21 : 18));
+            Ui.focusStyle(c, accent, Ui.isGlass(this) ? 0x55303D4B : 0x14FFFFFF, dp(icons ? 21 : 18));
             int[] art = (int[]) c.getTag();
             c.setCompoundDrawablesRelative(icons && art != null ? Ui.chipIcon(getDrawable(art[0]), getDrawable(art[1]),
                     accent, dp(22)) : null, null, null, null);
