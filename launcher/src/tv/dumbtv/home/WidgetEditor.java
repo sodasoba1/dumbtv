@@ -321,8 +321,10 @@ public final class WidgetEditor extends Activity {
         AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle("Custom widget text")
                 .setView(input)
-                .setPositiveButton("Use text", (d, which) ->
-                        pendingText = input.getText().toString().trim())
+                .setPositiveButton("Use text", (d, which) -> {
+                    pendingText = input.getText().toString().trim();
+                    preview.setLayout(layout, pendingText);
+                })
                 .setNegativeButton("Cancel", null)
                 .create();
         dialog.show();
