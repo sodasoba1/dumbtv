@@ -48,7 +48,7 @@ public final class AllApps extends Activity {
 
         LinearLayout top = new LinearLayout(this);
         top.setGravity(Gravity.CENTER_VERTICAL);
-        top.setPadding(Ui.dp(this, 56), Ui.dp(this, 8), Ui.dp(this, 56), Ui.dp(this, 20));
+        top.setPadding(Ui.dp(this, 24), Ui.dp(this, 8), Ui.dp(this, 24), Ui.dp(this, 20));
 
         TextView title = Ui.text(this, 30, Ui.TEXT, Ui.LIGHT);
         title.setText(R.string.all_apps);
@@ -72,7 +72,7 @@ public final class AllApps extends Activity {
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
         grid = new Grid(this);
-        grid.setPadding(Ui.dp(this, 56), Ui.dp(this, 8), Ui.dp(this, 56), Ui.dp(this, 28));
+        grid.setPadding(Ui.dp(this, 24), Ui.dp(this, 8), Ui.dp(this, 24), Ui.dp(this, 28));
         scroll.addView(grid, new FrameLayout.LayoutParams(MATCH, WRAP));
         page.addView(scroll, new LinearLayout.LayoutParams(MATCH, 0, 1f));
         setContentView(page);
@@ -133,6 +133,12 @@ public final class AllApps extends Activity {
         } catch (ActivityNotFoundException | SecurityException e) {
             Toast.makeText(this, R.string.could_not_open, Toast.LENGTH_SHORT).show();
         }
+    }
+
+    @Override
+    public void finish() {
+        super.finish();
+        overridePendingTransition(R.anim.stay, R.anim.slide_down);
     }
 
     @Override
