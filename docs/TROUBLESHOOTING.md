@@ -20,12 +20,15 @@ granted. Check:
 ```sh
 adb shell dumpsys activity services tv.dumbtv.home
 adb shell appops get tv.dumbtv.home GET_USAGE_STATS
-adb shell pm check-permission android.permission.READ_LOGS tv.dumbtv.home
+adb shell pm grant tv.dumbtv.home android.permission.READ_LOGS
+adb shell dumpsys package tv.dumbtv.home
 ```
 
-READ_LOGS is an additional signal, not a hard requirement: if Fire OS refuses
-it, Keeper still uses UsageStats and screen on/off broadcasts. Re-arm the
-launcher with `./scripts/launcher.sh -y` and then run `./scripts/verify.sh`.
+The installer runs the ADB grant and verifies `android.permission.READ_LOGS:
+granted=true` in the package dump. This is required for the intended Keeper
+configuration; `./scripts/verify.sh` fails if it is missing. Re-run
+`./launcher/install.sh` and inspect its error if the grant is refused. Do not
+treat a successful UsageStats check as proof that logcat monitoring is active.
 
 ### Amazon's Settings stays on screen
 
@@ -187,8 +190,11 @@ The scripts select `data/fireos6/` automatically.
 - **Standby recovery does not start.** Check `appops get tv.dumbtv.home AUTO_START`;
   it must report `allow`. Re-run `./launcher/install.sh` to apply and verify it.
   Also check `dumpsys deviceidle whitelist` includes `tv.dumbtv.home`.
-- **READ_LOGS is denied.** This is optional. Keeper continues with UsageStats
-  and screen broadcasts, but loses the additional ActivityManager signal.
+- **READ_LOGS is not granted.** The launcher installer should stop with an error.
+  Re-run `./launcher/install.sh`; it issues `pm grant tv.dumbtv.home
+  android.permission.READ_LOGS` and checks the package dump. If Fire OS refuses
+  the grant, keep the install unverified and inspect the exact ADB error rather
+  than treating Keeper as fully configured.
 - **`monkey` launches nothing** and says `SYS_KEYS has no physical keys` when
   the remote is asleep. Use `am start -n`, or pass `--pct-syskeys 0`.
 
