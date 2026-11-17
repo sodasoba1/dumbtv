@@ -547,7 +547,8 @@ public final class Home extends Activity {
                     if (below == null && inputs.title.getVisibility() == View.VISIBLE) {
                         below = nearest(inputs.tiles(), focused);
                     }
-                    if (below == null && apps.tiles().getChildCount() > 0) {
+                    if (below == null && apps.title.getVisibility() == View.VISIBLE
+                            && apps.tiles().getChildCount() > 0) {
                         below = apps.tiles().getChildAt(0);
                     }
                     if (below != null) return below;
@@ -659,8 +660,8 @@ public final class Home extends Activity {
                         int target = grid ? belowInGrid(parent, tile) : -1;
                         if (target >= 0) return parent.getChildAt(target);
                         View below = adjacentTile(tile.kind, 1, focused);
-                        if (below == null && (Catalog.INPUTS.equals(tile.kind)
-                                || Catalog.ALL_APPS.equals(tile.kind))) {
+                        if (below == null && apps.title.getVisibility() == View.VISIBLE
+                                && (Catalog.INPUTS.equals(tile.kind) || Catalog.ALL_APPS.equals(tile.kind))) {
                             below = nearest(apps.tiles(), focused);
                         }
                         return below != null ? below : focused;
