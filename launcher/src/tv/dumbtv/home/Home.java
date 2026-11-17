@@ -480,7 +480,7 @@ public final class Home extends Activity {
             if (row == apps) continue;
             if (row.scroll.getVisibility() == View.VISIBLE) {
                 rows.add(new int[] {topIn(row.title, content), topIn(row.scroll, content) + row.scroll.getHeight()});
-
+            }
         }
         return rows;
     }
