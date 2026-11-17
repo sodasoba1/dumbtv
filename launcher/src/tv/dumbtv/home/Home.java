@@ -84,7 +84,9 @@ public final class Home extends Activity {
     private TextView clock, date;
     private Meter meter;
     private View memoryWidget;
-    private TextView recentWidget, networkWidget, storageWidget, textWidget, diagnosticsWidget, deviceWidget;
+    private TextView recentWidget, networkWidget, textWidget, diagnosticsWidget, deviceWidget;
+    private View storageWidget;
+    private Meter storageMeter;
     private WidgetGridView widgetGrid;
     private WidgetLayout widgetLayout;
     private Row apps, allApps, inputs;
@@ -731,11 +733,6 @@ public final class Home extends Activity {
         } else {
             widgetLayout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         }
-        if (!"1".equals(cfg.get("widgets.compact_defaults", ""))) {
-            widgetLayout = WidgetLayout.compactDefaults(widgetLayout);
-            cfg.set(WidgetLayout.CONFIG_KEY, widgetLayout.encode());
-            cfg.set("widgets.compact_defaults", "1");
-        }
         widgetGrid = new WidgetGridView(this);
         widgetGrid.setLayout(widgetLayout);
         for (WidgetVisibility.Definition definition : WidgetVisibility.ALL) {
@@ -770,9 +767,9 @@ public final class Home extends Activity {
         storageWidget = widgetText("Storage\nChecking available space…");
         textWidget = widgetText(cfg.get("widgets.text", "Custom text"));
         diagnosticsWidget = widgetText("DumbTV diagnostics\nCollecting process information…");
-        diagnosticsWidget.setMaxLines(14);
+        diagnosticsWidget.setMaxLines(4);
         diagnosticsWidget.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
-        diagnosticsWidget.setPadding(dp(10), dp(5), dp(10), dp(5));
+        diagnosticsWidget.setPadding(dp(6), dp(2), dp(6), dp(2));
         deviceWidget = widgetText("Device information\nReading device details…");
         deviceWidget.setMaxLines(5);
         deviceWidget.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
@@ -1086,7 +1083,8 @@ public final class Home extends Activity {
         for (WidgetLayout.Widget widget : widgetLayout.items()) {
             int fallback = "clock".equals(widget.type) ? 32
                     : "diagnostics".equals(widget.type) ? 11
-                    : "device".equals(widget.type) ? 12 : 14;
+                    : "device".equals(widget.type) ? 12
+                    : "memory".equals(widget.type) || "storage".equals(widget.type) ? 13 : 14;
             int size;
             try {
                 size = Integer.parseInt(cfg.get("widgets.font." + widget.id,
@@ -1102,10 +1100,16 @@ public final class Home extends Activity {
             }
             for (int i = 0; i < widgetGrid.getChildCount(); i++) {
                 View child = widgetGrid.getChildAt(i);
-                if (widget.id.equals(widgetGrid.widgetId(child)) && child instanceof TextView) {
+                if (!widget.id.equals(widgetGrid.widgetId(child))) continue;
+                if (child instanceof TextView) {
                     ((TextView) child).setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, size);
-                    break;
+                } else if (child instanceof FrameLayout) {
+                    for (int j = 0; j < ((FrameLayout) child).getChildCount(); j++) {
+                        View inner = ((FrameLayout) child).getChildAt(j);
+                        if (inner instanceof Meter) ((Meter) inner).setFontSize(size);
+                    }
                 }
+                break;
             }
         }
     }
@@ -1213,6 +1217,7 @@ public final class Home extends Activity {
             widgetGrid.setWidgetEnabled(definition.id, WidgetVisibility.isEnabled(cfg, definition.id));
         }
         meter.setAccent(accent);
+        storageMeter.setAccent(accent);
         hero.setAccent(accent);
         apps.title.setText(getString(R.string.row_pinned_apps).toUpperCase(Locale.ROOT));
         String state = artState();
