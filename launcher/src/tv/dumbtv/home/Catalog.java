@@ -8,8 +8,6 @@ import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
-import android.graphics.ColorMatrix;
-import android.graphics.ColorMatrixColorFilter;
 import android.graphics.drawable.Drawable;
 import android.media.tv.TvContract;
 import android.media.tv.TvInputInfo;
@@ -67,25 +65,7 @@ final class Catalog {
      * name. Slow: off the UI thread.
      */
     static void art(PackageManager pm, Item it, boolean cornerIcon, Drawable replacement) {
-        art(pm, it, cornerIcon, replacement, false);
-    }
-
-    /** Brand Focus deliberately replaces TV banners with the installed app icon. */
-    static void art(PackageManager pm, Item it, boolean cornerIcon, Drawable replacement,
-            boolean brandFocus) {
         if (it.info == null) return;
-        if (brandFocus) {
-            it.banner = null;
-            Drawable icon = replacement != null ? replacement : it.info.loadIcon(pm);
-            if (icon != null) {
-                icon = icon.mutate();
-                ColorMatrix grayscale = new ColorMatrix();
-                grayscale.setSaturation(0);
-                icon.setColorFilter(new ColorMatrixColorFilter(grayscale));
-            }
-            it.icon = icon;
-            return;
-        }
         boolean wide = replacement != null && isWide(replacement);
         it.banner = wide ? replacement : replacement == null ? it.info.loadBanner(pm) : null;
         it.icon = replacement != null && !wide ? replacement
