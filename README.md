@@ -10,7 +10,7 @@ An independently maintained fork of [the original DumbTV project](https://github
 - **Android base:** Android 7.1.2
 - **SDK/API:** 25
 
-The launcher APK and its installer deliberately reject other Android SDK versions. This is not a general-purpose launcher build for Fire OS 7, 8 or newer Fire TV hardware.
+The launcher APK and its install/build path deliberately reject other Android SDK versions. The `--undo` path remains available on other SDK versions so an existing installation can hand HOME back to Amazon. This is not a general-purpose launcher build for Fire OS 7, 8 or newer Fire TV hardware.
 
 The repository retains the wider DumbTV debloat scripts and device catalogue. Their support matrix is separate from the launcher target; do not assume that a device supported by the scripts can also run this fork's launcher APK.
 
@@ -118,7 +118,7 @@ adb connect <firestick-ip>:5555
 ./launcher/install.sh
 ```
 
-Accept the ADB authorisation prompt on the television. The installer checks the device SDK and refuses to proceed if it is not API 25.
+Accept the ADB authorisation prompt on the television. The install/build path checks the device SDK and refuses to install if it is not API 25. The `--undo` path is deliberately not API-gated, so it can restore Amazon HOME even if the installed launcher is being removed from a different Fire OS generation.
 
 To undo the launcher takeover:
 
