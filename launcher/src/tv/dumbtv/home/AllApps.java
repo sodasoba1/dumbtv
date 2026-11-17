@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
+import android.graphics.drawable.Drawable;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -107,6 +108,11 @@ public final class AllApps extends Activity {
                     grid.addView(tile, new ViewGroup.LayoutParams(WRAP, WRAP));
                     io.execute(() -> {
                         Catalog.art(getPackageManager(), item, "afterglow".equals(cfg.get(Config.TILE_STYLE)), null);
+                        Drawable custom = Catalog.customBanner(this, item);
+                        if (custom != null) {
+                            item.banner = custom;
+                            item.icon = null;
+                        }
                         runOnUiThread(() -> {
                             if (!isFinishing() && !isDestroyed()) tile.invalidate();
                         });
