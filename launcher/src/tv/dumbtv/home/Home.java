@@ -768,8 +768,11 @@ public final class Home extends Activity {
         textWidget = widgetText(cfg.get("widgets.text", "Custom text"));
         diagnosticsWidget = widgetText("DumbTV diagnostics\nCollecting process information…");
         diagnosticsWidget.setMaxLines(7);
+        diagnosticsWidget.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
+        diagnosticsWidget.setPadding(dp(10), dp(5), dp(10), dp(5));
         deviceWidget = widgetText("Device information\nReading device details…");
         deviceWidget.setMaxLines(5);
+        deviceWidget.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
         widgetGrid.addWidgetView("recent", recentWidget);
         widgetGrid.addWidgetView("network", networkWidget);
         widgetGrid.addWidgetView("storage", storageWidget);
