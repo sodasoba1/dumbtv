@@ -472,9 +472,7 @@ public final class Home extends Activity {
     }
 
     /**
-     * Title top and strip bottom of each visible row, in {@code content}'s coordinates. In grid
-     * mode every line of tiles is its own block (the first one starting at the row title), so
-     * a grid taller than the screen still scrolls a whole line at a time.
+     * Title top and strip bottom of each visible horizontal row, in {@code content}'s coordinates.
      */
     private List<int[]> rowBlocks(View content) {
         List<int[]> rows = new ArrayList<>();
@@ -553,7 +551,7 @@ public final class Home extends Activity {
                     if (below == null && inputs.title.getVisibility() == View.VISIBLE) {
                         below = nearest(inputs.tiles(), focused);
                     }
-                    if (below == null && apps.title.getVisibility() == View.VISIBLE
+                    if (below == null && favoritesPanel.getVisibility() == View.VISIBLE
                             && apps.tiles().getChildCount() > 0) {
                         below = apps.tiles().getChildAt(0);
                     }
@@ -643,7 +641,6 @@ public final class Home extends Activity {
                     ViewGroup parent = (ViewGroup) tile.getParent();
                     int idx = parent.indexOfChild(tile);
                     int count = parent.getChildCount();
-                    boolean grid = false;
 
                     // Left and right stop at the edge of a row instead of jumping away
                     // from it: no tile of another row takes the focus.
@@ -664,7 +661,7 @@ public final class Home extends Activity {
                     // that section's own last tile, even if the same app is also pinned above.
                     if (direction == View.FOCUS_DOWN) {
                         View below = adjacentTile(tile.kind, 1, focused);
-                        if (below == null && apps.title.getVisibility() == View.VISIBLE
+                        if (below == null && favoritesPanel.getVisibility() == View.VISIBLE
                                 && (Catalog.INPUTS.equals(tile.kind) || Catalog.ALL_APPS.equals(tile.kind))) {
                             below = nearest(apps.tiles(), focused);
                         }
