@@ -92,7 +92,13 @@ public final class WidgetEditor extends Activity {
         addAction(actions, "Cancel", this::cancel);
         root.addView(actions, new LinearLayout.LayoutParams(MATCH, WRAP));
 
-        setContentView(root);
+        android.widget.ScrollView page = new android.widget.ScrollView(this);
+        page.setFillViewport(true);
+        page.setFocusable(false);
+        page.setVerticalScrollBarEnabled(false);
+        page.setOverScrollMode(android.view.View.OVER_SCROLL_NEVER);
+        page.addView(root, new android.widget.ScrollView.LayoutParams(MATCH, WRAP));
+        setContentView(page);
         renderGrid(initial == null ? 0 : initial.y * WidgetLayout.COLUMNS + initial.x);
     }
 
