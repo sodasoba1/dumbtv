@@ -188,7 +188,7 @@ public final class WidgetEditor extends Activity {
             String type = pendingAddType;
             pendingAddType = null;
             int width = "clock".equals(type) || "memory".equals(type) ? 2
-                    : "diagnostics".equals(type) ? 4
+                    : "diagnostics".equals(type) ? 3
                     : "recent".equals(type) || "device".equals(type) ? 3 : 2;
             int height = "diagnostics".equals(type) ? 3 : 2;
             if (layout.add(type, type, x, y, width, height)) {
