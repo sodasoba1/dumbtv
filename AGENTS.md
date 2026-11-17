@@ -43,7 +43,8 @@ Every step is undone by `./scripts/restore.sh`.
    `--remove`, and only when they asked for it gone in those words. Their Google
    account and subscriptions are never touched.
 8. **Do not install or configure an on-device DNS filter or VPN.** DNS filtering
-   is an optional external Pi-hole setup documented in `docs/PI-HOLE.md`.
+   is an external Pi-hole setup documented in `docs/PI-HOLE.md`; keep the
+   Fire Stick as a normal network client and scope Pi-hole lists to its group.
 9. **Never disable `com.amazon.vizzini`.** It keeps running anyway, and on some
    TVs it covers the screen with "Unable to Detect Your Remote".
 10. **One TV at a time.** If `adb devices` lists several, set `ADB_SERIAL`.
@@ -81,6 +82,18 @@ adb shell getprop ro.build.version.sdk       # 25 Fire OS 6, 28 Fire OS 7, 30 Fi
 
 `unauthorized` means the TV shows "Allow USB debugging?". A person has to press
 Allow (and tick "Always allow"). Tell them, and do not retry in a loop.
+
+## Keeper permissions on the AFTMM launcher
+
+The API 25 launcher installer must grant and verify all three required Keeper
+access paths: `GET_USAGE_STATS`, Fire OS `AUTO_START`, and
+`android.permission.READ_LOGS`. READ_LOGS is declared in the launcher manifest
+and granted by the ADB shell using `pm grant tv.dumbtv.home
+android.permission.READ_LOGS`. The installer verifies
+`android.permission.READ_LOGS: granted=true` in `dumpsys package` and must
+stop with an error if the grant or verification fails. Do not describe READ_LOGS
+as optional or silently fall back to a reduced Keeper configuration. See
+[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for recovery checks.
 
 ## Step 1: interview the owner
 
