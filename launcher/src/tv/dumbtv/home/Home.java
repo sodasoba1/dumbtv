@@ -221,7 +221,8 @@ public final class Home extends Activity {
         Future<List<Item>> catalog = io.submit(() -> Catalog.apps(this));
         cfg = Config.get(this);
         boolean needsRecent = recentFor(Catalog.APPS) != null
-                || WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, "")).find("recent") != null;
+                || (WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, "")).find("recent") != null
+                && WidgetVisibility.isEnabled(cfg, "recent"));
         Future<Map<String, Long>> times = needsRecent ? io.submit(() -> Recent.times(this)) : null;
         tv = (TvInputManager) getSystemService(Context.TV_INPUT_SERVICE);
         setContentView(build());
@@ -1024,7 +1025,8 @@ public final class Home extends Activity {
     }
 
     private void updateRecentWidget() {
-        if (recentWidget == null || widgetLayout == null || widgetLayout.find("recent") == null) return;
+        if (recentWidget == null || widgetLayout == null || widgetLayout.find("recent") == null
+                || !WidgetVisibility.isEnabled(cfg, "recent")) return;
         List<Item> latest = new ArrayList<>(apps.all);
         Collections.sort(latest, (a, b) -> Recent.compare(recent, a.id, b.id));
         StringBuilder value = new StringBuilder("Recently opened");
@@ -1042,14 +1044,14 @@ public final class Home extends Activity {
 
     private void updateSystemWidgets() {
         if (networkWidget == null || storageWidget == null || widgetLayout == null) return;
-        if (widgetLayout.find("network") != null) {
+        if (widgetLayout.find("network") != null && WidgetVisibility.isEnabled(cfg, "network")) {
             ConnectivityManager manager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
             NetworkInfo info = manager == null ? null : manager.getActiveNetworkInfo();
             String state = info == null || !info.isConnected() ? "Disconnected"
                     : "Connected · " + info.getTypeName();
             networkWidget.setText("Network\n" + state);
         }
-        if (widgetLayout.find("storage") != null) {
+        if (widgetLayout.find("storage") != null && WidgetVisibility.isEnabled(cfg, "storage")) {
             try {
                 StatFs stats = new StatFs(Environment.getDataDirectory().getPath());
                 long free = stats.getAvailableBytes();
@@ -1060,10 +1062,10 @@ public final class Home extends Activity {
                 storageWidget.setText("Storage\nUnavailable");
             }
         }
-        if (widgetLayout.find("diagnostics") != null) {
+        if (widgetLayout.find("diagnostics") != null && WidgetVisibility.isEnabled(cfg, "diagnostics")) {
             diagnosticsWidget.setText(WidgetDiagnostics.snapshot(this));
         }
-        if (widgetLayout.find("device") != null) {
+        if (widgetLayout.find("device") != null && WidgetVisibility.isEnabled(cfg, "device")) {
             deviceWidget.setText(deviceInformation());
         }
     }
