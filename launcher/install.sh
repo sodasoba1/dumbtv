@@ -148,13 +148,16 @@ fi
 echo "standby start: AUTO_START allowed"
 # Request READ_LOGS on every install/update, then verify the resulting package
 # permission state. Fire OS 6 does not reliably implement pm check-permission.
-sh_ pm grant $PKG android.permission.READ_LOGS >/dev/null 2>&1 || true
-package_dump=$(sh_ dumpsys package $PKG 2>/dev/null || true)
-if grep -Eq '^[[:space:]]*android\.permission\.READ_LOGS:[[:space:]]*granted=true([,[:space:]]|$)' <<<"$package_dump"; then
-  echo "logcat monitoring: READ_LOGS granted"
-else
-  echo "note: optional READ_LOGS access is unavailable; Keeper will continue with UsageStats and screen broadcasts"
+if ! sh_ pm grant $PKG android.permission.READ_LOGS; then
+  echo "error: could not grant Keeper READ_LOGS; ActivityManager logcat monitoring is required" >&2
+  exit 1
 fi
+package_dump=$(sh_ dumpsys package $PKG 2>/dev/null || true)
+if ! grep -Eq '^[[:space:]]*android\.permission\.READ_LOGS:[[:space:]]*granted=true([,[:space:]]|$)' <<<"$package_dump"; then
+  echo "error: Keeper READ_LOGS grant was not verified in the installed package ($PKG)" >&2
+  exit 1
+fi
+echo "logcat monitoring: READ_LOGS granted and verified"
 start_home $PKG/.Home
 sleep 3
 if ! grep -q 'isForeground=true' <<<"$(sh_ dumpsys activity services $PKG 2>/dev/null)"; then
