@@ -59,12 +59,16 @@ public final class Options extends Activity {
                 Config.TILE_RADIUS, Config.TILE_SPACING, Config.TILE_BORDER,
                 Config.TILE_BORDER_WIDTH, Config.TILE_SHADOW, Config.AFTERGLOW_STRENGTH,
                 Config.AFTERGLOW_ICON, Config.CHIPS, Config.LIBRARY);
-        list.addView(action("Edit widgets", () ->
-                startActivity(new Intent(this, WidgetEditor.class))));
         list.addView(action(getString(R.string.next_wallpaper), () -> {
             cfg.nextWallpaper();
             refresh();
         }));
+
+        heading(list, "Widgets");
+        list.addView(action("Show / hide widgets", () ->
+                startActivity(new Intent(this, WidgetSettings.class))));
+        list.addView(action("Edit widget layout", () ->
+                startActivity(new Intent(this, WidgetEditor.class))));
 
         heading(list, R.string.options_applications);
         addChoices(list, Config.ORDER, Config.ALL_APPS, Config.LABELS);
@@ -87,7 +91,7 @@ public final class Options extends Activity {
         list.addView(action(getString(R.string.inputs_on_home), () -> pick(Catalog.INPUTS)));
 
         heading(list, R.string.options_system);
-        addChoices(list, Config.CLOCK, Config.MEMORY, Config.LOCK);
+        addChoices(list, Config.CLOCK, Config.LOCK);
         list.addView(action(getString(R.string.export_settings), this::export));
         list.addView(action(getString(R.string.open_amazon_home), () -> {
             Keeper.openAmazonHome(this);
