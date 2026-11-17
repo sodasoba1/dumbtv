@@ -201,6 +201,7 @@ public final class Options extends Activity {
                 .setNegativeButton(R.string.cancel, null)
                 .create();
         dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private boolean step(Config.Choice c, int by) {
@@ -295,12 +296,14 @@ public final class Options extends Activity {
             names[i] = Catalog.label(cfg, items.get(i));
             on[i] = Catalog.shown(cfg, kind, items.get(i));
         }
-        new AlertDialog.Builder(this, Ui.DIALOG)
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle(Catalog.APPS.equals(kind) ? R.string.apps_on_home : R.string.inputs_on_home)
                 .setMultiChoiceItems(names, on, (d, which, checked) ->
                         Catalog.setShown(cfg, kind, items.get(which), checked))
                 .setPositiveButton(R.string.done, null)
-                .show();
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private void export() {
@@ -310,12 +313,14 @@ public final class Options extends Activity {
     }
 
     private void reset() {
-        new AlertDialog.Builder(this, Ui.DIALOG)
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle(R.string.reset_title)
                 .setMessage(R.string.reset_message)
                 .setPositiveButton(R.string.reset, (d, w) -> cfg.removePrefix("name.", "apps.", "inputs.", IconPack.CHOSEN))
                 .setNegativeButton(R.string.cancel, null)
-                .show();
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private int dp(float v) {
