@@ -70,8 +70,8 @@ final class Hero extends FrameLayout {
         this.io = io;
         setFocusable(true);
         setClickable(true);
-        setBackgroundColor(Ui.SURFACE);
         final float radius = dp(14);
+        setBackground(Ui.surface(c, Ui.tileSurface(c, true), radius));
         setOutlineProvider(new ViewOutlineProvider() {
             @Override
             public void getOutline(View v, Outline o) {
