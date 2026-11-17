@@ -1,5 +1,5 @@
 """scripts/wallpaper.sh against a pretend Fire TV: the images and the settings file reach the
-launcher's media folder, and nothing else on the TV changes.
+launcher's API 25 app-specific files folder, and nothing else on the TV changes.
 
 Run: python3 -m unittest discover -s tests -v
 """
@@ -12,7 +12,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-MEDIA = "/sdcard/Android/media/tv.dumbtv.home"
+APP_FILES = "/sdcard/Android/data/tv.dumbtv.home/files"
 
 
 def path_without_magick(shim):
@@ -40,7 +40,7 @@ class WallpaperTest(unittest.TestCase):
         packages = {"tv.dumbtv.home": {"system": False, "enabled": True}} if installed else {}
         state = tmp / "state.json"
         pushed = tmp / "pushed"
-        state.write_text(json.dumps({"packages": packages, "sdk": 30, "pushed": str(pushed)}))
+        state.write_text(json.dumps({"packages": packages, "sdk": 25, "pushed": str(pushed)}))
         log = tmp / "commands.log"
         log.touch()
         for name in names:
@@ -72,7 +72,7 @@ class WallpaperTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(files, ["beach.jpg", "home.conf", "night-city.png"])
         self.assertEqual(conf, ["background=image", "rotate=hourly", "dim=20"])
-        self.assertIn(f"mkdir -p {MEDIA}/wallpapers", commands)
+        self.assertIn(f"mkdir -p {APP_FILES}/wallpapers", commands)
 
     def test_settings_are_only_what_was_asked(self):
         result, _, _, conf, _ = self.run_script()
@@ -93,7 +93,7 @@ class WallpaperTest(unittest.TestCase):
     def test_replace_clears_the_folder_first(self):
         result, commands, _, _, _ = self.run_script("--replace")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn(f"rm -f {MEDIA}/wallpapers/*", commands)
+        self.assertIn(f"rm -f {APP_FILES}/wallpapers/*", commands)
 
     def test_shuffle_puts_a_number_in_front(self):
         result, _, files, _, _ = self.run_script("--shuffle")
