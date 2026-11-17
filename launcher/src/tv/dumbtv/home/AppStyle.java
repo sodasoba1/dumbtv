@@ -34,7 +34,7 @@ final class AppStyle {
     }
 
     static String[] properties() {
-        return new String[] {"Corners", "Focus scale", "Border", "Shadow / glow", "App name", "Tile size", "Background colour"};
+        return new String[] {"Corners", "Focus scale", "Border", "Shadow / glow", "App name", "Tile size", "Background colour", "Banner image"};
     }
 
     static String[] values(int property) {

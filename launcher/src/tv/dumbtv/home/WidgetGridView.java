@@ -17,13 +17,13 @@ final class WidgetGridView extends ViewGroup {
 
     private WidgetLayout layout = new WidgetLayout();
     private final Set<String> disabled = new HashSet<>();
-    private boolean interactive;
-    private View.OnClickListener widgetClick;
 
     WidgetGridView(Context context) {
         super(context);
         setClipChildren(false);
         setClipToPadding(false);
+        setFocusable(false);
+        setClickable(false);
     }
 
     void setLayout(WidgetLayout value) {
@@ -46,29 +46,19 @@ final class WidgetGridView extends ViewGroup {
         return !disabled.contains(id);
     }
 
-    void setInteractive(boolean enabled, View.OnClickListener click) {
-        interactive = enabled;
-        widgetClick = click;
-        setDescendantFocusability(enabled ? FOCUS_AFTER_DESCENDANTS : FOCUS_BLOCK_DESCENDANTS);
-        for (int i = 0; i < getChildCount(); i++) configureChild(getChildAt(i));
+    private void configureChild(View child) {
+        child.setFocusable(false);
+        child.setClickable(false);
+        child.setOnClickListener(null);
+        child.setOnFocusChangeListener(null);
+        if (child instanceof ViewGroup) {
+            ((ViewGroup) child).setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
+        }
     }
 
     String widgetId(View child) {
         if (child == null || child.getParent() != this) return null;
         return ((LayoutParams) child.getLayoutParams()).widgetId;
-    }
-
-    private void configureChild(View child) {
-        child.setFocusable(interactive);
-        child.setClickable(interactive);
-        child.setOnClickListener(interactive ? widgetClick : null);
-        child.setOnFocusChangeListener((view, focused) -> {
-            float scale = focused ? 1.035f : 1f;
-            view.animate().scaleX(scale).scaleY(scale).setDuration(110).start();
-        });
-        if (child instanceof ViewGroup) {
-            ((ViewGroup) child).setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
-        }
     }
 
     void addWidgetView(String widgetId, View child) {

@@ -92,6 +92,7 @@ public final class Home extends Activity {
     private int libraryGeneration;
     private Map<String, Long> recent = new HashMap<>();
     private Tile moving;
+    private TextView allAppsButton;
     private String wallKey;
     private String backgroundMode;
     private ValueAnimator colorAnimation;
@@ -158,14 +159,13 @@ public final class Home extends Activity {
         final TextView title;
         final HorizontalScrollView scroll;
         final LinearLayout strip;
-        final Grid grid;
         List<Item> all = new ArrayList<>();
         int initialFocusIndex;
         int renderGeneration;
 
         Row(String kind, String name, LinearLayout parent) {
             this.kind = kind;
-            int edge = Catalog.APPS.equals(kind) ? dp(24) : dp(56), bleed = dp(14);
+            int edge = dp(24), bleed = dp(14);
             title = Ui.text(Home.this, 12, Ui.FAINT, Ui.MEDIUM);
             title.setText(name.toUpperCase(Locale.ROOT));
             title.setLetterSpacing(0.14f);
@@ -192,26 +192,24 @@ public final class Home extends Activity {
             scroll.setClipToPadding(false);
             scroll.setPadding(edge - bleed, 0, edge - bleed, 0);
             scroll.addView(strip, new FrameLayout.LayoutParams(WRAP, WRAP));
-            grid = new Grid(Home.this);
-            grid.setPadding(edge, dp(12), edge, dp(8));
             parent.addView(title, new LinearLayout.LayoutParams(MATCH, WRAP));
             parent.addView(scroll, new LinearLayout.LayoutParams(MATCH, WRAP));
-            parent.addView(grid, new LinearLayout.LayoutParams(MATCH, WRAP));
         }
 
-        /** Whichever container currently holds the tiles, following Options › Layout. */
+        /** The single horizontal strip that holds this section's tiles. */
         ViewGroup tiles() {
-            return !Catalog.APPS.equals(kind) && "grid".equals(cfg.get(Config.LAYOUT)) ? grid : strip;
+            return strip;
         }
 
         void setVisible(boolean on) {
-            boolean gridMode = !Catalog.APPS.equals(kind) && "grid".equals(cfg.get(Config.LAYOUT));
             if (Catalog.APPS.equals(kind) && favoritesPanel != null) {
                 favoritesPanel.setVisibility(on ? View.VISIBLE : View.GONE);
+                title.setVisibility(View.GONE);
+                scroll.setVisibility(on ? View.VISIBLE : View.GONE);
+                return;
             }
             title.setVisibility(on ? View.VISIBLE : View.GONE);
-            scroll.setVisibility(on && !gridMode ? View.VISIBLE : View.GONE);
-            grid.setVisibility(on && gridMode ? View.VISIBLE : View.GONE);
+            scroll.setVisibility(on ? View.VISIBLE : View.GONE);
         }
     }
 
@@ -295,7 +293,7 @@ public final class Home extends Activity {
     /** What the tiles' art depends on besides the apps themselves. */
     private String artState() {
         return cfg.get(Config.TILE_STYLE) + "|" + cfg.get(IconPack.KEY, IconPack.OFF)
-                + "|" + cfg.joined(IconPack.CHOSEN);
+                + "|" + cfg.joined(IconPack.CHOSEN) + "|" + cfg.joined("appstyle.");
     }
 
     /** Loads one tile's art: the settings are read here, on the UI thread; run it on io. */
@@ -303,8 +301,14 @@ public final class Home extends Activity {
         String pack = cfg.get(IconPack.KEY, IconPack.OFF);
         String chosen = cfg.get(IconPack.CHOSEN + it.id, null);
         boolean brandFocus = "brand-focus".equals(cfg.get(Config.TILE_STYLE));
-        return () -> Catalog.art(getPackageManager(), it, cornerIcon,
-                replacementArt(it, chosen, pack), brandFocus);
+        return () -> {
+            Catalog.art(getPackageManager(), it, cornerIcon, replacementArt(it, chosen, pack), brandFocus);
+            Drawable custom = Catalog.customBanner(this, it);
+            if (custom != null) {
+                it.banner = custom;
+                it.icon = null;
+            }
+        };
     }
 
     /**
@@ -404,17 +408,11 @@ public final class Home extends Activity {
     public boolean dispatchKeyEvent(KeyEvent e) {
         if (moving == null) {
             if (e.getAction() == KeyEvent.ACTION_DOWN
-                    && e.getKeyCode() == KeyEvent.KEYCODE_DPAD_UP
-                    && toolbarCollapsed && widgetGrid != null) {
-                View focused = getCurrentFocus();
-                if (widgetGrid.widgetId(focused) != null) {
-                    View chip = nearestToolbarChip(focused);
-                    if (chip != null) {
-                        setToolbarVisible(true);
-                        chip.requestFocus();
-                        return true;
-                    }
-                }
+                    && e.getKeyCode() == KeyEvent.KEYCODE_DPAD_DOWN
+                    && getCurrentFocus() == allAppsButton
+                    && "on".equals(cfg.get(Config.ALL_APPS))) {
+                openAllApps();
+                return true;
             }
             return super.dispatchKeyEvent(e);
         }
@@ -428,11 +426,6 @@ public final class Home extends Activity {
                     break;
                 case KeyEvent.KEYCODE_DPAD_UP:
                 case KeyEvent.KEYCODE_DPAD_DOWN:
-                    // In a grid, up and down move the tile a whole line; a strip has no lines.
-                    if (moving.getParent() instanceof Grid) {
-                        int cols = ((Grid) moving.getParent()).columns();
-                        shift(e.getKeyCode() == KeyEvent.KEYCODE_DPAD_UP ? -cols : cols);
-                    }
                     break;
                 default:
                     stopMoving();
@@ -479,9 +472,7 @@ public final class Home extends Activity {
     }
 
     /**
-     * Title top and strip bottom of each visible row, in {@code content}'s coordinates. In grid
-     * mode every line of tiles is its own block (the first one starting at the row title), so
-     * a grid taller than the screen still scrolls a whole line at a time.
+     * Title top and strip bottom of each visible horizontal row, in {@code content}'s coordinates.
      */
     private List<int[]> rowBlocks(View content) {
         List<int[]> rows = new ArrayList<>();
@@ -489,15 +480,6 @@ public final class Home extends Activity {
             if (row == apps) continue;
             if (row.scroll.getVisibility() == View.VISIBLE) {
                 rows.add(new int[] {topIn(row.title, content), topIn(row.scroll, content) + row.scroll.getHeight()});
-            } else if (row.grid.getVisibility() == View.VISIBLE) {
-                int gridTop = topIn(row.grid, content), lastTop = Integer.MIN_VALUE;
-                for (int i = 0; i < row.grid.getChildCount(); i++) {
-                    View t = row.grid.getChildAt(i);
-                    if (t.getTop() == lastTop) continue;
-                    int start = lastTop == Integer.MIN_VALUE ? topIn(row.title, content) : gridTop + t.getTop() - dp(12);
-                    lastTop = t.getTop();
-                    rows.add(new int[] {start, gridTop + t.getBottom() + dp(8)});
-                }
             }
         }
         return rows;
@@ -557,18 +539,10 @@ public final class Home extends Activity {
                             above = nearestBottom(allApps.tiles(), focused);
                         }
                         if (above != null) return above;
-                        View widget = nearestWidget(focused);
-                        if (widget != null) return widget;
                         View chip = nearestToolbarChip(focused);
                         if (chip != null) setToolbarVisible(true);
                         return chip != null ? chip : focused;
                     }
-                }
-                if (widgetGrid != null && widgetGrid.widgetId(focused) != null
-                        && direction == View.FOCUS_UP) {
-                    View chip = nearestToolbarChip(focused);
-                    if (chip != null) setToolbarVisible(true);
-                    if (chip != null) return chip;
                 }
                 if (chips.contains(focused) && direction == View.FOCUS_DOWN) {
                     if (heroShown()) return hero;
@@ -577,7 +551,7 @@ public final class Home extends Activity {
                     if (below == null && inputs.title.getVisibility() == View.VISIBLE) {
                         below = nearest(inputs.tiles(), focused);
                     }
-                    if (below == null && apps.title.getVisibility() == View.VISIBLE
+                    if (below == null && favoritesPanel.getVisibility() == View.VISIBLE
                             && apps.tiles().getChildCount() > 0) {
                         below = apps.tiles().getChildAt(0);
                     }
@@ -667,45 +641,35 @@ public final class Home extends Activity {
                     ViewGroup parent = (ViewGroup) tile.getParent();
                     int idx = parent.indexOfChild(tile);
                     int count = parent.getChildCount();
-                    boolean grid = parent instanceof Grid;
-                    int cols = grid ? ((Grid) parent).columns() : 1;
 
                     // Left and right stop at the edge of a row instead of jumping away
                     // from it: no tile of another row takes the focus.
                     if (direction == View.FOCUS_LEFT) {
-                        boolean edge = grid ? idx % cols == 0 : idx == 0;
-                        if (edge) return focused;
+                        if (idx == 0) return focused;
                     }
                     if (direction == View.FOCUS_RIGHT) {
-                        boolean edge = grid
-                                ? (idx + 1) % cols == 0 || idx == count - 1
-                                : idx == count - 1;
-                        if (edge) return focused;
+                        if (idx == count - 1) return focused;
                     }
 
                     // Up from the first line of the apps row goes to the library banner.
                     if (direction == View.FOCUS_UP && Catalog.APPS.equals(tile.kind)
-                            && heroShown() && !(grid && aboveInGrid(parent, tile))) {
+                            && heroShown()) {
                         return hero;
                     }
 
-                    // Stay in a grid until its last/first line. Crossing a section restores
-                    // that section's own last tile, even if the same app is also pinned above.
+                    // Crossing a section restores that section's own last tile, even if the
+                    // same app is also pinned in the favourites strip.
                     if (direction == View.FOCUS_DOWN) {
-                        int target = grid ? belowInGrid(parent, tile) : -1;
-                        if (target >= 0) return parent.getChildAt(target);
                         View below = adjacentTile(tile.kind, 1, focused);
-                        if (below == null && apps.title.getVisibility() == View.VISIBLE
+                        if (below == null && favoritesPanel.getVisibility() == View.VISIBLE
                                 && (Catalog.INPUTS.equals(tile.kind) || Catalog.ALL_APPS.equals(tile.kind))) {
                             below = nearest(apps.tiles(), focused);
                         }
                         return below != null ? below : focused;
                     }
-                    if (direction == View.FOCUS_UP && !(grid && aboveInGrid(parent, tile))) {
+                    if (direction == View.FOCUS_UP) {
                         View above = adjacentTile(tile.kind, -1, focused);
                         if (above != null) return above;
-                        View widget = nearestWidget(focused);
-                        if (widget != null) return widget;
                         View chip = nearestToolbarChip(focused);
                         if (chip != null && !locked()) {
                             setToolbarVisible(true);
@@ -759,7 +723,7 @@ public final class Home extends Activity {
                 v -> openSettings()));
         head.addView(toolbar, new LinearLayout.LayoutParams(WRAP, WRAP));
 
-        head.setPadding(dp(48), 0, dp(48), 0);
+        head.setPadding(dp(24), 0, dp(24), 0);
         root.addView(head, new FrameLayout.LayoutParams(MATCH, dp(56), Gravity.TOP));
 
         if (!"1".equals(cfg.get("widgets.initialized", ""))) {
@@ -779,7 +743,7 @@ public final class Home extends Activity {
         clockWidget.setOrientation(LinearLayout.VERTICAL);
         clockWidget.setGravity(Gravity.CENTER_VERTICAL);
         clockWidget.setPadding(dp(18), dp(4), dp(18), dp(4));
-        clockWidget.setBackground(Ui.surface(this, Ui.tileSurface(this, true), dp(12)));
+        clockWidget.setBackground(null);
         clock = Ui.text(this, 32, Ui.TEXT, Ui.LIGHT);
         date = Ui.text(this, 13, Ui.MUTED, Ui.MEDIUM);
         date.setPadding(dp(2), dp(2), 0, 0);
@@ -788,7 +752,7 @@ public final class Home extends Activity {
         widgetGrid.addWidgetView("clock", clockWidget);
 
         memoryWidget = new FrameLayout(this);
-        memoryWidget.setBackground(Ui.surface(this, Ui.tileSurface(this, true), dp(12)));
+        memoryWidget.setBackground(null);
         memoryWidget.setVisibility(View.GONE);
         meter = new Meter(this);
         meter.setWords(getString(R.string.meter_title), getString(R.string.meter_free),
@@ -803,7 +767,7 @@ public final class Home extends Activity {
         storageWidget = widgetText("Storage\nChecking available space…");
         textWidget = widgetText(cfg.get("widgets.text", "Custom text"));
         diagnosticsWidget = widgetText("DumbTV diagnostics\nCollecting process information…");
-        diagnosticsWidget.setMaxLines(7);
+        diagnosticsWidget.setMaxLines(14);
         diagnosticsWidget.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
         diagnosticsWidget.setPadding(dp(10), dp(5), dp(10), dp(5));
         deviceWidget = widgetText("Device information\nReading device details…");
@@ -816,12 +780,14 @@ public final class Home extends Activity {
         widgetGrid.addWidgetView("diagnostics", diagnosticsWidget);
         widgetGrid.addWidgetView("device", deviceWidget);
 
-        int screenDp = (int) (getResources().getDisplayMetrics().heightPixels
-                / getResources().getDisplayMetrics().density);
-        widgetHeight = Math.max(120, Math.min(220, screenDp / 4));
-        FrameLayout.LayoutParams widgetLp = new FrameLayout.LayoutParams(MATCH, dp(widgetHeight), Gravity.TOP);
-        widgetLp.leftMargin = dp(48);
-        widgetLp.rightMargin = dp(48);
+        int widgetContentWidth = getResources().getDisplayMetrics().widthPixels
+                - dp(48) - dp(8 * (WidgetLayout.COLUMNS - 1));
+        int widgetCellHeight = Math.max(dp(44),
+                Math.round((widgetContentWidth / (float) WidgetLayout.COLUMNS) * 0.36f));
+        widgetHeight = widgetCellHeight * WidgetLayout.ROWS + dp(8 * (WidgetLayout.ROWS - 1));
+        FrameLayout.LayoutParams widgetLp = new FrameLayout.LayoutParams(MATCH, widgetHeight, Gravity.TOP);
+        widgetLp.leftMargin = dp(24);
+        widgetLp.rightMargin = dp(24);
         widgetLp.topMargin = dp(64);
         root.addView(widgetGrid, widgetLp);
 
@@ -831,8 +797,8 @@ public final class Home extends Activity {
             if (has) focusBackground(null);
         });
         LinearLayout.LayoutParams heroLp = new LinearLayout.LayoutParams(MATCH, dp(220));
-        heroLp.leftMargin = dp(56);
-        heroLp.rightMargin = dp(56);
+        heroLp.leftMargin = dp(24);
+        heroLp.rightMargin = dp(24);
         heroLp.topMargin = dp(2);
         column.addView(hero, heroLp);
         this.column = column;
@@ -841,21 +807,22 @@ public final class Home extends Activity {
         favoritesPanel.setOrientation(LinearLayout.VERTICAL);
         favoritesPanel.setClipChildren(false);
         favoritesPanel.setClipToPadding(false);
-        favoritesPanel.setBackground(Ui.surface(this, Ui.optionSurface(this), dp(14)));
+        favoritesPanel.setBackgroundColor(Color.TRANSPARENT);
         favoritesPanel.setVisibility(View.GONE);
         FrameLayout.LayoutParams favoritesLp = new FrameLayout.LayoutParams(MATCH, WRAP, Gravity.BOTTOM);
-        favoritesLp.leftMargin = dp(32);
-        favoritesLp.rightMargin = dp(32);
+        favoritesLp.leftMargin = dp(24);
+        favoritesLp.rightMargin = dp(24);
         favoritesLp.bottomMargin = dp(8);
         root.addView(favoritesPanel, favoritesLp);
 
         apps = new Row(Catalog.APPS, getString(R.string.row_apps), favoritesPanel);
+        apps.title.setVisibility(View.GONE);
         allApps = new Row(Catalog.ALL_APPS, getString(R.string.row_all_apps), column);
         allApps.setVisible(false);
         inputs = new Row(Catalog.INPUTS, getString(R.string.row_inputs), column);
 
         FrameLayout.LayoutParams scrollLp = (FrameLayout.LayoutParams) scroll.getLayoutParams();
-        scrollLp.topMargin = dp(64 + widgetHeight + 12);
+        scrollLp.topMargin = dp(64) + widgetHeight + dp(12);
         scrollLp.bottomMargin = favoriteBottomReserve();
         scroll.setLayoutParams(scrollLp);
         return root;
@@ -867,17 +834,12 @@ public final class Home extends Activity {
      * it takes the last tile of the line below, the nearest one in that line.
      */
     private int favoriteBottomReserve() {
-        return apps == null || apps.title.getVisibility() != View.VISIBLE
-                ? dp(16) : favoriteCardSize()[1] + dp(94);
+        return apps == null || favoritesPanel.getVisibility() != View.VISIBLE
+                ? dp(16) : favoriteCardSize()[1] + dp(68);
     }
 
     private int[] favoriteCardSize() {
-        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
-        int spacing = dp("compact".equals(cfg.get(Config.TILE_SPACING)) ? 10
-                : "spacious".equals(cfg.get(Config.TILE_SPACING)) ? 28 : 18);
-        int available = metrics.widthPixels - dp(112) - spacing * 5;
-        int width = Math.max(dp(96), Math.min(dp(180), available / 6));
-        return new int[] {width, Math.round(width * 9f / 16f)};
+        return cardSize();
     }
 
     private void toolbarFocusChanged(boolean focused) {
@@ -914,26 +876,6 @@ public final class Home extends Activity {
                 .translationY(visible ? 0f : -dp(60)).setDuration(160).start();
     }
 
-    private View nearestWidget(View from) {
-        if (!"on".equals(cfg.get(Config.WIDGET_EDITING)) || widgetGrid == null) return null;
-        int[] at = new int[2];
-        from.getLocationOnScreen(at);
-        int x = at[0] + from.getWidth() / 2;
-        View best = null;
-        int bestGap = Integer.MAX_VALUE;
-        for (int i = 0; i < widgetGrid.getChildCount(); i++) {
-            View child = widgetGrid.getChildAt(i);
-            if (child.getVisibility() != View.VISIBLE || !child.isFocusable()) continue;
-            child.getLocationOnScreen(at);
-            int gap = Math.abs(at[0] + child.getWidth() / 2 - x);
-            if (gap < bestGap) {
-                bestGap = gap;
-                best = child;
-            }
-        }
-        return best;
-    }
-
     private View nearestToolbarChip(View from) {
         if (chips.isEmpty()) return null;
         int[] at = new int[2];
@@ -953,24 +895,9 @@ public final class Home extends Activity {
         return best;
     }
 
-    private static int belowInGrid(ViewGroup parent, Tile tile) {
-        int cols = ((Grid) parent).columns();
-        int index = parent.indexOfChild(tile), count = parent.getChildCount();
-        if (index / cols >= (count - 1) / cols) return -1;
-        return Math.min(index + cols, count - 1);
-    }
-
-    /** True when the grid has another line above {@code tile}. */
-    private static boolean aboveInGrid(ViewGroup parent, Tile tile) {
-        int cols = ((Grid) parent).columns();
-        return parent.indexOfChild(tile) - cols >= 0;
-    }
-
     /**
-     * The child of {@code strip} horizontally closest to {@code from}, restricted to its top
-     * visual row so a wrapped grid does not match a tile several rows further down.
+     * The child in the favourites strip nearest {@code from}; used when moving up from favourites.
      */
-    /** The child in the bottom visual row nearest {@code from}; used when moving up from favourites. */
     private static View nearestBottom(ViewGroup strip, View from) {
         int n = strip.getChildCount();
         if (n == 0) return null;
@@ -1060,16 +987,24 @@ public final class Home extends Activity {
         return v;
     }
 
-    /** Text-only navigation chip; tapping it opens the full installed-app catalogue. */
+    private void openAllApps() {
+        startActivity(new Intent(this, AllApps.class));
+        overridePendingTransition(R.anim.slide_up, R.anim.stay);
+    }
+
+    /** Navigation chip that opens the full installed-app catalogue. */
     private TextView allAppsChip() {
         TextView v = Ui.text(this, 14, Ui.TEXT, Ui.MEDIUM);
+        allAppsButton = v;
         v.setText(R.string.all_apps);
         v.setContentDescription(getString(R.string.all_apps));
         v.setGravity(Gravity.CENTER);
         v.setFocusable(true);
         v.setClickable(true);
         v.setPadding(dp(18), dp(9), dp(18), dp(9));
-        v.setOnClickListener(view -> startActivity(new Intent(this, AllApps.class)));
+        v.setMinWidth(dp(44));
+        v.setMinHeight(dp(44));
+        v.setOnClickListener(view -> openAllApps());
         v.setOnFocusChangeListener((view, has) -> {
             chipLook(v, has);
             view.animate().scaleX(has ? 1.06f : 1f).scaleY(has ? 1.06f : 1f).setDuration(110).start();
@@ -1080,7 +1015,7 @@ public final class Home extends Activity {
         lp.leftMargin = dp(10);
         lp.topMargin = dp(6);
         v.setLayoutParams(lp);
-        v.setTag(null);
+        v.setTag(new int[] {R.drawable.chip_apps, R.drawable.chip_apps_mark});
         chips.add(v);
         return v;
     }
@@ -1091,7 +1026,6 @@ public final class Home extends Activity {
 
     /** Text and padding for the chip style: the name always for text, on focus only for icons. */
     private void chipLook(TextView c, boolean focused) {
-        // The All Apps navigation chip remains labelled even when Options › Chip style uses icons.
         if (c.getTag() == null || !iconChips()) {
             c.setText(c.getContentDescription());
             c.setCompoundDrawablePadding(0);
@@ -1110,7 +1044,7 @@ public final class Home extends Activity {
         view.setPadding(dp(16), dp(8), dp(16), dp(8));
         view.setMaxLines(3);
         view.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        view.setBackground(Ui.surface(this, Ui.tileSurface(this, true), dp(12)));
+        view.setBackground(null);
         view.setFocusable(false);
         return view;
     }
@@ -1183,20 +1117,20 @@ public final class Home extends Activity {
                 : "center".equals(cfg.get(Config.TOOLBAR_ALIGN)) ? Gravity.CENTER_HORIZONTAL : Gravity.RIGHT;
         head.setGravity(Gravity.TOP | align);
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        toolbar.setBackground(Ui.isGlass(this)
-                ? Ui.surface(this, Ui.optionSurface(this), dp(14)) : null);
+        toolbar.setBackground(null);
         widgetLayout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         widgetGrid.setLayout(widgetLayout);
         int widgetSurface = Ui.tileSurface(this, true);
-        clockWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        memoryWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        recentWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        networkWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        storageWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        textWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        diagnosticsWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        deviceWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        favoritesPanel.setBackground(Ui.surface(this, Ui.optionSurface(this), dp(14)));
+        boolean widgetBackgrounds = "on".equals(cfg.get(Config.WIDGET_BACKGROUNDS));
+        clockWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        memoryWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        recentWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        networkWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        storageWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        textWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        diagnosticsWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        deviceWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        favoritesPanel.setBackgroundColor(Color.TRANSPARENT);
         FrameLayout.LayoutParams scrollParams = (FrameLayout.LayoutParams) homeScroll.getLayoutParams();
         scrollParams.bottomMargin = favoriteBottomReserve();
         homeScroll.setLayoutParams(scrollParams);
@@ -1215,11 +1149,6 @@ public final class Home extends Activity {
         for (WidgetVisibility.Definition definition : WidgetVisibility.ALL) {
             widgetGrid.setWidgetEnabled(definition.id, WidgetVisibility.isEnabled(cfg, definition.id));
         }
-        widgetGrid.setInteractive("on".equals(cfg.get(Config.WIDGET_EDITING)), view -> {
-            String id = widgetGrid.widgetId(view);
-            if (id != null) startActivity(new Intent(this, WidgetEditor.class)
-                    .putExtra(WidgetEditor.EXTRA_WIDGET_ID, id));
-        });
         meter.setAccent(accent);
         hero.setAccent(accent);
         apps.title.setText(getString("on".equals(cfg.get(Config.ALL_APPS))
@@ -1324,10 +1253,8 @@ public final class Home extends Activity {
         View focused = getCurrentFocus();
         String keep = focused instanceof Tile && ((Tile) focused).kind.equals(row.kind)
                 ? ((Tile) focused).item.id : null;
-        boolean gridMode = !Catalog.APPS.equals(row.kind) && "grid".equals(cfg.get(Config.LAYOUT));
-        ViewGroup target = gridMode ? row.grid : row.strip;
+        ViewGroup target = row.strip;
         row.strip.removeAllViews();
-        row.grid.removeAllViews();
 
         boolean enabled = !Catalog.INPUTS.equals(row.kind) || "on".equals(cfg.get(Config.INPUTS));
         List<Item> shown = enabled ? Catalog.visible(cfg, row.kind,
@@ -1340,20 +1267,19 @@ public final class Home extends Activity {
         boolean loopingFavourites = row == apps && shown.size() > 6;
         int copies = loopingFavourites ? 3 : 1;
         row.initialFocusIndex = loopingFavourites ? shown.size() : 0;
+        String spacing = cfg.get(Config.TILE_SPACING);
+        int tileGap = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
         if (row == apps) {
             int alignment = "left".equals(cfg.get(Config.FAVOURITES_ALIGN)) ? Gravity.LEFT
                     : "right".equals(cfg.get(Config.FAVOURITES_ALIGN)) ? Gravity.RIGHT
                     : Gravity.CENTER_HORIZONTAL;
             row.strip.setGravity(Gravity.CENTER_VERTICAL | (loopingFavourites ? Gravity.LEFT : alignment));
+            int availableWidth = getResources().getDisplayMetrics().widthPixels - dp(48);
+            int contentWidth = shown.size() * w + Math.max(0, shown.size() - 1) * tileGap;
             row.strip.setLayoutParams(new FrameLayout.LayoutParams(
-                    loopingFavourites ? WRAP : MATCH, WRAP));
-            String favouritesTitle = getString("on".equals(cfg.get(Config.ALL_APPS))
-                    ? R.string.row_pinned_apps : R.string.row_apps).toUpperCase(Locale.ROOT);
-            row.title.setText(loopingFavourites ? favouritesTitle + "  ·  MORE  ‹  ›" : favouritesTitle);
+                    loopingFavourites || contentWidth > availableWidth ? WRAP : MATCH, WRAP));
         }
         int index = 0, restore = -1;
-        String spacing = cfg.get(Config.TILE_SPACING);
-        int tileGap = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
         for (int copy = 0; copy < copies; copy++) {
             for (int itemIndex = 0; itemIndex < shown.size(); itemIndex++) {
                 final int copyIndex = copy;
@@ -1381,20 +1307,16 @@ public final class Home extends Activity {
                     if (!locked()) menu((Tile) v);
                     return true;
                 });
-                if (gridMode) {
-                    target.addView(t, new ViewGroup.LayoutParams(WRAP, WRAP));
-                } else {
-                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
-                    lp.rightMargin = row == apps && copy == copies - 1
-                            && itemIndex == shown.size() - 1 ? 0 : tileGap;
-                    target.addView(t, lp);
-                }
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
+                lp.rightMargin = row == apps && copy == copies - 1
+                        && itemIndex == shown.size() - 1 ? 0 : tileGap;
+                target.addView(t, lp);
                 if (it.id.equals(keep) && (!loopingFavourites || copy == 1)) restore = index;
                 index++;
                 String tileStyle = cfg.get(Config.TILE_STYLE);
-                if (Catalog.isApp(row.kind) && (!it.artRequested
-                        || ("afterglow".equals(tileStyle) || "brand-focus".equals(tileStyle))
-                        && it.icon == null)) loadArt(it);
+                boolean needsStyleIcon = ("afterglow".equals(tileStyle) || "brand-focus".equals(tileStyle))
+                        && cfg.get(AppStyle.key(it, "banner"), null) == null && it.icon == null;
+                if (Catalog.isApp(row.kind) && (!it.artRequested || needsStyleIcon)) loadArt(it);
             }
         }
         if (loopingFavourites) {
@@ -1406,6 +1328,7 @@ public final class Home extends Activity {
             });
         }
         row.setVisible(!shown.isEmpty());
+        if (row == apps) row.title.setVisibility(View.GONE);
         adjustAppRowPosition();
         if (shown.isEmpty()) {
             // Nothing is left to come back to: forget the tile that used to be here.
@@ -1852,7 +1775,10 @@ public final class Home extends Activity {
 
     /** Per-app appearance overrides; unset properties continue to inherit global settings. */
     private void customizeTile(Tile tile) {
-        AppStyleEditor.show(this, cfg, tile.item, this::apply);
+        AppStyleEditor.show(this, cfg, tile.item, () -> {
+            tile.item.artRequested = false;
+            apply();
+        });
     }
 
     private void appInfo(Tile t) {

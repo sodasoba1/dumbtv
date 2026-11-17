@@ -58,8 +58,10 @@ final class Tile extends View {
         boolean app = Catalog.isApp(kind);
         String tileStyle = Config.get(c).get(Config.TILE_STYLE);
         brandFocus = app && "brand-focus".equals(tileStyle)
-                && Config.get(c).get(AppStyle.key(item, "background"), null) == null;
+                && Config.get(c).get(AppStyle.key(item, "background"), null) == null
+                && Config.get(c).get(AppStyle.key(item, "banner"), null) == null;
         afterglow = app && "afterglow".equals(tileStyle)
+                && Config.get(c).get(AppStyle.key(item, "banner"), null) == null
                 ? new AfterglowTile(c, item.id, title, accent) : null;
         labelH = app && afterglow == null ? Ui.dp(c, 26) : 0;
         int mappedColor = brandFocus ? BrandFocusColors.forPackage(item.id, title.toString()) : 0;

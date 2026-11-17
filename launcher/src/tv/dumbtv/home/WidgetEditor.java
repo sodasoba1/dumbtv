@@ -45,7 +45,7 @@ public final class WidgetEditor extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(48), dp(24), dp(48), dp(24));
+        root.setPadding(dp(24), dp(24), dp(24), dp(24));
         root.setBackground(editorShape(Ui.optionSurface(this), dp(18), Ui.isGlass(this) ? 0x44FFFFFF : 0));
 
         TextView title = Ui.text(this, 28, Ui.TEXT, Ui.LIGHT);
@@ -260,12 +260,19 @@ public final class WidgetEditor extends Activity {
             message("Select a widget first");
             return;
         }
-        String[] sizes = {"2 × 2", "3 × 2", "4 × 2", "2 × 3", "3 × 3", "4 × 3"};
-        int[][] dimensions = {{2, 2}, {3, 2}, {4, 2}, {2, 3}, {3, 3}, {4, 3}};
+        List<String> sizeLabels = new ArrayList<>();
+        List<int[]> dimensions = new ArrayList<>();
+        for (int height = 2; height <= WidgetLayout.ROWS; height++) {
+            for (int width = 2; width <= WidgetLayout.COLUMNS; width++) {
+                sizeLabels.add(width + " × " + height);
+                dimensions.add(new int[] {width, height});
+            }
+        }
+        String[] sizes = sizeLabels.toArray(new String[0]);
         AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle("Widget size")
                 .setItems(sizes, (d, which) -> {
-                    if (layout.resize(selectedId, dimensions[which][0], dimensions[which][1])) {
+                    if (layout.resize(selectedId, dimensions.get(which)[0], dimensions.get(which)[1])) {
                         message("Widget resized");
                     } else {
                         message("That size overlaps another widget or exceeds the grid");

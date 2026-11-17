@@ -114,7 +114,7 @@ final class WidgetLayout {
 
     /** Native cards need two columns and two rows for readable text and the memory meter. */
     private static boolean validSize(int width, int height) {
-        return width >= 2 && height >= 2;
+        return width >= 2 && width <= COLUMNS && height >= 2 && height <= ROWS;
     }
 
     /** Stable compact format: id,type,x,y,width,height;... */

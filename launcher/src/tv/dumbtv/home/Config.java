@@ -79,7 +79,7 @@ final class Config {
             new String[] {"Left", "Centre", "Right"});
     static final Choice TOOLBAR_AUTO_HIDE = new Choice("toolbar_auto_hide", "Auto-hide top bar", "off",
             new String[] {"off", "on"}, new String[] {"Off", "On"});
-    static final Choice WIDGET_EDITING = new Choice("widget_editing", "Widget editing mode", "off",
+    static final Choice WIDGET_BACKGROUNDS = new Choice("widget_backgrounds", "Widget backgrounds", "off",
             new String[] {"off", "on"}, new String[] {"Off", "On"});
     static final Choice FAVOURITES_ALIGN = new Choice("favourites_align", "Favourites alignment", "center",
             new String[] {"left", "center", "right"},
@@ -87,9 +87,6 @@ final class Config {
     static final Choice TILES = new Choice("tiles", "Tile size", "medium",
             new String[] {"extra-small", "small", "medium", "large", "extra-large"},
             new String[] {"Extra small", "Small", "Medium", "Large", "Extra large"});
-    static final Choice LAYOUT = new Choice("layout", "Layout", "rows",
-            new String[] {"rows", "grid"},
-            new String[] {"Rows", "Grid"});
     static final Choice ORDER = new Choice("order", "App order", "custom",
             new String[] {"custom", "recent"},
             new String[] {"Your order", "Recently used"});
@@ -190,7 +187,7 @@ final class Config {
     /** The banner of hand-picked titles from {@link Library}; hidden anyway while it has none. */
     static final Choice LIBRARY = new Choice("library", "Library banner", "on",
             new String[] {"on", "off"}, new String[] {"Shown", "Hidden"});
-    static final Choice[] CHOICES = {ACCENT, THEME, TOOLBAR_ALIGN, TOOLBAR_AUTO_HIDE, WIDGET_EDITING, FAVOURITES_ALIGN, TILES, LAYOUT, ORDER, ALL_APPS, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, GRADIENT, GRADIENT_COLOR, GRADIENT_STRENGTH, ROTATE, LOCK, TILE_STYLE, FOCUS_SCALE, FOCUS_INDICATOR, FOCUS_ANIMATION, TILE_RADIUS, TILE_SPACING, TILE_BORDER, TILE_BORDER_WIDTH, TILE_SHADOW, AFTERGLOW_STRENGTH, AFTERGLOW_ICON, CHIPS, LIBRARY};
+    static final Choice[] CHOICES = {ACCENT, THEME, TOOLBAR_ALIGN, TOOLBAR_AUTO_HIDE, WIDGET_BACKGROUNDS, FAVOURITES_ALIGN, TILES, ORDER, ALL_APPS, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, GRADIENT, GRADIENT_COLOR, GRADIENT_STRENGTH, ROTATE, LOCK, TILE_STYLE, FOCUS_SCALE, FOCUS_INDICATOR, FOCUS_ANIMATION, TILE_RADIUS, TILE_SPACING, TILE_BORDER, TILE_BORDER_WIDTH, TILE_SHADOW, AFTERGLOW_STRENGTH, AFTERGLOW_ICON, CHIPS, LIBRARY};
 
     /** Folder of wallpapers, next to home.conf, that Background › Image file rotates through. */
     static final String WALLPAPERS = "wallpapers";

@@ -25,6 +25,7 @@ final class AppStyleEditor {
                 .setTitle(activity.getString(R.string.tile_customize) + " · " + Catalog.label(config, item))
                 .setItems(AppStyle.properties(), (d, which) -> {
                     if (which == 6) chooseBackground(activity, config, item, changed);
+                    else if (which == 7) chooseBanner(activity, config, item, changed);
                     else editProperty(activity, config, item, which, changed);
                 })
                 .setNeutralButton(R.string.original, (d, which) -> {
@@ -54,6 +55,38 @@ final class AppStyleEditor {
                         changed.run();
                         showMenu(activity, config, item, changed);
                     }
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
+    }
+
+    private static void chooseBanner(Activity activity, Config config, Item item, Runnable changed) {
+        String[] assets;
+        try {
+            String[] files = activity.getAssets().list("custom-banners");
+            java.util.List<String> choices = new java.util.ArrayList<>();
+            choices.add("Use app's original banner");
+            if (files != null) {
+                for (String file : files) {
+                    if (file != null && file.toLowerCase(java.util.Locale.ROOT).endsWith(".png")) {
+                        choices.add(file);
+                    }
+                }
+            }
+            assets = choices.toArray(new String[0]);
+        } catch (java.io.IOException e) {
+            assets = new String[] {"Use app's original banner"};
+        }
+        final String[] bannerAssets = assets;
+        AlertDialog dialog = new AlertDialog.Builder(activity, Ui.DIALOG)
+                .setTitle("Banner image")
+                .setItems(bannerAssets, (d, which) -> {
+                    config.set("appstyle." + item.id + ".banner",
+                            which == 0 ? null : bannerAssets[which]);
+                    changed.run();
+                    showMenu(activity, config, item, changed);
                 })
                 .setNegativeButton(R.string.cancel, null)
                 .create();
