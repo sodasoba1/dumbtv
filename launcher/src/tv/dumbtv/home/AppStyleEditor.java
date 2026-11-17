@@ -79,10 +79,12 @@ final class AppStyleEditor {
         } catch (java.io.IOException e) {
             assets = new String[] {"Use app's original banner"};
         }
+        final String[] bannerAssets = assets;
         AlertDialog dialog = new AlertDialog.Builder(activity, Ui.DIALOG)
                 .setTitle("Banner image")
-                .setItems(assets, (d, which) -> {
-                    config.set("appstyle." + item.id + ".banner", which == 0 ? null : assets[which]);
+                .setItems(bannerAssets, (d, which) -> {
+                    config.set("appstyle." + item.id + ".banner",
+                            which == 0 ? null : bannerAssets[which]);
                     changed.run();
                     showMenu(activity, config, item, changed);
                 })
