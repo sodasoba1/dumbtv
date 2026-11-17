@@ -83,10 +83,21 @@ final class AppStyleEditor {
         AlertDialog dialog = new AlertDialog.Builder(activity, Ui.DIALOG)
                 .setTitle("Banner image")
                 .setItems(bannerAssets, (d, which) -> {
-                    config.set("appstyle." + item.id + ".banner",
-                            which == 0 ? null : bannerAssets[which]);
-                    changed.run();
-                    showMenu(activity, config, item, changed);
+                    String selected = which == 0 ? null : bannerAssets[which];
+                    AlertDialog confirm = new AlertDialog.Builder(activity, Ui.DIALOG)
+                            .setTitle("Save banner change?")
+                            .setMessage(selected == null
+                                    ? "Restore this app's original banner artwork?"
+                                    : "Apply " + selected + " to " + Catalog.label(config, item) + "?")
+                            .setPositiveButton(R.string.save, (confirmDialog, result) -> {
+                                config.set("appstyle." + item.id + ".banner", selected);
+                                changed.run();
+                                showMenu(activity, config, item, changed);
+                            })
+                            .setNegativeButton(R.string.cancel, null)
+                            .create();
+                    confirm.show();
+                    Ui.styleDialog(confirm);
                 })
                 .setNegativeButton(R.string.cancel, null)
                 .create();
@@ -126,7 +137,6 @@ final class AppStyleEditor {
         content.addView(choices);
 
         Runnable updatePreview = () -> {
-            String corners = value(config, item, property, pending[0], 0);
             String border = value(config, item, property, pending[0], 1);
             String shadow = value(config, item, property, pending[0], 2);
             String focusScale = value(config, item, property, pending[0], 0);
