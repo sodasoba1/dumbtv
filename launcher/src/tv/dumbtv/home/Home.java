@@ -702,7 +702,7 @@ public final class Home extends Activity {
         head.setOrientation(LinearLayout.VERTICAL);
         head.setClipChildren(false);
         head.setClipToPadding(false);
-        head.setGravity(Gravity.TOP);
+        head.setGravity(Gravity.TOP | Gravity.LEFT);
         head.setPadding(dp(56), 0, dp(56), dp(12));
 
         toolbar = new LinearLayout(this);
@@ -714,7 +714,7 @@ public final class Home extends Activity {
                 v -> startActivity(new Intent(this, Options.class))));
         toolbar.addView(chip(getString(R.string.settings), R.drawable.chip_settings, R.drawable.chip_settings_mark,
                 v -> openSettings()));
-        head.addView(toolbar, new LinearLayout.LayoutParams(MATCH, WRAP));
+        head.addView(toolbar, new LinearLayout.LayoutParams(WRAP, WRAP));
 
         head.setPadding(dp(48), 0, dp(48), 0);
         root.addView(head, new FrameLayout.LayoutParams(MATCH, dp(56), Gravity.TOP));
@@ -1053,7 +1053,8 @@ public final class Home extends Activity {
         boolean icons = iconChips();
         int align = "left".equals(cfg.get(Config.TOOLBAR_ALIGN)) ? Gravity.LEFT
                 : "center".equals(cfg.get(Config.TOOLBAR_ALIGN)) ? Gravity.CENTER_HORIZONTAL : Gravity.RIGHT;
-        toolbar.setGravity(Gravity.CENTER_VERTICAL | align);
+        head.setGravity(Gravity.TOP | align);
+        toolbar.setGravity(Gravity.CENTER_VERTICAL);
         toolbar.setBackground(Ui.isGlass(this)
                 ? Ui.surface(this, Ui.optionSurface(this), dp(14)) : null);
         widgetLayout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
