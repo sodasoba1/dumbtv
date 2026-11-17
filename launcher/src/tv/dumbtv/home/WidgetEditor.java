@@ -26,6 +26,7 @@ public final class WidgetEditor extends Activity {
     private Config cfg;
     private WidgetLayout layout;
     private GridLayout grid;
+    private TextView selectionInfo;
     private String selectedId;
     private String pendingMove;
     private String pendingAddType;
@@ -54,6 +55,11 @@ public final class WidgetEditor extends Activity {
         instructions.setText("Use the directional pad to select cells. Select a widget, then Move, Resize or Remove.");
         instructions.setPadding(dp(8), 0, 0, dp(12));
         root.addView(instructions);
+
+        selectionInfo = Ui.text(this, 13, Ui.MUTED, Ui.MEDIUM);
+        selectionInfo.setText("No widget selected");
+        selectionInfo.setPadding(dp(8), 0, 0, dp(8));
+        root.addView(selectionInfo);
 
         grid = new GridLayout(this);
         grid.setColumnCount(WidgetLayout.COLUMNS);
@@ -96,6 +102,7 @@ public final class WidgetEditor extends Activity {
 
     private void renderGrid(int focusIndex) {
         grid.removeAllViews();
+        updateSelectionInfo();
         for (int row = 0; row < WidgetLayout.ROWS; row++) {
             for (int column = 0; column < WidgetLayout.COLUMNS; column++) {
                 final int x = column, y = row, index = row * WidgetLayout.COLUMNS + column;
@@ -112,7 +119,7 @@ public final class WidgetEditor extends Activity {
                     boolean selected = occupied.id.equals(selectedId);
                     cell.setText(x == occupied.x && y == occupied.y
                             ? occupied.type.toUpperCase(java.util.Locale.ROOT) + "\n" + occupied.id : "·");
-                    cell.setBackground(focusableBackground(selected ? (cfg.accent() & 0x00FFFFFF) | 0x55303030
+                    cell.setBackground(focusableBackground(selected ? (cfg.accent() & 0x00FFFFFF) | 0x55000000
                             : Ui.optionSurface(this), dp(7)));
                 }
                 cell.setOnClickListener(v -> chooseCell(x, y));
@@ -130,7 +137,8 @@ public final class WidgetEditor extends Activity {
     private StateListDrawable focusableBackground(int normal, int radius) {
         StateListDrawable background = new StateListDrawable();
         background.addState(new int[] {android.R.attr.state_focused},
-                editorShape((cfg.accent() & 0x00FFFFFF) | 0x55303030, radius, cfg.accent()));
+                editorShape((cfg.accent() & 0x00FFFFFF) | 0x55000000, radius,
+                        Ui.isGlass(this) ? cfg.accent() : 0));
         background.addState(new int[0],
                 editorShape(normal, radius, Ui.isGlass(this) ? 0x44FFFFFF : 0x00000000));
         return background;
@@ -140,6 +148,20 @@ public final class WidgetEditor extends Activity {
         GradientDrawable shape = Ui.round(color, radius);
         if (stroke != 0) shape.setStroke(Math.max(1, dp(1)), stroke);
         return shape;
+    }
+
+    private void updateSelectionInfo() {
+        WidgetLayout.Widget widget = selectedId == null ? null : layout.find(selectedId);
+        if (widget == null) {
+            selectionInfo.setText(pendingMove != null
+                    ? "Choose an empty position for " + pendingMove
+                    : pendingAddType != null ? "Choose an empty position for " + pendingAddType
+                    : "No widget selected");
+            return;
+        }
+        selectionInfo.setText(widget.type.toUpperCase(java.util.Locale.ROOT)
+                + "  ·  " + widget.width + " × " + widget.height
+                + "  ·  Column " + (widget.x + 1) + ", row " + (widget.y + 1));
     }
 
     private WidgetLayout.Widget occupant(int x, int y) {
