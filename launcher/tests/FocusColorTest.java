@@ -32,7 +32,7 @@ public final class FocusColorTest {
         check("bottom-right".equals(Config.GRADIENT.values[8]), "bottom-right direction is exposed");
         check(Config.ACCENT.values.length == 25, "all legacy accent values remain readable");
         check(Config.ACCENT.optionValues.length == 1, "accent uses the colour sliders without presets");
-        check(Config.BACKGROUND.optionValues.length == 1, "background colour uses the sliders without presets");
+        check(Config.BACKGROUND.optionValues.length == 5, "background keeps its modes and custom colour but no solid presets");
         check(Config.GRADIENT_COLOR.values.length == 26, "all legacy gradient values plus custom remain readable");
         check(Config.GRADIENT_COLOR.optionValues.length == 1, "gradient colour uses the sliders without presets");
         check(Config.paletteColor("blue") == 0xFF3D8BFF, "gradient blue matches accent palette");
