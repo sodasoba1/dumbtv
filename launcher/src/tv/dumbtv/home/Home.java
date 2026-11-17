@@ -74,7 +74,8 @@ public final class Home extends Activity {
     private String lastFocusedKind;
     private final Map<String, String> lastIds = new HashMap<>();
     private FrameLayout root;
-    private LinearLayout column, favoritesPanel;
+    private LinearLayout column, favoritesPanel, clockWidget;
+    private ScrollView homeScroll;
     private ImageView wall;
     private View shade;
     private View tint;
@@ -532,7 +533,8 @@ public final class Home extends Activity {
                             above = nearest(allApps.tiles(), focused);
                         }
                         if (above != null) return above;
-                        return nearestToolbarChip(focused);
+                        View chip = nearestToolbarChip(focused);
+                        return chip != null ? chip : focused;
                     }
                 }
                 if (chips.contains(focused) && direction == View.FOCUS_DOWN) {
@@ -597,6 +599,7 @@ public final class Home extends Activity {
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
         scroll.setClipChildren(false);
+        homeScroll = scroll;
         root.addView(scroll, new FrameLayout.LayoutParams(MATCH, MATCH));
 
         LinearLayout column = new LinearLayout(this) {
@@ -688,7 +691,7 @@ public final class Home extends Activity {
         column.setOrientation(LinearLayout.VERTICAL);
         column.setClipChildren(false);
         column.setClipToPadding(false);
-        column.setPadding(0, dp(40), 0, dp(32));
+        column.setPadding(0, dp(20), 0, dp(32));
         scroll.addView(column, new FrameLayout.LayoutParams(MATCH, WRAP));
 
         head = new LinearLayout(this);
@@ -723,7 +726,7 @@ public final class Home extends Activity {
         widgetGrid.setLayout(widgetLayout);
         widgetGrid.setWidgetEnabled("memory", "on".equals(cfg.get(Config.MEMORY)));
 
-        LinearLayout clockWidget = new LinearLayout(this);
+        clockWidget = new LinearLayout(this);
         clockWidget.setOrientation(LinearLayout.VERTICAL);
         clockWidget.setGravity(Gravity.CENTER_VERTICAL);
         clockWidget.setPadding(dp(18), dp(8), dp(18), dp(8));
@@ -1013,6 +1016,17 @@ public final class Home extends Activity {
         toolbar.setGravity(Gravity.CENTER_VERTICAL | align);
         widgetLayout = WidgetLayout.load(cfg);
         widgetGrid.setLayout(widgetLayout);
+        int widgetSurface = Ui.tileSurface(this, true);
+        clockWidget.setBackground(Ui.round(widgetSurface, dp(12)));
+        memoryWidget.setBackground(Ui.round(widgetSurface, dp(12)));
+        recentWidget.setBackground(Ui.round(widgetSurface, dp(12)));
+        networkWidget.setBackground(Ui.round(widgetSurface, dp(12)));
+        storageWidget.setBackground(Ui.round(widgetSurface, dp(12)));
+        textWidget.setBackground(Ui.round(widgetSurface, dp(12)));
+        favoritesPanel.setBackground(Ui.round(Ui.optionSurface(this), dp(14)));
+        FrameLayout.LayoutParams scrollParams = (FrameLayout.LayoutParams) homeScroll.getLayoutParams();
+        scrollParams.bottomMargin = favoriteBottomReserve();
+        homeScroll.setLayoutParams(scrollParams);
         textWidget.setText(cfg.get("widgets.text", "Custom text"));
         updateRecentWidget();
         updateSystemWidgets();
@@ -1083,7 +1097,7 @@ public final class Home extends Activity {
                 hero.setEntries(list);
                 if (was && !heroShown()) focusFirst();
                 // A shorter top keeps the clock, banner and apps row on one screen.
-                column.setPadding(0, heroShown() ? dp(26) : dp(40), 0, column.getPaddingBottom());
+                column.setPadding(0, heroShown() ? dp(16) : dp(24), 0, column.getPaddingBottom());
                 adjustAppRowPosition();
             });
         });
