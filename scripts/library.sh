@@ -52,8 +52,10 @@ while IFS= read -r line || [[ -n $line ]]; do
 done < "$WORK/library.conf"
 
 sdk=$(adb_ shell getprop ro.build.version.sdk | tr -d '\r')
-if (( sdk >= 30 )); then DEST=/sdcard/Android/media/tv.dumbtv.home/library
-else DEST=/sdcard/Android/data/tv.dumbtv.home/files/library; fi
+[[ $sdk == 25 ]] || { echo "error: Library deployment supports only the AFTMM launcher target (API 25); this device reports API ${sdk:-unknown}" >&2; exit 1; }
+
+# The launcher is API 25 only; getExternalFilesDir(null) resolves here on AFTMM.
+DEST=/sdcard/Android/data/tv.dumbtv.home/files/library
 
 adb_ shell "rm -rf '$DEST' && mkdir -p '$DEST'"
 for f in "$WORK"/*; do

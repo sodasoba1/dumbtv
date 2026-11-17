@@ -2,8 +2,8 @@
 # Puts wallpapers on dumbtv home from this computer, so nobody has to find the folder by hand.
 # Each image is cropped to the TV's screen and scaled to its size when ImageMagick (magick) is
 # installed, or pushed as it is otherwise (the launcher then crops it to the screen itself).
-# The images go to the launcher's media folder, the one adb can write on every Fire OS, and a
-# settings file there turns the image background on.
+# The API 25 launcher reads from its app-specific external-files folder; a settings file
+# there turns the image background on.
 # Usage: ./scripts/wallpaper.sh [options] image...
 #   --rotate off|visit|hourly|daily|daytime   how the launcher moves through several images
 #   --dim 0|20|40|60|80                        darken the images so tiles stay readable
@@ -15,7 +15,7 @@ set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 PKG=tv.dumbtv.home
-DIR=/sdcard/Android/media/$PKG
+DIR=/sdcard/Android/data/$PKG/files
 ROTATE="" DIM="" CROP=center SHUFFLE=0 REPLACE=0
 args=() images=()
 while [[ $# -gt 0 ]]; do
@@ -50,6 +50,7 @@ for f in "${images[@]}"; do
 done
 
 need_device
+[[ $SDK == 25 ]] || die "wallpaper deployment supports only the AFTMM launcher target (API 25); this device reports API $SDK"
 present $PKG || die "dumbtv home is not installed: ./scripts/launcher.sh first"
 
 # The physical screen, e.g. "Physical size: 1920x1080"; an override (Override size) wins.
@@ -111,7 +112,7 @@ for out in "$WORK"/*; do
 done
 note "$n pushed"
 
-# A settings file in the media folder is merged in once, the next time the home screen comes
+# A settings file in the app-specific external-files folder is merged in once, the next time the home screen comes
 # back; a later change in Options is not overwritten by the same file. The launcher skips a
 # file identical to the last one it merged, so each run's file carries its own time.
 {

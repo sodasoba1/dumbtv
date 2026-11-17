@@ -7,6 +7,7 @@ written to `/system`.
 There are five layers. Each one exists because the layer before it cannot reach
 everything.
 
+**Scope and setup:** this guide explains the cleanup mechanisms. The complete support boundaries, first-run sequence, restore limitations, launcher/Keeper architecture, widget model and release process are in the [fork architecture and operating guide](FORK-ARCHITECTURE.md). The cleanup scripts support Fire OS 6/7/8; the launcher APK is a separate AFTMM / Fire OS 6 / API 25 target.
 ## 1. Packages: disabled, never uninstalled
 
 `debloat.sh` runs `pm disable-user --user 0 <package>` for every entry in
@@ -93,10 +94,12 @@ one recovery service, Keeper:
 - A boot receiver starts Keeper after the user is unlocked. Keeper runs as a
   foreground service.
 - UsageStats foreground events are polled every 250 ms. The installer grants
-  GET_USAGE_STATS through AppOps.
-- If ADB grants READ_LOGS, Keeper also reads ActivityManager logcat for the exact
-  Amazon Home activity becoming displayed or resumed. UsageStats and screen
-  broadcasts remain active if READ_LOGS is unavailable.
+  GET_USAGE_STATS and Fire OS AUTO_START through AppOps, verifies the standby
+  setting, and adds the app to the Doze whitelist.
+- The installer grants READ_LOGS through ADB and verifies it in the installed
+  package. Installation fails if the grant or verification fails. Keeper reads
+  ActivityManager logcat for the exact Amazon Home activity becoming displayed or
+  resumed; UsageStats and screen broadcasts are additional independent signals.
 - Keeper only intervenes after a positive Amazon Home foreground event and only
   while the display is interactive. It moves the existing DumbTV task to the
   foreground and verifies the result; a bounded direct activity-launch fallback

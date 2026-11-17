@@ -46,6 +46,14 @@
     <string name="fire_device">Device &amp; Software</string>
 
     <!-- Options -->
+    <string name="options_home_screen">Home screen</string>
+    <string name="options_app_tiles">App tiles &amp; icons</string>
+    <string name="options_theme_background">Theme &amp; background</string>
+    <string name="options_topbar_favourites">Top bar &amp; favourites</string>
+    <string name="options_focus_navigation">Focus &amp; navigation</string>
+    <string name="options_widgets">Widgets</string>
+    <string name="options_system_security">System &amp; security</string>
+
     <string name="options_appearance">Appearance</string>
     <string name="options_applications">Applications</string>
     <string name="options_inputs">Inputs</string>
@@ -219,4 +227,5 @@
     <string name="color_saturation">Saturation</string>
     <string name="color_brightness">Brightness</string>
     <string name="color_use">Use colour</string>
+    <string name="tile_customize">Customise tile</string>
 </resources>

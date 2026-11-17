@@ -31,7 +31,7 @@ class PiHoleIntegrationTest(unittest.TestCase):
 
     def test_launcher_sources_do_not_call_filter_hooks(self):
         source = ROOT / "launcher" / "src" / "tv" / "dumbtv" / "home"
-        for name in ("Home.java", "Guard.java", "BootReceiver.java"):
+        for name in ("Home.java", "Keeper.java", "BootReceiver.java"):
             with self.subTest(source=name):
                 text = (source / name).read_text()
                 self.assertNotIn("Filter.", text)

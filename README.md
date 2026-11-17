@@ -1,6 +1,6 @@
 # dumbtv — Fire TV Stick 4K (1st generation)
 
-A focused, reversible Fire TV cleanup and replacement home-screen project, maintained as a fork of [the original DumbTV project](https://github.com/humblemuzzu/dumbtv).
+An independently maintained fork of [the original DumbTV project](https://github.com/humblemuzzu/dumbtv), focused on one device: the Amazon Fire TV Stick 4K (1st generation, AFTMM). This fork is developed and released separately from upstream; its launcher is not a general-purpose Android TV build.
 
 **This fork's launcher is built specifically for one device family:**
 
@@ -10,7 +10,7 @@ A focused, reversible Fire TV cleanup and replacement home-screen project, maint
 - **Android base:** Android 7.1.2
 - **SDK/API:** 25
 
-The launcher APK and its installer deliberately reject other Android SDK versions. This is not a general-purpose launcher build for Fire OS 7, 8 or newer Fire TV hardware.
+The launcher APK and its install/build path deliberately reject other Android SDK versions. The `--undo` path remains available on other SDK versions so an existing installation can hand HOME back to Amazon. This is not a general-purpose launcher build for Fire OS 7, 8 or newer Fire TV hardware.
 
 The repository retains the wider DumbTV debloat scripts and device catalogue. Their support matrix is separate from the launcher target; do not assume that a device supported by the scripts can also run this fork's launcher APK.
 
@@ -49,9 +49,9 @@ Instead, **Keeper** detects when Amazon's Home activity becomes foregrounded and
 The Fire OS 6 implementation has been hardened specifically for the AFTMM:
 
 - Starts after boot and after the launcher package is updated.
-- Runs as a foreground service and is exempted from Doze by the installer.
-- Uses UsageStats foreground events as its primary detection path. The installer grants the required UsageStats AppOp.
-- Uses ActivityManager logcat as an additional, more immediate signal when ADB grants `READ_LOGS`.
+- Runs as a foreground service, is exempted from Doze, and receives the Fire OS `AUTO_START` AppOp so it can recover after standby.
+- Uses UsageStats foreground events as its primary detection path. The installer grants and verifies both `GET_USAGE_STATS` and `AUTO_START`.
+- Uses ActivityManager logcat as an additional, more immediate signal. The installer grants `READ_LOGS` through ADB and fails if the grant cannot be verified; this is a required part of the AFTMM Keeper setup.
 - Verifies the exact Amazon Home activity rather than reacting to every Amazon activity or every launch request.
 - Keeps screen-on/off handling and UsageStats polling as independent recovery paths.
 - Debounces duplicate foreground events, handles stale UsageStats event windows after deep standby, and restarts a failed logcat reader with backoff.
@@ -59,7 +59,7 @@ The Fire OS 6 implementation has been hardened specifically for the AFTMM:
 - Pauses takeover while the user is navigating Amazon's own settings screens, then resumes when a third-party app is opened.
 - Does not intentionally wake the display, reboot the stick or interfere while the display is off.
 
-The revised standby-wake takeover has now passed an initial physical test on the target stick. Longer overnight-standby testing is still pending; it should not yet be described as universally proven across every standby duration or firmware state.
+The deep-sleep failure that motivated the wake-recovery changes, the original Keeper detection gap, and the reason READ_LOGS is required are documented in [Keeper standby and HOME recovery](docs/KEEPER-RECOVERY.md). The revised standby-wake takeover has passed an initial physical test on the target stick. Longer overnight-standby testing is still pending; it should not yet be described as universally proven across every standby duration or firmware state.
 
 ### Installer and release delivery
 
@@ -70,8 +70,7 @@ The revised standby-wake takeover has now passed an initial physical test on the
 - Downloads and verifies the matching SHA-256 sidecar before installation.
 - Installs or updates the APK, applies the required Fire OS 6 AppOps/permissions, adds the Doze exemption and starts the launcher.
 - Checks that Keeper is running and that DumbTV is in the foreground.
-- Requests `READ_LOGS` on each install/update and verifies the resulting permission state using `dumpsys package`. Fire OS 6's `pm check-permission` output is not reliable on this device.
-- Retains UsageStats recovery if `READ_LOGS` cannot be granted or verified.
+- Grants `android.permission.READ_LOGS` with ADB's `pm grant` command on each install/update, then verifies the installed package reports `granted=true` in `dumpsys package`. A failed grant or failed verification stops installation; the installer does not silently continue without Keeper's ActivityManager signal. Fire OS 6's `pm check-permission` output is not reliable on this device.
 - Provides an undo path to return HOME to Amazon's launcher.
 
 The release workflow is tag-driven (`launcher-v*`). The validation workflow builds and tests the source; the signed release workflow publishes the APK and checksum sidecar. See [Building and releasing the launcher](docs/BUILDING-LAUNCHER.md).
@@ -99,15 +98,27 @@ These are deliberate scope decisions, not unfinished features to re-enable by de
 
 | Removed / excluded item | Reason |
 |---|---|
-| **Guard accessibility service** | Fire OS 6.7 on the target AFTMM does not provide a dependable path for the third-party accessibility-service takeover used by newer Fire OS variants. Keeper is the single recovery mechanism for this build. Removing Guard also removes its accessibility declaration, configuration/resources, installer setup and related retry logic. |
+| **Accessibility-service takeover** | This fork uses Keeper's Fire OS 6 foreground detection and task recovery. The launcher does not declare or depend on an accessibility service. |
 | **Fire OS 7/8 launcher compatibility paths** | They served different Android versions and used a different takeover model. Keeping them in an API 25-only build added branches and permissions that this device does not need and made the supported target less clear. |
-| **Accessibility-based HOME interception and overlay/alarm takeover logic** | These belonged to the removed Guard path. The AFTMM build uses foreground detection and task recovery instead. |
+| **Accessibility, overlay and alarm-based HOME takeover** | These mechanisms are outside the AFTMM/API 25 design. Keeper uses required ActivityManager logcat access alongside UsageStats, screen-state broadcasts and task recovery. |
 | **Fire OS 8 media-folder compatibility handling** | The launcher is restricted to API 25, so the newer storage compatibility branch is unnecessary. |
-| **Legacy Guard-only alarm timing/retry helpers** | They existed to support the removed accessibility takeover and are not part of Keeper's Fire OS 6 recovery path. |
-| **On-device personalDNSfilter lifecycle integration in the launcher** | The launcher should not start, restart or supervise a separate VPN/DNS-filter app. This reduces coupling and avoids making launcher reliability depend on another app. The installer retains a compatibility cleanup for legacy personalDNSfilter configuration; it does not install or run that filter. |
+| **Alarm-manager takeover timing and retry helpers** | Keeper does not alter system alarm timing; its foreground polling and wake handling are implemented directly in the API 25 service. |
+| **On-device personalDNSfilter / VPN DNS filtering** | This fork uses Pi-hole as an independent network-level DNS filter, which can cover the Fire Stick without running a local VPN or depending on an Android filter app. The launcher must not start, restart or supervise a separate VPN/DNS-filter app. The installer only disables the legacy personalDNSfilter app and clears its own always-on VPN selection when migrating an existing setup; it does not install or run a replacement VPN. |
 | **Generic multi-version launcher release target** | A single APK intended for multiple Fire OS generations obscures the actual permission and takeover requirements. This fork publishes an API 25 launcher for the AFTMM only. |
 
-The wider repository's optional network filtering guidance is separate. DumbTV itself does not run a DNS filter or VPN on the stick. For network-wide filtering, use the separate [Pi-hole guide](docs/PI-HOLE.md).
+### Pi-hole network filtering
+
+This fork is intended to work with an independently hosted Pi-hole for network-level
+DNS filtering. We removed the original on-device personalDNSfilter/VPN approach:
+it duplicates network DNS filtering, creates a local VPN dependency on the Fire Stick,
+and is unnecessary when the router or selected clients use Pi-hole. DumbTV does not
+install a VPN, intercept DNS or require network permission.
+
+The maintained source domains and generated Pi-hole exports live under
+`data/blocklists/`. The [Pi-hole guide](docs/PI-HOLE.md) documents the version-specific
+list URLs, installation, Gravity updates, and how to create a dedicated Fire TV group,
+assign the Stick as a client, and scope lists to that group. Keep the default Amazon
+supplemental list separate from the opt-in Alexa and Prime Video lists.
 
 ## Install the launcher
 
@@ -118,7 +129,7 @@ adb connect <firestick-ip>:5555
 ./launcher/install.sh
 ```
 
-Accept the ADB authorisation prompt on the television. The installer checks the device SDK and refuses to proceed if it is not API 25.
+Accept the ADB authorisation prompt on the television. The install/build path checks the device SDK and refuses to install if it is not API 25. The `--undo` path is deliberately not API-gated, so it can restore Amazon HOME even if the installed launcher is being removed from a different Fire OS generation.
 
 To undo the launcher takeover:
 
@@ -157,7 +168,7 @@ See [docs/BUILDING-LAUNCHER.md](docs/BUILDING-LAUNCHER.md) for SDK setup, signin
 |---|---|
 | `launcher/` | Launcher source, Keeper, manifest, build and installer |
 | `scripts/` | ADB cleanup, setup, verification and restore scripts |
-| `docs/` | Technical explanations, troubleshooting and Pi-hole guidance |
+| `docs/` | Technical explanations, troubleshooting, Pi-hole guidance and the [fork architecture guide](docs/FORK-ARCHITECTURE.md) |
 | `catalog/` | Device identifiers, Fire OS versions and device-specific notes |
 | `.github/workflows/` | Validation and signed launcher release workflows |
 | `AGENTS.md` | Repository instructions for coding agents |
@@ -166,7 +177,7 @@ See [docs/BUILDING-LAUNCHER.md](docs/BUILDING-LAUNCHER.md) for SDK setup, signin
 
 This repository is a fork of [humblemuzzu/dumbtv](https://github.com/humblemuzzu/dumbtv). The original project's debloat approach, documentation structure, device catalogue and much of the launcher foundation remain upstream-derived.
 
-The AFTMM-specific launcher changes documented above are maintained here for a single known Fire TV Stick and Fire OS version. They should not be assumed to apply to the upstream project or to other Fire TV devices.
+This is an independent fork with its own API 25 launcher, Keeper implementation, installer, release process and validation. Its launcher is maintained specifically for the AFTMM on Fire OS 6.7.1.1 / Android 7.1.2; it is not intended to track upstream launcher compatibility or support other Fire TV models. The inherited cleanup scripts retain their own device checks and must not be confused with the launcher's single-device support target.
 
 When upstream changes are adopted, they must be checked against the API 25 manifest, Keeper lifecycle, installer, release workflow and physical AFTMM behaviour before being merged.
 

@@ -3,6 +3,7 @@ package tv.dumbtv.home;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.drawable.StateListDrawable;
 import android.media.tv.TvInputManager;
 import android.os.Bundle;
@@ -29,6 +30,7 @@ public final class Options extends Activity {
 
     private final List<Runnable> refreshers = new ArrayList<>();
     private Config cfg;
+    private ScrollView optionsScroll;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -36,9 +38,12 @@ public final class Options extends Activity {
         cfg = Config.get(this);
 
         ScrollView scroll = new ScrollView(this);
+        optionsScroll = scroll;
         scroll.setFocusable(false);
         scroll.setVerticalScrollBarEnabled(false);
-        scroll.setBackgroundColor(0xFF0C0C0E);
+        int optionsSurface = "classic".equals(cfg.get(Config.THEME)) ? 0xFF0C0C0E : Ui.optionSurface(this);
+        scroll.setBackground(Ui.isGlass(this)
+                ? Ui.surface(this, optionsSurface, 0) : Ui.round(optionsSurface, 0));
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
         list.setPadding(dp(56), dp(40), dp(56), dp(40));
@@ -49,22 +54,17 @@ public final class Options extends Activity {
         title.setPadding(dp(16), 0, 0, dp(20));
         list.addView(title);
 
-        heading(list, R.string.options_appearance);
-        addChoices(list, Config.ACCENT, Config.BACKGROUND, Config.DIM, Config.GRADIENT,
-                Config.GRADIENT_COLOR, Config.GRADIENT_STRENGTH, Config.ROTATE, Config.TILES, Config.LAYOUT,
-                Config.TILE_STYLE, Config.FOCUS_SCALE, Config.FOCUS_INDICATOR, Config.FOCUS_ANIMATION,
-                Config.TILE_RADIUS, Config.TILE_SPACING, Config.TILE_BORDER,
-                Config.TILE_BORDER_WIDTH, Config.TILE_SHADOW, Config.AFTERGLOW_STRENGTH,
-                Config.AFTERGLOW_ICON, Config.CHIPS, Config.LIBRARY);
-        list.addView(action(getString(R.string.next_wallpaper), () -> {
-            cfg.nextWallpaper();
-            refresh();
-        }));
+        heading(list, R.string.options_home_screen);
+        addChoices(list, Config.LAYOUT, Config.TILES, Config.ORDER, Config.ALL_APPS, Config.LABELS,
+                Config.LIBRARY);
+        list.addView(action(getString(R.string.apps_on_home), () -> pick(Catalog.APPS)));
+        list.addView(action(getString(R.string.reset_layout), this::reset));
 
-        heading(list, R.string.options_applications);
-        addChoices(list, Config.ORDER, Config.ALL_APPS, Config.LABELS);
+        heading(list, R.string.options_app_tiles);
+        addChoices(list, Config.TILE_STYLE, Config.TILE_RADIUS, Config.TILE_SPACING,
+                Config.TILE_BORDER, Config.TILE_BORDER_WIDTH, Config.TILE_SHADOW,
+                Config.AFTERGLOW_STRENGTH, Config.AFTERGLOW_ICON);
         LinearLayout packRow = new LinearLayout(this);
-        packRow.setOrientation(LinearLayout.VERTICAL);
         list.addView(packRow);
         // Finding the packs opens every theme app's resources: keep it off the UI thread.
         new Thread(() -> {
@@ -74,15 +74,35 @@ public final class Options extends Activity {
                 if (!isDestroyed()) packRow.addView(choice(packs));
             });
         }, "icon-packs").start();
-        list.addView(action(getString(R.string.apps_on_home), () -> pick(Catalog.APPS)));
-        list.addView(action(getString(R.string.reset_layout), this::reset));
+
+        heading(list, R.string.options_theme_background);
+        addChoices(list, Config.THEME, Config.ACCENT, Config.BACKGROUND, Config.DIM,
+                Config.GRADIENT, Config.GRADIENT_COLOR, Config.GRADIENT_STRENGTH, Config.ROTATE);
+        list.addView(action(getString(R.string.next_wallpaper), () -> {
+            cfg.nextWallpaper();
+            refresh();
+        }));
+
+        heading(list, R.string.options_topbar_favourites);
+        addChoices(list, Config.TOOLBAR_ALIGN, Config.TOOLBAR_AUTO_HIDE,
+                Config.FAVOURITES_ALIGN, Config.CHIPS);
+
+        heading(list, R.string.options_focus_navigation);
+        addChoices(list, Config.FOCUS_SCALE, Config.FOCUS_INDICATOR, Config.FOCUS_ANIMATION);
+
+        heading(list, R.string.options_widgets);
+        addChoices(list, Config.CLOCK, Config.WIDGET_EDITING);
+        list.addView(action("Show / hide widgets", () ->
+                startActivity(new Intent(this, WidgetSettings.class))));
+        list.addView(action("Edit widget layout", () ->
+                startActivity(new Intent(this, WidgetEditor.class))));
 
         heading(list, R.string.options_inputs);
         addChoices(list, Config.INPUTS, Config.SWITCH);
         list.addView(action(getString(R.string.inputs_on_home), () -> pick(Catalog.INPUTS)));
 
-        heading(list, R.string.options_system);
-        addChoices(list, Config.CLOCK, Config.MEMORY, Config.LOCK);
+        heading(list, R.string.options_system_security);
+        addChoices(list, Config.LOCK);
         list.addView(action(getString(R.string.export_settings), this::export));
         list.addView(action(getString(R.string.open_amazon_home), () -> {
             Keeper.openAmazonHome(this);
@@ -108,6 +128,12 @@ public final class Options extends Activity {
     }
 
     private void refresh() {
+        if (optionsScroll != null) {
+            int surface = "classic".equals(cfg.get(Config.THEME))
+                    ? 0xFF0C0C0E : Ui.optionSurface(this);
+            optionsScroll.setBackground(Ui.isGlass(this)
+                    ? Ui.surface(this, surface, 0) : Ui.round(surface, 0));
+        }
         for (Runnable r : refreshers) r.run();
     }
 
@@ -198,6 +224,7 @@ public final class Options extends Activity {
                 .setNegativeButton(R.string.cancel, null)
                 .create();
         dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private boolean step(Config.Choice c, int by) {
@@ -271,8 +298,8 @@ public final class Options extends Activity {
     private void style(View row) {
         StateListDrawable bg = new StateListDrawable();
         bg.addState(new int[] {android.R.attr.state_focused},
-                Ui.round((cfg.accent() & 0x00FFFFFF) | 0x33000000, dp(10)));
-        bg.addState(new int[0], Ui.round(0xFF15161A, dp(10)));
+                Ui.surface(this, Ui.optionFocus(this), dp(10)));
+        bg.addState(new int[0], Ui.surface(this, Ui.optionSurface(this), dp(10)));
         row.setBackground(bg);
     }
 
@@ -292,12 +319,14 @@ public final class Options extends Activity {
             names[i] = Catalog.label(cfg, items.get(i));
             on[i] = Catalog.shown(cfg, kind, items.get(i));
         }
-        new AlertDialog.Builder(this, Ui.DIALOG)
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle(Catalog.APPS.equals(kind) ? R.string.apps_on_home : R.string.inputs_on_home)
                 .setMultiChoiceItems(names, on, (d, which, checked) ->
                         Catalog.setShown(cfg, kind, items.get(which), checked))
                 .setPositiveButton(R.string.done, null)
-                .show();
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private void export() {
@@ -307,12 +336,14 @@ public final class Options extends Activity {
     }
 
     private void reset() {
-        new AlertDialog.Builder(this, Ui.DIALOG)
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle(R.string.reset_title)
                 .setMessage(R.string.reset_message)
                 .setPositiveButton(R.string.reset, (d, w) -> cfg.removePrefix("name.", "apps.", "inputs.", IconPack.CHOSEN))
                 .setNegativeButton(R.string.cancel, null)
-                .show();
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private int dp(float v) {

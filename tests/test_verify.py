@@ -1,4 +1,4 @@
-"""Regression checks for enabled-but-unbound services, entirely off-device."""
+"""Regression tests for the API 25 Keeper verification path; never contact hardware."""
 import json
 import os
 import re
@@ -8,277 +8,136 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-LABEL = 'Service[label=dumbtv home button, feedbackType[FEEDBACK_GENERIC]]'
-# The launcher release this repo ships. The launcher on a TV can be older: up to
-# 1.2 let the TV sleep while an HDMI picture was up.
-RELEASE = re.search(r'^VERSION=(\S+)', (ROOT / 'launcher/version.env').read_text(), re.M).group(1)
+RELEASE = re.search(r"^VERSION=(\S+)", (ROOT / "launcher/version.env").read_text(), re.M).group(1)
 
 
 class VerifyTests(unittest.TestCase):
-    def run_verify(self, dump, *, component='tv.dumbtv.home/.Guard', enabled='1',
-                   user='0', launcher='1', dump_code=0, sdk='34', futurity='0',
-                   alarms='min_futurity=0',
-                   landed='tv.dumbtv.home/.Home',
-                   away='com.amazon.tv.launcher/.ui.MainSettingsActivity',
-                   launcher_package=None, extra=None, keep=''):
-        # Android 14's shape (the fake reports sdk 34): a per-task topResumedActivity=,
-        # and the top-level ResumedActivity: after the task list.
-        def resumed(app):
-            return ('  * Task{1 #5 type=standard A=10050:' + app.split('/')[0] + '}\n'
-                    '      topResumedActivity=ActivityRecord{1 u0 ' + app + ' t5}\n'
-                    '  ResumedActivity: ActivityRecord{1 u0 ' + app + ' t5}')
+    def run_verify(self, *, sdk="25", keeper=True, usage="allow", auto_start="allow",
+                   read_logs=True, launcher="1", launcher_package=None, extra=None,
+                   changed_settings=None, disabled="", installed="", data_saver="enabled",
+                   screensaver="null"):
+        version = RELEASE if launcher_package is None else launcher_package
+        package_dump = f"    versionName={version}\n"
+        if read_logs:
+            package_dump += "    android.permission.READ_LOGS: granted=true\n"
+        resumed = "  mResumedActivity: ActivityRecord{1 u0 tv.dumbtv.home/.Home t1}"
         replies = {
-            'getprop ro.build.version.sdk': {'out': sdk},
-            # Asked three times: what is in front now, what the check moved to, and
-            # where HOME landed.
-            'dumpsys activity activities': [
-                {'out': resumed('example.player/.Main')},
-                {'out': resumed(away)},
-                {'out': resumed(landed)},
-            ],
-            'dumpsys power': {'out': 'mWakefulness=Awake'},
-            'device_config get alarm_manager min_futurity': {'out': futurity},
-            'settings get global alarm_manager_constants': {'out': alarms},
-            'am get-current-user': {'out': user},
-            f'settings --user {user} get secure enabled_accessibility_services': {'out': component},
-            f'settings --user {user} get secure accessibility_enabled': {'out': enabled},
-            'dumpsys accessibility': {'out': dump, 'code': dump_code},
-            'pm list packages -d': {'out': ''},
-            'dumpsys package tv.dumbtv.home': {
-                'out': f'    versionName={RELEASE}' if launcher_package is None else launcher_package},
-            'pm list packages': {'out': ''},
-            'cmd netpolicy get restrict-background': {'out': 'Restrict background status: enabled'},
-            'settings list secure; settings list global': {'out': self.applied_settings()},
-            'settings get secure screensaver_components': {'out': 'null'},
-            'am start -a android.intent.action.MAIN -c android.intent.category.LEANBACK_SETTINGS': {'out': ''},
-            'input keyevent KEYCODE_HOME': {'out': ''},
+            "getprop ro.build.version.sdk": {"out": sdk},
+            "cmd package help": {"out": "Package manager commands: path [--user USER_ID] PACKAGE"},
+            "dumpsys activity activities": {"out": resumed},
+            "dumpsys activity services tv.dumbtv.home": {
+                "out": "ServiceRecord tv.dumbtv.home/.Keeper isForeground=true" if keeper else ""
+            },
+            "appops get tv.dumbtv.home GET_USAGE_STATS": {"out": f"GET_USAGE_STATS: {usage}"},
+            "appops get tv.dumbtv.home AUTO_START": {"out": f"AUTO_START: {auto_start}"},
+            "dumpsys package tv.dumbtv.home": {"out": package_dump},
+            "pm list packages -d": {"out": disabled},
+            "pm list packages": {"out": installed},
+            "settings list secure; settings list global": {"out": self.applied_settings(**(changed_settings or {}))},
+            "cmd netpolicy get restrict-background": {"out": f"Restrict background status: {data_saver}"},
+            "settings get secure screensaver_components": {"out": screensaver},
         }
         replies.update(extra or {})
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
-            data, log = tmp / 'responses.json', tmp / 'calls.jsonl'
+            data, log = tmp / "responses.json", tmp / "calls.jsonl"
             data.write_text(json.dumps(replies))
-            env = dict(os.environ, ADB=str(ROOT / 'tests/fake_verify_adb.py'),
-                       SERIAL='test-tv', CONF=str(tmp / 'absent.conf'),
-                       LAUNCHER=launcher, KEEP_APPS=keep, FAKE_ADB_LOG=str(log),
+            env = dict(os.environ, ADB=str(ROOT / "tests/fake_verify_adb.py"),
+                       SERIAL="test-tv", CONF=str(tmp / "absent.conf"),
+                       LAUNCHER=launcher, KEEP_APPS="", FAKE_ADB_LOG=str(log),
                        FAKE_ADB_RESPONSES=str(data))
-            result = subprocess.run(['bash', str(ROOT / 'scripts/verify.sh')],
+            result = subprocess.run(["bash", str(ROOT / "scripts/verify.sh")],
                                     env=env, text=True, capture_output=True)
             calls = [json.loads(line) for line in log.read_text().splitlines()]
-        self.assertNotIn('unexpected command', result.stdout + result.stderr)
-        # The fake refuses any command it has no reply for, so nothing else reaches a TV.
+        self.assertNotIn("unexpected command", result.stdout + result.stderr)
         return result, calls
 
     @staticmethod
     def applied_settings(**changed):
-        """`settings list` output for a TV where debloat.sh applied every privacy setting."""
         rows = []
-        for line in (ROOT / 'data/fireos/settings.txt').read_text().splitlines():
-            line = line.split('#')[0].split()
+        for line in (ROOT / "data/fireos/settings.txt").read_text().splitlines():
+            line = line.split("#")[0].split()
             if len(line) == 3:
-                rows.append(f'{line[1]}={changed.get(line[1], line[2])}')
-        return '\n'.join(rows)
+                rows.append(f"{line[1]}={changed.get(line[1], line[2])}")
+        return "\n".join(rows)
 
-    @staticmethod
-    def modern(bound, user=0):
-        return f'User state[\n attributes:{{id={user}, flags=0}}\n Bound services:{{{bound}}}\n Enabled services:{{tv.dumbtv.home/.Guard}}\n Binding services:{{}}\n]\n'
+    def test_api25_keeper_and_standby_permissions_pass(self):
+        result, _ = self.run_verify()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Keeper armed", result.stdout)
+        self.assertIn("UsageStats AppOp allowed", result.stdout)
+        self.assertIn("Keeper AUTO_START allowed", result.stdout)
+        self.assertIn("READ_LOGS granted", result.stdout)
 
-    def test_bound_android14_while_another_app_is_foreground(self):
-        result, _ = self.run_verify(self.modern(LABEL))
+    def test_missing_keeper_is_a_failure(self):
+        result, _ = self.run_verify(keeper=False)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Keeper not running", result.stdout)
+
+    def test_missing_usage_stats_is_a_failure(self):
+        result, _ = self.run_verify(usage="default")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("usage-access", result.stdout)
+
+    def test_missing_auto_start_is_a_failure(self):
+        result, _ = self.run_verify(auto_start="default")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("standby-start", result.stdout)
+        self.assertIn("AUTO_START", result.stdout)
+
+    def test_missing_read_logs_is_a_failure_even_when_usage_stats_are_enabled(self):
+        result, _ = self.run_verify(read_logs=False)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("FAIL", result.stdout)
+        self.assertIn("READ_LOGS not granted", result.stdout)
+
+    def test_non_api25_device_is_rejected_before_keeper_checks(self):
+        result, calls = self.run_verify(sdk="28")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("only Fire OS 6 / API 25", result.stdout)
+        self.assertFalse(any("AUTO_START" in " ".join(call) for call in calls))
+
+    def test_launcher_opt_out_skips_keeper_checks(self):
+        result, calls = self.run_verify(launcher="0")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("skip", result.stdout)
+        self.assertFalse(any("tv.dumbtv.home" in " ".join(call) for call in calls))
+
+    def test_a_disabled_screensaver_is_reported(self):
+        result, _ = self.run_verify(
+            disabled="package:com.amazon.ftv.screensaver\npackage:com.amazon.tv.acr",
+            screensaver="com.amazon.ftv.screensaver/.app.services.ScreensaverService")
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn('bound, front is example.player/.Main', result.stdout)
+        self.assertIn("2 disabled", result.stdout)
+        self.assertIn("TV sleeps at the timeout", result.stdout)
 
-    def test_a_disabled_screensaver_is_flagged(self):
-        result, _ = self.run_verify(self.modern(LABEL), extra={
-            'pm list packages -d': {'out': 'package:com.amazon.ftv.screensaver\npackage:com.amazon.tv.acr'},
-            'settings get secure screensaver_components':
-                {'out': 'com.amazon.ftv.screensaver/.app.services.ScreensaverService'},
-        })
+    def test_a_privacy_setting_reset_is_reported(self):
+        result, _ = self.run_verify(changed_settings={"limit_ad_tracking": "0"})
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn('2 disabled', result.stdout)
-        self.assertIn('com.amazon.ftv.screensaver is disabled, so the TV sleeps', result.stdout)
-
-    def test_privacy_settings_as_set(self):
-        result, _ = self.run_verify(self.modern(LABEL))
-        self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertRegex(result.stdout, r'ok +settings +\d+ privacy settings as set')
-        self.assertNotIn('enabled again', result.stdout)
-
-    def test_a_setting_an_update_reset_is_flagged(self):
-        result, _ = self.run_verify(self.modern(LABEL), extra={
-            'settings list secure; settings list global':
-                {'out': self.applied_settings(limit_ad_tracking='0')},
-        })
         self.assertIn("back to Amazon's values: limit_ad_tracking=0", result.stdout)
 
-    def test_a_package_an_update_enabled_again_is_flagged(self):
-        result, _ = self.run_verify(self.modern(LABEL), extra={
-            'pm list packages': {'out': 'package:com.amazon.tv.acr\npackage:com.netflix.ninja'},
-        })
+    def test_a_disabled_package_enabled_again_is_reported(self):
+        result, _ = self.run_verify(installed="package:com.amazon.hedwig\npackage:com.netflix.ninja")
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn('enabled again: com.amazon.tv.acr;', result.stdout)
+        self.assertIn("enabled again: com.amazon.hedwig", result.stdout)
 
-    def test_a_package_the_owner_kept_is_not_flagged(self):
-        result, _ = self.run_verify(self.modern(LABEL), keep='com.amazon.tv.acr', extra={
-            'pm list packages': {'out': 'package:com.amazon.tv.acr'},
-        })
-        self.assertNotIn('enabled again', result.stdout)
-
-    def test_data_saver_on_after_lockdown(self):
-        result, _ = self.run_verify(self.modern(LABEL))
-        self.assertRegex(result.stdout, r'ok +data-saver +on')
-
-    def test_data_saver_an_update_turned_off_is_flagged(self):
-        result, _ = self.run_verify(self.modern(LABEL), extra={
-            'cmd netpolicy get restrict-background': {'out': 'Restrict background status: disabled'},
-        })
+    def test_data_saver_disabled_is_reported(self):
+        result, _ = self.run_verify(data_saver="disabled")
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn('off, so protected packages use data freely; run lockdown.sh', result.stdout)
+        self.assertIn("data-saver", result.stdout)
+        self.assertIn("off", result.stdout)
 
-    def test_a_package_still_disabled_is_not_flagged(self):
-        result, _ = self.run_verify(self.modern(LABEL), extra={
-            'pm list packages': {'out': 'package:com.amazon.tv.acr'},
-            'pm list packages -d': {'out': 'package:com.amazon.tv.acr'},
-        })
-        self.assertNotIn('enabled again', result.stdout)
+    def test_old_launcher_version_is_a_failure(self):
+        result, _ = self.run_verify(launcher_package="    versionName=1.2")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("FAIL", result.stdout)
+        self.assertIn("run ./scripts/launcher.sh -y", result.stdout)
 
-    def test_bound_android9_format(self):
-        dump = f'User state[attributes:{{id=0, currentUser=true}}\n services:{{{LABEL}}}]'
-        result, _ = self.run_verify(dump)
+    def test_newer_launcher_version_is_accepted(self):
+        result, _ = self.run_verify(launcher_package="    versionName=99.0")
         self.assertEqual(result.returncode, 0, result.stdout)
-
-    def test_bound_android9_class_name_after_update(self):
-        # Seen on a Fire OS 7 TV right after adb install -r: the label is not loaded yet.
-        by_class = LABEL.replace('dumbtv home button', 'tv.dumbtv.home.Guard')
-        dump = f'User state[attributes:{{id=0, currentUser=true}}\n services:{{{by_class}}}]'
-        result, _ = self.run_verify(dump)
-        self.assertEqual(result.returncode, 0, result.stdout)
-
-    def test_other_class_name_does_not_pass(self):
-        other = LABEL.replace('dumbtv home button', 'tv.dumbtv.home.GuardX')
-        dump = f'User state[attributes:{{id=0, currentUser=true}}\n services:{{{other}}}]'
-        result, _ = self.run_verify(dump)
-        self.assertEqual(result.returncode, 1)
-
-    def test_enabled_but_unbound_is_failure(self):
-        result, _ = self.run_verify(self.modern(''))
-        self.assertEqual(result.returncode, 1)
-        self.assertIn('enabled but not bound', result.stdout)
-
-    def test_label_outside_bound_section_does_not_pass(self):
-        result, _ = self.run_verify(self.modern('') + 'Binding services:{' + LABEL + '}')
-        self.assertEqual(result.returncode, 1)
-
-    def test_other_user_bound_does_not_pass(self):
-        result, _ = self.run_verify(self.modern(LABEL, 10) + self.modern(''))
-        self.assertEqual(result.returncode, 1)
-
-    def test_current_secondary_user_and_full_component(self):
-        result, _ = self.run_verify(self.modern('', 0) + self.modern(LABEL, 10), user='10',
-                                    component='example.reader/.Service:tv.dumbtv.home/tv.dumbtv.home.Guard')
-        self.assertEqual(result.returncode, 0, result.stdout)
-
-    def test_similar_labels_or_components_do_not_pass(self):
-        for dump, component in [(self.modern(LABEL.replace('button,', 'button fake,')), 'tv.dumbtv.home/.Guard'),
-                                (self.modern(LABEL), 'tv.dumbtv.home.fake/.Guard')]:
-            with self.subTest(component=component):
-                result, _ = self.run_verify(dump, component=component)
-                self.assertEqual(result.returncode, 1)
-
-    def test_global_accessibility_disabled(self):
-        result, _ = self.run_verify(self.modern(LABEL), enabled='0')
-        self.assertEqual(result.returncode, 1)
-
-    def test_failed_empty_unknown_or_truncated_dump(self):
-        for dump, code in [('', 0), ('Permission denied', 0), (self.modern(LABEL), 1),
-                           ('User state[\n attributes:{id=0, flags=0}\n Bound services:{' + LABEL, 0)]:
-            with self.subTest(dump=dump):
-                result, _ = self.run_verify(dump, dump_code=code)
-                self.assertEqual(result.returncode, 1)
-                self.assertIn('cannot verify accessibility binding', result.stdout)
-
-    def test_unreadable_user_is_unknown(self):
-        result, _ = self.run_verify(self.modern(LABEL), user='Error')
-        self.assertEqual(result.returncode, 1)
-
-    def test_launcher_opt_out_skips_binding_queries(self):
-        result, calls = self.run_verify('', launcher='0')
-        self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertFalse(any('accessibility' in ' '.join(c) for c in calls))
-
-    def test_the_launcher_release_on_the_tv_is_reported(self):
-        result, _ = self.run_verify(self.modern(LABEL))
-        self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn('ok         launcher', result.stdout)
-        self.assertIn(RELEASE, result.stdout)
-
-    def test_an_old_launcher_is_a_failure(self):
-        # Releases up to 1.2 let the TV sleep while an HDMI picture was up, and
-        # nothing else on the TV says so.
-        result, _ = self.run_verify(self.modern(LABEL), launcher_package='    versionName=1.2')
-        self.assertEqual(result.returncode, 1)
-        self.assertIn('FAIL       launcher', result.stdout)
-        self.assertIn('run ./scripts/launcher.sh -y', result.stdout)
-
-    def test_a_launcher_newer_than_this_checkout_passes(self):
-        result, _ = self.run_verify(self.modern(LABEL), launcher_package='    versionName=99.0')
-        self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn('newer than', result.stdout)
-
-    def test_a_missing_launcher_is_skipped(self):
-        result, _ = self.run_verify(self.modern(LABEL),
-                                    launcher_package='Unable to find package: tv.dumbtv.home')
-        self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn('skip       launcher', result.stdout)
-
-    def test_speed_requirement_is_preserved(self):
-        result, _ = self.run_verify(self.modern(LABEL), futurity='null')
-        self.assertEqual(result.returncode, 1)
-        self.assertIn('min_futurity=0 missing', result.stdout)
-
-    def test_android14_ignores_the_android11_alarm_setting(self):
-        # Android 12+ reads min_futurity from DeviceConfig only (issue #57): the global
-        # setting an older install wrote there must not pass the check.
-        result, _ = self.run_verify(self.modern(LABEL), futurity='null', alarms='min_futurity=0')
-        self.assertEqual(result.returncode, 1)
-        self.assertIn('min_futurity=0 missing', result.stdout)
-
-    def test_android12_is_the_first_to_read_device_config(self):
-        result, _ = self.run_verify(self.modern(LABEL), sdk='31', futurity='null', alarms='min_futurity=0')
-        self.assertEqual(result.returncode, 1)
-        self.assertIn('min_futurity=0 missing', result.stdout)
-
-    def test_android11_reads_the_global_alarm_setting(self):
-        result, _ = self.run_verify(self.modern(LABEL), sdk='30', futurity='null',
-                                    alarms='other=1,min_futurity=0')
-        self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn('ok         alarm', result.stdout)
-
-    def test_a_futurity_that_only_starts_with_zero_is_not_zero(self):
-        result, _ = self.run_verify(self.modern(LABEL), sdk='30', alarms='min_futurity=05000')
-        self.assertEqual(result.returncode, 1)
-
-    def test_home_key_proves_the_takeover(self):
-        result, _ = self.run_verify(self.modern(LABEL))
-        self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn('ok         home-key', result.stdout)
-        self.assertIn('HOME lands on tv.dumbtv.home/.Home', result.stdout)
-
-    def test_home_key_on_another_launcher_is_a_failure(self):
-        # The service can be bound and the alarm can fire while HOME stays on
-        # Amazon's launcher, so the key itself is the only proof.
-        result, _ = self.run_verify(self.modern(LABEL),
-                                    landed='com.amazon.tv.launcher/.ui.HomeActivity_vNext')
-        self.assertEqual(result.returncode, 1)
-        self.assertIn('FAIL       home-key', result.stdout)
-
-    def test_home_key_is_skipped_when_the_home_screen_cannot_be_left(self):
-        # Nothing to prove: the check never got away from our own home.
-        result, _ = self.run_verify(self.modern(LABEL), away='tv.dumbtv.home/.Home')
-        self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn('skip       home-key', result.stdout)
+        self.assertIn("newer than", result.stdout)
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

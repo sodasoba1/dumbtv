@@ -1,7 +1,7 @@
-"""launcher/install.sh --undo against a pretend Fire TV: everything the install changed
-goes back.
+"""The launcher undo path remains available on non-target Fire OS devices.
 
-Run: python3 -m unittest discover -s tests -v
+Install/build are API 25 only; undo is deliberately not gated so restore can
+hand HOME back to Amazon on any device carrying a legacy DumbTV installation.
 """
 import json
 import os
@@ -11,16 +11,25 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-GUARD = "tv.dumbtv.home/tv.dumbtv.home.Guard"
 
 
 class LauncherUndoTest(unittest.TestCase):
-    def undo(self, settings, sdk=28):
+    def undo(self, sdk=28):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
             state = tmp / "state.json"
-            state.write_text(json.dumps({"packages": {"tv.dumbtv.home": {"system": False, "enabled": True}},
-                                         "settings": settings, "sdk": sdk}))
+            state.write_text(json.dumps({
+                "packages": {"tv.dumbtv.home": {"system": False, "enabled": True}},
+                "settings": {},
+                "sdk": sdk,
+                "appops": {"tv.dumbtv.home": {
+                    "GET_USAGE_STATS": "allow",
+                    "AUTO_START": "allow",
+                }},
+                "permissions": {"tv.dumbtv.home": {
+                    "android.permission.READ_LOGS": True,
+                }},
+            }))
             log = tmp / "commands.log"
             log.touch()
             env = dict(os.environ, ADB=str(ROOT / "tests" / "fake_tv.py"), ADB_SERIAL="test-tv",
@@ -28,46 +37,28 @@ class LauncherUndoTest(unittest.TestCase):
             result = subprocess.run(["bash", str(ROOT / "launcher" / "install.sh"), "--undo"],
                                     env=env, capture_output=True, text=True, timeout=60)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            return log.read_text().splitlines(), json.loads(state.read_text())["settings"]
+            return log.read_text().splitlines(), json.loads(state.read_text())
 
-    def test_an_earlier_min_futurity_comes_back(self):
-        _, settings = self.undo({"global/alarm_manager_constants": "min_futurity=0,other=1",
-                                 "global/dumbtv_min_futurity": "5000",
-                                 "secure/enabled_accessibility_services": GUARD})
-        self.assertEqual(settings["global/alarm_manager_constants"], "other=1,min_futurity=5000")
-        self.assertNotIn("global/dumbtv_min_futurity", settings)
+    def test_undo_is_available_outside_the_launcher_target_api(self):
+        commands, _ = self.undo(sdk=28)
+        self.assertIn("am force-stop tv.dumbtv.home", commands)
+        self.assertIn("am start -a android.intent.action.MAIN -c android.intent.category.HOME", commands)
 
-    def test_without_an_earlier_value_the_setting_goes(self):
-        _, settings = self.undo({"global/alarm_manager_constants": "min_futurity=0",
-                                 "secure/enabled_accessibility_services": GUARD})
-        self.assertNotIn("global/alarm_manager_constants", settings)
-
-    def test_the_doze_exemption_goes_too(self):
-        commands, settings = self.undo({"secure/enabled_accessibility_services": GUARD})
-        self.assertIn("dumpsys deviceidle whitelist -tv.dumbtv.home", commands)
+    def test_all_keeper_access_is_reset(self):
+        commands, state = self.undo(sdk=25)
+        self.assertIn("appops set tv.dumbtv.home GET_USAGE_STATS default", commands)
         self.assertIn("appops set tv.dumbtv.home AUTO_START default", commands)
-        self.assertNotIn(GUARD, settings.get("secure/enabled_accessibility_services", ""))
+        self.assertIn("pm revoke tv.dumbtv.home android.permission.READ_LOGS", commands)
+        self.assertIn("dumpsys deviceidle whitelist -tv.dumbtv.home", commands)
+        self.assertEqual(state["appops"]["tv.dumbtv.home"]["GET_USAGE_STATS"], "default")
+        self.assertEqual(state["appops"]["tv.dumbtv.home"]["AUTO_START"], "default")
+        self.assertFalse(state["permissions"]["tv.dumbtv.home"]["android.permission.READ_LOGS"])
 
-    def test_other_accessibility_services_are_kept(self):
-        _, settings = self.undo({"secure/enabled_accessibility_services": f"example.reader/.Service:{GUARD}"})
-        self.assertEqual(settings["secure/enabled_accessibility_services"], "example.reader/.Service")
-
-    def test_android14_undoes_the_device_config_value(self):
-        # Android 12+ keeps min_futurity in DeviceConfig. The global setting is undone as
-        # well, because installs before that split wrote it on these TVs too.
-        commands, settings = self.undo({"config/alarm_manager/min_futurity": "0",
-                                        "global/alarm_manager_constants": "min_futurity=0",
-                                        "secure/enabled_accessibility_services": GUARD}, sdk=34)
-        self.assertNotIn("config/alarm_manager/min_futurity", settings)
-        self.assertNotIn("global/alarm_manager_constants", settings)
-        self.assertIn("device_config delete alarm_manager min_futurity", commands)
-
-    def test_android14_puts_an_earlier_value_back(self):
-        _, settings = self.undo({"config/alarm_manager/min_futurity": "0",
-                                 "global/dumbtv_min_futurity": "2000",
-                                 "secure/enabled_accessibility_services": GUARD}, sdk=34)
-        self.assertEqual(settings["config/alarm_manager/min_futurity"], "2000")
-        self.assertNotIn("global/dumbtv_min_futurity", settings)
+    def test_undo_does_not_touch_accessibility_or_alarm_settings(self):
+        commands, state = self.undo(sdk=25)
+        self.assertFalse(any("accessibility" in command or "alarm_manager" in command
+                             for command in commands))
+        self.assertEqual(state["settings"], {})
 
 
 if __name__ == "__main__":

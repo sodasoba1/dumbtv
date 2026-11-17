@@ -67,6 +67,9 @@ jobs:
           java -cp "/tmp/host:$jar" tv.dumbtv.home.MeterTest
           javac -d /tmp/host -cp "/tmp/host:$jar" launcher/tests/LibraryTest.java
           java -cp "/tmp/host:$jar" tv.dumbtv.home.LibraryTest
+          javac --release 8 -Xlint:all -Werror -d /tmp/host launcher/src/tv/dumbtv/home/WidgetLayout.java \
+            launcher/tests/WidgetLayoutTest.java
+          java -cp /tmp/host tv.dumbtv.home.WidgetLayoutTest
       - name: verify APK identity, SDK, alignment, signature and checksum
         run: |
           apk=launcher/build/dumbtv-home.apk
@@ -88,6 +91,7 @@ jobs:
           echo "$dump"
           actual=$(echo "$dump" | sed -n "s/^uses-permission: name='\\([^']*\\)'.*/\\1/p" | sort)
           expected=$(printf '%s\n' \
+            android.permission.ACCESS_NETWORK_STATE \
             android.permission.PACKAGE_USAGE_STATS \
             android.permission.READ_LOGS \
             android.permission.RECEIVE_BOOT_COMPLETED \

@@ -99,6 +99,58 @@ public final class ConfigTest {
         }
     }
 
+    private static void themeAndTileSizePresets() throws Exception {
+        try (Fixture f = new Fixture()) {
+            Config cfg = f.open();
+            check("classic".equals(cfg.get(Config.THEME)), "classic theme is the backward-compatible default");
+            cfg.set(Config.THEME.key, "glass");
+            check("glass".equals(f.open().get(Config.THEME)), "Glass theme persists");
+            cfg.set(Config.THEME.key, "not-a-theme");
+            check("classic".equals(f.open().get(Config.THEME)), "invalid theme falls back safely");
+            cfg.set(Config.TILES.key, "extra-large");
+            check("extra-large".equals(f.open().get(Config.TILES)), "extra-large tile preset persists");
+        }
+    }
+
+    private static void favouritesAlignmentDefaultsAndPersists() throws Exception {
+        try (Fixture f = new Fixture()) {
+            Config cfg = f.open();
+            check(java.util.Arrays.asList(Config.CHOICES).contains(Config.FAVOURITES_ALIGN),
+                    "favourites alignment is registered with the settings choices");
+            check("center".equals(cfg.get(Config.FAVOURITES_ALIGN)),
+                    "favourites alignment defaults to centre");
+            cfg.set(Config.FAVOURITES_ALIGN.key, "left");
+            check("left".equals(f.open().get(Config.FAVOURITES_ALIGN)),
+                    "left favourites alignment persists");
+            cfg.set(Config.FAVOURITES_ALIGN.key, "right");
+            check("right".equals(f.open().get(Config.FAVOURITES_ALIGN)),
+                    "right favourites alignment persists");
+            cfg.set(Config.FAVOURITES_ALIGN.key, "invalid");
+            check("center".equals(f.open().get(Config.FAVOURITES_ALIGN)),
+                    "invalid favourites alignment falls back to centre");
+        }
+    }
+
+    private static void toolbarAutoHideDefaultsAndPersists() throws Exception {
+        try (Fixture f = new Fixture()) {
+            Config cfg = f.open();
+            check(java.util.Arrays.asList(Config.CHOICES).contains(Config.TOOLBAR_AUTO_HIDE),
+                    "top bar auto-hide is registered with Options choices");
+            check("off".equals(cfg.get(Config.TOOLBAR_AUTO_HIDE)),
+                    "top bar auto-hide defaults to off");
+            check(java.util.Arrays.asList(Config.CHOICES).contains(Config.WIDGET_EDITING),
+                    "widget editing mode is registered with Options choices");
+            check("off".equals(cfg.get(Config.WIDGET_EDITING)),
+                    "widget editing mode defaults to off");
+            cfg.set(Config.TOOLBAR_AUTO_HIDE.key, "on");
+            check("on".equals(f.open().get(Config.TOOLBAR_AUTO_HIDE)),
+                    "top bar auto-hide On persists");
+            cfg.set(Config.TOOLBAR_AUTO_HIDE.key, "off");
+            check("off".equals(f.open().get(Config.TOOLBAR_AUTO_HIDE)),
+                    "top bar auto-hide Off persists");
+        }
+    }
+
     private static void failedWriteCanRecover() throws Exception {
         try (Fixture f = new Fixture()) {
             File blocked = new File(f.dir, Config.FILE + ".tmp");
@@ -117,7 +169,10 @@ public final class ConfigTest {
         settingsReadWriteAndExport();
         customColoursIndependent();
         legacyValuesRemainReadable();
+        themeAndTileSizePresets();
+        favouritesAlignmentDefaultsAndPersists();
+        toolbarAutoHideDefaultsAndPersists();
         failedWriteCanRecover();
-        System.out.println("ConfigTest passed (settings persistence, export, custom colours, legacy values, failed-write recovery)");
+        System.out.println("ConfigTest passed (settings persistence, export, custom colours, legacy values, top bar auto-hide, failed-write recovery)");
     }
 }

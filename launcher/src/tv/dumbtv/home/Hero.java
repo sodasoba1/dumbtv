@@ -47,6 +47,7 @@ final class Hero extends FrameLayout {
     private final TextView title, sub;
     private final LinearLayout dots;
     private final LinearLayout caption;
+    private final View glassEdge;
     private final GradientDrawable ring = new GradientDrawable();
     private List<Library.Entry> entries = new ArrayList<>();
     private String entriesKey = "";
@@ -69,8 +70,8 @@ final class Hero extends FrameLayout {
         this.io = io;
         setFocusable(true);
         setClickable(true);
-        setBackgroundColor(Ui.SURFACE);
         final float radius = dp(14);
+        setBackground(Ui.surface(c, Ui.tileSurface(c, true), radius));
         setOutlineProvider(new ViewOutlineProvider() {
             @Override
             public void getOutline(View v, Outline o) {
@@ -95,6 +96,11 @@ final class Hero extends FrameLayout {
         bottom.setBackground(new GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP,
                 new int[] {0xB0000000, 0x00000000}));
         addView(bottom, new LayoutParams(MATCH, MATCH));
+
+        glassEdge = new View(c);
+        glassEdge.setFocusable(false);
+        glassEdge.setClickable(false);
+        addView(glassEdge, new LayoutParams(MATCH, MATCH));
 
         caption = new LinearLayout(c);
         caption.setOrientation(LinearLayout.VERTICAL);
@@ -124,6 +130,8 @@ final class Hero extends FrameLayout {
 
     void setAccent(int accent) {
         ring.setStroke(dp(3), accent);
+        glassEdge.setVisibility(Ui.isGlass(getContext()) ? VISIBLE : GONE);
+        glassEdge.setBackground(Ui.surface(getContext(), 0x00000000, dp(14)));
         refreshDots();
         invalidate();
     }

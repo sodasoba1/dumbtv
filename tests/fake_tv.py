@@ -22,6 +22,9 @@ def save():
 
 if args == ['start-server'] or args[:1] == ['connect']:
     sys.exit(0)
+if len(args) >= 4 and args[0] == '-s' and args[2] == 'install':
+    print('Success')
+    sys.exit(0)
 if args[:1] == ['disconnect']:
     state['dropped'] = False
     save()
@@ -162,7 +165,9 @@ elif words[:4] == ['pm', 'uninstall', '--user', '0']:
 elif words[:2] == ['dumpsys', 'package']:
     print('    userId=10050')
     if words[2:] and words[2] in state.get('versions', {}):
-        print(f"    versionCode={state['versions'][words[2]]} minSdk=21 targetSdk=29")
+        print(f"    versionCode={state['versions'][words[2]]} minSdk=21 targetSdk=25")
+    for permission, granted in state.get('permissions', {}).get(words[2] if len(words) > 2 else '', {}).items():
+        print(f"    {permission}: granted={str(granted).lower()}")
 elif command == 'ps -A -o NAME':
     print('NAME')
 elif command == 'dumpsys activity activities':
@@ -170,17 +175,44 @@ elif command == 'dumpsys activity activities':
 elif words[:1] == ['am'] and words[1:2] in (['force-stop'], ['start']):
     # Activity-manager operations used by the launcher install/undo scripts.
     pass
+elif words[:2] == ['appops', 'set'] and len(words) >= 5:
+    package, operation, mode = words[2], words[3], words[4]
+    if state.get('appops_refused') and operation == 'AUTO_START':
+        print('Security exception: app-op denied')
+        sys.exit(1)
+    state.setdefault('appops', {}).setdefault(package, {})[operation] = mode
+    save()
+elif words[:2] == ['appops', 'get'] and len(words) >= 4:
+    package, operation = words[2], words[3]
+    value = state.get('appops', {}).get(package, {}).get(operation, 'default')
+    print(f'{operation}: {value}')
+elif words[:2] == ['appops', 'write-settings']:
+    pass
 elif words[:1] == ['appops']:
-    # App-op state is not relevant to these tests; retain the command in the log.
     pass
 elif words[:2] == ['dumpsys', 'deviceidle']:
     # The fake tracks command ordering; Doze whitelist state is not queried here.
     pass
+elif words[:3] == ['dumpsys', 'activity', 'services']:
+    if state.get('keeper_running', True):
+        print('ServiceRecord tv.dumbtv.home/.Keeper isForeground=true')
+elif words[:2] == ['dumpsys', 'window']:
+    print('mCurrentFocus=Window{1 u0 tv.dumbtv.home/.Home}')
 elif words[:2] == ['input', 'keyevent']:
     pass
 elif words[:2] == ['cmd', 'netpolicy']:
     pass
 elif words[:2] == ['cmd', 'package']:
     pass
-elif words[:2] == ['pm', 'grant'] or words[:2] == ['pm', 'revoke']:
-    pass
+elif words[:2] == ['pm', 'grant'] and len(words) >= 4:
+    package, permission = words[2], words[3]
+    if permission == 'android.permission.READ_LOGS' and state.get('read_logs_refused'):
+        print('Operation not allowed: READ_LOGS grant refused')
+        sys.exit(1)
+    if not (permission == 'android.permission.READ_LOGS' and state.get('read_logs_not_recorded')):
+        state.setdefault('permissions', {}).setdefault(package, {})[permission] = True
+        save()
+elif words[:2] == ['pm', 'revoke'] and len(words) >= 4:
+    package, permission = words[2], words[3]
+    state.setdefault('permissions', {}).setdefault(package, {})[permission] = False
+    save()

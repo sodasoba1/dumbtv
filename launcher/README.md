@@ -10,9 +10,7 @@ A home screen for the Fire TV Stick 4K (1st generation, AFTMM) on Fire OS 6.7.1.
   Services or any other library.
 - **No network.** There is no `INTERNET` permission, so Android will not let it
   open a connection.
-- **Boot permission.** Used only to start the Keeper after boot or an app update.
-  The Fire OS 6 Keeper uses UsageStats and task reordering; ActivityManager logcat
-  is an additional foreground signal when its ADB-granted permission is available.
+- **Boot and standby access.** The installer grants the `GET_USAGE_STATS` and Fire OS `AUTO_START` AppOps, adds the package to the Doze whitelist, and starts Keeper after boot or an app update. `AUTO_START` is checked after it is set so an install cannot silently claim standby recovery is configured when Fire OS refused it. It also grants `android.permission.READ_LOGS` with ADB `pm grant` and verifies the package reports `granted=true`; failure to grant or verify it stops installation. ActivityManager logcat is a required Keeper signal, not an optional feature.
 - **No ads, no recommended rows, no account, no analytics, no update checks.**
 - About 60–70 MB of memory with the home screen showing, about 37 MB while an app
   plays (measured on a Fire TV Edition television with 1.4 GB of RAM).
@@ -141,6 +139,19 @@ normal banners and App names behavior. Background and layout remain separate cho
 |---|---|---|
 | ![Grid layout](../docs/assets/screens/grid.png) | ![Adaptive background](../docs/assets/screens/adaptive.png) | ![Adaptive tint](../docs/assets/screens/tint.png) |
 
+## Glass theme, top bar and widgets
+
+The **Theme** option includes Classic, Glass, Midnight and Slate. Glass applies the shared translucent surface treatment to the home UI and its settings surfaces; it does not change app launch, HDMI handling or Keeper. Tile shape, spacing, borders, shadows, focus treatment and accent remain separate controls.
+
+The top bar can be aligned left, centre or right. **Auto-hide top bar** is off by default; when enabled, the bar fades/slides away without reclaiming its layout space or shifting the widget grid, scrolling content or bottom favourites panel. The **Widgets** shortcut opens widget visibility settings. **Widget editing mode** is off by default; when enabled, placed widgets can be focused and opened in the layout editor.
+
+The home uses a 6-column by 4-row widget grid. The available widgets are Clock, Memory, Recently opened apps, Network, Storage, Custom text, DumbTV diagnostics and Device information. A fresh layout starts with the Clock placed. Widgets have a minimum size of 2 × 2 cells; placements cannot overlap or extend beyond the grid. The editor supports Add, Move, Resize, Remove and custom text editing. Changes are staged until **Save**; **Cancel** discards them.
+
+Widget visibility and placement are separate. Turning a widget off hides it but preserves its position. A widget that is enabled but has no saved position is shown as **On · not added** in Widget Settings. The Network widget reads Android's active connection state; it does not make network requests and does not require the INTERNET permission.
+
+Favourites display up to six tiles at once. With six or fewer, the row uses the selected left, centre or right alignment (centre by default). With more than six, it shows a six-tile viewport and loops horizontally in either direction; the row title hints that more favourites are available. The pinned apps themselves remain in the launcher catalogue and are not changed by hiding the row.
+
+**Options** is DumbTV's own configuration page, organised into Home screen, App tiles & icons, Theme & background, Top bar & favourites, Focus & navigation, Widgets, Inputs, and System & security. **Settings** is separate: it opens Fire OS Settings, using a Fire OS 6-specific section list where available. Child lock only restricts DumbTV's own controls; it is not a Fire OS PIN or parental-control replacement.
 ## HDMI inputs
 
 **Options › Open inputs with** decides what an input tile does:
@@ -354,9 +365,11 @@ Keeper is the only HOME recovery service:
    the foreground so Fire OS is less likely to stop it.
 2. UsageStats foreground events are polled as the primary signal. The installer
    grants GET_USAGE_STATS through AppOps.
-3. When ADB grants READ_LOGS, Keeper also watches ActivityManager logcat for
-   the exact Amazon Home activity becoming displayed or resumed. If that grant
-   is unavailable, UsageStats and screen on/off broadcasts remain active.
+3. The installer grants READ_LOGS through ADB and verifies the installed
+   package reports `granted=true`. Keeper watches ActivityManager logcat for
+   the exact Amazon Home activity becoming displayed or resumed, alongside
+   UsageStats and screen on/off broadcasts. Installation fails if READ_LOGS
+   cannot be granted or verified.
 4. Keeper only intervenes after a positive Amazon Home foreground event and
    only while the display is interactive. It moves the existing DumbTV task
    to the foreground, then verifies recovery; a limited direct activity-launch
@@ -365,9 +378,16 @@ Keeper is the only HOME recovery service:
    Amazon/system settings screens are foregrounded and clears when a third-party
    app is opened.
 
-Keeper does not reboot the device or force the display on. Long deep-standby
-recovery still depends on Fire OS delivering usable foreground state/events and
-must be validated on the physical AFTMM.
+The deep-sleep failure that prompted this design is documented in
+[Keeper standby and HOME recovery](../docs/KEEPER-RECOVERY.md). It explains why
+the old fixed UsageStats look-back and screen-off snapshot could miss the HOME
+transition after a long suspend, how the event-cursor and ActivityManager
+logcat paths address that gap, and why the installer must grant READ_LOGS.
+
+Keeper does not reboot the device or force the display on. The changes address
+the known missed-event failure modes, but long deep-standby recovery still
+depends on Fire OS delivering usable foreground state/events and must be
+validated on the physical AFTMM.
 
 ## Build it yourself
 

@@ -23,10 +23,7 @@ class RestoreTest(unittest.TestCase):
             tmp = Path(tmp)
             state = tmp / "state.json"
             hooked = {
-                "secure/enabled_accessibility_services": "tv.dumbtv.home/tv.dumbtv.home.Guard",
-                "secure/accessibility_enabled": "1",
                 "secure/always_on_vpn_app": "dnsfilter.android",
-                "global/alarm_manager_constants": "min_futurity=0",
                 **(settings or {}),
             }
             state.write_text(json.dumps({"packages": packages, "settings": hooked,
@@ -78,10 +75,7 @@ class RestoreTest(unittest.TestCase):
         result, _, state = self.run_restore()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         settings = state["settings"]
-        self.assertNotIn("tv.dumbtv.home", settings.get("secure/enabled_accessibility_services", ""))
-        self.assertEqual(settings.get("secure/accessibility_enabled"), "0")
         self.assertNotIn("secure/always_on_vpn_app", settings)
-        self.assertNotIn("global/alarm_manager_constants", settings)
         self.assertFalse(state["packages"]["dnsfilter.android"]["enabled"])
 
     def test_a_refused_svc_reboot_falls_back_to_reboot_at_once(self):

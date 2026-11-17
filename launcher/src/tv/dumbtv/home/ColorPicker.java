@@ -80,6 +80,7 @@ final class ColorPicker {
             hue.requestFocus();
         });
         dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private static SeekBar addChannel(Activity activity, LinearLayout parent, String title,

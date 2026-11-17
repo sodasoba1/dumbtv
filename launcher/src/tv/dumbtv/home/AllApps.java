@@ -41,7 +41,9 @@ public final class AllApps extends Activity {
 
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
-        page.setBackgroundColor(cfg.background());
+        int pageSurface = "classic".equals(cfg.get(Config.THEME)) ? cfg.background() : Ui.optionSurface(this);
+        page.setBackground(Ui.isGlass(this)
+                ? Ui.surface(this, pageSurface, 0) : Ui.round(pageSurface, 0));
         page.setPadding(0, Ui.dp(this, 30), 0, Ui.dp(this, 24));
 
         LinearLayout top = new LinearLayout(this);
@@ -59,7 +61,7 @@ public final class AllApps extends Activity {
         close.setFocusable(true);
         close.setClickable(true);
         close.setPadding(Ui.dp(this, 18), Ui.dp(this, 10), Ui.dp(this, 18), Ui.dp(this, 10));
-        Ui.focusStyle(close, cfg.accent(), 0x14FFFFFF, Ui.dp(this, 18));
+        Ui.focusStyle(close, cfg.accent(), Ui.isGlass(this) ? 0x55303D4B : 0x14FFFFFF, Ui.dp(this, 18));
         close.setOnClickListener(v -> finish());
         top.addView(close);
         page.addView(top, new LinearLayout.LayoutParams(MATCH, WRAP));
@@ -91,6 +93,10 @@ public final class AllApps extends Activity {
                     Tile tile = new Tile(this, item, Catalog.ALL_APPS, Catalog.label(cfg, item),
                             width, height, cfg.get(Config.LABELS), cfg.accent());
                     tile.setOnClickListener(v -> launch(item));
+                    tile.setOnLongClickListener(v -> {
+                        AppStyleEditor.show(this, cfg, item, this::recreate);
+                        return true;
+                    });
                     tile.setOnKeyListener((v, code, event) -> {
                         if (event.getAction() == KeyEvent.ACTION_DOWN && code == KeyEvent.KEYCODE_BACK) {
                             finish();
@@ -113,8 +119,10 @@ public final class AllApps extends Activity {
 
     private int[] cardSize() {
         switch (cfg.get(Config.TILES)) {
+            case "extra-small": return new int[] {Ui.dp(this, 120), Ui.dp(this, 68)};
             case "small": return new int[] {Ui.dp(this, 144), Ui.dp(this, 81)};
             case "large": return new int[] {Ui.dp(this, 224), Ui.dp(this, 126)};
+            case "extra-large": return new int[] {Ui.dp(this, 260), Ui.dp(this, 146)};
             default: return new int[] {Ui.dp(this, 180), Ui.dp(this, 101)};
         }
     }
