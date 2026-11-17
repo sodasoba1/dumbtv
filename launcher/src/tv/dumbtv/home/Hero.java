@@ -70,7 +70,7 @@ final class Hero extends FrameLayout {
         this.io = io;
         setFocusable(true);
         setClickable(true);
-        final float radius = dp(14);
+        final float radius = Ui.cornerRadius(c);
         setBackground(Ui.surface(c, Ui.tileSurface(c, true), radius));
         setOutlineProvider(new ViewOutlineProvider() {
             @Override
