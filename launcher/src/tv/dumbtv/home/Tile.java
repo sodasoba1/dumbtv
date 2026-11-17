@@ -65,7 +65,7 @@ final class Tile extends View {
         brandColor = mappedColor == 0 ? BrandFocusColors.fallback(accent) : mappedColor;
         labelAlways = "always".equals(labels);
         labelOnFocus = "focus".equals(labels);
-        String corners = Config.get(c).get(Config.TILE_RADIUS);
+        String corners = AppStyle.get(Config.get(c), item, "radius", Config.get(c).get(Config.TILE_RADIUS));
         radius = Ui.dp(c, "square".equals(corners) ? 0 : "rounded".equals(corners) ? 18 : 10);
         stroke = Ui.dp(c, afterglow == null ? 2.5f : 1f);
 
@@ -137,9 +137,9 @@ final class Tile extends View {
         animate().cancel();
         Config config = Config.get(getContext());
         if (focused) {
-            if ("glow".equals(config.get(Config.TILE_SHADOW))) setElevation(Ui.dp(getContext(), 8));
+            if ("glow".equals(AppStyle.get(config, item, "shadow", config.get(Config.TILE_SHADOW)))) setElevation(Ui.dp(getContext(), 8));
             float scale;
-            switch (config.get(Config.FOCUS_SCALE)) {
+            switch (AppStyle.get(config, item, "focus_scale", config.get(Config.FOCUS_SCALE))) {
                 case "off": scale = 1f; break;
                 case "subtle": scale = 1.04f; break;
                 case "strong": scale = 1.12f; break;
@@ -148,7 +148,7 @@ final class Tile extends View {
             if ("smooth".equals(config.get(Config.FOCUS_ANIMATION))) animate().scaleX(scale).scaleY(scale).setDuration(110).start();
             else { setScaleX(scale); setScaleY(scale); }
         } else {
-            setElevation(Ui.dp(getContext(), "soft".equals(config.get(Config.TILE_SHADOW)) ? 4 : 0));
+            setElevation(Ui.dp(getContext(), "soft".equals(AppStyle.get(config, item, "shadow", config.get(Config.TILE_SHADOW))) ? 4 : 0));
             if ("smooth".equals(config.get(Config.FOCUS_ANIMATION))) animate().scaleX(1f).scaleY(1f).setDuration(110).start();
             else { setScaleX(1f); setScaleY(1f); }
         }
@@ -198,13 +198,13 @@ final class Tile extends View {
         canvas.restore();
 
         if (afterglow != null) afterglow.edge(canvas, cardW, cardH, radius);
-        String borderMode = Config.get(getContext()).get(Config.TILE_BORDER);
+        String borderMode = AppStyle.get(Config.get(getContext()), item, "border", Config.get(getContext()).get(Config.TILE_BORDER));
         if ((!"off".equals(borderMode) || Ui.isGlass(getContext())) && !isFocused()) {
             float halfBorder = outline.getStrokeWidth() / 2f;
             canvas.drawRoundRect(halfBorder, halfBorder, cardW - halfBorder, cardH - halfBorder,
                     Math.max(0, radius - halfBorder), Math.max(0, radius - halfBorder), outline);
         }
-        if (isFocused() && "glow".equals(Config.get(getContext()).get(Config.TILE_SHADOW))) {
+        if (isFocused() && "glow".equals(AppStyle.get(Config.get(getContext()), item, "shadow", Config.get(getContext()).get(Config.TILE_SHADOW)))) {
             canvas.drawRoundRect(3, 3, cardW - 3, cardH - 3, radius, radius, glow);
         }
 
@@ -239,8 +239,9 @@ final class Tile extends View {
             }
         }
         if (moving) drawArrows(canvas);
-        boolean label = banner != null && (labelAlways || labelOnFocus && isFocused());
-        if (labelH > 0 && (brandFocus || label)) {
+        String appLabels = AppStyle.get(Config.get(getContext()), item, "labels", Config.get(getContext()).get(Config.LABELS));
+        boolean label = banner != null && ("always".equals(appLabels) || "focus".equals(appLabels) && isFocused());
+        if (labelH > 0 && (label || brandFocus && !"never".equals(appLabels))) {
             drawLine(canvas, under, cardW / 2f, cardH + labelH - Ui.dp(getContext(), 6));
         }
     }
