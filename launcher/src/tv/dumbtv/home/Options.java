@@ -3,6 +3,7 @@ package tv.dumbtv.home;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.drawable.StateListDrawable;
 import android.media.tv.TvInputManager;
 import android.os.Bundle;
@@ -56,6 +57,8 @@ public final class Options extends Activity {
                 Config.TILE_RADIUS, Config.TILE_SPACING, Config.TILE_BORDER,
                 Config.TILE_BORDER_WIDTH, Config.TILE_SHADOW, Config.AFTERGLOW_STRENGTH,
                 Config.AFTERGLOW_ICON, Config.CHIPS, Config.LIBRARY);
+        list.addView(action("Edit widgets", () ->
+                startActivity(new Intent(this, WidgetEditor.class))));
         list.addView(action(getString(R.string.next_wallpaper), () -> {
             cfg.nextWallpaper();
             refresh();
