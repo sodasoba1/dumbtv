@@ -71,6 +71,9 @@ final class Config {
                     "Teal", "Mint", "Lime", "Yellow", "Orange", "Coral", "Crimson", "Rose",
                     "Magenta", "Purple", "Indigo", "Lavender", "Sky", "Ice", "Gold", "Copper", "Custom colour"},
             new String[] {"white", "blue", "cyan", "green", "amber", "red", "pink", "violet", "custom"});
+    static final Choice THEME = new Choice("theme", "Theme", "classic",
+            new String[] {"classic", "glass", "midnight", "slate"},
+            new String[] {"Classic", "Glass", "Midnight", "Slate"});
     static final Choice TILES = new Choice("tiles", "Tile size", "medium",
             new String[] {"small", "medium", "large"},
             new String[] {"Small", "Medium", "Large"});
@@ -177,7 +180,7 @@ final class Config {
     /** The banner of hand-picked titles from {@link Library}; hidden anyway while it has none. */
     static final Choice LIBRARY = new Choice("library", "Library banner", "on",
             new String[] {"on", "off"}, new String[] {"Shown", "Hidden"});
-    static final Choice[] CHOICES = {ACCENT, TILES, LAYOUT, ORDER, ALL_APPS, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, GRADIENT, GRADIENT_COLOR, GRADIENT_STRENGTH, ROTATE, LOCK, TILE_STYLE, FOCUS_SCALE, FOCUS_INDICATOR, FOCUS_ANIMATION, TILE_RADIUS, TILE_SPACING, TILE_BORDER, TILE_BORDER_WIDTH, TILE_SHADOW, AFTERGLOW_STRENGTH, AFTERGLOW_ICON, CHIPS, LIBRARY};
+    static final Choice[] CHOICES = {ACCENT, THEME, TILES, LAYOUT, ORDER, ALL_APPS, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, GRADIENT, GRADIENT_COLOR, GRADIENT_STRENGTH, ROTATE, LOCK, TILE_STYLE, FOCUS_SCALE, FOCUS_INDICATOR, FOCUS_ANIMATION, TILE_RADIUS, TILE_SPACING, TILE_BORDER, TILE_BORDER_WIDTH, TILE_SHADOW, AFTERGLOW_STRENGTH, AFTERGLOW_ICON, CHIPS, LIBRARY};
 
     /** Folder of wallpapers, next to home.conf, that Background › Image file rotates through. */
     static final String WALLPAPERS = "wallpapers";
