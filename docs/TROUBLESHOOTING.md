@@ -184,6 +184,9 @@ The scripts select `data/fireos6/` automatically.
   `dumpsys activity services tv.dumbtv.home`.
 - **UsageStats is unavailable.** The installer grants `GET_USAGE_STATS`; check
   it with `appops get tv.dumbtv.home GET_USAGE_STATS`.
+- **Standby recovery does not start.** Check `appops get tv.dumbtv.home AUTO_START`;
+  it must report `allow`. Re-run `./launcher/install.sh` to apply and verify it.
+  Also check `dumpsys deviceidle whitelist` includes `tv.dumbtv.home`.
 - **READ_LOGS is denied.** This is optional. Keeper continues with UsageStats
   and screen broadcasts, but loses the additional ActivityManager signal.
 - **`monkey` launches nothing** and says `SYS_KEYS has no physical keys` when
@@ -197,13 +200,8 @@ Do not use this launcher build on Fire OS 7 or 8.
 
 ## Testing like a remote
 
-`adb shell input keyevent HOME` skips accessibility filters, so it proves nothing
-about the real remote. Write to the remote's input device instead (find `N` with
-`getevent -pl`):
+`adb shell input keyevent HOME` sends a synthetic HOME event. It can exercise the
+recovery path, but it does not validate physical remote wake or standby behaviour.
+For final AFTMM validation, use the actual remote and test a real standby/wake cycle.
 
-```sh
-adb shell sendevent /dev/input/eventN 1 172 1
-adb shell sendevent /dev/input/eventN 0 0 0
-adb shell sendevent /dev/input/eventN 1 172 0
-adb shell sendevent /dev/input/eventN 0 0 0
-```
+
