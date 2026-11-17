@@ -1259,10 +1259,11 @@ public final class Home extends Activity {
             }
         }
         if (loopingFavourites) {
+            final int initialScrollIndex = restore >= 0 ? restore : row.initialFocusIndex;
             row.scroll.post(() -> {
                 if (renderGeneration != row.renderGeneration) return;
-                View firstMiddleTile = row.tiles().getChildAt(row.initialFocusIndex);
-                if (firstMiddleTile != null) row.scroll.scrollTo(firstMiddleTile.getLeft(), 0);
+                View initialTile = row.tiles().getChildAt(initialScrollIndex);
+                if (initialTile != null) row.scroll.scrollTo(initialTile.getLeft(), 0);
             });
         }
         row.setVisible(!shown.isEmpty());
