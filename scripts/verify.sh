@@ -25,16 +25,22 @@ else
     printf '%-10s %-38s %s\n' FAIL home "Keeper not running; re-run launcher.sh"; fail=1
   fi
   usage_access=$(dev 'appops get tv.dumbtv.home GET_USAGE_STATS' | tr -d '\r')
-  if grep -q 'GET_USAGE_STATS: allow' <<<"$usage_access"; then
-    printf '%-10s %-38s %s\n' ok usage-access "UsageStats permission granted"
+  if grep -Eq 'GET_USAGE_STATS:[[:space:]]*allow([,[:space:]]|$)' <<<"$usage_access"; then
+    printf '%-10s %-38s %s\n' ok usage-access "UsageStats AppOp allowed"
   else
     printf '%-10s %-38s %s\n' FAIL usage-access "${usage_access:-could not read app-op}"; fail=1
   fi
-  read_logs=$(dev 'pm check-permission android.permission.READ_LOGS tv.dumbtv.home' | tr -d '\r')
-  if [[ $read_logs == granted ]]; then
-    printf '%-10s %-38s %s\n' ok logcat "READ_LOGS granted"
+  auto_start=$(dev 'appops get tv.dumbtv.home AUTO_START' | tr -d '\r')
+  if grep -Eq 'AUTO_START:[[:space:]]*allow([,[:space:]]|$)' <<<"$auto_start"; then
+    printf '%-10s %-38s %s\n' ok standby-start "Keeper AUTO_START allowed"
   else
-    printf '%-10s %-38s %s\n' warn logcat "READ_LOGS unavailable; Keeper will use UsageStats and screen broadcasts"
+    printf '%-10s %-38s %s\n' FAIL standby-start "${auto_start:-AUTO_START unavailable}; rerun ./launcher/install.sh"; fail=1
+  fi
+  package_dump=$(dev 'dumpsys package tv.dumbtv.home' | tr -d '\r')
+  if grep -Eq '^[[:space:]]*android\.permission\.READ_LOGS:[[:space:]]*granted=true([,[:space:]]|$)' <<<"$package_dump"; then
+    printf '%-10s %-38s %s\n' ok logcat "optional READ_LOGS granted"
+  else
+    printf '%-10s %-38s %s\n' warn logcat "READ_LOGS unavailable; UsageStats and screen broadcasts remain active"
   fi
 fi
 
