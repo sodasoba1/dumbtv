@@ -879,22 +879,33 @@ public final class Home extends Activity {
             chip.setClickable(enabled);
         }
         FrameLayout.LayoutParams headParams = (FrameLayout.LayoutParams) head.getLayoutParams();
-        headParams.height = visible ? dp(56) : 0;
-        head.setLayoutParams(headParams);
+        if (visible) {
+            headParams.height = dp(56);
+            head.setLayoutParams(headParams);
+        }
         FrameLayout.LayoutParams widgetParams = (FrameLayout.LayoutParams) widgetGrid.getLayoutParams();
         widgetParams.topMargin = visible ? dp(64) : dp(8);
         widgetGrid.setLayoutParams(widgetParams);
         FrameLayout.LayoutParams scrollParams = (FrameLayout.LayoutParams) homeScroll.getLayoutParams();
         scrollParams.topMargin = dp((visible ? 64 : 8) + widgetHeight + 12);
         homeScroll.setLayoutParams(scrollParams);
-        head.setClipChildren(!visible);
-        head.setClipToPadding(!visible);
+        head.setClipChildren(false);
+        head.setClipToPadding(false);
         head.animate().cancel();
         head.setAlpha(visible ? 0f : 1f);
         head.setTranslationY(visible ? -dp(60) : 0f);
-        head.animate().alpha(visible ? 1f : 0f)
-                .translationY(visible ? 0f : -dp(60)).setDuration(160).start();
         toolbarCollapsed = !visible;
+        head.animate().alpha(visible ? 1f : 0f)
+                .translationY(visible ? 0f : -dp(60)).setDuration(160)
+                .withEndAction(() -> {
+                    if (!visible && toolbarCollapsed) {
+                        FrameLayout.LayoutParams collapsed = (FrameLayout.LayoutParams) head.getLayoutParams();
+                        collapsed.height = 0;
+                        head.setLayoutParams(collapsed);
+                        head.setClipChildren(true);
+                        head.setClipToPadding(true);
+                    }
+                }).start();
     }
 
     private View nearestWidget(View from) {
