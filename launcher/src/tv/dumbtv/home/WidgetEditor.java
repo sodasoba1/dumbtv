@@ -20,6 +20,7 @@ import java.util.List;
 
 /** DPAD-first widget placement editor. Changes are staged until Save is selected. */
 public final class WidgetEditor extends Activity {
+    static final String EXTRA_WIDGET_ID = "tv.dumbtv.home.extra.WIDGET_ID";
     private static final int MATCH = ViewGroup.LayoutParams.MATCH_PARENT;
     private static final int WRAP = ViewGroup.LayoutParams.WRAP_CONTENT;
 
@@ -40,6 +41,8 @@ public final class WidgetEditor extends Activity {
         cfg.refresh();
         layout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         pendingText = cfg.get("widgets.text", "Custom text");
+        WidgetLayout.Widget initial = layout.find(getIntent().getStringExtra(EXTRA_WIDGET_ID));
+        if (initial != null) selectedId = initial.id;
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -83,7 +86,7 @@ public final class WidgetEditor extends Activity {
         root.addView(actions, new LinearLayout.LayoutParams(MATCH, WRAP));
 
         setContentView(root);
-        renderGrid(0);
+        renderGrid(initial == null ? 0 : initial.y * WidgetLayout.COLUMNS + initial.x);
     }
 
     private void addAction(LinearLayout row, String label, Runnable action) {
