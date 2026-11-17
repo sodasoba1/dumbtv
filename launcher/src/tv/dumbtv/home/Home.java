@@ -266,7 +266,7 @@ public final class Home extends Activity {
         }
         int fit = getResources().getDisplayMetrics().widthPixels / (cardSize()[0] + dp(18)) + 1;
         String tileStyle = cfg.get(Config.TILE_STYLE);
-        boolean cornerIcon = "afterglow".equals(tileStyle) || "brand-focus".equals(tileStyle);
+        boolean cornerIcon = "afterglow".equals(tileStyle);
         List<Item> first = new ArrayList<>();
         List<Runnable> jobs = new ArrayList<>();
         // A chosen icon pack is read by parsing its whole appfilter; the first frame does not wait
@@ -300,9 +300,8 @@ public final class Home extends Activity {
     private Runnable artJob(Item it, boolean cornerIcon) {
         String pack = cfg.get(IconPack.KEY, IconPack.OFF);
         String chosen = cfg.get(IconPack.CHOSEN + it.id, null);
-        boolean brandFocus = "brand-focus".equals(cfg.get(Config.TILE_STYLE));
         return () -> {
-            Catalog.art(getPackageManager(), it, cornerIcon, replacementArt(it, chosen, pack), brandFocus);
+            Catalog.art(getPackageManager(), it, cornerIcon, replacementArt(it, chosen, pack));
             Drawable custom = Catalog.customBanner(this, it);
             if (custom != null) {
                 it.banner = custom;
@@ -721,7 +720,7 @@ public final class Home extends Activity {
                 v -> startActivity(new Intent(this, Options.class))));
         toolbar.addView(chip(getString(R.string.settings), R.drawable.chip_settings, R.drawable.chip_settings_mark,
                 v -> openSettings()));
-        head.addView(toolbar, new LinearLayout.LayoutParams(WRAP, WRAP));
+        head.addView(toolbar, new LinearLayout.LayoutParams(MATCH, WRAP));
 
         head.setPadding(dp(24), 0, dp(24), 0);
         root.addView(head, new FrameLayout.LayoutParams(MATCH, dp(56), Gravity.TOP));
@@ -807,7 +806,9 @@ public final class Home extends Activity {
         favoritesPanel.setOrientation(LinearLayout.VERTICAL);
         favoritesPanel.setClipChildren(false);
         favoritesPanel.setClipToPadding(false);
-        favoritesPanel.setBackgroundColor(Color.TRANSPARENT);
+        favoritesPanel.setBackground(Ui.isGlass(this)
+                ? Ui.surface(this, Ui.optionSurface(this), dp(16)) : null);
+        favoritesPanel.setPadding(0, dp(2), 0, dp(2));
         favoritesPanel.setVisibility(View.GONE);
         FrameLayout.LayoutParams favoritesLp = new FrameLayout.LayoutParams(MATCH, WRAP, Gravity.BOTTOM);
         favoritesLp.leftMargin = dp(24);
@@ -1115,8 +1116,8 @@ public final class Home extends Activity {
         boolean icons = iconChips();
         int align = "left".equals(cfg.get(Config.TOOLBAR_ALIGN)) ? Gravity.LEFT
                 : "center".equals(cfg.get(Config.TOOLBAR_ALIGN)) ? Gravity.CENTER_HORIZONTAL : Gravity.RIGHT;
-        head.setGravity(Gravity.TOP | align);
-        toolbar.setGravity(Gravity.CENTER_VERTICAL);
+        head.setGravity(Gravity.TOP);
+        toolbar.setGravity(Gravity.CENTER_VERTICAL | align);
         toolbar.setBackground(null);
         widgetLayout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         widgetGrid.setLayout(widgetLayout);
@@ -1267,6 +1268,8 @@ public final class Home extends Activity {
         boolean loopingFavourites = row == apps && shown.size() > 6;
         int copies = loopingFavourites ? 3 : 1;
         row.initialFocusIndex = loopingFavourites ? shown.size() : 0;
+        final int cycleWidth = shown.size() * (w + dp("compact".equals(cfg.get(Config.TILE_SPACING))
+                ? 10 : "spacious".equals(cfg.get(Config.TILE_SPACING)) ? 28 : 18));
         String spacing = cfg.get(Config.TILE_SPACING);
         int tileGap = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
         if (row == apps) {
@@ -1296,6 +1299,8 @@ public final class Home extends Activity {
                         if (loopingFavourites && copyIndex != 1) {
                             ui.post(() -> {
                                 if (getCurrentFocus() == tile) {
+                                    int offset = copyIndex == 0 ? cycleWidth : -cycleWidth;
+                                    row.scroll.scrollTo(row.scroll.getScrollX() + offset, 0);
                                     View equivalent = target.getChildAt(shown.size() + itemPosition);
                                     if (equivalent != null) equivalent.requestFocus();
                                 }
@@ -1314,7 +1319,7 @@ public final class Home extends Activity {
                 if (it.id.equals(keep) && (!loopingFavourites || copy == 1)) restore = index;
                 index++;
                 String tileStyle = cfg.get(Config.TILE_STYLE);
-                boolean needsStyleIcon = ("afterglow".equals(tileStyle) || "brand-focus".equals(tileStyle))
+                boolean needsStyleIcon = "afterglow".equals(tileStyle)
                         && cfg.get(AppStyle.key(it, "banner"), null) == null && it.icon == null;
                 if (Catalog.isApp(row.kind) && (!it.artRequested || needsStyleIcon)) loadArt(it);
             }
@@ -1357,7 +1362,7 @@ public final class Home extends Activity {
     private void loadArt(Item it) {
         it.artRequested = true;
         String tileStyle = cfg.get(Config.TILE_STYLE);
-        Runnable job = artJob(it, "afterglow".equals(tileStyle) || "brand-focus".equals(tileStyle));
+        Runnable job = artJob(it, "afterglow".equals(tileStyle));
         io.execute(() -> {
             job.run();
             ui.post(() -> {
