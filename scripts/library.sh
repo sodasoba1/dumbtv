@@ -51,9 +51,8 @@ while IFS= read -r line || [[ -n $line ]]; do
   n=$((n + 1))
 done < "$WORK/library.conf"
 
-sdk=$(adb_ shell getprop ro.build.version.sdk | tr -d '\r')
-if (( sdk >= 30 )); then DEST=/sdcard/Android/media/tv.dumbtv.home/library
-else DEST=/sdcard/Android/data/tv.dumbtv.home/files/library; fi
+# The launcher is API 25 only; getExternalFilesDir(null) resolves here on AFTMM.
+DEST=/sdcard/Android/data/tv.dumbtv.home/files/library
 
 adb_ shell "rm -rf '$DEST' && mkdir -p '$DEST'"
 for f in "$WORK"/*; do
