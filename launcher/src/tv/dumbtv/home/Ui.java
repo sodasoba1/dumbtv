@@ -76,6 +76,13 @@ final class Ui {
         return d;
     }
 
+    /** Theme-aware card surface; Glass gets a fine highlight edge instead of a flat fill. */
+    static GradientDrawable surface(Context c, int color, float radius) {
+        GradientDrawable d = round(color, radius);
+        if (isGlass(c)) d.setStroke(Math.max(1, dp(c, 1)), 0x55FFFFFF);
+        return d;
+    }
+
     /** Accent fill when focused, a faint fill otherwise. */
     static void focusStyle(TextView v, int accent, int idle, float radius) {
         StateListDrawable bg = new StateListDrawable();
