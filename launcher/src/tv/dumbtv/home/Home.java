@@ -99,6 +99,8 @@ public final class Home extends Activity {
     private ValueAnimator colorAnimation;
     private int displayedColor, targetColor;
     private boolean tintWallpaper;
+    private int widgetHeight;
+    private boolean toolbarCollapsed;
     /** Options › Icon pack and the picked icons as the tiles' art was last loaded for. UI thread. */
     private String artState = "";
     /** Icon packs read so far by package, null for one that would not load; io thread only. */
@@ -542,9 +544,18 @@ public final class Home extends Activity {
                             above = nearestBottom(allApps.tiles(), focused);
                         }
                         if (above != null) return above;
+                        View widget = nearestWidget(focused);
+                        if (widget != null) return widget;
                         View chip = nearestToolbarChip(focused);
+                        if (chip != null) setToolbarVisible(true);
                         return chip != null ? chip : focused;
                     }
+                }
+                if (widgetGrid != null && widgetGrid.widgetId(focused) != null
+                        && direction == View.FOCUS_UP) {
+                    View chip = nearestToolbarChip(focused);
+                    if (chip != null) setToolbarVisible(true);
+                    if (chip != null) return chip;
                 }
                 if (chips.contains(focused) && direction == View.FOCUS_DOWN) {
                     if (heroShown()) return hero;
@@ -783,7 +794,7 @@ public final class Home extends Activity {
 
         int screenDp = (int) (getResources().getDisplayMetrics().heightPixels
                 / getResources().getDisplayMetrics().density);
-        int widgetHeight = Math.max(120, Math.min(220, screenDp / 4));
+        widgetHeight = Math.max(120, Math.min(220, screenDp / 4));
         FrameLayout.LayoutParams widgetLp = new FrameLayout.LayoutParams(MATCH, dp(widgetHeight), Gravity.TOP);
         widgetLp.leftMargin = dp(48);
         widgetLp.rightMargin = dp(48);
@@ -843,6 +854,67 @@ public final class Home extends Activity {
         int available = metrics.widthPixels - dp(112) - spacing * 5;
         int width = Math.max(dp(96), Math.min(dp(180), available / 6));
         return new int[] {width, Math.round(width * 9f / 16f)};
+    }
+
+    private void toolbarFocusChanged(boolean focused) {
+        if (focused) {
+            setToolbarVisible(true);
+        } else if ("on".equals(cfg.get(Config.TOOLBAR_AUTO_HIDE))) {
+            ui.post(() -> {
+                if (toolbar != null && !toolbar.hasFocus()
+                        && "on".equals(cfg.get(Config.TOOLBAR_AUTO_HIDE))) {
+                    setToolbarVisible(false);
+                }
+            });
+        }
+    }
+
+    private void setToolbarVisible(boolean visible) {
+        if (head == null || toolbar == null || widgetGrid == null || homeScroll == null) return;
+        if (!visible && toolbar.hasFocus()) return;
+        if (toolbarCollapsed == !visible) return;
+        for (TextView chip : chips) {
+            boolean enabled = visible && chip.getVisibility() == View.VISIBLE;
+            chip.setFocusable(enabled);
+            chip.setClickable(enabled);
+        }
+        FrameLayout.LayoutParams headParams = (FrameLayout.LayoutParams) head.getLayoutParams();
+        headParams.height = visible ? dp(56) : 0;
+        head.setLayoutParams(headParams);
+        FrameLayout.LayoutParams widgetParams = (FrameLayout.LayoutParams) widgetGrid.getLayoutParams();
+        widgetParams.topMargin = visible ? dp(64) : dp(8);
+        widgetGrid.setLayoutParams(widgetParams);
+        FrameLayout.LayoutParams scrollParams = (FrameLayout.LayoutParams) homeScroll.getLayoutParams();
+        scrollParams.topMargin = dp((visible ? 64 : 8) + widgetHeight + 12);
+        homeScroll.setLayoutParams(scrollParams);
+        head.setClipChildren(!visible);
+        head.setClipToPadding(!visible);
+        head.animate().cancel();
+        head.setAlpha(visible ? 0f : 1f);
+        head.setTranslationY(visible ? -dp(60) : 0f);
+        head.animate().alpha(visible ? 1f : 0f)
+                .translationY(visible ? 0f : -dp(60)).setDuration(160).start();
+        toolbarCollapsed = !visible;
+    }
+
+    private View nearestWidget(View from) {
+        if (!"on".equals(cfg.get(Config.WIDGET_EDITING)) || widgetGrid == null) return null;
+        int[] at = new int[2];
+        from.getLocationOnScreen(at);
+        int x = at[0] + from.getWidth() / 2;
+        View best = null;
+        int bestGap = Integer.MAX_VALUE;
+        for (int i = 0; i < widgetGrid.getChildCount(); i++) {
+            View child = widgetGrid.getChildAt(i);
+            if (child.getVisibility() != View.VISIBLE || !child.isFocusable()) continue;
+            child.getLocationOnScreen(at);
+            int gap = Math.abs(at[0] + child.getWidth() / 2 - x);
+            if (gap < bestGap) {
+                bestGap = gap;
+                best = child;
+            }
+        }
+        return best;
     }
 
     private View nearestToolbarChip(View from) {
@@ -959,6 +1031,7 @@ public final class Home extends Activity {
         v.setOnFocusChangeListener((view, has) -> {
             chipLook(v, has);
             view.animate().scaleX(has ? 1.06f : 1f).scaleY(has ? 1.06f : 1f).setDuration(110).start();
+            toolbarFocusChanged(has);
             if (has) focusBackground(null);
         });
         chipLook(v, false);
@@ -983,6 +1056,7 @@ public final class Home extends Activity {
         v.setOnFocusChangeListener((view, has) -> {
             chipLook(v, has);
             view.animate().scaleX(has ? 1.06f : 1f).scaleY(has ? 1.06f : 1f).setDuration(110).start();
+            toolbarFocusChanged(has);
             if (has) focusBackground(null);
         });
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
@@ -1124,6 +1198,11 @@ public final class Home extends Activity {
         for (WidgetVisibility.Definition definition : WidgetVisibility.ALL) {
             widgetGrid.setWidgetEnabled(definition.id, WidgetVisibility.isEnabled(cfg, definition.id));
         }
+        widgetGrid.setInteractive("on".equals(cfg.get(Config.WIDGET_EDITING)), view -> {
+            String id = widgetGrid.widgetId(view);
+            if (id != null) startActivity(new Intent(this, WidgetEditor.class)
+                    .putExtra(WidgetEditor.EXTRA_WIDGET_ID, id));
+        });
         meter.setAccent(accent);
         hero.setAccent(accent);
         apps.title.setText(getString("on".equals(cfg.get(Config.ALL_APPS))
@@ -1138,6 +1217,11 @@ public final class Home extends Activity {
         render(inputs);
         background();
         tick();
+        if ("on".equals(cfg.get(Config.TOOLBAR_AUTO_HIDE)) && !toolbar.hasFocus()) {
+            setToolbarVisible(false);
+        } else {
+            setToolbarVisible(true);
+        }
     }
 
     /** Rebuilds the app list, keeping loaded art for every package except {@code changed}. */
