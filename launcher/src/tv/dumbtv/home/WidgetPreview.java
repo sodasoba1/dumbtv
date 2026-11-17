@@ -86,10 +86,10 @@ final class WidgetPreview extends WidgetGridView {
 
         TextView diagnostics = widgetText(context, WidgetDiagnostics.snapshot(context),
                 backgrounds, surface);
-        diagnostics.setMaxLines(14);
+        diagnostics.setMaxLines(4);
         diagnostics.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
-        diagnostics.setPadding(Ui.dp(context, 10), Ui.dp(context, 5),
-                Ui.dp(context, 10), Ui.dp(context, 5));
+        diagnostics.setPadding(Ui.dp(context, 6), Ui.dp(context, 2),
+                Ui.dp(context, 6), Ui.dp(context, 2));
         addWidgetView("diagnostics", diagnostics);
 
         String deviceInfo = "Device information\n" + Build.MODEL
@@ -116,10 +116,17 @@ final class WidgetPreview extends WidgetGridView {
             return;
         }
         for (int i = 0; i < getChildCount(); i++) {
-            if (id.equals(widgetId(getChildAt(i))) && getChildAt(i) instanceof TextView) {
-                ((TextView) getChildAt(i)).setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, size);
-                return;
+            View child = getChildAt(i);
+            if (!id.equals(widgetId(child))) continue;
+            if (child instanceof TextView) {
+                ((TextView) child).setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, size);
+            } else if (child instanceof FrameLayout) {
+                for (int j = 0; j < ((FrameLayout) child).getChildCount(); j++) {
+                    View inner = ((FrameLayout) child).getChildAt(j);
+                    if (inner instanceof Meter) ((Meter) inner).setFontSize(size);
+                }
             }
+            return;
         }
     }
 
