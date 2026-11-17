@@ -352,9 +352,11 @@ Keeper is the only HOME recovery service:
    the foreground so Fire OS is less likely to stop it.
 2. UsageStats foreground events are polled as the primary signal. The installer
    grants GET_USAGE_STATS through AppOps.
-3. When ADB grants READ_LOGS, Keeper also watches ActivityManager logcat for
-   the exact Amazon Home activity becoming displayed or resumed. If that grant
-   is unavailable, UsageStats and screen on/off broadcasts remain active.
+3. The installer grants READ_LOGS through ADB and verifies the installed
+   package reports `granted=true`. Keeper watches ActivityManager logcat for
+   the exact Amazon Home activity becoming displayed or resumed, alongside
+   UsageStats and screen on/off broadcasts. Installation fails if READ_LOGS
+   cannot be granted or verified.
 4. Keeper only intervenes after a positive Amazon Home foreground event and
    only while the display is interactive. It moves the existing DumbTV task
    to the foreground, then verifies recovery; a limited direct activity-launch
