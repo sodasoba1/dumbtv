@@ -76,6 +76,8 @@ public final class Home extends Activity {
     private LinearLayout head, toolbar;
     private TextView clock, date;
     private Meter meter;
+    private WidgetGridView widgetGrid;
+    private WidgetLayout widgetLayout;
     private Row apps, allApps, inputs;
     private Hero hero;
     private int libraryGeneration;
@@ -662,25 +664,39 @@ public final class Home extends Activity {
                 v -> openSettings()));
         head.addView(toolbar, new LinearLayout.LayoutParams(MATCH, WRAP));
 
-        LinearLayout when = new LinearLayout(this);
-        when.setOrientation(LinearLayout.VERTICAL);
-        clock = Ui.text(this, 52, Ui.TEXT, Ui.LIGHT);
-        date = Ui.text(this, 15, Ui.MUTED, Ui.MEDIUM);
-        date.setPadding(dp(2), dp(8), 0, 0);
-        when.addView(clock);
-        when.addView(date);
+        column.addView(head, new LinearLayout.LayoutParams(MATCH, WRAP));
+
+        widgetLayout = WidgetLayout.load(cfg);
+        if (cfg.get(WidgetLayout.CONFIG_KEY, "").isEmpty()) widgetLayout.save(cfg);
+        widgetGrid = new WidgetGridView(this);
+        widgetGrid.setLayout(widgetLayout);
+
+        LinearLayout clockWidget = new LinearLayout(this);
+        clockWidget.setOrientation(LinearLayout.VERTICAL);
+        clockWidget.setGravity(Gravity.CENTER_VERTICAL);
+        clockWidget.setPadding(dp(18), dp(8), dp(18), dp(8));
+        clock = Ui.text(this, 34, Ui.TEXT, Ui.LIGHT);
+        date = Ui.text(this, 13, Ui.MUTED, Ui.MEDIUM);
+        date.setPadding(dp(2), dp(2), 0, 0);
+        clockWidget.addView(clock);
+        clockWidget.addView(date);
+        widgetGrid.addWidgetView("clock", clockWidget);
+
         meter = new Meter(this);
         meter.setWords(getString(R.string.meter_title), getString(R.string.meter_free),
                 getString(R.string.meter_low));
-        meter.setVisibility(View.GONE);
-        LinearLayout.LayoutParams under = new LinearLayout.LayoutParams(WRAP, WRAP);
-        under.topMargin = dp(12);
-        under.leftMargin = dp(2);
-        when.addView(meter, under);
-        LinearLayout.LayoutParams whenLp = new LinearLayout.LayoutParams(WRAP, WRAP);
-        whenLp.topMargin = dp(18);
-        head.addView(when, whenLp);
-        column.addView(head, new LinearLayout.LayoutParams(MATCH, WRAP));
+        meter.setPadding(dp(14), dp(8), dp(14), dp(8));
+        widgetGrid.addWidgetView("memory", meter);
+
+        int screenDp = (int) (getResources().getDisplayMetrics().heightPixels
+                / getResources().getDisplayMetrics().density);
+        int widgetHeight = Math.max(180, Math.min(260, screenDp / 3));
+        LinearLayout.LayoutParams widgetLp = new LinearLayout.LayoutParams(MATCH, dp(widgetHeight));
+        widgetLp.leftMargin = dp(56);
+        widgetLp.rightMargin = dp(56);
+        widgetLp.topMargin = dp(8);
+        widgetLp.bottomMargin = dp(8);
+        column.addView(widgetGrid, widgetLp);
 
         hero = new Hero(this, ui, io);
         hero.setOnClickListener(v -> hero.openCurrent());
