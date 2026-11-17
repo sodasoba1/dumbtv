@@ -733,9 +733,9 @@ public final class Home extends Activity {
         clockWidget = new LinearLayout(this);
         clockWidget.setOrientation(LinearLayout.VERTICAL);
         clockWidget.setGravity(Gravity.CENTER_VERTICAL);
-        clockWidget.setPadding(dp(18), dp(8), dp(18), dp(8));
+        clockWidget.setPadding(dp(18), dp(4), dp(18), dp(4));
         clockWidget.setBackground(Ui.round(Ui.tileSurface(this, true), dp(12)));
-        clock = Ui.text(this, 34, Ui.TEXT, Ui.LIGHT);
+        clock = Ui.text(this, 32, Ui.TEXT, Ui.LIGHT);
         date = Ui.text(this, 13, Ui.MUTED, Ui.MEDIUM);
         date.setPadding(dp(2), dp(2), 0, 0);
         clockWidget.addView(clock);
@@ -764,7 +764,7 @@ public final class Home extends Activity {
 
         int screenDp = (int) (getResources().getDisplayMetrics().heightPixels
                 / getResources().getDisplayMetrics().density);
-        int widgetHeight = Math.max(180, Math.min(260, screenDp / 3));
+        int widgetHeight = Math.max(120, Math.min(220, screenDp / 4));
         FrameLayout.LayoutParams widgetLp = new FrameLayout.LayoutParams(MATCH, dp(widgetHeight), Gravity.TOP);
         widgetLp.leftMargin = dp(48);
         widgetLp.rightMargin = dp(48);
