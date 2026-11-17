@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -25,6 +26,7 @@ public final class WidgetEditor extends Activity {
     private String selectedId;
     private String pendingMove;
     private String pendingAddType;
+    private String pendingText;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -32,6 +34,7 @@ public final class WidgetEditor extends Activity {
         cfg = Config.get(this);
         cfg.refresh();
         layout = WidgetLayout.load(cfg);
+        pendingText = cfg.get("widgets.text", "Custom text");
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -64,6 +67,7 @@ public final class WidgetEditor extends Activity {
         addAction(actions, "Move", this::move);
         addAction(actions, "Resize", this::resize);
         addAction(actions, "Remove", this::remove);
+        addAction(actions, "Text", this::editText);
         addAction(actions, "Save", this::save);
         addAction(actions, "Cancel", this::cancel);
         root.addView(actions, new LinearLayout.LayoutParams(MATCH, WRAP));
@@ -142,7 +146,8 @@ public final class WidgetEditor extends Activity {
         if (pendingAddType != null) {
             String type = pendingAddType;
             pendingAddType = null;
-            int width = "clock".equals(type) || "memory".equals(type) ? 2 : 1;
+            int width = "clock".equals(type) || "memory".equals(type) ? 2
+                    : "recent".equals(type) ? 3 : 2;
             int height = "clock".equals(type) || "memory".equals(type) ? 2 : 1;
             if (layout.add(type, type, x, y, width, height)) {
                 selectedId = type;
@@ -159,18 +164,26 @@ public final class WidgetEditor extends Activity {
     }
 
     private void add() {
+        String[] types = {"clock", "memory", "recent", "network", "storage", "text"};
+        String[] labels = {"Clock", "Memory", "Recently opened apps", "Network", "Storage", "Custom text"};
         List<String> available = new ArrayList<>();
-        if (layout.find("clock") == null) available.add("Clock");
-        if (layout.find("memory") == null) available.add("Memory");
+        List<String> names = new ArrayList<>();
+        for (int i = 0; i < types.length; i++) {
+            if (layout.find(types[i]) == null) {
+                available.add(types[i]);
+                names.add(labels[i]);
+            }
+        }
         if (available.isEmpty()) {
-            message("Both built-in widgets are already on the grid");
+            message("All available widget types are already on the grid");
             return;
         }
         String[] choices = available.toArray(new String[0]);
+        CharSequence[] choiceLabels = names.toArray(new CharSequence[0]);
         new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle("Add widget")
-                .setItems(choices, (dialog, which) -> {
-                    pendingAddType = choices[which].toLowerCase(java.util.Locale.ROOT);
+                .setItems(choiceLabels, (dialog, which) -> {
+                    pendingAddType = choices[which];
                     message("Choose an empty cell");
                 })
                 .setNegativeButton("Cancel", null)
@@ -218,8 +231,28 @@ public final class WidgetEditor extends Activity {
         renderGrid(0);
     }
 
+    private void editText() {
+        if (!"text".equals(selectedId)) {
+            message("Select the custom text widget first");
+            return;
+        }
+        EditText input = new EditText(this);
+        input.setText(pendingText);
+        input.setSingleLine(false);
+        input.setMinLines(1);
+        input.setMaxLines(3);
+        new AlertDialog.Builder(this, Ui.DIALOG)
+                .setTitle("Custom widget text")
+                .setView(input)
+                .setPositiveButton("Use text", (dialog, which) ->
+                        pendingText = input.getText().toString().trim())
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
     private void save() {
         layout.save(cfg);
+        cfg.set("widgets.text", pendingText);
         cfg.set("widgets.initialized", "1");
         setResult(RESULT_OK);
         finish();
