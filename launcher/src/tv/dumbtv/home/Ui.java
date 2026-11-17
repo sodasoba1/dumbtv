@@ -1,6 +1,7 @@
 package tv.dumbtv.home;
 
 import android.content.Context;
+import android.app.AlertDialog;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -81,6 +82,19 @@ final class Ui {
         GradientDrawable d = round(color, radius);
         if (isGlass(c)) d.setStroke(Math.max(1, dp(c, 1)), 0x55FFFFFF);
         return d;
+    }
+
+    /** Give system dialogs the same restrained translucent surface as Glass cards. */
+    static void styleDialog(AlertDialog dialog) {
+        Context c = dialog.getContext();
+        if (!isGlass(c) || dialog.getWindow() == null) return;
+        dialog.getWindow().setBackgroundDrawable(surface(c, optionSurface(c), dp(c, 18)));
+        android.widget.Button positive = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        android.widget.Button negative = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+        android.widget.Button neutral = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
+        if (positive != null) positive.setTextColor(Config.get(c).accent());
+        if (negative != null) negative.setTextColor(TEXT);
+        if (neutral != null) neutral.setTextColor(TEXT);
     }
 
     /** Accent fill when focused, a faint fill otherwise. */
