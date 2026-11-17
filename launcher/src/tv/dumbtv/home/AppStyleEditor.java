@@ -24,8 +24,8 @@ final class AppStyleEditor {
         AlertDialog dialog = new AlertDialog.Builder(activity, Ui.DIALOG)
                 .setTitle(activity.getString(R.string.tile_customize) + " · " + Catalog.label(config, item))
                 .setItems(AppStyle.properties(), (d, which) -> {
-                    if (which == 6) chooseBackground(activity, config, item, changed);
-                    else if (which == 7) chooseBanner(activity, config, item, changed);
+                    if (which == 5) chooseBackground(activity, config, item, changed);
+                    else if (which == 6) chooseBanner(activity, config, item, changed);
                     else editProperty(activity, config, item, which, changed);
                 })
                 .setNeutralButton(R.string.original, (d, which) -> {
@@ -127,13 +127,13 @@ final class AppStyleEditor {
 
         Runnable updatePreview = () -> {
             String corners = value(config, item, property, pending[0], 0);
-            String border = value(config, item, property, pending[0], 2);
-            String shadow = value(config, item, property, pending[0], 3);
-            String focusScale = value(config, item, property, pending[0], 1);
-            String appLabels = value(config, item, property, pending[0], 4);
-            String appSize = value(config, item, property, pending[0], 5);
+            String border = value(config, item, property, pending[0], 1);
+            String shadow = value(config, item, property, pending[0], 2);
+            String focusScale = value(config, item, property, pending[0], 0);
+            String appLabels = value(config, item, property, pending[0], 3);
+            String appSize = value(config, item, property, pending[0], 4);
 
-            float radius = Ui.dp(activity, "square".equals(corners) ? 0 : "rounded".equals(corners) ? 18 : 10);
+            float radius = Ui.cornerRadius(activity);
             int surface = AppStyle.backgroundColor(config, item, Ui.tileSurface(activity, true));
             preview.setBackground(Ui.surface(activity, surface, radius));
             GradientDrawable shape = (GradientDrawable) preview.getBackground();
