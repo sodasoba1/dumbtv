@@ -138,6 +138,10 @@ public final class ConfigTest {
                     "top bar auto-hide is registered with Options choices");
             check("off".equals(cfg.get(Config.TOOLBAR_AUTO_HIDE)),
                     "top bar auto-hide defaults to off");
+            check(java.util.Arrays.asList(Config.CHOICES).contains(Config.WIDGET_EDITING),
+                    "widget editing mode is registered with Options choices");
+            check("off".equals(cfg.get(Config.WIDGET_EDITING)),
+                    "widget editing mode defaults to off");
             cfg.set(Config.TOOLBAR_AUTO_HIDE.key, "on");
             check("on".equals(f.open().get(Config.TOOLBAR_AUTO_HIDE)),
                     "top bar auto-hide On persists");
@@ -169,6 +173,6 @@ public final class ConfigTest {
         favouritesAlignmentDefaultsAndPersists();
         toolbarAutoHideDefaultsAndPersists();
         failedWriteCanRecover();
-        System.out.println("ConfigTest passed (settings persistence, export, custom colours, legacy values, failed-write recovery)");
+        System.out.println("ConfigTest passed (settings persistence, export, custom colours, legacy values, top bar auto-hide, failed-write recovery)");
     }
 }
