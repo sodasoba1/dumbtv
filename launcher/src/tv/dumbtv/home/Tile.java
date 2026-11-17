@@ -57,7 +57,8 @@ final class Tile extends View {
         this.cardH = cardH;
         boolean app = Catalog.isApp(kind);
         String tileStyle = Config.get(c).get(Config.TILE_STYLE);
-        brandFocus = app && "brand-focus".equals(tileStyle);
+        brandFocus = app && "brand-focus".equals(tileStyle)
+                && Config.get(c).get(AppStyle.key(item, "background"), null) == null;
         afterglow = app && "afterglow".equals(tileStyle)
                 ? new AfterglowTile(c, item.id, title, accent) : null;
         labelH = app && afterglow == null ? Ui.dp(c, 26) : 0;
