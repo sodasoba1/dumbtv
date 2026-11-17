@@ -1232,36 +1232,6 @@ public final class Home extends Activity {
         }
     }
 
-    private boolean isInputsHidden() {
-        if (inputs == null || !"on".equals(cfg.get(Config.INPUTS))) return true;
-        return inputs.title.getVisibility() != View.VISIBLE;
-    }
-
-    private int appRowShift() {
-        int titleH = apps.title.getHeight();
-        if (titleH <= 0) {
-            apps.title.measure(
-                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-            titleH = apps.title.getMeasuredHeight();
-        }
-        if (titleH <= 0) titleH = dp(38);
-        int scrollH = cardSize()[1] + dp(46);
-        int desired = Math.round((titleH + scrollH) * 0.70f);
-
-        int screenH = getResources().getDisplayMetrics().heightPixels;
-        int headH = head != null && head.getHeight() > 0 ? head.getHeight() : 0;
-        if (headH <= 0 && head != null) {
-            head.measure(
-                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-            headH = head.getMeasuredHeight();
-        }
-        if (headH <= 0) headH = dp(96);
-        int maxShift = Math.max(0, screenH - dp(40) - headH - titleH - scrollH - dp(32));
-        return Math.min(desired, maxShift);
-    }
-
     /** Keep the scrolling content clear of the fixed favourites panel. */
     private void adjustAppRowPosition() {
         if (homeScroll == null) return;
