@@ -737,7 +737,7 @@ public final class Home extends Activity {
         clockWidget.setOrientation(LinearLayout.VERTICAL);
         clockWidget.setGravity(Gravity.CENTER_VERTICAL);
         clockWidget.setPadding(dp(18), dp(4), dp(18), dp(4));
-        clockWidget.setBackground(Ui.round(Ui.tileSurface(this, true), dp(12)));
+        clockWidget.setBackground(Ui.surface(this, Ui.tileSurface(this, true), dp(12)));
         clock = Ui.text(this, 32, Ui.TEXT, Ui.LIGHT);
         date = Ui.text(this, 13, Ui.MUTED, Ui.MEDIUM);
         date.setPadding(dp(2), dp(2), 0, 0);
@@ -746,7 +746,7 @@ public final class Home extends Activity {
         widgetGrid.addWidgetView("clock", clockWidget);
 
         memoryWidget = new FrameLayout(this);
-        memoryWidget.setBackground(Ui.round(Ui.tileSurface(this, true), dp(12)));
+        memoryWidget.setBackground(Ui.surface(this, Ui.tileSurface(this, true), dp(12)));
         memoryWidget.setVisibility(View.GONE);
         meter = new Meter(this);
         meter.setWords(getString(R.string.meter_title), getString(R.string.meter_free),
@@ -790,7 +790,7 @@ public final class Home extends Activity {
         favoritesPanel.setOrientation(LinearLayout.VERTICAL);
         favoritesPanel.setClipChildren(false);
         favoritesPanel.setClipToPadding(false);
-        favoritesPanel.setBackground(Ui.round(Ui.optionSurface(this), dp(14)));
+        favoritesPanel.setBackground(Ui.surface(this, Ui.optionSurface(this), dp(14)));
         favoritesPanel.setVisibility(View.GONE);
         FrameLayout.LayoutParams favoritesLp = new FrameLayout.LayoutParams(MATCH, WRAP, Gravity.BOTTOM);
         favoritesLp.leftMargin = dp(32);
@@ -1003,7 +1003,7 @@ public final class Home extends Activity {
         view.setPadding(dp(16), dp(8), dp(16), dp(8));
         view.setMaxLines(3);
         view.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        view.setBackground(Ui.round(Ui.tileSurface(this, true), dp(12)));
+        view.setBackground(Ui.surface(this, Ui.tileSurface(this, true), dp(12)));
         view.setFocusable(false);
         return view;
     }
@@ -1057,13 +1057,13 @@ public final class Home extends Activity {
         widgetLayout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         widgetGrid.setLayout(widgetLayout);
         int widgetSurface = Ui.tileSurface(this, true);
-        clockWidget.setBackground(Ui.round(widgetSurface, dp(12)));
-        memoryWidget.setBackground(Ui.round(widgetSurface, dp(12)));
-        recentWidget.setBackground(Ui.round(widgetSurface, dp(12)));
-        networkWidget.setBackground(Ui.round(widgetSurface, dp(12)));
-        storageWidget.setBackground(Ui.round(widgetSurface, dp(12)));
-        textWidget.setBackground(Ui.round(widgetSurface, dp(12)));
-        favoritesPanel.setBackground(Ui.round(Ui.optionSurface(this), dp(14)));
+        clockWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
+        memoryWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
+        recentWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
+        networkWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
+        storageWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
+        textWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
+        favoritesPanel.setBackground(Ui.surface(this, Ui.optionSurface(this), dp(14)));
         FrameLayout.LayoutParams scrollParams = (FrameLayout.LayoutParams) homeScroll.getLayoutParams();
         scrollParams.bottomMargin = favoriteBottomReserve();
         homeScroll.setLayoutParams(scrollParams);
