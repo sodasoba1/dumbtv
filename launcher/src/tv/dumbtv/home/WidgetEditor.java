@@ -206,6 +206,8 @@ public final class WidgetEditor extends Activity {
     }
 
     private void add() {
+        pendingMove = null;
+        pendingAddType = null;
         String[] types = {"clock", "memory", "recent", "network", "storage", "text"};
         String[] labels = {"Clock", "Memory", "Recently opened apps", "Network", "Storage", "Custom text"};
         List<String> available = new ArrayList<>();
@@ -235,6 +237,8 @@ public final class WidgetEditor extends Activity {
     }
 
     private void move() {
+        pendingAddType = null;
+        pendingMove = null;
         if (selectedId == null) {
             message("Select a widget first");
             return;
@@ -246,6 +250,8 @@ public final class WidgetEditor extends Activity {
     }
 
     private void resize() {
+        pendingMove = null;
+        pendingAddType = null;
         if (selectedId == null) {
             message("Select a widget first");
             return;
@@ -269,6 +275,8 @@ public final class WidgetEditor extends Activity {
     }
 
     private void remove() {
+        pendingMove = null;
+        pendingAddType = null;
         if (selectedId == null) {
             message("Select a widget first");
             return;
@@ -281,6 +289,8 @@ public final class WidgetEditor extends Activity {
     }
 
     private void editText() {
+        pendingMove = null;
+        pendingAddType = null;
         if (!"text".equals(selectedId)) {
             message("Select the custom text widget first");
             return;
