@@ -1089,10 +1089,14 @@ public final class Home extends Activity {
 
     private int[] cardSize() {
         switch (cfg.get(Config.TILES)) {
+            case "extra-small":
+                return new int[] {dp(120), dp(68)};
             case "small":
                 return new int[] {dp(144), dp(81)};
             case "large":
                 return new int[] {dp(224), dp(126)};
+            case "extra-large":
+                return new int[] {dp(260), dp(146)};
             default:
                 return new int[] {dp(180), dp(101)};
         }
