@@ -159,6 +159,7 @@ public final class Home extends Activity {
         final Grid grid;
         List<Item> all = new ArrayList<>();
         int initialFocusIndex;
+        int renderGeneration;
 
         Row(String kind, String name, LinearLayout parent) {
             this.kind = kind;
@@ -1179,6 +1180,7 @@ public final class Home extends Activity {
     }
 
     private void render(Row row) {
+        int renderGeneration = ++row.renderGeneration;
         if (moving != null && moving.kind.equals(row.kind)) stopMoving();
         View focused = getCurrentFocus();
         String keep = focused instanceof Tile && ((Tile) focused).kind.equals(row.kind)
@@ -1258,7 +1260,8 @@ public final class Home extends Activity {
         }
         if (loopingFavourites) {
             row.scroll.post(() -> {
-                View firstMiddleTile = target.getChildAt(shown.size());
+                if (renderGeneration != row.renderGeneration) return;
+                View firstMiddleTile = row.tiles().getChildAt(row.initialFocusIndex);
                 if (firstMiddleTile != null) row.scroll.scrollTo(firstMiddleTile.getLeft(), 0);
             });
         }
