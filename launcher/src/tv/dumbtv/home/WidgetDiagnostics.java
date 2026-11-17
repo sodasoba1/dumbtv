@@ -78,12 +78,10 @@ final class WidgetDiagnostics {
                             == PackageManager.PERMISSION_GRANTED;
                 }
                 if (allowed) granted++;
-                if (details.length() > 0) details.append(", ");
-                details.append(shortName(permission)).append(allowed ? " ✓" : " ✕");
+                details.append("\n  ").append(shortName(permission)).append(allowed ? " ✓" : " ✕");
             }
             if (!java.util.Arrays.asList(requested).contains("android.permission.INTERNET")) {
-                if (details.length() > 0) details.append(", ");
-                details.append("INTERNET not requested");
+                details.append("\n  INTERNET not requested");
             }
             return granted + "/" + requested.length + " granted\n" + details;
         } catch (PackageManager.NameNotFoundException | RuntimeException e) {
