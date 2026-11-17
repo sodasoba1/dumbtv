@@ -1206,9 +1206,9 @@ public final class Home extends Activity {
             row.strip.setGravity(Gravity.CENTER_VERTICAL | (loopingFavourites ? Gravity.LEFT : alignment));
             row.strip.setLayoutParams(new FrameLayout.LayoutParams(
                     loopingFavourites ? WRAP : MATCH, WRAP));
-            row.title.setText(loopingFavourites
-                    ? getString(R.string.row_apps).toUpperCase(Locale.ROOT) + "  ·  MORE  ‹  ›"
-                    : getString(R.string.row_apps).toUpperCase(Locale.ROOT));
+            String favouritesTitle = getString("on".equals(cfg.get(Config.ALL_APPS))
+                    ? R.string.row_pinned_apps : R.string.row_apps).toUpperCase(Locale.ROOT);
+            row.title.setText(loopingFavourites ? favouritesTitle + "  ·  MORE  ‹  ›" : favouritesTitle);
         }
         int index = 0, restore = -1;
         String spacing = cfg.get(Config.TILE_SPACING);
