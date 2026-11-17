@@ -807,8 +807,8 @@ public final class Home extends Activity {
         favoritesPanel.setPadding(0, dp(2), 0, dp(2));
         favoritesPanel.setVisibility(View.GONE);
         FrameLayout.LayoutParams favoritesLp = new FrameLayout.LayoutParams(MATCH, WRAP, Gravity.BOTTOM);
-        favoritesLp.leftMargin = dp(24);
-        favoritesLp.rightMargin = dp(24);
+        favoritesLp.leftMargin = dp(12);
+        favoritesLp.rightMargin = dp(12);
         favoritesLp.bottomMargin = dp(8);
         root.addView(favoritesPanel, favoritesLp);
 
@@ -836,7 +836,13 @@ public final class Home extends Activity {
     }
 
     private int[] favoriteCardSize() {
-        return cardSize();
+        int[] base = cardSize();
+        String spacing = cfg.get(Config.TILE_SPACING);
+        int gap = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
+        int available = getResources().getDisplayMetrics().widthPixels - dp(24);
+        int widthForSix = Math.max(dp(112), (available - gap * 5) / 6);
+        int width = Math.min(base[0], widthForSix);
+        return new int[] {width, Math.round(width * 9f / 16f)};
     }
 
     private void toolbarFocusChanged(boolean focused) {
@@ -976,9 +982,11 @@ public final class Home extends Activity {
             if (has) focusBackground(null);
         });
         chipLook(v, false);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
-        lp.leftMargin = dp(10);
-        lp.topMargin = dp(6);
+        v.setMinWidth(dp(112));
+        v.setMinHeight(dp(48));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(112), dp(48));
+        lp.leftMargin = dp(8);
+        lp.topMargin = dp(4);
         v.setLayoutParams(lp);
         chips.add(v);
         return v;
@@ -998,9 +1006,9 @@ public final class Home extends Activity {
         v.setGravity(Gravity.CENTER);
         v.setFocusable(true);
         v.setClickable(true);
-        v.setPadding(dp(18), dp(9), dp(18), dp(9));
-        v.setMinWidth(dp(44));
-        v.setMinHeight(dp(44));
+        v.setPadding(dp(12), dp(8), dp(12), dp(8));
+        v.setMinWidth(dp(112));
+        v.setMinHeight(dp(48));
         v.setOnClickListener(view -> openAllApps());
         v.setOnFocusChangeListener((view, has) -> {
             chipLook(v, has);
@@ -1008,9 +1016,9 @@ public final class Home extends Activity {
             toolbarFocusChanged(has);
             if (has) focusBackground(null);
         });
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
-        lp.leftMargin = dp(10);
-        lp.topMargin = dp(6);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(112), dp(48));
+        lp.leftMargin = dp(8);
+        lp.topMargin = dp(4);
         v.setLayoutParams(lp);
         v.setTag(new int[] {R.drawable.chip_apps, R.drawable.chip_apps_mark});
         chips.add(v);
@@ -1133,6 +1141,7 @@ public final class Home extends Activity {
         scrollParams.bottomMargin = favoriteBottomReserve();
         homeScroll.setLayoutParams(scrollParams);
         textWidget.setText(cfg.get("widgets.text", "Custom text"));
+        applyWidgetFontSizes();
         updateRecentWidget();
         updateSystemWidgets();
         for (TextView c : chips) {
@@ -1331,7 +1340,7 @@ public final class Home extends Activity {
                 if (initialTile != null) row.scroll.scrollTo(initialTile.getLeft(), 0);
             });
         }
-        row.setVisible(!shown.isEmpty());
+        row.setVisible(row != allApps && !shown.isEmpty());
         if (row == apps) row.title.setVisibility(View.GONE);
         adjustAppRowPosition();
         if (shown.isEmpty()) {
@@ -1725,7 +1734,7 @@ public final class Home extends Activity {
             return;
         }
         boolean app = Catalog.APPS.equals(t.kind);
-        boolean pinning = app && "on".equals(cfg.get(Config.ALL_APPS));
+        boolean pinning = app && Catalog.shown(cfg, Catalog.APPS, t.item);
         // Icon picks from the chosen pack, so it is only offered while that pack is installed.
         boolean icon = app && iconPacks.containsKey(cfg.get(IconPack.KEY, IconPack.OFF));
         List<Integer> menu = new ArrayList<>();
