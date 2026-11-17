@@ -55,7 +55,7 @@ public final class Options extends Activity {
         list.addView(title);
 
         heading(list, R.string.options_home_screen);
-        addChoices(list, Config.TILES, Config.ORDER, Config.ALL_APPS, Config.LABELS,
+        addChoices(list, Config.TILES, Config.ORDER, Config.LABELS,
                 Config.LIBRARY);
         list.addView(action(getString(R.string.apps_on_home), () -> pick(Catalog.APPS)));
         list.addView(action(getString(R.string.reset_layout), this::reset));
