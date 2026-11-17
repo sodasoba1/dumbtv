@@ -41,7 +41,7 @@ public final class AllApps extends Activity {
 
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
-        page.setBackgroundColor(Ui.optionSurface(this));
+        page.setBackgroundColor("classic".equals(cfg.get(Config.THEME)) ? cfg.background() : Ui.optionSurface(this));
         page.setPadding(0, Ui.dp(this, 30), 0, Ui.dp(this, 24));
 
         LinearLayout top = new LinearLayout(this);
