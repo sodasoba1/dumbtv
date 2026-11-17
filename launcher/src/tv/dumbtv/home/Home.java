@@ -764,14 +764,20 @@ public final class Home extends Activity {
 
         recentWidget = widgetText("Recently opened\nNo recent apps");
         networkWidget = widgetText("Network\nChecking connection…");
-        storageWidget = widgetText("Storage\nChecking available space…");
+        FrameLayout storageFrame = new FrameLayout(this);
+        storageFrame.setBackground(null);
+        storageMeter = new Meter(this);
+        storageMeter.setWords("Storage", "", "Running low");
+        storageMeter.setAccent(cfg.accent());
+        storageWidget = storageFrame;
+        storageFrame.addView(storageMeter, new FrameLayout.LayoutParams(MATCH, WRAP, Gravity.CENTER));
         textWidget = widgetText(cfg.get("widgets.text", "Custom text"));
         diagnosticsWidget = widgetText("DumbTV diagnostics\nCollecting process information…");
         diagnosticsWidget.setMaxLines(4);
         diagnosticsWidget.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
         diagnosticsWidget.setPadding(dp(6), dp(2), dp(6), dp(2));
-        deviceWidget = widgetText("Device information\nReading device details…");
-        deviceWidget.setMaxLines(5);
+        deviceWidget = widgetText(WidgetDiagnostics.deviceInformation());
+        deviceWidget.setMaxLines(3);
         deviceWidget.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
         widgetGrid.addWidgetView("recent", recentWidget);
         widgetGrid.addWidgetView("network", networkWidget);
@@ -1142,15 +1148,7 @@ public final class Home extends Activity {
             networkWidget.setText("Network\n" + state);
         }
         if (widgetLayout.find("storage") != null && WidgetVisibility.isEnabled(cfg, "storage")) {
-            try {
-                StatFs stats = new StatFs(Environment.getDataDirectory().getPath());
-                long free = stats.getAvailableBytes();
-                long total = stats.getTotalBytes();
-                storageWidget.setText("Storage\n" + Formatter.formatFileSize(this, free)
-                        + " free of " + Formatter.formatFileSize(this, total));
-            } catch (RuntimeException ignored) {
-                storageWidget.setText("Storage\nUnavailable");
-            }
+            storageMeter.updateStorage(this);
         }
         if (widgetLayout.find("diagnostics") != null && WidgetVisibility.isEnabled(cfg, "diagnostics")) {
             diagnosticsWidget.setText(WidgetDiagnostics.snapshot(this));
@@ -1161,17 +1159,7 @@ public final class Home extends Activity {
     }
 
     private String deviceInformation() {
-        long minutes = android.os.SystemClock.elapsedRealtime() / 60000L;
-        long days = minutes / 1440L;
-        long hours = (minutes / 60L) % 24L;
-        long mins = minutes % 60L;
-        String uptime = days > 0 ? days + "d " + hours + "h"
-                : hours > 0 ? hours + "h " + mins + "m" : mins + "m";
-        return "Device information\n" + android.os.Build.MODEL
-                + "\nAndroid " + android.os.Build.VERSION.RELEASE
-                + " · API " + android.os.Build.VERSION.SDK_INT
-                + "\nBuild " + android.os.Build.DISPLAY
-                + "\nUptime " + uptime;
+        return WidgetDiagnostics.deviceInformation();
     }
 
     private void apply() {
