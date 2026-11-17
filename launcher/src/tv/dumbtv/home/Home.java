@@ -1312,6 +1312,10 @@ public final class Home extends Activity {
     }
 
     private void render(Row row) {
+        if (row == allApps) {
+            row.setVisible(false);
+            return;
+        }
         int renderGeneration = ++row.renderGeneration;
         if (moving != null && moving.kind.equals(row.kind)) stopMoving();
         View focused = getCurrentFocus();
