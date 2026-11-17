@@ -1265,8 +1265,6 @@ public final class Home extends Activity {
         boolean loopingFavourites = row == apps && shown.size() > 6;
         int copies = loopingFavourites ? 3 : 1;
         row.initialFocusIndex = loopingFavourites ? shown.size() : 0;
-        final int cycleWidth = shown.size() * (w + dp("compact".equals(cfg.get(Config.TILE_SPACING))
-                ? 10 : "spacious".equals(cfg.get(Config.TILE_SPACING)) ? 28 : 18));
         String spacing = cfg.get(Config.TILE_SPACING);
         int tileGap = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
         if (row == apps) {
@@ -1295,11 +1293,15 @@ public final class Home extends Activity {
                         focusBackground(tile.item);
                         if (loopingFavourites && copyIndex != 1) {
                             ui.post(() -> {
-                                if (getCurrentFocus() == tile) {
-                                    int offset = copyIndex == 0 ? cycleWidth : -cycleWidth;
+                                if (renderGeneration != row.renderGeneration
+                                        || getCurrentFocus() != tile || tile.getParent() != target) return;
+                                View equivalent = target.getChildAt(shown.size() + itemPosition);
+                                if (equivalent != null) {
+                                    // Use the actual measured tile positions, not an estimated
+                                    // cycle width, so spacing and card changes cannot introduce a jump.
+                                    int offset = equivalent.getLeft() - tile.getLeft();
                                     row.scroll.scrollTo(row.scroll.getScrollX() + offset, 0);
-                                    View equivalent = target.getChildAt(shown.size() + itemPosition);
-                                    if (equivalent != null) equivalent.requestFocus();
+                                    equivalent.requestFocus();
                                 }
                             });
                         }
