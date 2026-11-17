@@ -209,8 +209,9 @@ elif words[:2] == ['pm', 'grant'] and len(words) >= 4:
     if permission == 'android.permission.READ_LOGS' and state.get('read_logs_refused'):
         print('Operation not allowed: READ_LOGS grant refused')
         sys.exit(1)
-    state.setdefault('permissions', {}).setdefault(package, {})[permission] = True
-    save()
+    if not (permission == 'android.permission.READ_LOGS' and state.get('read_logs_not_recorded')):
+        state.setdefault('permissions', {}).setdefault(package, {})[permission] = True
+        save()
 elif words[:2] == ['pm', 'revoke'] and len(words) >= 4:
     package, permission = words[2], words[3]
     state.setdefault('permissions', {}).setdefault(package, {})[permission] = False
