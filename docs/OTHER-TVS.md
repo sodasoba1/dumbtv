@@ -66,11 +66,12 @@ Same shell, same `pm disable-user`, different targets.
   `system_server` if you disable `launcherx` alone. Disable the whole
   `setupwraith` package too. On some builds (a TCL G05 is reported) neither
   disable survives a reboot.
-- **Private DNS is usually enough**: `settings put global private_dns_mode hostname`
-  plus a filtering DoT resolver, with no app to keep alive. Use personalDNSfilter
-  only if you need a custom host list. Some builds have no Private DNS screen
-  in Settings (a OnePlus Y Series is one), so only adb can switch it off again
-  if the resolver ever stops answering.
+- **Private DNS may be available on some Android TV builds**: `settings put global private_dns_mode hostname`
+  plus a filtering DoT resolver can work without a local VPN app. This is general
+  Android TV guidance, not a DumbTV feature. This fork does not install or recommend
+  personalDNSfilter; use a separately managed network resolver such as Pi-hole for
+  filtering across devices. Some builds have no Private DNS screen in Settings, so
+  verify that you have a recovery path if the resolver stops answering.
 - Fire OS settings keys (`amz_limit_ad_tracking` and friends) do nothing here.
 - A few China-market TCL sets refuse to install any third-party launcher at all.
 
