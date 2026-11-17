@@ -2,6 +2,7 @@ package tv.dumbtv.home;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.StateListDrawable;
 import android.os.Bundle;
 import android.text.InputFilter;
@@ -42,7 +43,7 @@ public final class WidgetEditor extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(48), dp(24), dp(48), dp(24));
-        root.setBackgroundColor(Ui.optionSurface(this));
+        root.setBackground(editorShape(Ui.optionSurface(this), dp(18), 0x44FFFFFF));
 
         TextView title = Ui.text(this, 28, Ui.TEXT, Ui.LIGHT);
         title.setText("Edit widgets");
@@ -129,9 +130,16 @@ public final class WidgetEditor extends Activity {
     private StateListDrawable focusableBackground(int normal, int radius) {
         StateListDrawable background = new StateListDrawable();
         background.addState(new int[] {android.R.attr.state_focused},
-                Ui.round((cfg.accent() & 0x00FFFFFF) | 0x66000000, radius));
-        background.addState(new int[0], Ui.round(normal, radius));
+                editorShape((cfg.accent() & 0x00FFFFFF) | 0x55303030, radius, cfg.accent()));
+        background.addState(new int[0],
+                editorShape(normal, radius, Ui.isGlass(this) ? 0x44FFFFFF : 0x00000000));
         return background;
+    }
+
+    private GradientDrawable editorShape(int color, int radius, int stroke) {
+        GradientDrawable shape = Ui.round(color, radius);
+        if (stroke != 0) shape.setStroke(Math.max(1, dp(1)), stroke);
+        return shape;
     }
 
     private WidgetLayout.Widget occupant(int x, int y) {
