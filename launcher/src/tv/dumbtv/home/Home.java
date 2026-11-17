@@ -158,6 +158,7 @@ public final class Home extends Activity {
         final LinearLayout strip;
         final Grid grid;
         List<Item> all = new ArrayList<>();
+        int initialFocusIndex;
 
         Row(String kind, String name, LinearLayout parent) {
             this.kind = kind;
@@ -182,6 +183,7 @@ public final class Home extends Activity {
             };
             scroll.setFocusable(false);
             scroll.setHorizontalScrollBarEnabled(false);
+            scroll.setFillViewport(Catalog.APPS.equals(kind));
             scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
             scroll.setClipChildren(false);
             scroll.setClipToPadding(false);
@@ -1194,36 +1196,71 @@ public final class Home extends Activity {
         int w = size[0], h = Catalog.isApp(row.kind) ? size[1] : Math.round(size[1] * 0.56f);
         String labels = cfg.get(Config.LABELS);
         int accent = cfg.accent();
+        boolean loopingFavourites = row == apps && shown.size() > 6;
+        int copies = loopingFavourites ? 3 : 1;
+        row.initialFocusIndex = loopingFavourites ? shown.size() : 0;
+        if (row == apps) {
+            int alignment = "left".equals(cfg.get(Config.FAVOURITES_ALIGN)) ? Gravity.LEFT
+                    : "right".equals(cfg.get(Config.FAVOURITES_ALIGN)) ? Gravity.RIGHT
+                    : Gravity.CENTER_HORIZONTAL;
+            row.strip.setGravity(Gravity.CENTER_VERTICAL | (loopingFavourites ? Gravity.LEFT : alignment));
+            row.strip.setLayoutParams(new FrameLayout.LayoutParams(
+                    loopingFavourites ? WRAP : MATCH, WRAP));
+            row.title.setText(loopingFavourites
+                    ? getString(R.string.row_apps).toUpperCase(Locale.ROOT) + "  ·  MORE  ‹  ›"
+                    : getString(R.string.row_apps).toUpperCase(Locale.ROOT));
+        }
         int index = 0, restore = -1;
-        for (Item it : shown) {
-            Tile t = new Tile(this, it, row.kind, Catalog.label(cfg, it), w, h, labels, accent);
-            t.setOnClickListener(v -> open((Tile) v));
-            t.setOnFocusChangeListener((v, has) -> {
-                if (has) {
-                    Tile tile = (Tile) v;
-                    lastFocusedKind = tile.kind;
-                    lastIds.put(tile.kind, tile.item.id);
-                    focusBackground(tile.item);
+        String spacing = cfg.get(Config.TILE_SPACING);
+        int tileGap = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
+        for (int copy = 0; copy < copies; copy++) {
+            for (int itemIndex = 0; itemIndex < shown.size(); itemIndex++) {
+                final int copyIndex = copy;
+                final int itemPosition = itemIndex;
+                Item it = shown.get(itemIndex);
+                Tile t = new Tile(this, it, row.kind, Catalog.label(cfg, it), w, h, labels, accent);
+                t.setOnClickListener(v -> open((Tile) v));
+                t.setOnFocusChangeListener((v, has) -> {
+                    if (has) {
+                        Tile tile = (Tile) v;
+                        lastFocusedKind = tile.kind;
+                        lastIds.put(tile.kind, tile.item.id);
+                        focusBackground(tile.item);
+                        if (loopingFavourites && copyIndex != 1) {
+                            ui.post(() -> {
+                                if (getCurrentFocus() == tile) {
+                                    View equivalent = target.getChildAt(shown.size() + itemPosition);
+                                    if (equivalent != null) equivalent.requestFocus();
+                                }
+                            });
+                        }
+                    }
+                });
+                t.setOnLongClickListener(v -> {
+                    if (!locked()) menu((Tile) v);
+                    return true;
+                });
+                if (gridMode) {
+                    target.addView(t, new ViewGroup.LayoutParams(WRAP, WRAP));
+                } else {
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
+                    lp.rightMargin = row == apps && copy == copies - 1
+                            && itemIndex == shown.size() - 1 ? 0 : tileGap;
+                    target.addView(t, lp);
                 }
-            });
-            t.setOnLongClickListener(v -> {
-                if (!locked()) menu((Tile) v);
-                return true;
-            });
-            if (gridMode) {
-                target.addView(t, new ViewGroup.LayoutParams(WRAP, WRAP));
-            } else {
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
-                String spacing = cfg.get(Config.TILE_SPACING);
-                lp.rightMargin = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
-                target.addView(t, lp);
+                if (it.id.equals(keep) && (!loopingFavourites || copy == 1)) restore = index;
+                index++;
+                String tileStyle = cfg.get(Config.TILE_STYLE);
+                if (Catalog.isApp(row.kind) && (!it.artRequested
+                        || ("afterglow".equals(tileStyle) || "brand-focus".equals(tileStyle))
+                        && it.icon == null)) loadArt(it);
             }
-            if (it.id.equals(keep)) restore = index;
-            index++;
-            String tileStyle = cfg.get(Config.TILE_STYLE);
-            if (Catalog.isApp(row.kind) && (!it.artRequested
-                    || ("afterglow".equals(tileStyle) || "brand-focus".equals(tileStyle))
-                    && it.icon == null)) loadArt(it);
+        }
+        if (loopingFavourites) {
+            row.scroll.post(() -> {
+                View firstMiddleTile = target.getChildAt(shown.size());
+                if (firstMiddleTile != null) row.scroll.scrollTo(firstMiddleTile.getLeft(), 0);
+            });
         }
         row.setVisible(!shown.isEmpty());
         adjustAppRowPosition();
@@ -1393,8 +1430,13 @@ public final class Home extends Activity {
     private void focusFirst() {
         View first = null;
         for (Row row : rows()) {
-            row.scroll.scrollTo(0, 0);
-            if (first == null) first = row.tiles().getChildAt(0);
+            if (row == apps && row.initialFocusIndex > 0) {
+                first = row.tiles().getChildAt(row.initialFocusIndex);
+                if (first != null) row.scroll.scrollTo(first.getLeft(), 0);
+            } else {
+                row.scroll.scrollTo(0, 0);
+                if (first == null) first = row.tiles().getChildAt(0);
+            }
         }
         landed = apps.tiles().getChildCount() > 0 || allApps.tiles().getChildCount() > 0;
         if (first == null) first = chips.get(0);
