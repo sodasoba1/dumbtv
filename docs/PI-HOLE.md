@@ -8,6 +8,33 @@ router or selected clients at it, then subscribe to the lists below.
 This is separate from the normal DumbTV cleanup. The normal setup works without
 Pi-hole, and Pi-hole can be used without installing DumbTV.
 
+## Create a group for the Fire TV
+
+Use a dedicated Pi-hole group so Fire TV-specific rules do not affect every device
+on the network.
+
+1. Give the Fire Stick a reserved DHCP address in your router. This keeps the
+   Pi-hole client identity stable across reconnects.
+2. In Pi-hole, open **Group Management → Groups** and create a group such as
+   `Fire TV`. Keep your normal devices in the default group.
+3. Open **Group Management → Clients** and add the Fire Stick. Use its reserved
+   IP address (or a stable MAC/client identifier that Pi-hole actually sees),
+   give it a recognisable comment, and assign it to the `Fire TV` group.
+4. Confirm the Fire Stick appears as that client in Pi-hole's Query Log. If the
+   query log shows only your router's address for every device, the router is
+   proxying DNS; Pi-hole cannot distinguish the Fire Stick from other clients
+   in that arrangement. Configure clients to use Pi-hole directly, or use a
+   router/Pi-hole integration that preserves per-client identity.
+5. When adding or editing each DumbTV list, assign it to the `Fire TV` group
+   rather than the default group. Leave the list assigned to the default group
+   only if you deliberately want it to affect all clients.
+
+The labels differ slightly between Pi-hole releases, but the underlying steps
+are the same: create the group, register the client, assign the client to the
+group, then scope each adlist to that group. On Pi-hole v5, group assignment for
+blocklists is managed under **Group Management → Adlists**; on v6, use the group
+selection in **Settings → Lists** when adding or editing a list.
+
 ## Before adding lists
 
 - Start with the default Amazon tracker list and DumbTV supplemental list only.
