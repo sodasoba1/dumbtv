@@ -77,6 +77,9 @@ final class Config {
     static final Choice TOOLBAR_ALIGN = new Choice("toolbar_align", "Toolbar alignment", "right",
             new String[] {"left", "center", "right"},
             new String[] {"Left", "Centre", "Right"});
+    static final Choice FAVOURITES_ALIGN = new Choice("favourites_align", "Favourites alignment", "center",
+            new String[] {"left", "center", "right"},
+            new String[] {"Left", "Centre", "Right"});
     static final Choice TILES = new Choice("tiles", "Tile size", "medium",
             new String[] {"extra-small", "small", "medium", "large", "extra-large"},
             new String[] {"Extra small", "Small", "Medium", "Large", "Extra large"});
