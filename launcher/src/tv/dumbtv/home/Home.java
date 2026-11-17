@@ -1057,8 +1057,6 @@ public final class Home extends Activity {
                 storageWidget.setText("Storage\nUnavailable");
             }
         }
-    }
-
         if (widgetLayout.find("diagnostics") != null) {
             diagnosticsWidget.setText(WidgetDiagnostics.snapshot(this));
         }
@@ -1118,7 +1116,9 @@ public final class Home extends Activity {
             chipLook(c, c.isFocused());
             c.setVisibility(locked() ? View.GONE : View.VISIBLE);
         }
-        widgetGrid.setWidgetEnabled("memory", "on".equals(cfg.get(Config.MEMORY)));
+        for (WidgetVisibility.Definition definition : WidgetVisibility.ALL) {
+            widgetGrid.setWidgetEnabled(definition.id, WidgetVisibility.isEnabled(cfg, definition.id));
+        }
         meter.setAccent(accent);
         hero.setAccent(accent);
         apps.title.setText(getString("on".equals(cfg.get(Config.ALL_APPS))
