@@ -139,6 +139,19 @@ normal banners and App names behavior. Background and layout remain separate cho
 |---|---|---|
 | ![Grid layout](../docs/assets/screens/grid.png) | ![Adaptive background](../docs/assets/screens/adaptive.png) | ![Adaptive tint](../docs/assets/screens/tint.png) |
 
+## Glass theme, top bar and widgets
+
+The **Theme** option includes Classic, Glass, Midnight and Slate. Glass applies the shared translucent surface treatment to the home UI and its settings surfaces; it does not change app launch, HDMI handling or Keeper. Tile shape, spacing, borders, shadows, focus treatment and accent remain separate controls.
+
+The top bar can be aligned left, centre or right. **Auto-hide top bar** is off by default; when enabled, the bar fades/slides away without reclaiming its layout space or shifting the widget grid, scrolling content or bottom favourites panel. The **Widgets** shortcut opens widget visibility settings. **Widget editing mode** is off by default; when enabled, placed widgets can be focused and opened in the layout editor.
+
+The home uses a 6-column by 4-row widget grid. The available widgets are Clock, Memory, Recently opened apps, Network, Storage, Custom text, DumbTV diagnostics and Device information. A fresh layout starts with the Clock placed. Widgets have a minimum size of 2 × 2 cells; placements cannot overlap or extend beyond the grid. The editor supports Add, Move, Resize, Remove and custom text editing. Changes are staged until **Save**; **Cancel** discards them.
+
+Widget visibility and placement are separate. Turning a widget off hides it but preserves its position. A widget that is enabled but has no saved position is shown as **On · not added** in Widget Settings. The Network widget reads Android's active connection state; it does not make network requests and does not require the INTERNET permission.
+
+Favourites display up to six tiles at once. With six or fewer, the row uses the selected left, centre or right alignment (centre by default). With more than six, it shows a six-tile viewport and loops horizontally in either direction; the row title hints that more favourites are available. The pinned apps themselves remain in the launcher catalogue and are not changed by hiding the row.
+
+**Options** is DumbTV's own configuration page, organised into Home screen, App tiles & icons, Theme & background, Top bar & favourites, Focus & navigation, Widgets, Inputs, and System & security. **Settings** is separate: it opens Fire OS Settings, using a Fire OS 6-specific section list where available. Child lock only restricts DumbTV's own controls; it is not a Fire OS PIN or parental-control replacement.
 ## HDMI inputs
 
 **Options › Open inputs with** decides what an input tile does:
