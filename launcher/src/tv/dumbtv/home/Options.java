@@ -53,7 +53,7 @@ public final class Options extends Activity {
         list.addView(title);
 
         heading(list, R.string.options_appearance);
-        addChoices(list, Config.ACCENT, Config.THEME, Config.TOOLBAR_ALIGN, Config.TOOLBAR_AUTO_HIDE, Config.FAVOURITES_ALIGN, Config.BACKGROUND, Config.DIM, Config.GRADIENT,
+        addChoices(list, Config.ACCENT, Config.THEME, Config.FAVOURITES_ALIGN, Config.BACKGROUND, Config.DIM, Config.GRADIENT,
                 Config.GRADIENT_COLOR, Config.GRADIENT_STRENGTH, Config.ROTATE, Config.TILES, Config.LAYOUT,
                 Config.TILE_STYLE, Config.FOCUS_SCALE, Config.FOCUS_INDICATOR, Config.FOCUS_ANIMATION,
                 Config.TILE_RADIUS, Config.TILE_SPACING, Config.TILE_BORDER,
@@ -63,6 +63,9 @@ public final class Options extends Activity {
             cfg.nextWallpaper();
             refresh();
         }));
+
+        heading(list, "Top bar");
+        addChoices(list, Config.TOOLBAR_ALIGN, Config.TOOLBAR_AUTO_HIDE);
 
         heading(list, "Widgets");
         addChoices(list, Config.WIDGET_EDITING);
