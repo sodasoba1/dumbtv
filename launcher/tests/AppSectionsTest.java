@@ -29,7 +29,7 @@ public final class AppSectionsTest {
     public static void main(String[] args) throws Exception {
         File dir = Files.createTempDirectory("dumbtv-sections-").toFile();
         try {
-            Config cfg = ConfigTest.open(dir, null);
+            Config cfg = ConfigTest.open(dir);
             Item a = app("alpha", true), b = app("beta", true), c = app("gamma", false);
             List<Item> catalog = Arrays.asList(a, b, c);
             check("off".equals(cfg.get(Config.ALL_APPS)), "all apps off by default");
@@ -68,7 +68,7 @@ public final class AppSectionsTest {
             ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog), "alpha", "beta", "gamma");
             cfg.set("all_apps", "off");
             ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog));
-            Config reloaded = ConfigTest.open(dir, null);
+            Config reloaded = ConfigTest.open(dir);
             ids(Catalog.visible(reloaded, Catalog.APPS, catalog), "alpha", "beta");
             ids(Catalog.visible(reloaded, Catalog.ALL_APPS, catalog));
             ids(catalog, "alpha", "beta", "gamma");
