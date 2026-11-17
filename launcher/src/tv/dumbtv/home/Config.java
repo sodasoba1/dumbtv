@@ -75,8 +75,8 @@ final class Config {
             new String[] {"classic", "glass", "midnight", "slate"},
             new String[] {"Classic", "Glass", "Midnight", "Slate"});
     static final Choice TILES = new Choice("tiles", "Tile size", "medium",
-            new String[] {"small", "medium", "large"},
-            new String[] {"Small", "Medium", "Large"});
+            new String[] {"extra-small", "small", "medium", "large", "extra-large"},
+            new String[] {"Extra small", "Small", "Medium", "Large", "Extra large"});
     static final Choice LAYOUT = new Choice("layout", "Layout", "rows",
             new String[] {"rows", "grid"},
             new String[] {"Rows", "Grid"});
