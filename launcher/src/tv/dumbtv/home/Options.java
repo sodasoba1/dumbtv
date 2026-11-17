@@ -129,6 +129,15 @@ public final class Options extends Activity {
         list.addView(heading);
     }
 
+    private void heading(LinearLayout list, String title) {
+        TextView heading = Ui.text(this, 13, Ui.FAINT, Ui.MEDIUM);
+        heading.setText(title);
+        heading.setAllCaps(true);
+        heading.setLetterSpacing(0.1f);
+        heading.setPadding(dp(16), dp(26), 0, dp(10));
+        list.addView(heading);
+    }
+
     private void addChoices(LinearLayout list, Config.Choice... choices) {
         for (Config.Choice c : choices) list.addView(choice(c));
     }
