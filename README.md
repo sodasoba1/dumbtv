@@ -51,7 +51,7 @@ The Fire OS 6 implementation has been hardened specifically for the AFTMM:
 - Starts after boot and after the launcher package is updated.
 - Runs as a foreground service, is exempted from Doze, and receives the Fire OS `AUTO_START` AppOp so it can recover after standby.
 - Uses UsageStats foreground events as its primary detection path. The installer grants and verifies both `GET_USAGE_STATS` and `AUTO_START`.
-- Uses ActivityManager logcat as an additional, more immediate signal when ADB grants `READ_LOGS`.
+- Uses ActivityManager logcat as an additional, more immediate signal. The installer grants `READ_LOGS` through ADB and fails if the grant cannot be verified; this is a required part of the AFTMM Keeper setup.
 - Verifies the exact Amazon Home activity rather than reacting to every Amazon activity or every launch request.
 - Keeps screen-on/off handling and UsageStats polling as independent recovery paths.
 - Debounces duplicate foreground events, handles stale UsageStats event windows after deep standby, and restarts a failed logcat reader with backoff.
@@ -70,8 +70,7 @@ The revised standby-wake takeover has now passed an initial physical test on the
 - Downloads and verifies the matching SHA-256 sidecar before installation.
 - Installs or updates the APK, applies the required Fire OS 6 AppOps/permissions, adds the Doze exemption and starts the launcher.
 - Checks that Keeper is running and that DumbTV is in the foreground.
-- Requests `READ_LOGS` on each install/update and verifies the resulting permission state using `dumpsys package`. Fire OS 6's `pm check-permission` output is not reliable on this device.
-- Retains UsageStats recovery if `READ_LOGS` cannot be granted or verified.
+- Grants `android.permission.READ_LOGS` with ADB's `pm grant` command on each install/update, then verifies the installed package reports `granted=true` in `dumpsys package`. A failed grant or failed verification stops installation; the installer does not silently continue without Keeper's ActivityManager signal. Fire OS 6's `pm check-permission` output is not reliable on this device.
 - Provides an undo path to return HOME to Amazon's launcher.
 
 The release workflow is tag-driven (`launcher-v*`). The validation workflow builds and tests the source; the signed release workflow publishes the APK and checksum sidecar. See [Building and releasing the launcher](docs/BUILDING-LAUNCHER.md).
@@ -104,10 +103,22 @@ These are deliberate scope decisions, not unfinished features to re-enable by de
 | **Accessibility, overlay and alarm-based HOME takeover** | These mechanisms are outside the AFTMM/API 25 design. Keeper uses UsageStats, optional ActivityManager logcat, screen-state broadcasts and task recovery. |
 | **Fire OS 8 media-folder compatibility handling** | The launcher is restricted to API 25, so the newer storage compatibility branch is unnecessary. |
 | **Alarm-manager takeover timing and retry helpers** | Keeper does not alter system alarm timing; its foreground polling and wake handling are implemented directly in the API 25 service. |
-| **On-device personalDNSfilter lifecycle integration in the launcher** | The launcher should not start, restart or supervise a separate VPN/DNS-filter app. This reduces coupling and avoids making launcher reliability depend on another app. The installer retains a compatibility cleanup for legacy personalDNSfilter configuration; it does not install or run that filter. |
+| **On-device personalDNSfilter / VPN DNS filtering** | This fork uses Pi-hole as an independent network-level DNS filter, which can cover the Fire Stick without running a local VPN or depending on an Android filter app. The launcher must not start, restart or supervise a separate VPN/DNS-filter app. The installer only disables the legacy personalDNSfilter app and clears its own always-on VPN selection when migrating an existing setup; it does not install or run a replacement VPN. |
 | **Generic multi-version launcher release target** | A single APK intended for multiple Fire OS generations obscures the actual permission and takeover requirements. This fork publishes an API 25 launcher for the AFTMM only. |
 
-The wider repository's optional network filtering guidance is separate. DumbTV itself does not run a DNS filter or VPN on the stick. For network-wide filtering, use the separate [Pi-hole guide](docs/PI-HOLE.md).
+### Pi-hole network filtering
+
+This fork is intended to work with an independently hosted Pi-hole for network-level
+DNS filtering. We removed the original on-device personalDNSfilter/VPN approach:
+it duplicates network DNS filtering, creates a local VPN dependency on the Fire Stick,
+and is unnecessary when the router or selected clients use Pi-hole. DumbTV does not
+install a VPN, intercept DNS or require network permission.
+
+The maintained source domains and generated Pi-hole exports live under
+`data/blocklists/`. The [Pi-hole guide](docs/PI-HOLE.md) documents the version-specific
+list URLs, installation, Gravity updates, and how to create a dedicated Fire TV group,
+assign the Stick as a client, and scope lists to that group. Keep the default Amazon
+supplemental list separate from the opt-in Alexa and Prime Video lists.
 
 ## Install the launcher
 
