@@ -108,7 +108,7 @@ final class WidgetLayout {
 
     private static boolean validType(String type) {
         return "clock".equals(type) || "memory".equals(type) || "recent".equals(type)
-                || "network".equals(type) || "storage".equals(type) || "text".equals(type);
+                || "network".equals(type) || "storage".equals(type) || "text".equals(type)\n                || "diagnostics".equals(type) || "device".equals(type);
     }
 
     /** Native cards need two columns and two rows for readable text and the memory meter. */
