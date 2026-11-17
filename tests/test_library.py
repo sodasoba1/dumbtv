@@ -31,8 +31,8 @@ class LibraryDeployTest(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             commands = log.read_text().splitlines()
-            self.assertIn(f"shell rm -rf '{DEST}' && mkdir -p '{DEST}'", commands)
-            self.assertIn(f"push {source}/library.conf {DEST}/", commands)
+            self.assertIn(f"-s test-tv shell rm -rf '{DEST}' && mkdir -p '{DEST}'", commands)
+            self.assertIn(f"-s test-tv push {source}/library.conf {DEST}/", commands)
             self.assertFalse(any("getprop ro.build.version.sdk" in line for line in commands))
 
 
