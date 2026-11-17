@@ -40,7 +40,6 @@ final class WidgetLayout {
     static WidgetLayout defaults() {
         WidgetLayout result = new WidgetLayout();
         result.add("clock", "clock", 0, 0, 2, 2);
-        result.add("memory", "memory", 2, 0, 2, 2);
         return result;
     }
 
