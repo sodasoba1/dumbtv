@@ -84,11 +84,14 @@ final class Ui {
         return d;
     }
 
-    /** Give system dialogs the same restrained translucent surface as Glass cards. */
+    /** Apply the selected non-Classic theme to system dialogs while preserving Classic. */
     static void styleDialog(AlertDialog dialog) {
         Context c = dialog.getContext();
-        if (!isGlass(c) || dialog.getWindow() == null) return;
-        dialog.getWindow().setBackgroundDrawable(surface(c, optionSurface(c), dp(c, 18)));
+        if ("classic".equals(Config.get(c).get(Config.THEME)) || dialog.getWindow() == null) return;
+        Drawable background = isGlass(c)
+                ? surface(c, optionSurface(c), dp(c, 18))
+                : round(optionSurface(c), dp(c, 18));
+        dialog.getWindow().setBackgroundDrawable(background);
         android.widget.Button positive = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
         android.widget.Button negative = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
         android.widget.Button neutral = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
