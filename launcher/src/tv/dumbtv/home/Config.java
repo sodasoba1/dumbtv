@@ -70,7 +70,7 @@ final class Config {
             new String[] {"White", "Blue", "Cyan", "Green", "Amber", "Red", "Pink", "Violet",
                     "Teal", "Mint", "Lime", "Yellow", "Orange", "Coral", "Crimson", "Rose",
                     "Magenta", "Purple", "Indigo", "Lavender", "Sky", "Ice", "Gold", "Copper", "Custom colour"},
-            new String[] {"white", "blue", "cyan", "green", "amber", "red", "pink", "violet", "custom"});
+            new String[] {"custom"});
     static final Choice THEME = new Choice("theme", "Theme", "classic",
             new String[] {"classic", "glass", "midnight", "slate"},
             new String[] {"Classic", "Glass", "Midnight", "Slate"});
@@ -115,7 +115,7 @@ final class Config {
             new String[] {"Black", "Graphite", "Midnight", "Charcoal", "Slate", "Navy", "Ocean",
                     "Forest", "Burgundy", "Plum", "Espresso", "Sand", "Image file", "Adaptive solid",
                     "Adaptive wallpaper tint", "Custom colour"},
-            new String[] {"black", "graphite", "midnight", "slate", "image", "adaptive", "adaptive-tint", "custom"});
+            new String[] {"custom"});
     static final Choice DIM = new Choice("dim", "Image dim", "40",
             new String[] {"0", "20", "40", "60", "80"},
             new String[] {"0%", "20%", "40%", "60%", "80%"});
@@ -131,7 +131,7 @@ final class Config {
             new String[] {"Black", "White", "Blue", "Cyan", "Green", "Amber", "Red", "Pink", "Violet",
                     "Teal", "Mint", "Lime", "Yellow", "Orange", "Coral", "Crimson", "Rose", "Magenta",
                     "Purple", "Indigo", "Lavender", "Sky blue", "Ice", "Gold", "Copper", "Custom colour"},
-            new String[] {"black", "white", "blue", "red", "custom"});
+            new String[] {"custom"});
     static final Choice GRADIENT_STRENGTH = new Choice("gradient_strength", "Gradient strength", "40",
             new String[] {"20", "40", "60", "80"},
             new String[] {"20%", "40%", "60%", "80%"});
