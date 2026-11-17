@@ -18,7 +18,7 @@ final class WidgetGridView extends ViewGroup {
     private WidgetLayout layout = new WidgetLayout();
     private final Set<String> disabled = new HashSet<>();
     private boolean interactive;
-    private OnClickListener widgetClick;
+    private View.OnClickListener widgetClick;
 
     WidgetGridView(Context context) {
         super(context);
@@ -46,7 +46,7 @@ final class WidgetGridView extends ViewGroup {
         return !disabled.contains(id);
     }
 
-    void setInteractive(boolean enabled, OnClickListener click) {
+    void setInteractive(boolean enabled, View.OnClickListener click) {
         interactive = enabled;
         widgetClick = click;
         setDescendantFocusability(enabled ? FOCUS_AFTER_DESCENDANTS : FOCUS_BLOCK_DESCENDANTS);
