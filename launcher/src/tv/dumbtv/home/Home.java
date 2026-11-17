@@ -40,6 +40,8 @@ import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -1732,11 +1734,77 @@ public final class Home extends Activity {
         String[] labels = AppStyle.labels(property);
         String current = AppStyle.current(cfg, tile.item, property);
         int selected = java.util.Arrays.asList(values).indexOf(current);
+        final String[] pending = {selected < 0 ? AppStyle.inherited(cfg, property) : values[selected]};
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(20), dp(12), dp(20), 0);
+
+        TextView preview = Ui.text(this, 15, Ui.TEXT, Ui.MEDIUM);
+        preview.setGravity(Gravity.CENTER);
+        preview.setText("APP ICON\nExample app");
+        LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(MATCH, dp(104));
+        previewParams.bottomMargin = dp(16);
+        content.addView(preview, previewParams);
+
+        RadioGroup choices = new RadioGroup(this);
+        choices.setOrientation(RadioGroup.VERTICAL);
+        for (int i = 0; i < labels.length; i++) {
+            RadioButton option = new RadioButton(this);
+            option.setText(labels[i]);
+            option.setTextColor(Ui.TEXT);
+            option.setTextSize(15);
+            option.setId(1000 + i);
+            choices.addView(option, new RadioGroup.LayoutParams(MATCH, WRAP));
+        }
+        content.addView(choices);
+        Runnable updatePreview = () -> {
+            String value = pending[0];
+            String corners = property == 0 ? value : AppStyle.current(cfg, tile.item, 0);
+            if (property != 0 && cfg.get(AppStyle.key(tile.item, "radius"), null) == null)
+                corners = cfg.get(Config.TILE_RADIUS);
+            float radius = dp("square".equals(corners) ? 0 : "rounded".equals(corners) ? 18 : 10);
+            String border = property == 2 ? value : AppStyle.current(cfg, tile.item, 2);
+            if (property != 2 && cfg.get(AppStyle.key(tile.item, "border"), null) == null)
+                border = cfg.get(Config.TILE_BORDER);
+            String shadow = property == 3 ? value : AppStyle.current(cfg, tile.item, 3);
+            if (property != 3 && cfg.get(AppStyle.key(tile.item, "shadow"), null) == null)
+                shadow = cfg.get(Config.TILE_SHADOW);
+            String scale = property == 1 ? value : AppStyle.current(cfg, tile.item, 1);
+            if (property != 1 && cfg.get(AppStyle.key(tile.item, "focus_scale"), null) == null)
+                scale = cfg.get(Config.FOCUS_SCALE);
+            String appLabels = property == 4 ? value : AppStyle.current(cfg, tile.item, 4);
+            if (property != 4 && cfg.get(AppStyle.key(tile.item, "labels"), null) == null)
+                appLabels = cfg.get(Config.LABELS);
+
+            GradientDrawable shape = new GradientDrawable();
+            shape.setColor(Ui.tileSurface(this, true));
+            shape.setCornerRadius(radius);
+            if ("off".equals(border)) shape.setStroke(dp(Ui.isGlass(this) ? 1 : 0), Ui.isGlass(this) ? 0x66FFFFFF : 0x00000000);
+            else shape.setStroke(dp(2), "accent".equals(border) ? cfg.accent() : 0x66FFFFFF);
+            preview.setBackground(shape);
+            preview.setElevation(dp("off".equals(shadow) ? 0 : "soft".equals(shadow) ? 4 : 8));
+            float focus = "off".equals(scale) ? 1f : "subtle".equals(scale) ? 1.04f : "strong".equals(scale) ? 1.12f : 1.08f;
+            preview.setScaleX(focus);
+            preview.setScaleY(focus);
+            preview.setText("never".equals(appLabels) ? "APP ICON" : "APP ICON\nExample app");
+        };
+        choices.setOnCheckedChangeListener((group, checkedId) -> {
+            int index = checkedId - 1000;
+            if (index >= 0 && index < values.length) {
+                pending[0] = values[index];
+                updatePreview.run();
+            }
+        });
+        int checked = selected < 0 ? 0 : selected;
+        choices.check(1000 + checked);
+        updatePreview.run();
+
         AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle(AppStyle.properties()[property])
-                .setSingleChoiceItems(labels, selected, (d, which) -> {
-                    AppStyle.set(cfg, tile.item, AppStyle.configProperty(property), values[which]);
-                    d.dismiss();
+                .setView(content)
+                .setPositiveButton(R.string.save, (d, which) -> {
+                    AppStyle.set(cfg, tile.item, AppStyle.configProperty(property), pending[0]);
                     apply();
                     customizeTile(tile);
                 })
