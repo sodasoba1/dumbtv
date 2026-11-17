@@ -1,11 +1,22 @@
 package tv.dumbtv.home;
 
+import android.app.ActivityManager;
 import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.Build;
+import android.os.Environment;
+import android.os.StatFs;
+import android.text.format.DateFormat;
+import android.text.format.Formatter;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import java.util.Date;
+import java.util.Locale;
 
 /** Preview built from the same widget views and placement engine used on the home screen. */
 final class WidgetPreview extends WidgetGridView {
@@ -23,9 +34,10 @@ final class WidgetPreview extends WidgetGridView {
                 Ui.dp(context, 18), Ui.dp(context, 4));
         clock.setBackground(backgrounds ? Ui.surface(context, surface, Ui.dp(context, 12)) : null);
         TextView time = Ui.text(context, 32, Ui.TEXT, Ui.LIGHT);
-        time.setText("10:42");
+        time.setText(DateFormat.format("HH:mm", new Date()));
         TextView date = Ui.text(context, 13, Ui.MUTED, Ui.MEDIUM);
-        date.setText("MONDAY  ·  17 NOV");
+        date.setText(DateFormat.format(DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEEdMMMM"),
+                new Date()).toString().toUpperCase(Locale.ROOT));
         date.setPadding(Ui.dp(context, 2), Ui.dp(context, 2), 0, 0);
         clock.addView(time);
         clock.addView(date);
@@ -34,32 +46,50 @@ final class WidgetPreview extends WidgetGridView {
         FrameLayout memory = new FrameLayout(context);
         memory.setBackground(backgrounds ? Ui.surface(context, surface, Ui.dp(context, 12)) : null);
         Meter meter = new Meter(context);
-        meter.setWords("Memory", "Free", "Running low");
+        meter.setWords("Memory", "%1$d MB free of %2$d MB", "Running low");
         meter.setAccent(Config.get(context).accent());
+        meter.update((ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE));
         memory.addView(meter, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.CENTER));
         addWidgetView("memory", memory);
 
-        addWidgetView("recent", widgetText(context, "Recently opened\nPrime Video  ·  YouTube",
+        addWidgetView("recent", widgetText(context, "Recently opened\\nRecent app names",
                 backgrounds, surface));
-        addWidgetView("network", widgetText(context, "Network\nWi-Fi connected",
+
+        ConnectivityManager connectivity = (ConnectivityManager)
+                context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo network = connectivity == null ? null : connectivity.getActiveNetworkInfo();
+        String networkState = network == null || !network.isConnected() ? "Disconnected"
+                : "Connected · " + network.getTypeName();
+        addWidgetView("network", widgetText(context, "Network\\n" + networkState,
                 backgrounds, surface));
-        addWidgetView("storage", widgetText(context, "Storage\n28 GB available",
+
+        String storage = "Unavailable";
+        try {
+            StatFs stats = new StatFs(Environment.getDataDirectory().getPath());
+            storage = Formatter.formatFileSize(context, stats.getAvailableBytes())
+                    + " free of " + Formatter.formatFileSize(context, stats.getTotalBytes());
+        } catch (RuntimeException ignored) {
+            // Keep the preview usable if storage statistics are unavailable.
+        }
+        addWidgetView("storage", widgetText(context, "Storage\\n" + storage,
                 backgrounds, surface));
+
         customText = widgetText(context, "Custom text", backgrounds, surface);
         addWidgetView("text", customText);
 
-        TextView diagnostics = widgetText(context,
-                "DumbTV diagnostics\nKeeper running  ·  Permissions OK", backgrounds, surface);
+        TextView diagnostics = widgetText(context, WidgetDiagnostics.snapshot(context),
+                backgrounds, surface);
         diagnostics.setMaxLines(14);
         diagnostics.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
         diagnostics.setPadding(Ui.dp(context, 10), Ui.dp(context, 5),
                 Ui.dp(context, 10), Ui.dp(context, 5));
         addWidgetView("diagnostics", diagnostics);
 
-        TextView device = widgetText(context,
-                "Device information\nFire TV Stick 4K  ·  Fire OS 6", backgrounds, surface);
+        String deviceInfo = "Device information\\n" + Build.MODEL
+                + "\\nAndroid " + Build.VERSION.RELEASE + " · API " + Build.VERSION.SDK_INT;
+        TextView device = widgetText(context, deviceInfo, backgrounds, surface);
         device.setMaxLines(5);
         device.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
         addWidgetView("device", device);
@@ -67,6 +97,10 @@ final class WidgetPreview extends WidgetGridView {
 
     void setLayout(WidgetLayout value, String text) {
         super.setLayout(value);
+        Config config = Config.get(getContext());
+        for (WidgetVisibility.Definition definition : WidgetVisibility.ALL) {
+            setWidgetEnabled(definition.id, WidgetVisibility.isEnabled(config, definition.id));
+        }
         customText.setText(text == null || text.trim().isEmpty() ? "Custom text" : text.trim());
     }
 
