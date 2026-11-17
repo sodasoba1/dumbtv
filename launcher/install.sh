@@ -44,12 +44,6 @@ reconnect_after_vpn_change() {
   return 1
 }
 
-dev_sdk=$(sh_ getprop ro.build.version.sdk | tr -d '\r')
-if [[ $dev_sdk != 25 ]]; then
-  echo "error: this launcher APK is built only for Fire OS 6 / Android 7.1.2 (API 25); device reports API ${dev_sdk:-unknown}" >&2
-  exit 1
-fi
-
 sha256() {
   if command -v sha256sum >/dev/null; then sha256sum "$1" | awk '{print $1}'
   else shasum -a 256 "$1" | awk '{print $1}'; fi
@@ -67,6 +61,16 @@ if [[ $mode == undo ]]; then
   echo "HOME handed back to Amazon's launcher (dumbtv home stays installed: adb uninstall $PKG)"
   exit 0
 fi
+
+# Only installation/build is restricted to the AFTMM API 25 target. Undo must
+# remain available on any device carrying an older installation so HOME can
+# always be handed back to Amazon, including during restore on other Fire OS versions.
+dev_sdk=$(sh_ getprop ro.build.version.sdk | tr -d '\r')
+if [[ $dev_sdk != 25 ]]; then
+  echo "error: this launcher APK is built only for Fire OS 6 / Android 7.1.2 (API 25); device reports API ${dev_sdk:-unknown}" >&2
+  exit 1
+fi
+
 
 build_apk() {
   ./build.sh
@@ -121,6 +125,16 @@ echo "installed $PKG"
 sh_ dumpsys deviceidle whitelist +$PKG >/dev/null
 # Fire OS 6 only: Keeper uses UsageStats and ActivityManager logcat; no accessibility service.
 sh_ appops set $PKG GET_USAGE_STATS allow
+# Fire OS 6 vendor AppOp: allow Keeper to restart/continue after standby.
+sh_ appops set $PKG AUTO_START allow
+sh_ appops write-settings >/dev/null 2>&1 || true
+auto_start=$(sh_ appops get $PKG AUTO_START 2>/dev/null | tr -d '\r')
+if ! grep -Eq 'AUTO_START:[[:space:]]*allow([,[:space:]]|$)' <<<"$auto_start"; then
+  echo "error: Keeper AUTO_START permission is not enabled ($auto_start)" >&2
+  echo "  Fire OS may block standby recovery; enable automatic start for dumbtv home in device app settings." >&2
+  exit 1
+fi
+echo "standby start: AUTO_START allowed"
 # Request READ_LOGS on every install/update, then verify the resulting package
 # permission state. Fire OS 6 does not reliably implement pm check-permission.
 grant_error=""
@@ -129,11 +143,7 @@ package_dump=$(sh_ dumpsys package $PKG 2>/dev/null || true)
 if grep -Eq '^[[:space:]]*android\.permission\.READ_LOGS:[[:space:]]*granted=true([,[:space:]]|$)' <<<"$package_dump"; then
   echo "logcat monitoring: READ_LOGS granted"
 else
-  if [[ -n $grant_error ]]; then
-    echo "note: READ_LOGS could not be confirmed ($grant_error); UsageStats fallback remains enabled"
-  else
-    echo "note: READ_LOGS grant could not be verified; UsageStats fallback remains enabled"
-  fi
+  echo "note: optional READ_LOGS access is unavailable; Keeper will continue with UsageStats and screen broadcasts"
 fi
 start_home $PKG/.Home
 sleep 3
