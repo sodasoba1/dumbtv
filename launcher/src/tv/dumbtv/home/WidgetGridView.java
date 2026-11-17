@@ -15,6 +15,15 @@ class WidgetGridView extends ViewGroup {
     private static final int ROWS = WidgetLayout.ROWS;
     private static final int GAP_DP = 8;
 
+    /** Same 6×4 aspect ratio used by the live home-screen widget surface. */
+    static int preferredHeight(Context context) {
+        int contentWidth = context.getResources().getDisplayMetrics().widthPixels
+                - Ui.dp(context, 48) - Ui.dp(context, GAP_DP * (COLUMNS - 1));
+        int cellHeight = Math.max(Ui.dp(context, 44),
+                Math.round((contentWidth / (float) COLUMNS) * 0.36f));
+        return cellHeight * ROWS + Ui.dp(context, GAP_DP * (ROWS - 1));
+    }
+
     private WidgetLayout layout = new WidgetLayout();
     private final Set<String> disabled = new HashSet<>();
 
