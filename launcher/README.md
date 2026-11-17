@@ -80,7 +80,7 @@ you open an app.
 | Gradient overlay | off (default), dark at bottom, top, left, right, top-left, top-right, bottom-left or bottom-right; above the background but below all text, icons, tiles and banners |
 | Gradient colour | One HSV slider picker with no presets. Existing saved palette values remain readable. |
 | Gradient strength | 20%, 40% (default), 60%, 80%; available when a gradient direction is selected |
-| Tile corners | square, soft (default), rounded |
+| UI roundness | square, soft (default), rounded; applies uniformly to tiles, docks, widgets and shared UI surfaces |
 | Tile spacing | compact, normal (default), spacious; applies to horizontal rows |
 | Tile border | off (default), subtle, accent |
 | Border thickness | thin (default), medium, thick; used when a border is enabled |
