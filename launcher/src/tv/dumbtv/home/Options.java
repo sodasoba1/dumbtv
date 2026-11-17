@@ -55,7 +55,7 @@ public final class Options extends Activity {
         list.addView(title);
 
         heading(list, R.string.options_home_screen);
-        addChoices(list, Config.LAYOUT, Config.TILES, Config.ORDER, Config.ALL_APPS, Config.LABELS,
+        addChoices(list, Config.TILES, Config.ORDER, Config.ALL_APPS, Config.LABELS,
                 Config.LIBRARY);
         list.addView(action(getString(R.string.apps_on_home), () -> pick(Catalog.APPS)));
         list.addView(action(getString(R.string.reset_layout), this::reset));
@@ -91,11 +91,9 @@ public final class Options extends Activity {
         addChoices(list, Config.FOCUS_SCALE, Config.FOCUS_INDICATOR, Config.FOCUS_ANIMATION);
 
         heading(list, R.string.options_widgets);
-        addChoices(list, Config.CLOCK, Config.WIDGET_EDITING);
+        addChoices(list, Config.CLOCK, Config.WIDGET_EDITING, Config.WIDGET_BACKGROUNDS);
         list.addView(action("Show / hide widgets", () ->
                 startActivity(new Intent(this, WidgetSettings.class))));
-        list.addView(action("Edit widget layout", () ->
-                startActivity(new Intent(this, WidgetEditor.class))));
 
         heading(list, R.string.options_inputs);
         addChoices(list, Config.INPUTS, Config.SWITCH);
