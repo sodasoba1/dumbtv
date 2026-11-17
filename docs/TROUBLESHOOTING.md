@@ -30,6 +30,12 @@ configuration; `./scripts/verify.sh` fails if it is missing. Re-run
 `./launcher/install.sh` and inspect its error if the grant is refused. Do not
 treat a successful UsageStats check as proof that logcat monitoring is active.
 
+READ_LOGS is required because it enables the ActivityManager wake-detection
+path added after a deep-sleep bug: Keeper's old four-second UsageStats query
+could run too late after resume, and its screen-off snapshot could be stale or
+missing. See [Keeper standby and HOME recovery](KEEPER-RECOVERY.md) for the
+failure mechanism, the PR #15/#16 fixes, and the limits of the fix.
+
 ### Amazon's Settings stays on screen
 
 This is intentional. Opening Amazon's own settings pauses takeover so that
