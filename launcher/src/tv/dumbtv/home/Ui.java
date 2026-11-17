@@ -41,7 +41,7 @@ final class Ui {
     static int optionFocus(Context c) {
         int accent = Config.get(c).accent();
         return "glass".equals(Config.get(c).get(Config.THEME))
-                ? (accent & 0x00FFFFFF) | 0x553D8BFF
+                ? (accent & 0x00FFFFFF) | 0x55000000
                 : (accent & 0x00FFFFFF) | 0x33000000;
     }
 
