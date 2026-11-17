@@ -19,7 +19,7 @@ public final class WidgetLayoutTest {
         check(WidgetLayout.defaults().items().size() == 2, "first-run layout includes clock and memory");
         check(grid.move("memory", 4, 0), "move into free cells");
         check(!grid.move("memory", 1, 0), "reject move into occupied cells");
-        check(!grid.resize("clock", 3, 1), "reject resize into occupied cells");
+        check(!grid.resize("clock", 5, 1), "reject resize into occupied cells");
         check(grid.resize("clock", 2, 2), "allow free vertical span");
         check(grid.remove("memory"), "remove widget");
         check(grid.add("text_1", "text", 2, 0, 4, 2), "reuse freed area with span");
