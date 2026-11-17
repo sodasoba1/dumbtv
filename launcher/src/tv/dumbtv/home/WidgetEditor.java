@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.graphics.drawable.StateListDrawable;
 import android.os.Bundle;
+import android.text.InputFilter;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -250,6 +251,7 @@ public final class WidgetEditor extends Activity {
         input.setSingleLine(false);
         input.setMinLines(1);
         input.setMaxLines(3);
+        input.setFilters(new InputFilter[] {new InputFilter.LengthFilter(80)});
         new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle("Custom widget text")
                 .setView(input)
