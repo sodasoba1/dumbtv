@@ -65,7 +65,7 @@ final class WidgetLayout {
 
     boolean add(String id, String type, int x, int y, int width, int height) {
         if (!validId(id) || !validType(type) || find(id) != null
-                || !inside(x, y, width, height) || collides(null, x, y, width, height)) return false;
+                || !inside(x, y, width, height) || !validSize(type, width) || collides(null, x, y, width, height)) return false;
         widgets.add(new Widget(id, type, x, y, width, height));
         return true;
     }
@@ -91,7 +91,8 @@ final class WidgetLayout {
     }
 
     private boolean replace(Widget old, int x, int y, int width, int height) {
-        if (!inside(x, y, width, height) || collides(old.id, x, y, width, height)) return false;
+        if (!inside(x, y, width, height) || !validSize(old.type, width)
+                || collides(old.id, x, y, width, height)) return false;
         widgets.set(widgets.indexOf(old), new Widget(old.id, old.type, x, y, width, height));
         return true;
     }
@@ -119,6 +120,11 @@ final class WidgetLayout {
     private static boolean validType(String type) {
         return "clock".equals(type) || "memory".equals(type) || "recent".equals(type)
                 || "network".equals(type) || "storage".equals(type) || "text".equals(type);
+    }
+
+    /** Built-in widgets need at least two columns for their text and memory meter. */
+    private static boolean validSize(String type, int width) {
+        return width >= 2;
     }
 
     /** Stable compact format: id,type,x,y,width,height;... */
