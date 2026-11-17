@@ -43,9 +43,6 @@ final class Tile extends View {
     private final TextPaint under = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private boolean moving;
     private final AfterglowTile afterglow;
-    private final boolean brandFocus;
-    private final int brandColor;
-    private ValueAnimator brandAnimation;
 
     Tile(Context c, Item item, String kind, CharSequence title, int cardW, int cardH,
             String labels, int accent) {
@@ -57,26 +54,20 @@ final class Tile extends View {
         this.cardH = cardH;
         boolean app = Catalog.isApp(kind);
         String tileStyle = Config.get(c).get(Config.TILE_STYLE);
-        brandFocus = app && "brand-focus".equals(tileStyle)
-                && Config.get(c).get(AppStyle.key(item, "background"), null) == null
-                && Config.get(c).get(AppStyle.key(item, "banner"), null) == null;
         afterglow = app && "afterglow".equals(tileStyle)
                 && Config.get(c).get(AppStyle.key(item, "banner"), null) == null
                 ? new AfterglowTile(c, item.id, title, accent) : null;
         labelH = app && afterglow == null ? Ui.dp(c, 26) : 0;
-        int mappedColor = brandFocus ? BrandFocusColors.forPackage(item.id, title.toString()) : 0;
-        brandColor = mappedColor == 0 ? BrandFocusColors.fallback(accent) : mappedColor;
         labelAlways = "always".equals(labels);
         labelOnFocus = "focus".equals(labels);
-        String corners = AppStyle.get(Config.get(c), item, "radius", Config.get(c).get(Config.TILE_RADIUS));
-        radius = Ui.dp(c, "square".equals(corners) ? 0 : "rounded".equals(corners) ? 18 : 10);
+        radius = Ui.cornerRadius(c);
         String appSize = AppStyle.get(Config.get(c), item, "size", "normal");
         baseScale = "compact".equals(appSize) ? 0.90f : "large".equals(appSize) ? 1.08f : 1f;
         setScaleX(baseScale);
         setScaleY(baseScale);
         stroke = Ui.dp(c, afterglow == null ? 2.5f : 1f);
 
-        int defaultSurface = brandFocus ? 0xFF17181B : Ui.tileSurface(c, app);
+        int defaultSurface = Ui.tileSurface(c, app);
         fill.setColor(app ? AppStyle.backgroundColor(Config.get(c), item, defaultSurface) : defaultSurface);
         if (Ui.isGlass(c)) {
             glassSheen.setShader(new LinearGradient(0, 0, 0, cardH,
@@ -160,21 +151,7 @@ final class Tile extends View {
             if ("smooth".equals(config.get(Config.FOCUS_ANIMATION))) animate().scaleX(baseScale).scaleY(baseScale).setDuration(110).start();
             else { setScaleX(baseScale); setScaleY(baseScale); }
         }
-        if (brandFocus) animateBrand(focused);
         invalidate();
-    }
-
-    private void animateBrand(boolean focused) {
-        if (brandAnimation != null) brandAnimation.cancel();
-        int target = focused ? brandColor : 0xFF17181B;
-        if (fill.getColor() == target) return;
-        brandAnimation = ValueAnimator.ofArgb(fill.getColor(), target);
-        brandAnimation.setDuration(180);
-        brandAnimation.addUpdateListener(a -> {
-            fill.setColor((Integer) a.getAnimatedValue());
-            invalidate();
-        });
-        brandAnimation.start();
     }
 
     @Override
@@ -185,17 +162,19 @@ final class Tile extends View {
         canvas.drawRect(card, fill);
         if (afterglow != null) {
             afterglow.draw(canvas, icon, cardW, cardH);
-        } else if (brandFocus) {
-            drawBrandIcon(canvas, icon);
         } else if (banner != null) {
             banner.setBounds(0, 0, cardW, cardH);
             banner.draw(canvas);
         } else if (icon != null) {
-            int size = cardH * 46 / 100;
-            int left = (cardW - size) / 2, top = cardH * 12 / 100;
-            icon.setBounds(left, top, left + size, top + size);
+            float maxWidth = cardW * 0.88f, maxHeight = cardH * 0.88f;
+            float aspect = (float) Math.max(1, icon.getIntrinsicWidth())
+                    / Math.max(1, icon.getIntrinsicHeight());
+            float iconWidth = Math.min(maxWidth, maxHeight * aspect);
+            float iconHeight = Math.min(maxHeight, maxWidth / aspect);
+            float left = (cardW - iconWidth) / 2f, top = (cardH - iconHeight) / 2f;
+            icon.setBounds(Math.round(left), Math.round(top),
+                    Math.round(left + iconWidth), Math.round(top + iconHeight));
             icon.draw(canvas);
-            drawLine(canvas, inner, cardW / 2f, cardH - cardH * 13 / 100f);
         } else if (!Catalog.isApp(kind)) {
             drawLine(canvas, inner, cardW / 2f, cardH / 2f - (inner.ascent() + inner.descent()) / 2);
         }
@@ -249,24 +228,11 @@ final class Tile extends View {
         }
         if (moving) drawArrows(canvas);
         String appLabels = AppStyle.get(Config.get(getContext()), item, "labels", Config.get(getContext()).get(Config.LABELS));
-        boolean label = banner != null && ("always".equals(appLabels) || "focus".equals(appLabels) && isFocused());
-        if (labelH > 0 && (label || brandFocus && !"never".equals(appLabels))) {
+        boolean label = banner == null || "always".equals(appLabels)
+                || "focus".equals(appLabels) && isFocused();
+        if (labelH > 0 && label) {
             drawLine(canvas, under, cardW / 2f, cardH + labelH - Ui.dp(getContext(), 6));
         }
-    }
-
-    /** Draw the pre-filtered monochrome app artwork at a balanced, centered size. */
-    private void drawBrandIcon(Canvas canvas, Drawable icon) {
-        if (icon == null) return;
-        float max = cardH * 0.64f;
-        float aspect = (float) Math.max(1, icon.getIntrinsicWidth())
-                / Math.max(1, icon.getIntrinsicHeight());
-        float w = aspect >= 1f ? max : max * aspect;
-        float h = aspect >= 1f ? max / aspect : max;
-        float left = (cardW - w) / 2f;
-        float top = (cardH - h) / 2f;
-        icon.setBounds(Math.round(left), Math.round(top), Math.round(left + w), Math.round(top + h));
-        icon.draw(canvas);
     }
 
     private void drawLine(Canvas canvas, TextPaint paint, float x, float baseline) {
