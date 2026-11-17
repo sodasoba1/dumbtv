@@ -4,11 +4,7 @@ import android.app.ActivityManager;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.Build;
-import android.os.Environment;
-import android.os.StatFs;
 import android.text.format.DateFormat;
-import android.text.format.Formatter;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -59,8 +55,7 @@ final class WidgetPreview extends WidgetGridView {
                 Gravity.CENTER));
         addWidgetView("memory", memory);
 
-        addWidgetView("recent", widgetText(context, "Recently opened\nRecent app names",
-                backgrounds, surface));
+        addWidgetView("recent", widgetText(context, Recent.preview(context), backgrounds, surface));
 
         ConnectivityManager connectivity = (ConnectivityManager)
                 context.getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -70,16 +65,16 @@ final class WidgetPreview extends WidgetGridView {
         addWidgetView("network", widgetText(context, "Network\n" + networkState,
                 backgrounds, surface));
 
-        String storage = "Unavailable";
-        try {
-            StatFs stats = new StatFs(Environment.getDataDirectory().getPath());
-            storage = Formatter.formatFileSize(context, stats.getAvailableBytes())
-                    + " free of " + Formatter.formatFileSize(context, stats.getTotalBytes());
-        } catch (RuntimeException ignored) {
-            // Keep the preview usable if storage statistics are unavailable.
-        }
-        addWidgetView("storage", widgetText(context, "Storage\n" + storage,
-                backgrounds, surface));
+        FrameLayout storage = new FrameLayout(context);
+        storage.setBackground(backgrounds ? Ui.surface(context, surface, Ui.dp(context, 12)) : null);
+        Meter storageMeter = new Meter(context);
+        storageMeter.setWords("Storage", "", "Running low");
+        storageMeter.setAccent(Config.get(context).accent());
+        storageMeter.updateStorage(context);
+        storage.addView(storageMeter, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER));
+        addWidgetView("storage", storage);
 
         customText = widgetText(context, "Custom text", backgrounds, surface);
         addWidgetView("text", customText);
@@ -92,10 +87,8 @@ final class WidgetPreview extends WidgetGridView {
                 Ui.dp(context, 6), Ui.dp(context, 2));
         addWidgetView("diagnostics", diagnostics);
 
-        String deviceInfo = "Device information\n" + Build.MODEL
-                + "\nAndroid " + Build.VERSION.RELEASE + " · API " + Build.VERSION.SDK_INT;
-        TextView device = widgetText(context, deviceInfo, backgrounds, surface);
-        device.setMaxLines(5);
+        TextView device = widgetText(context, WidgetDiagnostics.deviceInformation(), backgrounds, surface);
+        device.setMaxLines(3);
         device.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
         addWidgetView("device", device);
     }
