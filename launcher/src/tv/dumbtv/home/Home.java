@@ -806,7 +806,7 @@ public final class Home extends Activity {
         storageWidget = widgetText("Storage\nChecking available space…");
         textWidget = widgetText(cfg.get("widgets.text", "Custom text"));
         diagnosticsWidget = widgetText("DumbTV diagnostics\nCollecting process information…");
-        diagnosticsWidget.setMaxLines(7);
+        diagnosticsWidget.setMaxLines(14);
         diagnosticsWidget.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
         diagnosticsWidget.setPadding(dp(10), dp(5), dp(10), dp(5));
         deviceWidget = widgetText("Device information\nReading device details…");
@@ -862,7 +862,7 @@ public final class Home extends Activity {
         inputs = new Row(Catalog.INPUTS, getString(R.string.row_inputs), column);
 
         FrameLayout.LayoutParams scrollLp = (FrameLayout.LayoutParams) scroll.getLayoutParams();
-        scrollLp.topMargin = dp(64 + widgetHeight + 12);
+        scrollLp.topMargin = dp(64) + widgetHeight + dp(12);
         scrollLp.bottomMargin = favoriteBottomReserve();
         scroll.setLayoutParams(scrollLp);
         return root;
@@ -1042,7 +1042,12 @@ public final class Home extends Activity {
         return v;
     }
 
-    /** Text-only navigation chip; tapping it opens the full installed-app catalogue. */
+    private void openAllApps() {
+        startActivity(new Intent(this, AllApps.class));
+        overridePendingTransition(R.anim.slide_up, R.anim.stay);
+    }
+
+    /** Navigation chip that opens the full installed-app catalogue. */
     private TextView allAppsChip() {
         TextView v = Ui.text(this, 14, Ui.TEXT, Ui.MEDIUM);
         allAppsButton = v;
@@ -1052,6 +1057,8 @@ public final class Home extends Activity {
         v.setFocusable(true);
         v.setClickable(true);
         v.setPadding(dp(18), dp(9), dp(18), dp(9));
+        v.setMinWidth(dp(44));
+        v.setMinHeight(dp(44));
         v.setOnClickListener(view -> openAllApps());
         v.setOnFocusChangeListener((view, has) -> {
             chipLook(v, has);
