@@ -1,142 +1,85 @@
 package tv.dumbtv.home;
 
 import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.RectF;
-import android.text.TextPaint;
-import android.text.TextUtils;
-import android.view.View;
+import android.view.Gravity;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
-/** Read-only miniature of the home widget grid, updated as staged placements change. */
-final class WidgetPreview extends View {
-    private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint guide = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final TextPaint title = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-    private final TextPaint detail = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-    private WidgetLayout layout = new WidgetLayout();
-    private String customText = "Custom text";
+/** Preview built from the same widget views and placement engine used on the home screen. */
+final class WidgetPreview extends WidgetGridView {
+    private final TextView customText;
 
     WidgetPreview(Context context) {
         super(context);
-        setFocusable(false);
-        setClickable(false);
-        fill.setColor(Ui.tileSurface(context, true));
-        edge.setStyle(Paint.Style.STROKE);
-        edge.setStrokeWidth(Ui.dp(context, 1));
-        edge.setColor(Ui.isGlass(context) ? 0x88FFFFFF : 0x55888888);
-        guide.setStyle(Paint.Style.STROKE);
-        guide.setStrokeWidth(Ui.dp(context, 1));
-        guide.setColor(0x226F8295);
-        title.setColor(Ui.TEXT);
-        title.setTypeface(Ui.MEDIUM);
-        detail.setColor(Ui.MUTED);
-        detail.setTypeface(Ui.LIGHT);
+        int surface = Ui.tileSurface(context, true);
+        boolean backgrounds = "on".equals(Config.get(context).get(Config.WIDGET_BACKGROUNDS));
+
+        LinearLayout clock = new LinearLayout(context);
+        clock.setOrientation(LinearLayout.VERTICAL);
+        clock.setGravity(Gravity.CENTER_VERTICAL);
+        clock.setPadding(Ui.dp(context, 18), Ui.dp(context, 4),
+                Ui.dp(context, 18), Ui.dp(context, 4));
+        clock.setBackground(backgrounds ? Ui.surface(context, surface, Ui.dp(context, 12)) : null);
+        TextView time = Ui.text(context, 32, Ui.TEXT, Ui.LIGHT);
+        time.setText("10:42");
+        TextView date = Ui.text(context, 13, Ui.MUTED, Ui.MEDIUM);
+        date.setText("MONDAY  ·  17 NOV");
+        date.setPadding(Ui.dp(context, 2), Ui.dp(context, 2), 0, 0);
+        clock.addView(time);
+        clock.addView(date);
+        addWidgetView("clock", clock);
+
+        FrameLayout memory = new FrameLayout(context);
+        memory.setBackground(backgrounds ? Ui.surface(context, surface, Ui.dp(context, 12)) : null);
+        Meter meter = new Meter(context);
+        meter.setWords("Memory", "Free", "Running low");
+        meter.setAccent(Config.get(context).accent());
+        memory.addView(meter, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER));
+        addWidgetView("memory", memory);
+
+        addWidgetView("recent", widgetText(context, "Recently opened\nPrime Video  ·  YouTube",
+                backgrounds, surface));
+        addWidgetView("network", widgetText(context, "Network\nWi-Fi connected",
+                backgrounds, surface));
+        addWidgetView("storage", widgetText(context, "Storage\n28 GB available",
+                backgrounds, surface));
+        customText = widgetText(context, "Custom text", backgrounds, surface);
+        addWidgetView("text", customText);
+
+        TextView diagnostics = widgetText(context,
+                "DumbTV diagnostics\nKeeper running  ·  Permissions OK", backgrounds, surface);
+        diagnostics.setMaxLines(14);
+        diagnostics.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
+        diagnostics.setPadding(Ui.dp(context, 10), Ui.dp(context, 5),
+                Ui.dp(context, 10), Ui.dp(context, 5));
+        addWidgetView("diagnostics", diagnostics);
+
+        TextView device = widgetText(context,
+                "Device information\nFire TV Stick 4K  ·  Fire OS 6", backgrounds, surface);
+        device.setMaxLines(5);
+        device.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
+        addWidgetView("device", device);
     }
 
     void setLayout(WidgetLayout value, String text) {
-        layout = value == null ? new WidgetLayout() : value;
-        customText = text == null || text.trim().isEmpty() ? "Custom text" : text.trim();
-        invalidate();
+        super.setLayout(value);
+        customText.setText(text == null || text.trim().isEmpty() ? "Custom text" : text.trim());
     }
 
-    @Override
-    protected void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
-        float pad = Ui.dp(getContext(), 4);
-        float gap = Ui.dp(getContext(), 5);
-        float cellW = Math.max(0, (getWidth() - pad * 2 - gap * (WidgetLayout.COLUMNS - 1))
-                / (float) WidgetLayout.COLUMNS);
-        float cellH = Math.max(0, (getHeight() - pad * 2 - gap * (WidgetLayout.ROWS - 1))
-                / (float) WidgetLayout.ROWS);
-        float radius = Ui.cornerRadius(getContext());
-
-        for (int y = 0; y < WidgetLayout.ROWS; y++) {
-            for (int x = 0; x < WidgetLayout.COLUMNS; x++) {
-                float left = pad + x * (cellW + gap);
-                float top = pad + y * (cellH + gap);
-                canvas.drawRoundRect(left, top, left + cellW, top + cellH, radius, radius, guide);
-            }
-        }
-
-        for (WidgetLayout.Widget widget : layout.items()) {
-            float left = pad + widget.x * (cellW + gap);
-            float top = pad + widget.y * (cellH + gap);
-            float right = left + widget.width * cellW + (widget.width - 1) * gap;
-            float bottom = top + widget.height * cellH + (widget.height - 1) * gap;
-            RectF bounds = new RectF(left, top, right, bottom);
-            canvas.drawRoundRect(bounds, radius, radius, fill);
-            canvas.drawRoundRect(bounds, radius, radius, edge);
-            drawContent(canvas, bounds, widget.type);
-        }
-        if (layout.items().isEmpty()) {
-            title.setTextSize(Ui.dp(getContext(), 12));
-            drawCentered(canvas, "No widgets placed", getWidth() / 2f, getHeight() / 2f, title);
-        }
-    }
-
-    private void drawContent(Canvas canvas, RectF bounds, String type) {
-        float pad = Ui.dp(getContext(), 7);
-        float available = Math.max(0, bounds.width() - pad * 2);
-        String heading, body;
-        switch (type) {
-            case "clock":
-                heading = "10:42";
-                body = "MONDAY  ·  17 NOV";
-                break;
-            case "memory":
-                heading = "MEMORY";
-                body = "62% FREE";
-                break;
-            case "recent":
-                heading = "RECENTLY OPENED";
-                body = "Prime Video  ·  YouTube";
-                break;
-            case "network":
-                heading = "NETWORK";
-                body = "Wi-Fi connected";
-                break;
-            case "storage":
-                heading = "STORAGE";
-                body = "28 GB available";
-                break;
-            case "text":
-                heading = "CUSTOM TEXT";
-                body = customText;
-                break;
-            case "diagnostics":
-                heading = "DUMBTV DIAGNOSTICS";
-                body = "Keeper running  ·  Permissions OK";
-                break;
-            case "device":
-                heading = "DEVICE INFORMATION";
-                body = "Fire TV Stick 4K  ·  Fire OS 6";
-                break;
-            default:
-                heading = type.toUpperCase(java.util.Locale.ROOT);
-                body = "";
-                break;
-        }
-        float size = Math.min(Ui.dp(getContext(), 15), bounds.height() * 0.28f);
-        title.setTextSize(Math.max(Ui.dp(getContext(), 8), size));
-        detail.setTextSize(Math.max(Ui.dp(getContext(), 7), size * 0.58f));
-        float baseline = bounds.top + Math.min(bounds.height() * 0.48f, pad + size);
-        drawFit(canvas, heading, bounds.centerX(), baseline, title, available);
-        if (!body.isEmpty() && bounds.height() > Ui.dp(getContext(), 28)) {
-            float bodyBaseline = Math.min(bounds.bottom - pad, baseline + size * 1.25f);
-            drawFit(canvas, body, bounds.centerX(), bodyBaseline, detail, available);
-        }
-    }
-
-    private void drawFit(Canvas canvas, String value, float x, float baseline,
-                         TextPaint paint, float width) {
-        CharSequence fitted = TextUtils.ellipsize(value, paint, width, TextUtils.TruncateAt.END);
-        drawCentered(canvas, fitted, x, baseline, paint);
-    }
-
-    private void drawCentered(Canvas canvas, CharSequence value, float x, float baseline, TextPaint paint) {
-        float width = paint.measureText(value, 0, value.length());
-        canvas.drawText(value, 0, value.length(), x - width / 2f, baseline, paint);
+    private static TextView widgetText(Context context, String value,
+                                       boolean backgrounds, int surface) {
+        TextView view = Ui.text(context, 14, Ui.TEXT, Ui.MEDIUM);
+        view.setText(value);
+        view.setGravity(Gravity.CENTER_VERTICAL);
+        view.setPadding(Ui.dp(context, 16), Ui.dp(context, 8),
+                Ui.dp(context, 16), Ui.dp(context, 8));
+        view.setMaxLines(3);
+        view.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        view.setBackground(backgrounds ? Ui.surface(context, surface, Ui.dp(context, 12)) : null);
+        return view;
     }
 }
