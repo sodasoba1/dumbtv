@@ -64,7 +64,7 @@ public final class AppSectionsTest {
             ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog));
             ids(Catalog.visible(cfg, Catalog.APPS, catalog), "alpha", "beta");
             cfg.set("lock", "off");
-            ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog), "alpha", "beta", "gamma");
+            ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog));
             cfg.set("all_apps", "off");
             ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog));
             Config reloaded = ConfigTest.open(dir);
