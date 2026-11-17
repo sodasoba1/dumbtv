@@ -168,7 +168,7 @@ See [docs/BUILDING-LAUNCHER.md](docs/BUILDING-LAUNCHER.md) for SDK setup, signin
 |---|---|
 | `launcher/` | Launcher source, Keeper, manifest, build and installer |
 | `scripts/` | ADB cleanup, setup, verification and restore scripts |
-| `docs/` | Technical explanations, troubleshooting and Pi-hole guidance |
+| `docs/` | Technical explanations, troubleshooting, Pi-hole guidance and the [fork architecture guide](docs/FORK-ARCHITECTURE.md) |
 | `catalog/` | Device identifiers, Fire OS versions and device-specific notes |
 | `.github/workflows/` | Validation and signed launcher release workflows |
 | `AGENTS.md` | Repository instructions for coding agents |
