@@ -59,7 +59,7 @@ The Fire OS 6 implementation has been hardened specifically for the AFTMM:
 - Pauses takeover while the user is navigating Amazon's own settings screens, then resumes when a third-party app is opened.
 - Does not intentionally wake the display, reboot the stick or interfere while the display is off.
 
-The revised standby-wake takeover has now passed an initial physical test on the target stick. Longer overnight-standby testing is still pending; it should not yet be described as universally proven across every standby duration or firmware state.
+The deep-sleep failure that motivated the wake-recovery changes, the original Keeper detection gap, and the reason READ_LOGS is required are documented in [Keeper standby and HOME recovery](docs/KEEPER-RECOVERY.md). The revised standby-wake takeover has passed an initial physical test on the target stick. Longer overnight-standby testing is still pending; it should not yet be described as universally proven across every standby duration or firmware state.
 
 ### Installer and release delivery
 
