@@ -33,14 +33,14 @@ def path_without_magick(shim):
 
 
 class WallpaperTest(unittest.TestCase):
-    def run_script(self, *args, magick=False, installed=True, names=("beach.JPG", "night city.png")):
+    def run_script(self, *args, magick=False, installed=True, sdk=25, names=("beach.JPG", "night city.png")):
         holder = tempfile.TemporaryDirectory()
         self.addCleanup(holder.cleanup)
         tmp = Path(holder.name)
         packages = {"tv.dumbtv.home": {"system": False, "enabled": True}} if installed else {}
         state = tmp / "state.json"
         pushed = tmp / "pushed"
-        state.write_text(json.dumps({"packages": packages, "sdk": 25, "pushed": str(pushed)}))
+        state.write_text(json.dumps({"packages": packages, "sdk": sdk, "pushed": str(pushed)}))
         log = tmp / "commands.log"
         log.touch()
         for name in names:
@@ -113,6 +113,13 @@ class WallpaperTest(unittest.TestCase):
         result, commands, files, _, _ = self.run_script("--dim", "50")
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(commands, [])
+        self.assertEqual(files, [])
+
+    def test_rejects_non_api25_devices_before_push(self):
+        result, commands, files, _, _ = self.run_script(sdk=30)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("only the AFTMM launcher target (API 25)", result.stderr)
+        self.assertFalse(any("push" in command for command in commands))
         self.assertEqual(files, [])
 
     def test_needs_the_launcher(self):
