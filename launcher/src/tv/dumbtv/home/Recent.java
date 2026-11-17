@@ -43,13 +43,13 @@ final class Recent {
             if (!(entry.getValue() instanceof Long)) continue;
             try {
                 CharSequence label = pm.getApplicationLabel(pm.getApplicationInfo(entry.getKey(), 0));
-                out.append(shown == 0 ? "\\n" : "  ·  ").append(label);
+                out.append(shown == 0 ? "\n" : "  ·  ").append(label);
                 if (++shown == 3) break;
             } catch (PackageManager.NameNotFoundException ignored) {
                 // The app may have been uninstalled since it was last opened.
             }
         }
-        if (shown == 0) out.append("\\nNo recent apps");
+        if (shown == 0) out.append("\nNo recent apps");
         return out.toString();
     }
 
