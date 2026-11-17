@@ -32,18 +32,17 @@ public final class AppSectionsTest {
             Config cfg = ConfigTest.open(dir);
             Item a = app("alpha", true), b = app("beta", true), c = app("gamma", false);
             List<Item> catalog = Arrays.asList(a, b, c);
-            check("off".equals(cfg.get(Config.ALL_APPS)), "all apps off by default");
-            check(Arrays.asList(Config.CHOICES).contains(Config.ALL_APPS), "available in Options");
             ids(Catalog.visible(cfg, Catalog.APPS, catalog), "alpha", "beta");
             ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog));
 
             Catalog.setShown(cfg, Catalog.APPS, b, false);
             cfg.setList("apps.order", Arrays.asList("gamma", "alpha"));
+            // The old home-screen All Apps row stays unavailable, even with a legacy setting.
             cfg.set("all_apps", "on");
-            ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog), "alpha", "beta", "gamma");
+            ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog));
 
             cfg.set("name.alpha", "Zeta");
-            ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog), "beta", "gamma", "alpha");
+            ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog));
             cfg.set("name.alpha", null);
             ids(Catalog.visible(cfg, Catalog.APPS, catalog), "alpha");
             Catalog.setShown(cfg, Catalog.APPS, c, true);
@@ -51,13 +50,13 @@ public final class AppSectionsTest {
             check(Catalog.shown(cfg, Catalog.APPS, c), "non-TV app pinned");
             Catalog.setShown(cfg, Catalog.APPS, c, false);
             check(!Catalog.shown(cfg, Catalog.APPS, c), "non-TV app unpinned");
-            ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog), "alpha", "beta", "gamma");
+            ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog));
 
             cfg.set("order", "recent");
             Map<String, Long> recent = new HashMap<>();
             recent.put("gamma", 100L);
             recent.put("beta", 50L);
-            ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog, recent), "alpha", "beta", "gamma");
+            ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog, recent));
             Catalog.setShown(cfg, Catalog.APPS, b, true);
             ids(Catalog.visible(cfg, Catalog.APPS, catalog, recent), "beta", "alpha");
 
@@ -74,7 +73,7 @@ public final class AppSectionsTest {
             ids(catalog, "alpha", "beta", "gamma");
             ids(Catalog.visible(cfg, Catalog.INPUTS, Arrays.asList(c)), "gamma");
             check(Catalog.isApp(Catalog.ALL_APPS) && !Catalog.isApp(Catalog.INPUTS), "tile types");
-            System.out.println("AppSectionsTest passed (default, pin/unpin, full catalog, order, lock)");
+            System.out.println("AppSectionsTest passed (pinned row, removed home catalogue row, lock)");
         } finally {
             File[] files = dir.listFiles();
             if (files != null) for (File file : files) check(file.delete(), "remove settings");
