@@ -30,6 +30,7 @@ public final class Options extends Activity {
 
     private final List<Runnable> refreshers = new ArrayList<>();
     private Config cfg;
+    private ScrollView optionsScroll;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -37,6 +38,7 @@ public final class Options extends Activity {
         cfg = Config.get(this);
 
         ScrollView scroll = new ScrollView(this);
+        optionsScroll = scroll;
         scroll.setFocusable(false);
         scroll.setVerticalScrollBarEnabled(false);
         int optionsSurface = "classic".equals(cfg.get(Config.THEME)) ? 0xFF0C0C0E : Ui.optionSurface(this);
@@ -126,6 +128,12 @@ public final class Options extends Activity {
     }
 
     private void refresh() {
+        if (optionsScroll != null) {
+            int surface = "classic".equals(cfg.get(Config.THEME))
+                    ? 0xFF0C0C0E : Ui.optionSurface(this);
+            optionsScroll.setBackground(Ui.isGlass(this)
+                    ? Ui.surface(this, surface, 0) : Ui.round(surface, 0));
+        }
         for (Runnable r : refreshers) r.run();
     }
 
