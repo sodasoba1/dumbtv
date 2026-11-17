@@ -745,7 +745,6 @@ public final class Home extends Activity {
         head.setClipChildren(false);
         head.setClipToPadding(false);
         head.setGravity(Gravity.TOP | Gravity.LEFT);
-        head.setPadding(dp(56), 0, dp(56), dp(12));
 
         toolbar = new LinearLayout(this);
         toolbar.setOrientation(LinearLayout.HORIZONTAL);
