@@ -666,8 +666,13 @@ public final class Home extends Activity {
 
         column.addView(head, new LinearLayout.LayoutParams(MATCH, WRAP));
 
-        widgetLayout = WidgetLayout.load(cfg);
-        if (cfg.get(WidgetLayout.CONFIG_KEY, "").isEmpty()) widgetLayout.save(cfg);
+        if (!"1".equals(cfg.get("widgets.initialized", ""))) {
+            widgetLayout = WidgetLayout.defaults();
+            widgetLayout.save(cfg);
+            cfg.set("widgets.initialized", "1");
+        } else {
+            widgetLayout = WidgetLayout.load(cfg);
+        }
         widgetGrid = new WidgetGridView(this);
         widgetGrid.setLayout(widgetLayout);
 
@@ -848,6 +853,8 @@ public final class Home extends Activity {
         int align = "left".equals(cfg.get(Config.TOOLBAR_ALIGN)) ? Gravity.LEFT
                 : "center".equals(cfg.get(Config.TOOLBAR_ALIGN)) ? Gravity.CENTER_HORIZONTAL : Gravity.RIGHT;
         toolbar.setGravity(Gravity.CENTER_VERTICAL | align);
+        widgetLayout = WidgetLayout.load(cfg);
+        widgetGrid.setLayout(widgetLayout);
         for (TextView c : chips) {
             Ui.focusStyle(c, accent, Ui.isGlass(this) ? 0x55303D4B : 0x14FFFFFF, dp(icons ? 21 : 18));
             int[] art = (int[]) c.getTag();
