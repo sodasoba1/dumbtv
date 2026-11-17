@@ -18,7 +18,7 @@ public final class WidgetLayoutTest {
         WidgetLayout newWidgets = new WidgetLayout();
         check(newWidgets.add("diagnostics", "diagnostics", 0, 0, 3, 3), "accept diagnostics widget");
         check(newWidgets.add("device", "device", 3, 0, 3, 2), "accept device information widget");
-        check(grid.add("narrow", "clock", 0, 2, 1, 2), "accept default 1x2 widget size");
+        check(newWidgets.add("narrow", "clock", 3, 2, 1, 2), "accept default 1x2 widget size");
         check(WidgetLayout.defaults().items().size() == 1, "first-run layout starts with the clock only");
         check(WidgetLayout.defaults().find("clock").width == 1
                 && WidgetLayout.defaults().find("clock").height == 2, "clock default is 1x2");
@@ -35,10 +35,10 @@ public final class WidgetLayoutTest {
         String encoded = grid.encode();
         WidgetLayout decoded = WidgetLayout.decode(encoded);
         check(encoded.equals(decoded.encode()), "round-trip persistence");
-        check(decoded.items().size() == 3, "retain all valid widgets");
+        check(decoded.items().size() == 2, "retain both valid widgets");
         WidgetLayout repaired = WidgetLayout.decode(encoded
                 + ";bad,clock,99,0,1,1;clock,memory,x,0,1,1;clock,clock,0,0,1,1");
-        check(repaired.items().size() == 3, "ignore malformed, out-of-bounds and duplicate records");
+        check(repaired.items().size() == 2, "ignore malformed, out-of-bounds and duplicate records");
         check(!repaired.add("clock", "clock", 0, 3, 1, 1), "prevent duplicate widget IDs");
         System.out.println("WidgetLayoutTest passed (bounds, collision, move, resize, remove, persistence)");
     }
