@@ -34,7 +34,7 @@ public final class WidgetEditor extends Activity {
         super.onCreate(state);
         cfg = Config.get(this);
         cfg.refresh();
-        layout = WidgetLayout.load(cfg);
+        layout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         pendingText = cfg.get("widgets.text", "Custom text");
 
         LinearLayout root = new LinearLayout(this);
@@ -260,7 +260,7 @@ public final class WidgetEditor extends Activity {
     }
 
     private void save() {
-        layout.save(cfg);
+        cfg.set(WidgetLayout.CONFIG_KEY, layout.encode());
         cfg.set("widgets.text", pendingText);
         cfg.set("widgets.initialized", "1");
         setResult(RESULT_OK);
