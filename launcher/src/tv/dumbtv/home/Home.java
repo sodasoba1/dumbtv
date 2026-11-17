@@ -823,9 +823,8 @@ public final class Home extends Activity {
         widgetGrid.addWidgetView("diagnostics", diagnosticsWidget);
         widgetGrid.addWidgetView("device", deviceWidget);
 
-        int screenWidthDp = (int) (getResources().getDisplayMetrics().widthPixels
-                / getResources().getDisplayMetrics().density);
-        int widgetContentWidth = screenWidthDp - dp(48) - dp(8 * (WidgetLayout.COLUMNS - 1));
+        int widgetContentWidth = getResources().getDisplayMetrics().widthPixels
+                - dp(48) - dp(8 * (WidgetLayout.COLUMNS - 1));
         int widgetCellHeight = Math.max(dp(44),
                 Math.round((widgetContentWidth / (float) WidgetLayout.COLUMNS) * 0.36f));
         widgetHeight = widgetCellHeight * WidgetLayout.ROWS + dp(8 * (WidgetLayout.ROWS - 1));
@@ -1327,6 +1326,8 @@ public final class Home extends Activity {
         boolean loopingFavourites = row == apps && shown.size() > 6;
         int copies = loopingFavourites ? 3 : 1;
         row.initialFocusIndex = loopingFavourites ? shown.size() : 0;
+        String spacing = cfg.get(Config.TILE_SPACING);
+        int tileGap = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
         if (row == apps) {
             int alignment = "left".equals(cfg.get(Config.FAVOURITES_ALIGN)) ? Gravity.LEFT
                     : "right".equals(cfg.get(Config.FAVOURITES_ALIGN)) ? Gravity.RIGHT
@@ -1338,8 +1339,6 @@ public final class Home extends Activity {
                     loopingFavourites || contentWidth > availableWidth ? WRAP : MATCH, WRAP));
         }
         int index = 0, restore = -1;
-        String spacing = cfg.get(Config.TILE_SPACING);
-        int tileGap = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
         for (int copy = 0; copy < copies; copy++) {
             for (int itemIndex = 0; itemIndex < shown.size(); itemIndex++) {
                 final int copyIndex = copy;
