@@ -365,9 +365,16 @@ Keeper is the only HOME recovery service:
    Amazon/system settings screens are foregrounded and clears when a third-party
    app is opened.
 
-Keeper does not reboot the device or force the display on. Long deep-standby
-recovery still depends on Fire OS delivering usable foreground state/events and
-must be validated on the physical AFTMM.
+The deep-sleep failure that prompted this design is documented in
+[Keeper standby and HOME recovery](../docs/KEEPER-RECOVERY.md). It explains why
+the old fixed UsageStats look-back and screen-off snapshot could miss the HOME
+transition after a long suspend, how the event-cursor and ActivityManager
+logcat paths address that gap, and why the installer must grant READ_LOGS.
+
+Keeper does not reboot the device or force the display on. The changes address
+the known missed-event failure modes, but long deep-standby recovery still
+depends on Fire OS delivering usable foreground state/events and must be
+validated on the physical AFTMM.
 
 ## Build it yourself
 
