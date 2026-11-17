@@ -1590,14 +1590,16 @@ public final class Home extends Activity {
         List<Item> sections = FireSettings.sections(this);
         CharSequence[] labels = new CharSequence[sections.size()];
         for (int i = 0; i < labels.length; i++) labels[i] = sections.get(i).label;
-        new AlertDialog.Builder(this, Ui.DIALOG)
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle(R.string.settings)
                 .setItems(labels, (d, which) -> {
                     Item s = sections.get(which);
                     Keeper.pause();
                     launch(new Intent(s.intent), null);
                 })
-                .show();
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private Intent appIntent(Item it) {
@@ -1635,7 +1637,7 @@ public final class Home extends Activity {
         if (locked()) return;
         if (Catalog.ALL_APPS.equals(t.kind)) {
             boolean pinned = Catalog.shown(cfg, Catalog.APPS, t.item);
-            new AlertDialog.Builder(this, Ui.DIALOG)
+            AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                     .setTitle(Catalog.label(cfg, t.item))
                     .setItems(new String[] {getString(pinned ? R.string.tile_unpin : R.string.tile_pin),
                             getString(R.string.tile_rename), getString(R.string.tile_app_info)}, (d, which) -> {
@@ -1649,7 +1651,9 @@ public final class Home extends Activity {
                             appInfo(t);
                         }
                     })
-                    .show();
+                    .create();
+            dialog.show();
+            Ui.styleDialog(dialog);
             return;
         }
         boolean app = Catalog.APPS.equals(t.kind);
@@ -1664,7 +1668,7 @@ public final class Home extends Activity {
         if (app) menu.add(R.string.tile_app_info);
         String[] actions = new String[menu.size()];
         for (int i = 0; i < actions.length; i++) actions[i] = getString(menu.get(i));
-        new AlertDialog.Builder(this, Ui.DIALOG)
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle(Catalog.label(cfg, t.item))
                 .setItems(actions, (d, which) -> {
                     switch (menu.get(which)) {
@@ -1696,7 +1700,9 @@ public final class Home extends Activity {
                             appInfo(t);
                     }
                 })
-                .show();
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private void appInfo(Tile t) {
@@ -1729,6 +1735,7 @@ public final class Home extends Activity {
                 .create();
         d.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
         d.show();
+        Ui.styleDialog(d);
     }
 
     private void shift(int by) {
