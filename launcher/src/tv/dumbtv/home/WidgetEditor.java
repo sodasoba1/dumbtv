@@ -43,7 +43,7 @@ public final class WidgetEditor extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(48), dp(24), dp(48), dp(24));
-        root.setBackground(editorShape(Ui.optionSurface(this), dp(18), 0x44FFFFFF));
+        root.setBackground(editorShape(Ui.optionSurface(this), dp(18), Ui.isGlass(this) ? 0x44FFFFFF : 0));
 
         TextView title = Ui.text(this, 28, Ui.TEXT, Ui.LIGHT);
         title.setText("Edit widgets");
@@ -112,7 +112,7 @@ public final class WidgetEditor extends Activity {
                     boolean selected = occupied.id.equals(selectedId);
                     cell.setText(x == occupied.x && y == occupied.y
                             ? occupied.type.toUpperCase(java.util.Locale.ROOT) + "\n" + occupied.id : "·");
-                    cell.setBackground(focusableBackground(selected ? (cfg.accent() & 0x55FFFFFF) | 0x55000000
+                    cell.setBackground(focusableBackground(selected ? (cfg.accent() & 0x00FFFFFF) | 0x55303030
                             : Ui.optionSurface(this), dp(7)));
                 }
                 cell.setOnClickListener(v -> chooseCell(x, y));
