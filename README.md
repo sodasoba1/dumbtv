@@ -1,6 +1,6 @@
 # dumbtv — Fire TV Stick 4K (1st generation)
 
-A focused, reversible Fire TV cleanup and replacement home-screen project, maintained as a fork of [the original DumbTV project](https://github.com/humblemuzzu/dumbtv).
+An independently maintained fork of [the original DumbTV project](https://github.com/humblemuzzu/dumbtv), focused on one device: the Amazon Fire TV Stick 4K (1st generation, AFTMM). This fork is developed and released separately from upstream; its launcher is not a general-purpose Android TV build.
 
 **This fork's launcher is built specifically for one device family:**
 
@@ -99,11 +99,11 @@ These are deliberate scope decisions, not unfinished features to re-enable by de
 
 | Removed / excluded item | Reason |
 |---|---|
-| **Guard accessibility service** | Fire OS 6.7 on the target AFTMM does not provide a dependable path for the third-party accessibility-service takeover used by newer Fire OS variants. Keeper is the single recovery mechanism for this build. Removing Guard also removes its accessibility declaration, configuration/resources, installer setup and related retry logic. |
+| **Accessibility-service takeover** | This fork uses Keeper's Fire OS 6 foreground detection and task recovery. The launcher does not declare or depend on an accessibility service. |
 | **Fire OS 7/8 launcher compatibility paths** | They served different Android versions and used a different takeover model. Keeping them in an API 25-only build added branches and permissions that this device does not need and made the supported target less clear. |
-| **Accessibility-based HOME interception and overlay/alarm takeover logic** | These belonged to the removed Guard path. The AFTMM build uses foreground detection and task recovery instead. |
+| **Accessibility, overlay and alarm-based HOME takeover** | These mechanisms are outside the AFTMM/API 25 design. Keeper uses UsageStats, optional ActivityManager logcat, screen-state broadcasts and task recovery. |
 | **Fire OS 8 media-folder compatibility handling** | The launcher is restricted to API 25, so the newer storage compatibility branch is unnecessary. |
-| **Legacy Guard-only alarm timing/retry helpers** | They existed to support the removed accessibility takeover and are not part of Keeper's Fire OS 6 recovery path. |
+| **Alarm-manager takeover timing and retry helpers** | Keeper does not alter system alarm timing; its foreground polling and wake handling are implemented directly in the API 25 service. |
 | **On-device personalDNSfilter lifecycle integration in the launcher** | The launcher should not start, restart or supervise a separate VPN/DNS-filter app. This reduces coupling and avoids making launcher reliability depend on another app. The installer retains a compatibility cleanup for legacy personalDNSfilter configuration; it does not install or run that filter. |
 | **Generic multi-version launcher release target** | A single APK intended for multiple Fire OS generations obscures the actual permission and takeover requirements. This fork publishes an API 25 launcher for the AFTMM only. |
 
@@ -166,7 +166,7 @@ See [docs/BUILDING-LAUNCHER.md](docs/BUILDING-LAUNCHER.md) for SDK setup, signin
 
 This repository is a fork of [humblemuzzu/dumbtv](https://github.com/humblemuzzu/dumbtv). The original project's debloat approach, documentation structure, device catalogue and much of the launcher foundation remain upstream-derived.
 
-The AFTMM-specific launcher changes documented above are maintained here for a single known Fire TV Stick and Fire OS version. They should not be assumed to apply to the upstream project or to other Fire TV devices.
+This is an independent fork with its own API 25 launcher, Keeper implementation, installer, release process and validation. Its launcher is maintained specifically for the AFTMM on Fire OS 6.7.1.1 / Android 7.1.2; it is not intended to track upstream launcher compatibility or support other Fire TV models. The inherited cleanup scripts retain their own device checks and must not be confused with the launcher's single-device support target.
 
 When upstream changes are adopted, they must be checked against the API 25 manifest, Keeper lifecycle, installer, release workflow and physical AFTMM behaviour before being merged.
 
