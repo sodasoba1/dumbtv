@@ -1409,7 +1409,7 @@ public final class Home extends Activity {
         }
         Locale locale = Locale.getDefault();
         date.setText(DateFormat.format(DateFormat.getBestDateTimePattern(locale, "EEEEdMMMM"), now));
-        if (memoryWidget.getVisibility() == View.VISIBLE) {
+        if (widgetGrid.isWidgetEnabled("memory") && widgetLayout.find("memory") != null) {
             meter.update((android.app.ActivityManager) getSystemService(Context.ACTIVITY_SERVICE));
         }
         updateSystemWidgets();
