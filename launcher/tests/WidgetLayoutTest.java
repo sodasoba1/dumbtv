@@ -24,6 +24,9 @@ public final class WidgetLayoutTest {
         check(!grid.move("memory", 1, 0), "reject move into occupied cells");
         check(!grid.resize("clock", 5, 2), "reject resize into occupied cells");
         check(grid.resize("clock", 2, 3), "allow free vertical span");
+        check(grid.resize("clock", 6, 4), "allow maximum full-grid size");
+        check(!grid.resize("clock", 7, 4), "reject width beyond full-grid size");
+        check(grid.resize("clock", 2, 3), "restore smaller free size");
         check(grid.remove("memory"), "remove widget");
         check(grid.add("text_1", "text", 2, 0, 4, 2), "reuse freed area with span");
         String encoded = grid.encode();
