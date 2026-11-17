@@ -23,7 +23,8 @@ final class WidgetVisibility {
     private WidgetVisibility() {}
 
     static boolean isEnabled(Config cfg, String id) {
-        return !"off".equals(cfg.get("widgets.visible." + id, "on"));
+        String fallback = "memory".equals(id) ? cfg.get(Config.MEMORY) : "on";
+        return !"off".equals(cfg.get("widgets.visible." + id, fallback));
     }
 
     static void setEnabled(Config cfg, String id, boolean enabled) {
