@@ -59,7 +59,7 @@ final class WidgetPreview extends WidgetGridView {
                 Gravity.CENTER));
         addWidgetView("memory", memory);
 
-        addWidgetView("recent", widgetText(context, "Recently opened\\nRecent app names",
+        addWidgetView("recent", widgetText(context, "Recently opened\nRecent app names",
                 backgrounds, surface));
 
         ConnectivityManager connectivity = (ConnectivityManager)
@@ -67,7 +67,7 @@ final class WidgetPreview extends WidgetGridView {
         NetworkInfo network = connectivity == null ? null : connectivity.getActiveNetworkInfo();
         String networkState = network == null || !network.isConnected() ? "Disconnected"
                 : "Connected · " + network.getTypeName();
-        addWidgetView("network", widgetText(context, "Network\\n" + networkState,
+        addWidgetView("network", widgetText(context, "Network\n" + networkState,
                 backgrounds, surface));
 
         String storage = "Unavailable";
@@ -78,7 +78,7 @@ final class WidgetPreview extends WidgetGridView {
         } catch (RuntimeException ignored) {
             // Keep the preview usable if storage statistics are unavailable.
         }
-        addWidgetView("storage", widgetText(context, "Storage\\n" + storage,
+        addWidgetView("storage", widgetText(context, "Storage\n" + storage,
                 backgrounds, surface));
 
         customText = widgetText(context, "Custom text", backgrounds, surface);
@@ -92,8 +92,8 @@ final class WidgetPreview extends WidgetGridView {
                 Ui.dp(context, 10), Ui.dp(context, 5));
         addWidgetView("diagnostics", diagnostics);
 
-        String deviceInfo = "Device information\\n" + Build.MODEL
-                + "\\nAndroid " + Build.VERSION.RELEASE + " · API " + Build.VERSION.SDK_INT;
+        String deviceInfo = "Device information\n" + Build.MODEL
+                + "\nAndroid " + Build.VERSION.RELEASE + " · API " + Build.VERSION.SDK_INT;
         TextView device = widgetText(context, deviceInfo, backgrounds, surface);
         device.setMaxLines(5);
         device.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
