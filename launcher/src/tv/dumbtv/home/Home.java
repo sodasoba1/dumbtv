@@ -40,8 +40,6 @@ import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -897,7 +895,7 @@ public final class Home extends Activity {
     }
 
     private void setToolbarVisible(boolean visible) {
-        if (head == null || toolbar == null || widgetGrid == null || homeScroll == null) return;
+        if (head == null || toolbar == null) return;
         if (!visible && toolbar.hasFocus()) return;
         if (toolbarCollapsed == !visible) return;
         for (TextView chip : chips) {
