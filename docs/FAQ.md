@@ -25,7 +25,7 @@ No. Everything runs as the `shell` user that ADB debugging gives you.
 network rules, puts back the settings your TV had before (saved by
 `preflight.sh`), disables personalDNSfilter if installed, resets its app-ops and Doze exemption, clears
 its always-on VPN selection only if it names that app, and returns HOME to Amazon.
-Other VPN apps are untouched. Apps you asked to have uninstalled come back from the Appstore.
+Other VPN apps are untouched. Apps you asked to have uninstalled must be reinstalled from the Appstore; restore cannot recreate store-installed apps.
 
 **Does the project itself phone home?**
 No. The computer downloads dumbtv home from this repository's releases (checked
@@ -116,7 +116,7 @@ on-device DNS filter.
 A home screen needs no internet access, no advertising ID and no permission to
 install apps. This fork's dumbtv home APK targets only Fire OS 6 / API 25. It asks
 for boot, UsageStats, task-reordering and log-reading permissions; the installer
-grants UsageStats and attempts the optional READ_LOGS development permission.
+grants and verifies UsageStats, Fire OS AUTO_START and READ_LOGS. READ_LOGS is required by this fork's Keeper setup; installation stops if the grant cannot be verified.
 Check the manifest yourself with `aapt2 dump permissions dumbtv-home.apk`.
 
 **Who made this?**
