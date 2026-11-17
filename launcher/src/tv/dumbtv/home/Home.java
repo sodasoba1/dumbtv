@@ -724,7 +724,7 @@ public final class Home extends Activity {
             cfg.set(WidgetLayout.CONFIG_KEY, widgetLayout.encode());
             cfg.set("widgets.initialized", "1");
         } else {
-            widgetLayout = WidgetLayout.load(cfg);
+            widgetLayout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         }
         widgetGrid = new WidgetGridView(this);
         widgetGrid.setLayout(widgetLayout);
@@ -1049,7 +1049,7 @@ public final class Home extends Activity {
         int align = "left".equals(cfg.get(Config.TOOLBAR_ALIGN)) ? Gravity.LEFT
                 : "center".equals(cfg.get(Config.TOOLBAR_ALIGN)) ? Gravity.CENTER_HORIZONTAL : Gravity.RIGHT;
         toolbar.setGravity(Gravity.CENTER_VERTICAL | align);
-        widgetLayout = WidgetLayout.load(cfg);
+        widgetLayout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         widgetGrid.setLayout(widgetLayout);
         int widgetSurface = Ui.tileSurface(this, true);
         clockWidget.setBackground(Ui.round(widgetSurface, dp(12)));
