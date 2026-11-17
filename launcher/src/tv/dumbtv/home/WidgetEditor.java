@@ -264,6 +264,7 @@ public final class WidgetEditor extends Activity {
     private void save() {
         cfg.set(WidgetLayout.CONFIG_KEY, layout.encode());
         cfg.set("widgets.text", pendingText);
+        if (layout.find("memory") != null) cfg.set(Config.MEMORY.key, "on");
         cfg.set("widgets.initialized", "1");
         setResult(RESULT_OK);
         finish();
