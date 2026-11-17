@@ -65,7 +65,7 @@ you open an app.
 
 | Setting | Choices |
 |---|---|
-| Accent | White, Blue, Cyan, Green, Amber, Red, Pink, Violet, or a custom colour selected with the remote-friendly HSV picker. The other legacy palette values remain supported in existing `home.conf` files. |
+| Accent | One remote-friendly HSV slider picker; no preset list. Existing saved palette values remain readable. |
 | Tile size | extra small, small, medium, large, extra large; applies to favourites, app and input rows |
 | App order | your order, or recently used: the apps row re-sorts on each return home, newest first. It counts apps opened from dumbtv home, plus apps opened any other way (voice, another app) on this device, where the launcher already has usage access. Apps never opened keep your order after the rest |
 | All apps section | hidden (default), shown: a separate alphabetical list of every launchable app below your pinned apps. Child lock hides this section |
@@ -75,10 +75,10 @@ you open an app.
 | Memory meter | hidden, shown: free memory under the date, with a bar of what is in use; amber, with "running low", when Android reports low memory or under 15% is free. It only shows the numbers: it closes and frees nothing, and needs no permission |
 | Inputs row | shown, hidden |
 | Open inputs with | Automatic, the TV's app, dumbtv home (see below) |
-| Background | Black, Graphite, Midnight, Slate, Image file, Adaptive solid, Adaptive wallpaper tint, or a custom solid colour selected with the HSV picker. Legacy solid-colour values remain readable. |
+| Background | Black (default), Image file, Adaptive solid, Adaptive wallpaper tint, or a custom solid colour selected with the HSV sliders; no solid-colour presets. Legacy saved values remain readable. |
 | Image dim, wallpaper rotation | for image backgrounds |
 | Gradient overlay | off (default), dark at bottom, top, left, right, top-left, top-right, bottom-left or bottom-right; above the background but below all text, icons, tiles and banners |
-| Gradient colour | Black (default), White, Blue, Red, or a custom colour selected with the HSV picker. The full legacy palette remains supported in existing settings files. |
+| Gradient colour | One HSV slider picker with no presets. Existing saved palette values remain readable. |
 | Gradient strength | 20%, 40% (default), 60%, 80%; available when a gradient direction is selected |
 | Tile corners | square, soft (default), rounded |
 | Tile spacing | compact, normal (default), spacious; applies to horizontal rows |
@@ -91,7 +91,7 @@ you open an app.
 | Afterglow strength | 20%, 40% (default), 60%, 80%; controls the dark fade over brand colours |
 | Afterglow icon | grayscale (default), original app icon colours |
 | Child lock | off, on: hides Options and Settings and turns off Hold OK and ☰ Menu on tiles, so the home screen only opens apps and inputs (see below) |
-| App tile style | Original (default), Afterglow, or Brand Focus: monochrome app artwork replaces the TV banner; Brand Focus changes from graphite to the mapped app colour when focused. Per-app Customize also sets background colour, tile style details and a bundled banner |
+| App tile style | Original (default) or Afterglow. Per-app Customize sets focus scale, border, shadow, app-name visibility, tile size, background colour and a bundled banner; banner changes require an explicit Save confirmation. |
 | Chip style | Text (default), Icons: the top-bar controls use matching icon buttons and show their names while focused |
 | Library banner | shown (default), hidden. It only appears once a library folder holds titles (see below) |
 | Icon pack | off, or an installed icon pack; reads "None installed" until one is ([Icon packs](#icon-packs)) |
@@ -130,9 +130,9 @@ The first-run layout contains only the clock. The available widgets are clock, m
 recent apps, network, storage, custom text, DumbTV diagnostics and device information.
 
 **Per-app appearance** is available from Customize on a home tile or by holding OK
-or pressing Menu on an app in the full catalogue. It can override corners, focus scale, border, shadow,
-app-name visibility, tile size and background colour. Banner image can use the app's
-original artwork or one of the bundled custom banners.
+or pressing Menu on an app in the full catalogue. It can override focus scale, border, shadow, app-name visibility, tile size and
+background colour. Roundness is global rather than per-app. Banner image can use the
+app's original artwork or one of the bundled custom banners, with an explicit Save step.
 
 **Afterglow** changes app tiles only. Select it in
 Options or set `tile_style=afterglow` in `home.conf`. The name remains visible inside
@@ -143,24 +143,17 @@ original colours can be selected separately. SmartTube uses a bundled monochrome
 YouTube mark, and Smart Kick TV uses a bundled monochrome Kick mark. Missing icons
 still leave the name visible. Afterglow fade strength is adjustable.
 
-**Brand Focus** replaces app TV banners with a grayscale installed app icon,
-centered in the tile, and keeps the app name beneath it. Unfocused tiles use dark
-graphite; focus animates to a mapped, darkened brand colour, or a darkened accent
-for unmapped apps. It applies to pinned and All Apps tiles only; input tiles and
-the Library banner remain unchanged. Switching back to Original restores the
-normal banners and App names behavior. Background and layout remain separate choices.
-
 | Adaptive background | Adaptive tint |
 |---|---|
 | ![Adaptive background](../docs/assets/screens/adaptive.png) | ![Adaptive tint](../docs/assets/screens/tint.png) |
 
 ## Glass theme, top bar and widgets
 
-The **Theme** option includes Classic, Glass, Midnight and Slate. Glass keeps the translucent treatment on buttons and focus states without adding a glass panel behind the top bar, favourites or widgets; it does not change app launch, HDMI handling or Keeper. Tile shape, spacing, borders, shadows, focus treatment and accent remain separate controls.
+The **Theme** option includes Classic, Glass, Midnight and Slate. Glass applies translucent surfaces to buttons and the favourites dock; widget backgrounds remain optional and the top bar itself stays clear. It does not change app launch, HDMI handling or Keeper. Tile roundness is a global adjustment shared by tiles and UI surfaces; spacing, borders, shadows, focus treatment and accent remain separate controls.
 
 The top bar can be aligned left, centre or right. **Auto-hide top bar** is off by default; when enabled, the bar fades/slides away without reclaiming its layout space or shifting the widget grid, scrolling content or bottom favourites panel. The **Widgets** shortcut opens the layout editor directly. Widgets themselves are never focusable or clickable; their placement is changed only in this editor.
 
-The home uses a 6-column by 4-row widget area. The available widgets are Clock, Memory, Recently opened apps, Network, Storage, Custom text, DumbTV diagnostics and Device information. A fresh layout starts with the Clock placed. Widgets have a minimum size of 2 × 2 cells and can be resized in every supported combination up to 6 × 4; placements cannot overlap or extend beyond the grid. The editor supports Add, Move, Resize, Remove and custom text editing. Changes are staged until **Save**; **Cancel** discards them.
+The home uses a 6-column by 4-row widget area. The available widgets are Clock, Memory, Recently opened apps, Network, Storage, Custom text, DumbTV diagnostics and Device information. A fresh layout starts with the Clock placed. Widgets have a minimum size of 2 × 2 cells and can be resized in every supported combination up to 6 × 4; placements cannot overlap or extend beyond the grid. The editor supports Add, Move, Resize, Remove and custom text editing. A live preview shows widget content and the staged 6 × 4 arrangement as placements change. Changes are staged until **Save**; **Cancel** discards them.
 
 Widget visibility and placement are separate. Turning a widget off hides it but preserves its position. A widget that is enabled but has no saved position is shown as **On · not added** in Widget Settings. Widget backgrounds are off by default and can be enabled separately. The Network widget reads Android's active connection state; it does not make network requests and does not require the INTERNET permission.
 
