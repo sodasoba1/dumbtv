@@ -38,9 +38,9 @@ else
   fi
   package_dump=$(dev 'dumpsys package tv.dumbtv.home' | tr -d '\r')
   if grep -Eq '^[[:space:]]*android\.permission\.READ_LOGS:[[:space:]]*granted=true([,[:space:]]|$)' <<<"$package_dump"; then
-    printf '%-10s %-38s %s\n' ok logcat "optional READ_LOGS granted"
+    printf '%-10s %-38s %s\n' ok logcat "READ_LOGS granted; ActivityManager monitoring available"
   else
-    printf '%-10s %-38s %s\n' warn logcat "READ_LOGS unavailable; UsageStats and screen broadcasts remain active"
+    printf '%-10s %-38s %s\n' FAIL logcat "READ_LOGS not granted; rerun ./launcher/install.sh"; fail=1
   fi
 fi
 
