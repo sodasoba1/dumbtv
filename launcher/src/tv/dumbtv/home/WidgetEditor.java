@@ -48,8 +48,14 @@ public final class WidgetEditor extends Activity {
             int fallback = "clock".equals(widget.type) ? 32
                     : "diagnostics".equals(widget.type) ? 11
                     : "device".equals(widget.type) ? 12 : 14;
-            fontSizes.put(widget.id, Integer.parseInt(cfg.get("widgets.font." + widget.id,
-                    String.valueOf(fallback))));
+            int savedFont = fallback;
+            try {
+                savedFont = Integer.parseInt(cfg.get("widgets.font." + widget.id,
+                        String.valueOf(fallback)));
+            } catch (NumberFormatException ignored) {
+                // Ignore invalid saved font sizes and use the widget's normal size.
+            }
+            fontSizes.put(widget.id, savedFont);
         }
         WidgetLayout.Widget initial = layout.find(getIntent().getStringExtra(EXTRA_WIDGET_ID));
         if (initial != null) selectedId = initial.id;
@@ -323,6 +329,7 @@ public final class WidgetEditor extends Activity {
             return;
         }
         layout.remove(selectedId);
+        fontSizes.remove(selectedId);
         selectedId = null;
         renderGrid(0);
     }
@@ -333,6 +340,10 @@ public final class WidgetEditor extends Activity {
         WidgetLayout.Widget widget = selectedId == null ? null : layout.find(selectedId);
         if (widget == null) {
             message("Select a widget first");
+            return;
+        }
+        if ("memory".equals(widget.type)) {
+            message("The memory meter uses its own fixed text sizing");
             return;
         }
         int current = fontSizes.containsKey(selectedId) ? fontSizes.get(selectedId)
@@ -392,8 +403,9 @@ public final class WidgetEditor extends Activity {
     private void save() {
         cfg.set(WidgetLayout.CONFIG_KEY, layout.encode());
         cfg.set("widgets.text", pendingText);
-        for (Map.Entry<String, Integer> entry : fontSizes.entrySet()) {
-            cfg.set("widgets.font." + entry.getKey(), String.valueOf(entry.getValue()));
+        for (WidgetLayout.Widget widget : layout.items()) {
+            Integer size = fontSizes.get(widget.id);
+            if (size != null) cfg.set("widgets.font." + widget.id, String.valueOf(size));
         }
         if (addedMemory && layout.find("memory") != null) cfg.set(Config.MEMORY.key, "on");
         cfg.set("widgets.initialized", "1");
