@@ -67,6 +67,9 @@ jobs:
           java -cp "/tmp/host:$jar" tv.dumbtv.home.MeterTest
           javac -d /tmp/host -cp "/tmp/host:$jar" launcher/tests/LibraryTest.java
           java -cp "/tmp/host:$jar" tv.dumbtv.home.LibraryTest
+          javac --release 8 -Xlint:all -Werror -d /tmp/host launcher/src/tv/dumbtv/home/WidgetLayout.java \
+            launcher/tests/WidgetLayoutTest.java
+          java -cp /tmp/host tv.dumbtv.home.WidgetLayoutTest
       - name: verify APK identity, SDK, alignment, signature and checksum
         run: |
           apk=launcher/build/dumbtv-home.apk
