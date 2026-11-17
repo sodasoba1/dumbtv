@@ -95,9 +95,10 @@ one recovery service, Keeper:
 - UsageStats foreground events are polled every 250 ms. The installer grants
   GET_USAGE_STATS and Fire OS AUTO_START through AppOps, verifies the standby
   setting, and adds the app to the Doze whitelist.
-- If ADB grants READ_LOGS, Keeper also reads ActivityManager logcat for the exact
-  Amazon Home activity becoming displayed or resumed. UsageStats and screen
-  broadcasts remain active if READ_LOGS is unavailable.
+- The installer grants READ_LOGS through ADB and verifies it in the installed
+  package. Installation fails if the grant or verification fails. Keeper reads
+  ActivityManager logcat for the exact Amazon Home activity becoming displayed or
+  resumed; UsageStats and screen broadcasts are additional independent signals.
 - Keeper only intervenes after a positive Amazon Home foreground event and only
   while the display is interactive. It moves the existing DumbTV task to the
   foreground and verifies the result; a bounded direct activity-launch fallback
