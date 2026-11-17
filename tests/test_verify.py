@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RELEASE = re.search(r"^VERSION=(\\S+)", (ROOT / "launcher/version.env").read_text(), re.M).group(1)
+RELEASE = re.search(r"^VERSION=(\S+)", (ROOT / "launcher/version.env").read_text(), re.M).group(1)
 
 
 class VerifyTests(unittest.TestCase):
@@ -17,12 +17,13 @@ class VerifyTests(unittest.TestCase):
                    changed_settings=None, disabled="", installed="", data_saver="enabled",
                    screensaver="null"):
         version = RELEASE if launcher_package is None else launcher_package
-        package_dump = f"    versionName={version}\\n"
+        package_dump = f"    versionName={version}\n"
         if read_logs:
-            package_dump += "    android.permission.READ_LOGS: granted=true\\n"
+            package_dump += "    android.permission.READ_LOGS: granted=true\n"
         resumed = "  mResumedActivity: ActivityRecord{1 u0 tv.dumbtv.home/.Home t1}"
         replies = {
             "getprop ro.build.version.sdk": {"out": sdk},
+            "cmd package help": {"out": "Package manager commands: path [--user USER_ID] PACKAGE"},
             "dumpsys activity activities": {"out": resumed},
             "dumpsys activity services tv.dumbtv.home": {
                 "out": "ServiceRecord tv.dumbtv.home/.Keeper isForeground=true" if keeper else ""
@@ -58,7 +59,7 @@ class VerifyTests(unittest.TestCase):
             line = line.split("#")[0].split()
             if len(line) == 3:
                 rows.append(f"{line[1]}={changed.get(line[1], line[2])}")
-        return "\\n".join(rows)
+        return "\n".join(rows)
 
     def test_api25_keeper_and_standby_permissions_pass(self):
         result, _ = self.run_verify()
@@ -103,7 +104,7 @@ class VerifyTests(unittest.TestCase):
 
     def test_a_disabled_screensaver_is_reported(self):
         result, _ = self.run_verify(
-            disabled="package:com.amazon.ftv.screensaver\\npackage:com.amazon.tv.acr",
+            disabled="package:com.amazon.ftv.screensaver\npackage:com.amazon.tv.acr",
             screensaver="com.amazon.ftv.screensaver/.app.services.ScreensaverService")
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("2 disabled", result.stdout)
@@ -115,7 +116,7 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("back to Amazon's values: limit_ad_tracking=0", result.stdout)
 
     def test_a_disabled_package_enabled_again_is_reported(self):
-        result, _ = self.run_verify(installed="package:com.amazon.tv.acr\\npackage:com.netflix.ninja")
+        result, _ = self.run_verify(installed="package:com.amazon.tv.acr\npackage:com.netflix.ninja")
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("enabled again: com.amazon.tv.acr", result.stdout)
 
