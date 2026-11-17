@@ -86,8 +86,10 @@ final class Ui {
     /** Accent fill when focused, a faint fill otherwise. */
     static void focusStyle(TextView v, int accent, int idle, float radius) {
         StateListDrawable bg = new StateListDrawable();
-        bg.addState(new int[] {android.R.attr.state_focused}, round(accent, radius));
-        bg.addState(new int[0], round(idle, radius));
+        bg.addState(new int[] {android.R.attr.state_focused},
+                isGlass(v.getContext()) ? surface(v.getContext(), accent, radius) : round(accent, radius));
+        bg.addState(new int[0],
+                isGlass(v.getContext()) ? surface(v.getContext(), idle, radius) : round(idle, radius));
         v.setBackground(bg);
         v.setTextColor(focused(ink(accent), 0xD9FFFFFF));
     }
