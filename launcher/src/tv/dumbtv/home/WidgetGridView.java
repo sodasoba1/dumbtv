@@ -46,11 +46,14 @@ final class WidgetGridView extends ViewGroup {
         return !disabled.contains(id);
     }
 
-    void setInteractive(boolean enabled, View.OnClickListener click) {
-        interactive = enabled;
-        widgetClick = click;
-        setDescendantFocusability(enabled ? FOCUS_AFTER_DESCENDANTS : FOCUS_BLOCK_DESCENDANTS);
-        for (int i = 0; i < getChildCount(); i++) configureChild(getChildAt(i));
+    private void configureChild(View child) {
+        child.setFocusable(false);
+        child.setClickable(false);
+        child.setOnClickListener(null);
+        child.setOnFocusChangeListener(null);
+        if (child instanceof ViewGroup) {
+            ((ViewGroup) child).setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
+        }
     }
 
     String widgetId(View child) {
