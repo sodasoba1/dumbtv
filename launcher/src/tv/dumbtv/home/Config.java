@@ -115,7 +115,7 @@ final class Config {
             new String[] {"Black", "Graphite", "Midnight", "Charcoal", "Slate", "Navy", "Ocean",
                     "Forest", "Burgundy", "Plum", "Espresso", "Sand", "Image file", "Adaptive solid",
                     "Adaptive wallpaper tint", "Custom colour"},
-            new String[] {"custom"});
+            new String[] {"black", "image", "adaptive", "adaptive-tint", "custom"});
     static final Choice DIM = new Choice("dim", "Image dim", "40",
             new String[] {"0", "20", "40", "60", "80"},
             new String[] {"0%", "20%", "40%", "60%", "80%"});
