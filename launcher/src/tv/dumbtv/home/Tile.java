@@ -28,7 +28,7 @@ final class Tile extends View {
     private final CharSequence title;
     private final int cardW, cardH, labelH;
     private final boolean labelAlways, labelOnFocus;
-    private final float radius, stroke;
+    private final float radius, stroke, baseScale;
     private final RectF card = new RectF();
     private final Path clip = new Path();
     private final Path arrow = new Path();
@@ -68,6 +68,10 @@ final class Tile extends View {
         labelOnFocus = "focus".equals(labels);
         String corners = AppStyle.get(Config.get(c), item, "radius", Config.get(c).get(Config.TILE_RADIUS));
         radius = Ui.dp(c, "square".equals(corners) ? 0 : "rounded".equals(corners) ? 18 : 10);
+        String appSize = AppStyle.get(Config.get(c), item, "size", "normal");
+        baseScale = "compact".equals(appSize) ? 0.90f : "large".equals(appSize) ? 1.08f : 1f;
+        setScaleX(baseScale);
+        setScaleY(baseScale);
         stroke = Ui.dp(c, afterglow == null ? 2.5f : 1f);
 
         int defaultSurface = brandFocus ? 0xFF17181B : Ui.tileSurface(c, app);
@@ -147,12 +151,12 @@ final class Tile extends View {
                 case "strong": scale = 1.12f; break;
                 default: scale = FOCUS_SCALE; break;
             }
-            if ("smooth".equals(config.get(Config.FOCUS_ANIMATION))) animate().scaleX(scale).scaleY(scale).setDuration(110).start();
-            else { setScaleX(scale); setScaleY(scale); }
+            if ("smooth".equals(config.get(Config.FOCUS_ANIMATION))) animate().scaleX(baseScale * scale).scaleY(baseScale * scale).setDuration(110).start();
+            else { setScaleX(baseScale * scale); setScaleY(baseScale * scale); }
         } else {
             setElevation(Ui.dp(getContext(), "soft".equals(AppStyle.get(config, item, "shadow", config.get(Config.TILE_SHADOW))) ? 4 : 0));
-            if ("smooth".equals(config.get(Config.FOCUS_ANIMATION))) animate().scaleX(1f).scaleY(1f).setDuration(110).start();
-            else { setScaleX(1f); setScaleY(1f); }
+            if ("smooth".equals(config.get(Config.FOCUS_ANIMATION))) animate().scaleX(baseScale).scaleY(baseScale).setDuration(110).start();
+            else { setScaleX(baseScale); setScaleY(baseScale); }
         }
         if (brandFocus) animateBrand(focused);
         invalidate();
