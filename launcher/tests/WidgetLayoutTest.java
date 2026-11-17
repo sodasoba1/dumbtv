@@ -15,8 +15,9 @@ public final class WidgetLayoutTest {
         check(!grid.add("overlap", "text", 1, 0, 2, 1), "reject overlap");
         check(!grid.add("outside", "text", 5, 3, 2, 1), "reject horizontal overflow");
         check(!grid.add("bad", "unknown", 0, 2, 1, 1), "reject unknown widget type");
-        check(grid.add("diagnostics", "diagnostics", 0, 2, 4, 2), "accept diagnostics widget");
-        check(grid.add("device", "device", 4, 2, 2, 2), "accept device information widget");
+        WidgetLayout newWidgets = new WidgetLayout();
+        check(newWidgets.add("diagnostics", "diagnostics", 0, 0, 3, 3), "accept diagnostics widget");
+        check(newWidgets.add("device", "device", 3, 0, 3, 2), "accept device information widget");
         check(!grid.add("too-small", "clock", 0, 2, 1, 2), "reject unreadably narrow widget");
         check(WidgetLayout.defaults().items().size() == 1, "first-run layout starts with the clock only");
         check(grid.move("memory", 4, 0), "move into free cells");
