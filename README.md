@@ -49,8 +49,8 @@ Instead, **Keeper** detects when Amazon's Home activity becomes foregrounded and
 The Fire OS 6 implementation has been hardened specifically for the AFTMM:
 
 - Starts after boot and after the launcher package is updated.
-- Runs as a foreground service and is exempted from Doze by the installer.
-- Uses UsageStats foreground events as its primary detection path. The installer grants the required UsageStats AppOp.
+- Runs as a foreground service, is exempted from Doze, and receives the Fire OS `AUTO_START` AppOp so it can recover after standby.
+- Uses UsageStats foreground events as its primary detection path. The installer grants and verifies both `GET_USAGE_STATS` and `AUTO_START`.
 - Uses ActivityManager logcat as an additional, more immediate signal when ADB grants `READ_LOGS`.
 - Verifies the exact Amazon Home activity rather than reacting to every Amazon activity or every launch request.
 - Keeps screen-on/off handling and UsageStats polling as independent recovery paths.
