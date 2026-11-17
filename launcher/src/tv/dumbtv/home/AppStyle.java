@@ -43,6 +43,8 @@ final class AppStyle {
             case 1: return new String[] {"off", "subtle", "normal", "strong"};
             case 2: return new String[] {"off", "subtle", "accent"};
             case 3: return new String[] {"off", "soft", "glow"};
+            case 4: return new String[] {"focus", "always", "never"};
+            case 5: return new String[] {"compact", "normal", "large"};
             default: return new String[] {"focus", "always", "never"};
         }
     }
