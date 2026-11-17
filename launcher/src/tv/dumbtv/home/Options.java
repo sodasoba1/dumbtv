@@ -39,7 +39,9 @@ public final class Options extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.setFocusable(false);
         scroll.setVerticalScrollBarEnabled(false);
-        scroll.setBackgroundColor("classic".equals(cfg.get(Config.THEME)) ? 0xFF0C0C0E : Ui.optionSurface(this));
+        int optionsSurface = "classic".equals(cfg.get(Config.THEME)) ? 0xFF0C0C0E : Ui.optionSurface(this);
+        scroll.setBackground(Ui.isGlass(this)
+                ? Ui.surface(this, optionsSurface, 0) : Ui.round(optionsSurface, 0));
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
         list.setPadding(dp(56), dp(40), dp(56), dp(40));
