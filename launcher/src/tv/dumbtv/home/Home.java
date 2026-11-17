@@ -86,7 +86,7 @@ public final class Home extends Activity {
     private TextView clock, date;
     private Meter meter;
     private View memoryWidget;
-    private TextView recentWidget, networkWidget, storageWidget, textWidget;
+    private TextView recentWidget, networkWidget, storageWidget, textWidget, diagnosticsWidget, deviceWidget;
     private WidgetGridView widgetGrid;
     private WidgetLayout widgetLayout;
     private Row apps, allApps, inputs;
@@ -715,6 +715,8 @@ public final class Home extends Activity {
         toolbar.setClipChildren(false);
         toolbar.setClipToPadding(false);
         toolbar.addView(allAppsChip());
+        toolbar.addView(chip("Widgets", R.drawable.chip_options, R.drawable.chip_options_mark,
+                v -> startActivity(new Intent(this, WidgetEditor.class))));
         toolbar.addView(chip(getString(R.string.options), R.drawable.chip_options, R.drawable.chip_options_mark,
                 v -> startActivity(new Intent(this, Options.class))));
         toolbar.addView(chip(getString(R.string.settings), R.drawable.chip_settings, R.drawable.chip_settings_mark,
@@ -726,9 +728,6 @@ public final class Home extends Activity {
 
         if (!"1".equals(cfg.get("widgets.initialized", ""))) {
             widgetLayout = WidgetLayout.defaults();
-            if ("on".equals(cfg.get(Config.MEMORY))) {
-                widgetLayout.add("memory", "memory", 2, 0, 2, 2);
-            }
             cfg.set(WidgetLayout.CONFIG_KEY, widgetLayout.encode());
             cfg.set("widgets.initialized", "1");
         } else {
@@ -736,7 +735,9 @@ public final class Home extends Activity {
         }
         widgetGrid = new WidgetGridView(this);
         widgetGrid.setLayout(widgetLayout);
-        widgetGrid.setWidgetEnabled("memory", "on".equals(cfg.get(Config.MEMORY)));
+        for (WidgetVisibility.Definition definition : WidgetVisibility.ALL) {
+            widgetGrid.setWidgetEnabled(definition.id, WidgetVisibility.isEnabled(cfg, definition.id));
+        }
 
         clockWidget = new LinearLayout(this);
         clockWidget.setOrientation(LinearLayout.VERTICAL);
@@ -765,10 +766,16 @@ public final class Home extends Activity {
         networkWidget = widgetText("Network\nChecking connection…");
         storageWidget = widgetText("Storage\nChecking available space…");
         textWidget = widgetText(cfg.get("widgets.text", "Custom text"));
+        diagnosticsWidget = widgetText("DumbTV diagnostics\nCollecting process information…");
+        diagnosticsWidget.setMaxLines(7);
+        deviceWidget = widgetText("Device information\nReading device details…");
+        deviceWidget.setMaxLines(5);
         widgetGrid.addWidgetView("recent", recentWidget);
         widgetGrid.addWidgetView("network", networkWidget);
         widgetGrid.addWidgetView("storage", storageWidget);
         widgetGrid.addWidgetView("text", textWidget);
+        widgetGrid.addWidgetView("diagnostics", diagnosticsWidget);
+        widgetGrid.addWidgetView("device", deviceWidget);
 
         int screenDp = (int) (getResources().getDisplayMetrics().heightPixels
                 / getResources().getDisplayMetrics().density);
@@ -1052,6 +1059,28 @@ public final class Home extends Activity {
         }
     }
 
+        if (widgetLayout.find("diagnostics") != null) {
+            diagnosticsWidget.setText(WidgetDiagnostics.snapshot(this));
+        }
+        if (widgetLayout.find("device") != null) {
+            deviceWidget.setText(deviceInformation());
+        }
+    }
+
+    private String deviceInformation() {
+        long minutes = android.os.SystemClock.elapsedRealtime() / 60000L;
+        long days = minutes / 1440L;
+        long hours = (minutes / 60L) % 24L;
+        long mins = minutes % 60L;
+        String uptime = days > 0 ? days + "d " + hours + "h"
+                : hours > 0 ? hours + "h " + mins + "m" : mins + "m";
+        return "Device information\n" + android.os.Build.MODEL
+                + "\nAndroid " + android.os.Build.VERSION.RELEASE
+                + " · API " + android.os.Build.VERSION.SDK_INT
+                + "\nBuild " + android.os.Build.DISPLAY
+                + "\nUptime " + uptime;
+    }
+
     private void apply() {
         applied = cfg.version();
         int accent = cfg.accent();
@@ -1071,6 +1100,8 @@ public final class Home extends Activity {
         networkWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
         storageWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
         textWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
+        diagnosticsWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
+        deviceWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
         favoritesPanel.setBackground(Ui.surface(this, Ui.optionSurface(this), dp(14)));
         FrameLayout.LayoutParams scrollParams = (FrameLayout.LayoutParams) homeScroll.getLayoutParams();
         scrollParams.bottomMargin = favoriteBottomReserve();
