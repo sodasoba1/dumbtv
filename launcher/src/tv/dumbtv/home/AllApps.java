@@ -93,6 +93,10 @@ public final class AllApps extends Activity {
                     Tile tile = new Tile(this, item, Catalog.ALL_APPS, Catalog.label(cfg, item),
                             width, height, cfg.get(Config.LABELS), cfg.accent());
                     tile.setOnClickListener(v -> launch(item));
+                    tile.setOnLongClickListener(v -> {
+                        AppStyleEditor.show(this, cfg, item, this::recreate);
+                        return true;
+                    });
                     tile.setOnKeyListener((v, code, event) -> {
                         if (event.getAction() == KeyEvent.ACTION_DOWN && code == KeyEvent.KEYCODE_BACK) {
                             finish();
