@@ -121,7 +121,7 @@ public final class Input extends Activity {
         name = Ui.text(this, 20, Ui.TEXT, Ui.MEDIUM);
         name.setText(getIntent().getCharSequenceExtra(EXTRA_NAME));
         name.setPadding(dp(22), dp(10), dp(22), dp(10));
-        name.setBackground(Ui.round(0xB3000000, dp(10)));
+        name.setBackground(Ui.round(this, 0xB3000000));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(WRAP, WRAP, Gravity.TOP | Gravity.START);
         lp.setMargins(dp(56), dp(40), 0, 0);
         root.addView(name, lp);

@@ -279,7 +279,7 @@ public final class IconPicker extends Activity {
                     Ui.tileSurface(IconPicker.this, true), dp(10)));
             card.setDuplicateParentStateEnabled(true);
             GradientDrawable ring = new GradientDrawable();
-            ring.setCornerRadius(dp(10));
+            ring.setCornerRadius(Ui.cornerRadius(IconPicker.this));
             ring.setStroke(dp(3), cfg.accent());
             StateListDrawable focus = new StateListDrawable();
             focus.addState(new int[] {android.R.attr.state_selected}, ring);

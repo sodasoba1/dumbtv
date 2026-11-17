@@ -11,12 +11,11 @@ final class AppStyle {
     static String get(Config config, Item item, String property, String fallback) {
         String value = config.get(key(item, property), fallback);
         String[] allowed;
-        if ("radius".equals(property)) allowed = values(0);
-        else if ("focus_scale".equals(property)) allowed = values(1);
-        else if ("border".equals(property)) allowed = values(2);
-        else if ("shadow".equals(property)) allowed = values(3);
-        else if ("labels".equals(property)) allowed = values(4);
-        else if ("size".equals(property)) allowed = values(5);
+        if ("focus_scale".equals(property)) allowed = values(0);
+        else if ("border".equals(property)) allowed = values(1);
+        else if ("shadow".equals(property)) allowed = values(2);
+        else if ("labels".equals(property)) allowed = values(3);
+        else if ("size".equals(property)) allowed = values(4);
         else if ("background".equals(property)) {
             return value.matches("#[0-9A-Fa-f]{6}") ? value : fallback;
         } else return fallback;
@@ -34,50 +33,46 @@ final class AppStyle {
     }
 
     static String[] properties() {
-        return new String[] {"Corners", "Focus scale", "Border", "Shadow / glow", "App name", "Tile size", "Background colour", "Banner image"};
+        return new String[] {"Focus scale", "Border", "Shadow / glow", "App name", "Tile size", "Background colour", "Banner image"};
     }
 
     static String[] values(int property) {
         switch (property) {
-            case 0: return new String[] {"square", "soft", "rounded"};
-            case 1: return new String[] {"off", "subtle", "normal", "strong"};
-            case 2: return new String[] {"off", "subtle", "accent"};
-            case 3: return new String[] {"off", "soft", "glow"};
-            case 4: return new String[] {"focus", "always", "never"};
-            case 5: return new String[] {"compact", "normal", "large"};
+            case 0: return new String[] {"off", "subtle", "normal", "strong"};
+            case 1: return new String[] {"off", "subtle", "accent"};
+            case 2: return new String[] {"off", "soft", "glow"};
+            case 3: return new String[] {"focus", "always", "never"};
+            case 4: return new String[] {"compact", "normal", "large"};
             default: return new String[] {"focus", "always", "never"};
         }
     }
 
     static String[] labels(int property) {
         switch (property) {
-            case 0: return new String[] {"Square", "Soft", "Rounded"};
-            case 1: return new String[] {"Off", "Subtle", "Normal", "Strong"};
-            case 2: return new String[] {"Off", "Subtle", "Accent"};
-            case 3: return new String[] {"Off", "Soft shadow", "Focus glow"};
-            case 5: return new String[] {"Compact", "Normal", "Large"};
+            case 0: return new String[] {"Off", "Subtle", "Normal", "Strong"};
+            case 1: return new String[] {"Off", "Subtle", "Accent"};
+            case 2: return new String[] {"Off", "Soft shadow", "Focus glow"};
+            case 4: return new String[] {"Compact", "Normal", "Large"};
             default: return new String[] {"On focus", "Always", "Never"};
         }
     }
 
     static String configProperty(int property) {
         switch (property) {
-            case 0: return "radius";
-            case 1: return "focus_scale";
-            case 2: return "border";
-            case 3: return "shadow";
-            case 5: return "size";
+            case 0: return "focus_scale";
+            case 1: return "border";
+            case 2: return "shadow";
+            case 4: return "size";
             default: return "labels";
         }
     }
 
     static String inherited(Config config, int property) {
         switch (property) {
-            case 0: return config.get(Config.TILE_RADIUS);
-            case 1: return config.get(Config.FOCUS_SCALE);
-            case 2: return config.get(Config.TILE_BORDER);
-            case 3: return config.get(Config.TILE_SHADOW);
-            case 5: return "normal";
+            case 0: return config.get(Config.FOCUS_SCALE);
+            case 1: return config.get(Config.TILE_BORDER);
+            case 2: return config.get(Config.TILE_SHADOW);
+            case 4: return "normal";
             default: return config.get(Config.LABELS);
         }
     }

@@ -3,6 +3,10 @@ package tv.dumbtv.home;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.net.Uri;
+import android.provider.Settings;
+import android.app.AlertDialog;
+import android.widget.EditText;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -45,27 +49,7 @@ public final class AllApps extends Activity {
         int pageSurface = "classic".equals(cfg.get(Config.THEME)) ? cfg.background() : Ui.optionSurface(this);
         page.setBackground(Ui.isGlass(this)
                 ? Ui.surface(this, pageSurface, 0) : Ui.round(pageSurface, 0));
-        page.setPadding(0, Ui.dp(this, 30), 0, Ui.dp(this, 24));
-
-        LinearLayout top = new LinearLayout(this);
-        top.setGravity(Gravity.CENTER_VERTICAL);
-        top.setPadding(Ui.dp(this, 24), Ui.dp(this, 8), Ui.dp(this, 24), Ui.dp(this, 20));
-
-        TextView title = Ui.text(this, 30, Ui.TEXT, Ui.LIGHT);
-        title.setText(R.string.all_apps);
-        top.addView(title, new LinearLayout.LayoutParams(0, WRAP, 1f));
-
-        TextView close = Ui.text(this, 15, Ui.TEXT, Ui.MEDIUM);
-        close.setText(R.string.all_apps);
-        close.setContentDescription(getString(R.string.close_all_apps));
-        close.setGravity(Gravity.CENTER);
-        close.setFocusable(true);
-        close.setClickable(true);
-        close.setPadding(Ui.dp(this, 18), Ui.dp(this, 10), Ui.dp(this, 18), Ui.dp(this, 10));
-        Ui.focusStyle(close, cfg.accent(), Ui.isGlass(this) ? 0x55303D4B : 0x14FFFFFF, Ui.dp(this, 18));
-        close.setOnClickListener(v -> finish());
-        top.addView(close);
-        page.addView(top, new LinearLayout.LayoutParams(MATCH, WRAP));
+        page.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 24));
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFocusable(false);
@@ -73,7 +57,7 @@ public final class AllApps extends Activity {
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
         grid = new Grid(this);
-        grid.setPadding(Ui.dp(this, 24), Ui.dp(this, 8), Ui.dp(this, 24), Ui.dp(this, 28));
+        grid.setPadding(Ui.dp(this, 24), Ui.dp(this, 12), Ui.dp(this, 24), Ui.dp(this, 28));
         scroll.addView(grid, new FrameLayout.LayoutParams(MATCH, WRAP));
         page.addView(scroll, new LinearLayout.LayoutParams(MATCH, 0, 1f));
         setContentView(page);
@@ -95,7 +79,7 @@ public final class AllApps extends Activity {
                             width, height, cfg.get(Config.LABELS), cfg.accent());
                     tile.setOnClickListener(v -> launch(item));
                     tile.setOnLongClickListener(v -> {
-                        AppStyleEditor.show(this, cfg, item, this::recreate);
+                        showAppMenu(item);
                         return true;
                     });
                     tile.setOnKeyListener((v, code, event) -> {
@@ -136,11 +120,58 @@ public final class AllApps extends Activity {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_MENU && getCurrentFocus() instanceof Tile) {
-            Item item = ((Tile) getCurrentFocus()).item;
-            AppStyleEditor.show(this, cfg, item, this::recreate);
+            showAppMenu(((Tile) getCurrentFocus()).item);
             return true;
         }
         return super.onKeyDown(keyCode, event);
+    }
+
+    private void showAppMenu(Item item) {
+        boolean pinned = Catalog.shown(cfg, Catalog.APPS, item);
+        String[] actions = new String[] {
+                getString(pinned ? R.string.tile_unpin : R.string.tile_pin),
+                getString(R.string.tile_rename),
+                getString(R.string.tile_customize),
+                getString(R.string.tile_app_info)
+        };
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
+                .setTitle(Catalog.label(cfg, item))
+                .setItems(actions, (d, which) -> {
+                    if (which == 0) {
+                        Catalog.setShown(cfg, Catalog.APPS, item, !pinned);
+                        Toast.makeText(this, pinned ? "Removed from home screen" : "Added to home screen",
+                                Toast.LENGTH_SHORT).show();
+                    } else if (which == 1) {
+                        rename(item);
+                    } else if (which == 2) {
+                        AppStyleEditor.show(this, cfg, item, this::recreate);
+                    } else {
+                        startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.fromParts("package", item.id, null)));
+                    }
+                })
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
+    }
+
+    private void rename(Item item) {
+        EditText field = new EditText(this);
+        field.setSingleLine();
+        field.setText(Catalog.label(cfg, item));
+        field.setSelectAllOnFocus(true);
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
+                .setTitle(R.string.rename_title)
+                .setView(field)
+                .setPositiveButton(R.string.save, (d, which) -> {
+                    String name = field.getText().toString().trim();
+                    cfg.set("name." + item.id, name.equals(item.label.toString()) ? null : name);
+                    recreate();
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private void launch(Item item) {

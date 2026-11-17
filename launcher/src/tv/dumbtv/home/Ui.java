@@ -77,9 +77,22 @@ final class Ui {
         return d;
     }
 
+    /** A rounded surface that always follows the global UI roundness setting. */
+    static GradientDrawable round(Context context, int color) {
+        return round(color, cornerRadius(context));
+    }
+
     /** Theme-aware card surface; Glass gets a fine highlight edge instead of a flat fill. */
+    static float cornerRadius(Context c) {
+        switch (Config.get(c).get(Config.TILE_RADIUS)) {
+            case "square": return 0f;
+            case "rounded": return dp(c, 18);
+            default: return dp(c, 10);
+        }
+    }
+
     static GradientDrawable surface(Context c, int color, float radius) {
-        GradientDrawable d = round(color, radius);
+        GradientDrawable d = round(color, cornerRadius(c));
         if (isGlass(c)) d.setStroke(Math.max(1, dp(c, 1)), 0x55FFFFFF);
         return d;
     }
@@ -87,11 +100,12 @@ final class Ui {
     /** Apply the selected non-Classic theme to system dialogs while preserving Classic. */
     static void styleDialog(AlertDialog dialog) {
         Context c = dialog.getContext();
-        if ("classic".equals(Config.get(c).get(Config.THEME)) || dialog.getWindow() == null) return;
+        if (dialog.getWindow() == null) return;
         Drawable background = isGlass(c)
                 ? surface(c, optionSurface(c), dp(c, 18))
-                : round(optionSurface(c), dp(c, 18));
+                : round(c, optionSurface(c));
         dialog.getWindow().setBackgroundDrawable(background);
+        if ("classic".equals(Config.get(c).get(Config.THEME))) return;
         android.widget.Button positive = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
         android.widget.Button negative = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
         android.widget.Button neutral = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
@@ -102,6 +116,7 @@ final class Ui {
 
     /** Accent fill when focused, a faint fill otherwise. */
     static void focusStyle(TextView v, int accent, int idle, float radius) {
+        radius = cornerRadius(v.getContext());
         StateListDrawable bg = new StateListDrawable();
         bg.addState(new int[] {android.R.attr.state_focused},
                 isGlass(v.getContext()) ? surface(v.getContext(), accent, radius) : round(accent, radius));

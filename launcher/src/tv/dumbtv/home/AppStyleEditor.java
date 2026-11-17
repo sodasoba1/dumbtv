@@ -24,8 +24,8 @@ final class AppStyleEditor {
         AlertDialog dialog = new AlertDialog.Builder(activity, Ui.DIALOG)
                 .setTitle(activity.getString(R.string.tile_customize) + " · " + Catalog.label(config, item))
                 .setItems(AppStyle.properties(), (d, which) -> {
-                    if (which == 6) chooseBackground(activity, config, item, changed);
-                    else if (which == 7) chooseBanner(activity, config, item, changed);
+                    if (which == 5) chooseBackground(activity, config, item, changed);
+                    else if (which == 6) chooseBanner(activity, config, item, changed);
                     else editProperty(activity, config, item, which, changed);
                 })
                 .setNeutralButton(R.string.original, (d, which) -> {
@@ -83,10 +83,21 @@ final class AppStyleEditor {
         AlertDialog dialog = new AlertDialog.Builder(activity, Ui.DIALOG)
                 .setTitle("Banner image")
                 .setItems(bannerAssets, (d, which) -> {
-                    config.set("appstyle." + item.id + ".banner",
-                            which == 0 ? null : bannerAssets[which]);
-                    changed.run();
-                    showMenu(activity, config, item, changed);
+                    String selected = which == 0 ? null : bannerAssets[which];
+                    AlertDialog confirm = new AlertDialog.Builder(activity, Ui.DIALOG)
+                            .setTitle("Save banner change?")
+                            .setMessage(selected == null
+                                    ? "Restore this app's original banner artwork?"
+                                    : "Apply " + selected + " to " + Catalog.label(config, item) + "?")
+                            .setPositiveButton(R.string.save, (confirmDialog, result) -> {
+                                config.set("appstyle." + item.id + ".banner", selected);
+                                changed.run();
+                                showMenu(activity, config, item, changed);
+                            })
+                            .setNegativeButton(R.string.cancel, null)
+                            .create();
+                    confirm.show();
+                    Ui.styleDialog(confirm);
                 })
                 .setNegativeButton(R.string.cancel, null)
                 .create();
@@ -126,14 +137,13 @@ final class AppStyleEditor {
         content.addView(choices);
 
         Runnable updatePreview = () -> {
-            String corners = value(config, item, property, pending[0], 0);
-            String border = value(config, item, property, pending[0], 2);
-            String shadow = value(config, item, property, pending[0], 3);
-            String focusScale = value(config, item, property, pending[0], 1);
-            String appLabels = value(config, item, property, pending[0], 4);
-            String appSize = value(config, item, property, pending[0], 5);
+            String border = value(config, item, property, pending[0], 1);
+            String shadow = value(config, item, property, pending[0], 2);
+            String focusScale = value(config, item, property, pending[0], 0);
+            String appLabels = value(config, item, property, pending[0], 3);
+            String appSize = value(config, item, property, pending[0], 4);
 
-            float radius = Ui.dp(activity, "square".equals(corners) ? 0 : "rounded".equals(corners) ? 18 : 10);
+            float radius = Ui.cornerRadius(activity);
             int surface = AppStyle.backgroundColor(config, item, Ui.tileSurface(activity, true));
             preview.setBackground(Ui.surface(activity, surface, radius));
             GradientDrawable shape = (GradientDrawable) preview.getBackground();

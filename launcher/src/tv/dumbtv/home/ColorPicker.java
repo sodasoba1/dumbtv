@@ -50,7 +50,7 @@ final class ColorPicker {
             int color = Color.HSVToColor(hsv);
             preview.setText(String.format(Locale.US, "#%06X", color & 0x00FFFFFF));
             preview.setTextColor(Ui.ink(color));
-            preview.setBackground(Ui.round(color, Ui.dp(activity, 8)));
+            preview.setBackground(Ui.round(activity, color));
         };
         SeekBar.OnSeekBarChangeListener changes = new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {

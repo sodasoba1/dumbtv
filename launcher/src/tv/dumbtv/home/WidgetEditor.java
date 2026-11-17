@@ -26,6 +26,7 @@ public final class WidgetEditor extends Activity {
     private Config cfg;
     private WidgetLayout layout;
     private GridLayout grid;
+    private WidgetPreview preview;
     private TextView selectionInfo;
     private String selectedId;
     private String pendingMove;
@@ -63,12 +64,19 @@ public final class WidgetEditor extends Activity {
         selectionInfo.setPadding(dp(8), 0, 0, dp(8));
         root.addView(selectionInfo);
 
+        preview = new WidgetPreview(this);
+        preview.setLayout(layout, pendingText);
+        LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(
+                MATCH, WidgetGridView.preferredHeight(this));
+        previewLp.bottomMargin = dp(10);
+        root.addView(preview, previewLp);
+
         grid = new GridLayout(this);
         grid.setColumnCount(WidgetLayout.COLUMNS);
         grid.setRowCount(WidgetLayout.ROWS);
         grid.setUseDefaultMargins(false);
         grid.setAlignmentMode(GridLayout.ALIGN_BOUNDS);
-        LinearLayout.LayoutParams gridLp = new LinearLayout.LayoutParams(MATCH, dp(300));
+        LinearLayout.LayoutParams gridLp = new LinearLayout.LayoutParams(MATCH, dp(190));
         gridLp.bottomMargin = dp(16);
         root.addView(grid, gridLp);
 
@@ -84,7 +92,13 @@ public final class WidgetEditor extends Activity {
         addAction(actions, "Cancel", this::cancel);
         root.addView(actions, new LinearLayout.LayoutParams(MATCH, WRAP));
 
-        setContentView(root);
+        android.widget.ScrollView page = new android.widget.ScrollView(this);
+        page.setFillViewport(true);
+        page.setFocusable(false);
+        page.setVerticalScrollBarEnabled(false);
+        page.setOverScrollMode(android.view.View.OVER_SCROLL_NEVER);
+        page.addView(root, new android.widget.ScrollView.LayoutParams(MATCH, WRAP));
+        setContentView(page);
         renderGrid(initial == null ? 0 : initial.y * WidgetLayout.COLUMNS + initial.x);
     }
 
@@ -105,6 +119,7 @@ public final class WidgetEditor extends Activity {
     private void renderGrid(int focusIndex) {
         grid.removeAllViews();
         updateSelectionInfo();
+        preview.setLayout(layout, pendingText);
         for (int row = 0; row < WidgetLayout.ROWS; row++) {
             for (int column = 0; column < WidgetLayout.COLUMNS; column++) {
                 final int x = column, y = row, index = row * WidgetLayout.COLUMNS + column;
@@ -147,7 +162,7 @@ public final class WidgetEditor extends Activity {
     }
 
     private GradientDrawable editorShape(int color, int radius, int stroke) {
-        GradientDrawable shape = Ui.round(color, radius);
+        GradientDrawable shape = Ui.round(color, Ui.cornerRadius(this));
         if (stroke != 0) shape.setStroke(Math.max(1, dp(1)), stroke);
         return shape;
     }
@@ -313,8 +328,10 @@ public final class WidgetEditor extends Activity {
         AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle("Custom widget text")
                 .setView(input)
-                .setPositiveButton("Use text", (d, which) ->
-                        pendingText = input.getText().toString().trim())
+                .setPositiveButton("Use text", (d, which) -> {
+                    pendingText = input.getText().toString().trim();
+                    preview.setLayout(layout, pendingText);
+                })
                 .setNegativeButton("Cancel", null)
                 .create();
         dialog.show();

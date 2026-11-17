@@ -61,7 +61,7 @@ public final class Options extends Activity {
         list.addView(action(getString(R.string.reset_layout), this::reset));
 
         heading(list, R.string.options_app_tiles);
-        addChoices(list, Config.TILE_STYLE, Config.TILE_RADIUS, Config.TILE_SPACING,
+        addChoices(list, Config.TILE_STYLE, Config.TILE_SPACING,
                 Config.TILE_BORDER, Config.TILE_BORDER_WIDTH, Config.TILE_SHADOW,
                 Config.AFTERGLOW_STRENGTH, Config.AFTERGLOW_ICON);
         LinearLayout packRow = new LinearLayout(this);
@@ -76,7 +76,7 @@ public final class Options extends Activity {
         }, "icon-packs").start();
 
         heading(list, R.string.options_theme_background);
-        addChoices(list, Config.THEME, Config.ACCENT, Config.BACKGROUND, Config.DIM,
+        addChoices(list, Config.THEME, Config.TILE_RADIUS, Config.ACCENT, Config.BACKGROUND, Config.DIM,
                 Config.GRADIENT, Config.GRADIENT_COLOR, Config.GRADIENT_STRENGTH, Config.ROTATE);
         list.addView(action(getString(R.string.next_wallpaper), () -> {
             cfg.nextWallpaper();
@@ -155,7 +155,11 @@ public final class Options extends Activity {
         value.setGravity(Gravity.END);
         row.addView(name, new LinearLayout.LayoutParams(0, WRAP, 1f));
         row.addView(value, new LinearLayout.LayoutParams(WRAP, WRAP));
-        row.setOnClickListener(v -> choose(c));
+        row.setOnClickListener(v -> {
+            if (c == Config.BACKGROUND && !"custom".equals(cfg.get(c))) choose(c);
+            else if (isColorChoice(c)) chooseCustomColor(c);
+            else choose(c);
+        });
         row.setOnKeyListener((v, code, e) -> {
             if (e.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (code == KeyEvent.KEYCODE_DPAD_LEFT) return step(c, -1);
@@ -164,10 +168,9 @@ public final class Options extends Activity {
         });
         Runnable show = () -> {
             boolean focused = row.isFocused();
-            String text = Text.name(this, c, cfg.get(c));
-            if ("custom".equals(cfg.get(c)) && isColorChoice(c)) {
-                text = String.format(Locale.US, "#%06X", selectedColor(c) & 0x00FFFFFF);
-            }
+            String text = isColorChoice(c) && (c != Config.BACKGROUND || "custom".equals(cfg.get(c)))
+                    ? String.format(Locale.US, "#%06X", selectedColor(c) & 0x00FFFFFF)
+                    : Text.name(this, c, cfg.get(c));
             if (c == Config.ACCENT) {
                 SpannableString s = new SpannableString("●  " + text);
                 s.setSpan(new ForegroundColorSpan(cfg.accent()), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -226,6 +229,10 @@ public final class Options extends Activity {
     }
 
     private boolean step(Config.Choice c, int by) {
+        if (c != Config.BACKGROUND && isColorChoice(c)) {
+            chooseCustomColor(c);
+            return true;
+        }
         String[] options = c.optionValues;
         int n = options.length;
         // Nothing to switch to, as Icon pack with none installed: keep what is saved, so a pack

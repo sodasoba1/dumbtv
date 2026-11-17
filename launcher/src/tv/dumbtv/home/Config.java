@@ -70,7 +70,7 @@ final class Config {
             new String[] {"White", "Blue", "Cyan", "Green", "Amber", "Red", "Pink", "Violet",
                     "Teal", "Mint", "Lime", "Yellow", "Orange", "Coral", "Crimson", "Rose",
                     "Magenta", "Purple", "Indigo", "Lavender", "Sky", "Ice", "Gold", "Copper", "Custom colour"},
-            new String[] {"white", "blue", "cyan", "green", "amber", "red", "pink", "violet", "custom"});
+            new String[] {"custom"});
     static final Choice THEME = new Choice("theme", "Theme", "classic",
             new String[] {"classic", "glass", "midnight", "slate"},
             new String[] {"Classic", "Glass", "Midnight", "Slate"});
@@ -115,7 +115,7 @@ final class Config {
             new String[] {"Black", "Graphite", "Midnight", "Charcoal", "Slate", "Navy", "Ocean",
                     "Forest", "Burgundy", "Plum", "Espresso", "Sand", "Image file", "Adaptive solid",
                     "Adaptive wallpaper tint", "Custom colour"},
-            new String[] {"black", "graphite", "midnight", "slate", "image", "adaptive", "adaptive-tint", "custom"});
+            new String[] {"black", "image", "adaptive", "adaptive-tint", "custom"});
     static final Choice DIM = new Choice("dim", "Image dim", "40",
             new String[] {"0", "20", "40", "60", "80"},
             new String[] {"0%", "20%", "40%", "60%", "80%"});
@@ -131,7 +131,7 @@ final class Config {
             new String[] {"Black", "White", "Blue", "Cyan", "Green", "Amber", "Red", "Pink", "Violet",
                     "Teal", "Mint", "Lime", "Yellow", "Orange", "Coral", "Crimson", "Rose", "Magenta",
                     "Purple", "Indigo", "Lavender", "Sky blue", "Ice", "Gold", "Copper", "Custom colour"},
-            new String[] {"black", "white", "blue", "red", "custom"});
+            new String[] {"custom"});
     static final Choice GRADIENT_STRENGTH = new Choice("gradient_strength", "Gradient strength", "40",
             new String[] {"20", "40", "60", "80"},
             new String[] {"20%", "40%", "60%", "80%"});
@@ -144,7 +144,7 @@ final class Config {
     static final Choice FOCUS_ANIMATION = new Choice("focus_animation", "Focus animation", "smooth",
             new String[] {"immediate", "smooth"},
             new String[] {"Immediate", "Smooth"});
-    static final Choice TILE_RADIUS = new Choice("tile_radius", "Tile corners", "soft",
+    static final Choice TILE_RADIUS = new Choice("tile_radius", "UI roundness", "soft",
             new String[] {"square", "soft", "rounded"},
             new String[] {"Square", "Soft", "Rounded"});
     static final Choice TILE_SPACING = new Choice("tile_spacing", "Tile spacing", "normal",
@@ -179,8 +179,8 @@ final class Config {
             new String[] {"Off", "On"});
 
     static final Choice TILE_STYLE = new Choice("tile_style", "App tile style", "original",
-            new String[] {"original", "afterglow", "brand-focus"},
-            new String[] {"Original", "Afterglow", "Brand Focus"});
+            new String[] {"original", "afterglow"},
+            new String[] {"Original", "Afterglow"});
     /** Options and Settings in the corner: text chips, or icon buttons whose name shows on focus. */
     static final Choice CHIPS = new Choice("chips", "Chip style", "text",
             new String[] {"text", "icons"}, new String[] {"Text", "Icons"});
