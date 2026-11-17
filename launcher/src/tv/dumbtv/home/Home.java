@@ -713,8 +713,6 @@ public final class Home extends Activity {
                     if (direction == View.FOCUS_UP && !(grid && aboveInGrid(parent, tile))) {
                         View above = adjacentTile(tile.kind, -1, focused);
                         if (above != null) return above;
-                        View widget = nearestWidget(focused);
-                        if (widget != null) return widget;
                         View chip = nearestToolbarChip(focused);
                         if (chip != null && !locked()) {
                             setToolbarVisible(true);
@@ -1314,7 +1312,6 @@ public final class Home extends Activity {
         View focused = getCurrentFocus();
         String keep = focused instanceof Tile && ((Tile) focused).kind.equals(row.kind)
                 ? ((Tile) focused).item.id : null;
-        boolean gridMode = false;
         ViewGroup target = row.strip;
         row.strip.removeAllViews();
         row.grid.removeAllViews();
@@ -1370,14 +1367,10 @@ public final class Home extends Activity {
                     if (!locked()) menu((Tile) v);
                     return true;
                 });
-                if (gridMode) {
-                    target.addView(t, new ViewGroup.LayoutParams(WRAP, WRAP));
-                } else {
-                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
-                    lp.rightMargin = row == apps && copy == copies - 1
-                            && itemIndex == shown.size() - 1 ? 0 : tileGap;
-                    target.addView(t, lp);
-                }
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
+                lp.rightMargin = row == apps && copy == copies - 1
+                        && itemIndex == shown.size() - 1 ? 0 : tileGap;
+                target.addView(t, lp);
                 if (it.id.equals(keep) && (!loopingFavourites || copy == 1)) restore = index;
                 index++;
                 String tileStyle = cfg.get(Config.TILE_STYLE);
