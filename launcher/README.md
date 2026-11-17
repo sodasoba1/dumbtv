@@ -110,8 +110,9 @@ your pinned apps on the home screen.
 
 **All apps** is optional. Turn on Options › All apps section to keep the current
 Apps section as **Pinned apps** and add **All apps** below it as a horizontal row. The full list includes unpinned apps and apps without TV banners;
-apps with no launcher entry are not listed. Hold OK or press Menu on an app there
-to Pin or Unpin it, Rename it, or open App info. The full list stays alphabetical;
+apps with no launcher entry are not listed. In the home-screen All apps row, the tile menu
+can Pin or Unpin an app, Rename it, Customize its appearance, or open App info. In the
+full catalogue window, hold OK or press Menu to open its appearance editor. The full list stays alphabetical;
 your custom or recently-used order applies to pinned apps only. Options › Apps on
 home screen still selects those pins. Turning the section off preserves them.
 
