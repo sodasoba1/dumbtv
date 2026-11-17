@@ -70,9 +70,11 @@ final class Tile extends View {
         stroke = Ui.dp(c, afterglow == null ? 2.5f : 1f);
 
         fill.setColor(brandFocus ? 0xFF17181B : Ui.tileSurface(c, app));
-        glassSheen.setShader(new LinearGradient(0, 0, 0, cardH,
-                new int[] {0x24FFFFFF, 0x08FFFFFF, 0x00FFFFFF},
-                new float[] {0f, 0.38f, 1f}, Shader.TileMode.CLAMP));
+        if (Ui.isGlass(c)) {
+            glassSheen.setShader(new LinearGradient(0, 0, 0, cardH,
+                    new int[] {0x24FFFFFF, 0x08FFFFFF, 0x00FFFFFF},
+                    new float[] {0f, 0.38f, 1f}, Shader.TileMode.CLAMP));
+        }
         ring.setStyle(Paint.Style.STROKE);
         ring.setStrokeWidth(stroke);
         ring.setColor(accent);
