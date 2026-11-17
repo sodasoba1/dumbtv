@@ -78,8 +78,16 @@ final class Ui {
     }
 
     /** Theme-aware card surface; Glass gets a fine highlight edge instead of a flat fill. */
+    static float cornerRadius(Context c) {
+        switch (Config.get(c).get(Config.TILE_RADIUS)) {
+            case "square": return 0f;
+            case "rounded": return dp(c, 18);
+            default: return dp(c, 10);
+        }
+    }
+
     static GradientDrawable surface(Context c, int color, float radius) {
-        GradientDrawable d = round(color, radius);
+        GradientDrawable d = round(color, cornerRadius(c));
         if (isGlass(c)) d.setStroke(Math.max(1, dp(c, 1)), 0x55FFFFFF);
         return d;
     }
@@ -102,6 +110,7 @@ final class Ui {
 
     /** Accent fill when focused, a faint fill otherwise. */
     static void focusStyle(TextView v, int accent, int idle, float radius) {
+        radius = cornerRadius(v.getContext());
         StateListDrawable bg = new StateListDrawable();
         bg.addState(new int[] {android.R.attr.state_focused},
                 isGlass(v.getContext()) ? surface(v.getContext(), accent, radius) : round(accent, radius));
