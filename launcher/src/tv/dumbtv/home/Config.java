@@ -79,8 +79,6 @@ final class Config {
             new String[] {"Left", "Centre", "Right"});
     static final Choice TOOLBAR_AUTO_HIDE = new Choice("toolbar_auto_hide", "Auto-hide top bar", "off",
             new String[] {"off", "on"}, new String[] {"Off", "On"});
-    static final Choice WIDGET_EDITING = new Choice("widget_editing", "Widget editing mode", "off",
-            new String[] {"off", "on"}, new String[] {"Off", "On"});
     static final Choice WIDGET_BACKGROUNDS = new Choice("widget_backgrounds", "Widget backgrounds", "off",
             new String[] {"off", "on"}, new String[] {"Off", "On"});
     static final Choice FAVOURITES_ALIGN = new Choice("favourites_align", "Favourites alignment", "center",
