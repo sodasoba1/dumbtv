@@ -21,6 +21,8 @@ import java.util.Locale;
 /** Preview built from the same widget views and placement engine used on the home screen. */
 final class WidgetPreview extends WidgetGridView {
     private final TextView customText;
+    private final TextView clockTime;
+    private final TextView clockDate;
 
     WidgetPreview(Context context) {
         super(context);
@@ -33,17 +35,17 @@ final class WidgetPreview extends WidgetGridView {
         clock.setPadding(Ui.dp(context, 18), Ui.dp(context, 4),
                 Ui.dp(context, 18), Ui.dp(context, 4));
         clock.setBackground(backgrounds ? Ui.surface(context, surface, Ui.dp(context, 12)) : null);
-        TextView time = Ui.text(context, 32, Ui.TEXT, Ui.LIGHT);
+        clockTime = Ui.text(context, 32, Ui.TEXT, Ui.LIGHT);
         String clockMode = Config.get(context).get(Config.CLOCK);
         boolean use24Hour = "24h".equals(clockMode)
                 || "auto".equals(clockMode) && DateFormat.is24HourFormat(context);
-        time.setText(DateFormat.format(use24Hour ? "HH:mm" : "h:mm a", new Date()));
-        TextView date = Ui.text(context, 13, Ui.MUTED, Ui.MEDIUM);
-        date.setText(DateFormat.format(DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEEdMMMM"),
+        clockTime.setText(DateFormat.format(use24Hour ? "HH:mm" : "h:mm a", new Date()));
+        clockDate = Ui.text(context, 13, Ui.MUTED, Ui.MEDIUM);
+        clockDate.setText(DateFormat.format(DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEEdMMMM"),
                 new Date()).toString().toUpperCase(Locale.ROOT));
-        date.setPadding(Ui.dp(context, 2), Ui.dp(context, 2), 0, 0);
-        clock.addView(time);
-        clock.addView(date);
+        clockDate.setPadding(Ui.dp(context, 2), Ui.dp(context, 2), 0, 0);
+        clock.addView(clockTime);
+        clock.addView(clockDate);
         addWidgetView("clock", clock);
 
         FrameLayout memory = new FrameLayout(context);
@@ -105,6 +107,20 @@ final class WidgetPreview extends WidgetGridView {
             setWidgetEnabled(definition.id, WidgetVisibility.isEnabled(config, definition.id));
         }
         customText.setText(text == null || text.trim().isEmpty() ? "Custom text" : text.trim());
+    }
+
+    void setWidgetFontSize(String id, int size) {
+        if ("clock".equals(id)) {
+            clockTime.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, size);
+            clockDate.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, Math.max(10, Math.round(size * 0.4f)));
+            return;
+        }
+        for (int i = 0; i < getChildCount(); i++) {
+            if (id.equals(widgetId(getChildAt(i))) && getChildAt(i) instanceof TextView) {
+                ((TextView) getChildAt(i)).setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, size);
+                return;
+            }
+        }
     }
 
     private static TextView widgetText(Context context, String value,
