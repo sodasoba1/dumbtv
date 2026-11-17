@@ -39,7 +39,7 @@ final class WidgetLayout {
 
     static WidgetLayout defaults() {
         WidgetLayout result = new WidgetLayout();
-        result.add("clock", "clock", 0, 0, 2, 2);
+        result.add("clock", "clock", 0, 0, 1, 2);
         return result;
     }
 
@@ -112,9 +112,9 @@ final class WidgetLayout {
                 || "diagnostics".equals(type) || "device".equals(type);
     }
 
-    /** Native cards need two columns and two rows for readable text and the memory meter. */
+    /** Widgets start narrow and vertical; users can widen or lengthen them when needed. */
     private static boolean validSize(int width, int height) {
-        return width >= 2 && width <= COLUMNS && height >= 2 && height <= ROWS;
+        return width >= 1 && width <= COLUMNS && height >= 2 && height <= ROWS;
     }
 
     /** Stable compact format: id,type,x,y,width,height;... */

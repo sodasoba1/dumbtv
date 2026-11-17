@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Four tiles identify the home-screen widget editor. -->
+<!-- Widget editor chip: a panel with distinct content rows, not the app-grid glyph. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -9,5 +9,6 @@
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="1.8"
         android:strokeLineJoin="round"
-        android:pathData="M3.5,3.5h7v7h-7zM13.5,3.5h7v7h-7zM3.5,13.5h7v7h-7zM13.5,13.5h7v7h-7z" />
+        android:strokeLineCap="round"
+        android:pathData="M3.5,4.5h17v15h-17zM7,8h10M7,12h6M7,16h10" />
 </vector>

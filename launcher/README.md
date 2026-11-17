@@ -68,7 +68,7 @@ you open an app.
 | Accent | One remote-friendly HSV slider picker; no preset list. Existing saved palette values remain readable. |
 | Tile size | extra small, small, medium, large, extra large; applies to favourites, app and input rows |
 | App order | your order, or recently used: the apps row re-sorts on each return home, newest first. It counts apps opened from dumbtv home, plus apps opened any other way (voice, another app) on this device, where the launcher already has usage access. Apps never opened keep your order after the rest |
-| All apps section | hidden (default), shown: a separate alphabetical list of every launchable app below your pinned apps. Child lock hides this section |
+| All Apps | opens the full installed-app catalogue from the top bar; there is no duplicate All Apps row on the home screen |
 | App names | on focus, always, never |
 | Clock | system, 24-hour, 12-hour |
 | Widget backgrounds | off (default), on |
@@ -91,7 +91,7 @@ you open an app.
 | Afterglow strength | 20%, 40% (default), 60%, 80%; controls the dark fade over brand colours |
 | Afterglow icon | grayscale (default), original app icon colours |
 | Child lock | off, on: hides Options and Settings and turns off Hold OK and ☰ Menu on tiles, so the home screen only opens apps and inputs (see below) |
-| App tile style | Original (default) or Afterglow. Per-app Customize sets focus scale, border, shadow, app-name visibility, tile size, background colour and a bundled banner; banner changes require an explicit Save confirmation. |
+| App tile style | Original (default) or Afterglow. Per-app Customize is limited to rename, bundled banner image, background colour, reset and Save changes. |
 | Chip style | Text (default), Icons: the top-bar controls use matching icon buttons and show their names while focused |
 | Library banner | shown (default), hidden. It only appears once a library folder holds titles (see below) |
 | Icon pack | off, or an installed icon pack; reads "None installed" until one is ([Icon packs](#icon-packs)) |
@@ -101,38 +101,33 @@ reset for order, names, picked icons and hidden tiles, **Export settings** (for 
 or transfer), and **Open Amazon's home screen**. Apps
 without a TV banner, like the Appstore, start hidden; tick them to add them.
 
-The **All apps** button is in the top bar beside Widgets, Options and Settings. Select
-it and press Down when Options › All apps section is shown to open the full installed-app
-catalogue as a panel that slides up from the bottom. The button also opens it with OK.
-In icon-chip mode it uses a matching catalogue icon. This navigation button is separate
-from Options › All apps section: that setting adds an alphabetical **All apps** row below
-your pinned apps on the home screen.
+The **All Apps** button is in the top bar beside Widgets, Options and Settings. It
+opens the full installed-app catalogue directly. In icon-chip mode it uses its own
+catalogue icon, distinct from the Widgets shortcut.
 
-**All apps** is optional. Turn on Options › All apps section to keep the current
-Apps section as **Pinned apps** and add **All apps** below it as a horizontal row. The full list includes unpinned apps and apps without TV banners;
-apps with no launcher entry are not listed. In the home-screen All apps row, the tile menu
-can Pin or Unpin an app, Rename it, Customize its appearance, or open App info. In the
-full catalogue window, hold OK or press Menu to open its appearance editor. The full list stays alphabetical;
-your custom or recently-used order applies to pinned apps only. Options › Apps on
-home screen still selects those pins. Turning the section off preserves them.
-
-Up and down move between nonempty sections and remember a separate focused tile
-in each. Back and HOME return to the first pinned app, or the first app in All
-apps if nothing is pinned. Child lock hides All apps and disables tile menus, so
-apps hidden from the pinned section stay hidden from this screen while it is locked.
+The home screen keeps only the pinned favourites row; the separate alphabetical
+All Apps row has been removed. The full catalogue includes unpinned apps and apps
+without TV banners; apps with no launcher entry are not listed. Long-press an app
+or press Menu to pin or unpin it, rename it, customise it, or open App info. The
+catalogue remains alphabetical; custom or recently-used order applies to favourites.
+Options › Apps on home screen still selects which apps appear in favourites.
 
 **Widgets** are arranged in a fixed 6 × 4 placement area above the app rows. The
 top-bar **Widgets** shortcut opens the layout editor; Add, Move, Resize and Remove
 are handled there, not by selecting widgets on the home screen. Every widget is
-display-only. The editor offers sizes from 2 × 2 through 6 × 4. Options can show or
-hide individual widgets and turn their backgrounds on; backgrounds are off by default.
-The first-run layout contains only the clock. The available widgets are clock, memory,
-recent apps, network, storage, custom text, DumbTV diagnostics and device information.
+display-only. New widgets start at 1 × 2 cells and can be widened or made taller
+(up to 6 × 4). The editor supports per-widget font sizing, including the clock, and
+shows a live preview. Options can show or hide individual widgets and turn their
+backgrounds on; backgrounds are off by default. The first-run layout contains only
+the clock. Available widgets are clock, memory, recent apps, network, storage,
+custom text, DumbTV diagnostics and device information.
 
-**Per-app appearance** is available from Customize on a home tile or by holding OK
-or pressing Menu on an app in the full catalogue. It can override focus scale, border, shadow, app-name visibility, tile size and
-background colour. Roundness is global rather than per-app. Banner image can use the
-app's original artwork or one of the bundled custom banners, with an explicit Save step.
+**Per-app appearance** is available from Customize on a home tile or from the full
+catalogue. It is limited to rename, bundled banner image, background colour, reset
+and Save changes. Banner artwork keeps its proportions and is drawn over the selected
+background, so transparent PNG artwork reveals the chosen colour. Per-app size,
+focus, border and shadow overrides are no longer part of this editor; those behaviours
+remain global.
 
 **Afterglow** changes app tiles only. Select it in
 Options or set `tile_style=afterglow` in `home.conf`. The name remains visible inside
@@ -151,13 +146,13 @@ still leave the name visible. Afterglow fade strength is adjustable.
 
 The **Theme** option includes Classic, Glass, Midnight and Slate. Glass applies translucent surfaces to buttons and the favourites dock; widget backgrounds remain optional and the top bar itself stays clear. It does not change app launch, HDMI handling or Keeper. Tile roundness is a global adjustment shared by tiles and UI surfaces; spacing, borders, shadows, focus treatment and accent remain separate controls.
 
-The top bar can be aligned left, centre or right. **Auto-hide top bar** is off by default; when enabled, the bar fades/slides away without reclaiming its layout space or shifting the widget grid, scrolling content or bottom favourites panel. The **Widgets** shortcut opens the layout editor directly. Widgets themselves are never focusable or clickable; their placement is changed only in this editor.
+The top bar buttons use consistent dimensions and can be aligned left, centre or right. **Auto-hide top bar** is off by default; when enabled, the bar fades/slides away without reclaiming its layout space or shifting the widget grid, scrolling content or bottom favourites panel. The **Widgets** shortcut opens the layout editor directly. Widgets themselves are never focusable or clickable; their placement is changed only in this editor.
 
-The home uses a 6-column by 4-row widget area. The available widgets are Clock, Memory, Recently opened apps, Network, Storage, Custom text, DumbTV diagnostics and Device information. A fresh layout starts with the Clock placed. Widgets have a minimum size of 2 × 2 cells and can be resized in every supported combination up to 6 × 4; placements cannot overlap or extend beyond the grid. The editor supports Add, Move, Resize, Remove and custom text editing. A live preview uses the same widget views and placement engine as the home screen, so the staged 6 × 4 arrangement updates as placements change. Changes are staged until **Save**; **Cancel** discards them.
+The home uses a 6-column by 4-row widget area. The available widgets are Clock, Memory, Recently opened apps, Network, Storage, Custom text, DumbTV diagnostics and Device information. A fresh layout starts with the Clock placed at 1 × 2 cells. Newly added widgets also start at 1 × 2; they can be widened or made taller in the editor, up to 6 × 4. Placements cannot overlap or extend beyond the grid. The editor supports Add, Move, Resize, Remove, custom text and per-widget font sizing (including the clock). A live preview uses the same widget views and placement engine as the home screen. Changes are staged until **Save**; **Cancel** discards them.
 
 Widget visibility and placement are separate. Turning a widget off hides it but preserves its position. A widget that is enabled but has no saved position is shown as **On · not added** in Widget Settings. Widget backgrounds are off by default and can be enabled separately. The Network widget reads Android's active connection state; it does not make network requests and does not require the INTERNET permission.
 
-The favourites strip has no heading and uses the selected tile size. With six or fewer favourites, it shows the row directly using the selected left, centre or right alignment (centre by default). Only when there are more than six does it become a looping six-tile carousel. The pinned apps themselves remain in the launcher catalogue and are not changed by hiding the row.
+The favourites dock has no heading and spans almost the full screen width. Tile widths adapt to fit up to six tiles across the available space. With six or fewer favourites, it shows the row directly using the selected left, centre or right alignment (centre by default). Only when there are more than six does it become a looping six-tile carousel; focus enters through the middle copy to avoid a jump. The pinned apps themselves remain in the launcher catalogue and are not changed by hiding the row.
 
 **Options** is DumbTV's own configuration page, organised into Home screen, App tiles & icons, Theme & background, Top bar & favourites, Focus & navigation, Widgets, Inputs, and System & security. **Settings** is separate: it opens Fire OS Settings, using a Fire OS 6-specific section list where available. Child lock only restricts DumbTV's own controls; it is not a Fire OS PIN or parental-control replacement.
 ## HDMI inputs

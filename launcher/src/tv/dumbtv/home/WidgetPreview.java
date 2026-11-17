@@ -4,12 +4,9 @@ import android.app.ActivityManager;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.Build;
-import android.os.Environment;
-import android.os.StatFs;
 import android.text.format.DateFormat;
-import android.text.format.Formatter;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -21,6 +18,8 @@ import java.util.Locale;
 /** Preview built from the same widget views and placement engine used on the home screen. */
 final class WidgetPreview extends WidgetGridView {
     private final TextView customText;
+    private final TextView clockTime;
+    private final TextView clockDate;
 
     WidgetPreview(Context context) {
         super(context);
@@ -33,17 +32,17 @@ final class WidgetPreview extends WidgetGridView {
         clock.setPadding(Ui.dp(context, 18), Ui.dp(context, 4),
                 Ui.dp(context, 18), Ui.dp(context, 4));
         clock.setBackground(backgrounds ? Ui.surface(context, surface, Ui.dp(context, 12)) : null);
-        TextView time = Ui.text(context, 32, Ui.TEXT, Ui.LIGHT);
+        clockTime = Ui.text(context, 32, Ui.TEXT, Ui.LIGHT);
         String clockMode = Config.get(context).get(Config.CLOCK);
         boolean use24Hour = "24h".equals(clockMode)
                 || "auto".equals(clockMode) && DateFormat.is24HourFormat(context);
-        time.setText(DateFormat.format(use24Hour ? "HH:mm" : "h:mm a", new Date()));
-        TextView date = Ui.text(context, 13, Ui.MUTED, Ui.MEDIUM);
-        date.setText(DateFormat.format(DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEEdMMMM"),
+        clockTime.setText(DateFormat.format(use24Hour ? "HH:mm" : "h:mm a", new Date()));
+        clockDate = Ui.text(context, 13, Ui.MUTED, Ui.MEDIUM);
+        clockDate.setText(DateFormat.format(DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEEdMMMM"),
                 new Date()).toString().toUpperCase(Locale.ROOT));
-        date.setPadding(Ui.dp(context, 2), Ui.dp(context, 2), 0, 0);
-        clock.addView(time);
-        clock.addView(date);
+        clockDate.setPadding(Ui.dp(context, 2), Ui.dp(context, 2), 0, 0);
+        clock.addView(clockTime);
+        clock.addView(clockDate);
         addWidgetView("clock", clock);
 
         FrameLayout memory = new FrameLayout(context);
@@ -57,43 +56,40 @@ final class WidgetPreview extends WidgetGridView {
                 Gravity.CENTER));
         addWidgetView("memory", memory);
 
-        addWidgetView("recent", widgetText(context, "Recently opened\\nRecent app names",
-                backgrounds, surface));
+        addWidgetView("recent", widgetText(context, Recent.preview(context), backgrounds, surface));
 
         ConnectivityManager connectivity = (ConnectivityManager)
                 context.getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo network = connectivity == null ? null : connectivity.getActiveNetworkInfo();
         String networkState = network == null || !network.isConnected() ? "Disconnected"
                 : "Connected · " + network.getTypeName();
-        addWidgetView("network", widgetText(context, "Network\\n" + networkState,
+        addWidgetView("network", widgetText(context, "Network\n" + networkState,
                 backgrounds, surface));
 
-        String storage = "Unavailable";
-        try {
-            StatFs stats = new StatFs(Environment.getDataDirectory().getPath());
-            storage = Formatter.formatFileSize(context, stats.getAvailableBytes())
-                    + " free of " + Formatter.formatFileSize(context, stats.getTotalBytes());
-        } catch (RuntimeException ignored) {
-            // Keep the preview usable if storage statistics are unavailable.
-        }
-        addWidgetView("storage", widgetText(context, "Storage\\n" + storage,
-                backgrounds, surface));
+        FrameLayout storage = new FrameLayout(context);
+        storage.setBackground(backgrounds ? Ui.surface(context, surface, Ui.dp(context, 12)) : null);
+        Meter storageMeter = new Meter(context);
+        storageMeter.setWords("Storage", "", "Running low");
+        storageMeter.setAccent(Config.get(context).accent());
+        storageMeter.updateStorage(context);
+        storage.addView(storageMeter, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER));
+        addWidgetView("storage", storage);
 
         customText = widgetText(context, "Custom text", backgrounds, surface);
         addWidgetView("text", customText);
 
         TextView diagnostics = widgetText(context, WidgetDiagnostics.snapshot(context),
                 backgrounds, surface);
-        diagnostics.setMaxLines(14);
+        diagnostics.setMaxLines(4);
         diagnostics.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
-        diagnostics.setPadding(Ui.dp(context, 10), Ui.dp(context, 5),
-                Ui.dp(context, 10), Ui.dp(context, 5));
+        diagnostics.setPadding(Ui.dp(context, 6), Ui.dp(context, 2),
+                Ui.dp(context, 6), Ui.dp(context, 2));
         addWidgetView("diagnostics", diagnostics);
 
-        String deviceInfo = "Device information\\n" + Build.MODEL
-                + "\\nAndroid " + Build.VERSION.RELEASE + " · API " + Build.VERSION.SDK_INT;
-        TextView device = widgetText(context, deviceInfo, backgrounds, surface);
-        device.setMaxLines(5);
+        TextView device = widgetText(context, WidgetDiagnostics.deviceInformation(), backgrounds, surface);
+        device.setMaxLines(3);
         device.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
         addWidgetView("device", device);
     }
@@ -105,6 +101,27 @@ final class WidgetPreview extends WidgetGridView {
             setWidgetEnabled(definition.id, WidgetVisibility.isEnabled(config, definition.id));
         }
         customText.setText(text == null || text.trim().isEmpty() ? "Custom text" : text.trim());
+    }
+
+    void setWidgetFontSize(String id, int size) {
+        if ("clock".equals(id)) {
+            clockTime.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, size);
+            clockDate.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, Math.max(10, Math.round(size * 0.4f)));
+            return;
+        }
+        for (int i = 0; i < getChildCount(); i++) {
+            View child = getChildAt(i);
+            if (!id.equals(widgetId(child))) continue;
+            if (child instanceof TextView) {
+                ((TextView) child).setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, size);
+            } else if (child instanceof FrameLayout) {
+                for (int j = 0; j < ((FrameLayout) child).getChildCount(); j++) {
+                    View inner = ((FrameLayout) child).getChildAt(j);
+                    if (inner instanceof Meter) ((Meter) inner).setFontSize(size);
+                }
+            }
+            return;
+        }
     }
 
     private static TextView widgetText(Context context, String value,

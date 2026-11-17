@@ -84,7 +84,9 @@ public final class Home extends Activity {
     private TextView clock, date;
     private Meter meter;
     private View memoryWidget;
-    private TextView recentWidget, networkWidget, storageWidget, textWidget, diagnosticsWidget, deviceWidget;
+    private TextView recentWidget, networkWidget, textWidget, diagnosticsWidget, deviceWidget;
+    private View storageWidget;
+    private Meter storageMeter;
     private WidgetGridView widgetGrid;
     private WidgetLayout widgetLayout;
     private Row apps, allApps, inputs;
@@ -408,8 +410,7 @@ public final class Home extends Activity {
         if (moving == null) {
             if (e.getAction() == KeyEvent.ACTION_DOWN
                     && e.getKeyCode() == KeyEvent.KEYCODE_DPAD_DOWN
-                    && getCurrentFocus() == allAppsButton
-                    && "on".equals(cfg.get(Config.ALL_APPS))) {
+                    && getCurrentFocus() == allAppsButton) {
                 openAllApps();
                 return true;
             }
@@ -552,7 +553,7 @@ public final class Home extends Activity {
                     }
                     if (below == null && favoritesPanel.getVisibility() == View.VISIBLE
                             && apps.tiles().getChildCount() > 0) {
-                        below = apps.tiles().getChildAt(0);
+                        below = nearestFavourite(focused);
                     }
                     if (below != null) return below;
                 }
@@ -662,7 +663,7 @@ public final class Home extends Activity {
                         View below = adjacentTile(tile.kind, 1, focused);
                         if (below == null && favoritesPanel.getVisibility() == View.VISIBLE
                                 && (Catalog.INPUTS.equals(tile.kind) || Catalog.ALL_APPS.equals(tile.kind))) {
-                            below = nearest(apps.tiles(), focused);
+                            below = nearestFavourite(focused);
                         }
                         return below != null ? below : focused;
                     }
@@ -763,14 +764,20 @@ public final class Home extends Activity {
 
         recentWidget = widgetText("Recently opened\nNo recent apps");
         networkWidget = widgetText("Network\nChecking connection…");
-        storageWidget = widgetText("Storage\nChecking available space…");
+        FrameLayout storageFrame = new FrameLayout(this);
+        storageFrame.setBackground(null);
+        storageMeter = new Meter(this);
+        storageMeter.setWords("Storage", "", "Running low");
+        storageMeter.setAccent(cfg.accent());
+        storageWidget = storageFrame;
+        storageFrame.addView(storageMeter, new FrameLayout.LayoutParams(MATCH, WRAP, Gravity.CENTER));
         textWidget = widgetText(cfg.get("widgets.text", "Custom text"));
         diagnosticsWidget = widgetText("DumbTV diagnostics\nCollecting process information…");
-        diagnosticsWidget.setMaxLines(14);
+        diagnosticsWidget.setMaxLines(4);
         diagnosticsWidget.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
-        diagnosticsWidget.setPadding(dp(10), dp(5), dp(10), dp(5));
-        deviceWidget = widgetText("Device information\nReading device details…");
-        deviceWidget.setMaxLines(5);
+        diagnosticsWidget.setPadding(dp(6), dp(2), dp(6), dp(2));
+        deviceWidget = widgetText(WidgetDiagnostics.deviceInformation());
+        deviceWidget.setMaxLines(3);
         deviceWidget.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
         widgetGrid.addWidgetView("recent", recentWidget);
         widgetGrid.addWidgetView("network", networkWidget);
@@ -807,8 +814,8 @@ public final class Home extends Activity {
         favoritesPanel.setPadding(0, dp(2), 0, dp(2));
         favoritesPanel.setVisibility(View.GONE);
         FrameLayout.LayoutParams favoritesLp = new FrameLayout.LayoutParams(MATCH, WRAP, Gravity.BOTTOM);
-        favoritesLp.leftMargin = dp(24);
-        favoritesLp.rightMargin = dp(24);
+        favoritesLp.leftMargin = dp(12);
+        favoritesLp.rightMargin = dp(12);
         favoritesLp.bottomMargin = dp(8);
         root.addView(favoritesPanel, favoritesLp);
 
@@ -836,7 +843,13 @@ public final class Home extends Activity {
     }
 
     private int[] favoriteCardSize() {
-        return cardSize();
+        int[] base = cardSize();
+        String spacing = cfg.get(Config.TILE_SPACING);
+        int gap = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
+        int available = getResources().getDisplayMetrics().widthPixels - dp(24);
+        int widthForSix = Math.max(dp(112), (available - gap * 5) / 6);
+        int width = Math.min(base[0], widthForSix);
+        return new int[] {width, Math.round(width * 9f / 16f)};
     }
 
     private void toolbarFocusChanged(boolean focused) {
@@ -895,6 +908,29 @@ public final class Home extends Activity {
     /**
      * The child in the favourites strip nearest {@code from}; used when moving up from favourites.
      */
+    private View nearestFavourite(View from) {
+        ViewGroup strip = apps.tiles();
+        int count = strip.getChildCount();
+        if (count == 0) return null;
+        int start = count > 6 && count % 3 == 0 ? count / 3 : 0;
+        int end = count > 6 && count % 3 == 0 ? start + count / 3 : count;
+        int[] at = new int[2];
+        from.getLocationOnScreen(at);
+        int x = at[0] + from.getWidth() / 2;
+        View best = null;
+        int bestGap = Integer.MAX_VALUE;
+        for (int i = start; i < end; i++) {
+            View child = strip.getChildAt(i);
+            child.getLocationOnScreen(at);
+            int gap = Math.abs(at[0] + child.getWidth() / 2 - x);
+            if (gap < bestGap) {
+                bestGap = gap;
+                best = child;
+            }
+        }
+        return best;
+    }
+
     private static View nearestBottom(ViewGroup strip, View from) {
         int n = strip.getChildCount();
         if (n == 0) return null;
@@ -976,9 +1012,11 @@ public final class Home extends Activity {
             if (has) focusBackground(null);
         });
         chipLook(v, false);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
-        lp.leftMargin = dp(10);
-        lp.topMargin = dp(6);
+        v.setMinWidth(dp(112));
+        v.setMinHeight(dp(48));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(112), dp(48));
+        lp.leftMargin = dp(8);
+        lp.topMargin = dp(4);
         v.setLayoutParams(lp);
         chips.add(v);
         return v;
@@ -998,9 +1036,9 @@ public final class Home extends Activity {
         v.setGravity(Gravity.CENTER);
         v.setFocusable(true);
         v.setClickable(true);
-        v.setPadding(dp(18), dp(9), dp(18), dp(9));
-        v.setMinWidth(dp(44));
-        v.setMinHeight(dp(44));
+        v.setPadding(dp(12), dp(8), dp(12), dp(8));
+        v.setMinWidth(dp(112));
+        v.setMinHeight(dp(48));
         v.setOnClickListener(view -> openAllApps());
         v.setOnFocusChangeListener((view, has) -> {
             chipLook(v, has);
@@ -1008,9 +1046,9 @@ public final class Home extends Activity {
             toolbarFocusChanged(has);
             if (has) focusBackground(null);
         });
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
-        lp.leftMargin = dp(10);
-        lp.topMargin = dp(6);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(112), dp(48));
+        lp.leftMargin = dp(8);
+        lp.topMargin = dp(4);
         v.setLayoutParams(lp);
         v.setTag(new int[] {R.drawable.chip_apps, R.drawable.chip_apps_mark});
         chips.add(v);
@@ -1046,6 +1084,42 @@ public final class Home extends Activity {
         return view;
     }
 
+    private void applyWidgetFontSizes() {
+        if (widgetGrid == null || widgetLayout == null) return;
+        for (WidgetLayout.Widget widget : widgetLayout.items()) {
+            int fallback = "clock".equals(widget.type) ? 32
+                    : "diagnostics".equals(widget.type) ? 11
+                    : "device".equals(widget.type) ? 12
+                    : "memory".equals(widget.type) || "storage".equals(widget.type) ? 13 : 14;
+            int size;
+            try {
+                size = Integer.parseInt(cfg.get("widgets.font." + widget.id,
+                        String.valueOf(fallback)));
+            } catch (NumberFormatException ignored) {
+                size = fallback;
+            }
+            if ("clock".equals(widget.id)) {
+                clock.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, size);
+                date.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP,
+                        Math.max(10, Math.round(size * 0.4f)));
+                continue;
+            }
+            for (int i = 0; i < widgetGrid.getChildCount(); i++) {
+                View child = widgetGrid.getChildAt(i);
+                if (!widget.id.equals(widgetGrid.widgetId(child))) continue;
+                if (child instanceof TextView) {
+                    ((TextView) child).setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, size);
+                } else if (child instanceof FrameLayout) {
+                    for (int j = 0; j < ((FrameLayout) child).getChildCount(); j++) {
+                        View inner = ((FrameLayout) child).getChildAt(j);
+                        if (inner instanceof Meter) ((Meter) inner).setFontSize(size);
+                    }
+                }
+                break;
+            }
+        }
+    }
+
     private void updateRecentWidget() {
         if (recentWidget == null || widgetLayout == null || widgetLayout.find("recent") == null
                 || !WidgetVisibility.isEnabled(cfg, "recent")) return;
@@ -1074,15 +1148,7 @@ public final class Home extends Activity {
             networkWidget.setText("Network\n" + state);
         }
         if (widgetLayout.find("storage") != null && WidgetVisibility.isEnabled(cfg, "storage")) {
-            try {
-                StatFs stats = new StatFs(Environment.getDataDirectory().getPath());
-                long free = stats.getAvailableBytes();
-                long total = stats.getTotalBytes();
-                storageWidget.setText("Storage\n" + Formatter.formatFileSize(this, free)
-                        + " free of " + Formatter.formatFileSize(this, total));
-            } catch (RuntimeException ignored) {
-                storageWidget.setText("Storage\nUnavailable");
-            }
+            storageMeter.updateStorage(this);
         }
         if (widgetLayout.find("diagnostics") != null && WidgetVisibility.isEnabled(cfg, "diagnostics")) {
             diagnosticsWidget.setText(WidgetDiagnostics.snapshot(this));
@@ -1093,17 +1159,7 @@ public final class Home extends Activity {
     }
 
     private String deviceInformation() {
-        long minutes = android.os.SystemClock.elapsedRealtime() / 60000L;
-        long days = minutes / 1440L;
-        long hours = (minutes / 60L) % 24L;
-        long mins = minutes % 60L;
-        String uptime = days > 0 ? days + "d " + hours + "h"
-                : hours > 0 ? hours + "h " + mins + "m" : mins + "m";
-        return "Device information\n" + android.os.Build.MODEL
-                + "\nAndroid " + android.os.Build.VERSION.RELEASE
-                + " · API " + android.os.Build.VERSION.SDK_INT
-                + "\nBuild " + android.os.Build.DISPLAY
-                + "\nUptime " + uptime;
+        return WidgetDiagnostics.deviceInformation();
     }
 
     private void apply() {
@@ -1133,6 +1189,7 @@ public final class Home extends Activity {
         scrollParams.bottomMargin = favoriteBottomReserve();
         homeScroll.setLayoutParams(scrollParams);
         textWidget.setText(cfg.get("widgets.text", "Custom text"));
+        applyWidgetFontSizes();
         updateRecentWidget();
         updateSystemWidgets();
         for (TextView c : chips) {
@@ -1148,9 +1205,9 @@ public final class Home extends Activity {
             widgetGrid.setWidgetEnabled(definition.id, WidgetVisibility.isEnabled(cfg, definition.id));
         }
         meter.setAccent(accent);
+        storageMeter.setAccent(accent);
         hero.setAccent(accent);
-        apps.title.setText(getString("on".equals(cfg.get(Config.ALL_APPS))
-                ? R.string.row_pinned_apps : R.string.row_apps).toUpperCase(Locale.ROOT));
+        apps.title.setText(getString(R.string.row_pinned_apps).toUpperCase(Locale.ROOT));
         String state = artState();
         if (!state.equals(artState)) {
             artState = state;
@@ -1246,6 +1303,10 @@ public final class Home extends Activity {
     }
 
     private void render(Row row) {
+        if (row == allApps) {
+            row.setVisible(false);
+            return;
+        }
         int renderGeneration = ++row.renderGeneration;
         if (moving != null && moving.kind.equals(row.kind)) stopMoving();
         View focused = getCurrentFocus();
@@ -1331,7 +1392,7 @@ public final class Home extends Activity {
                 if (initialTile != null) row.scroll.scrollTo(initialTile.getLeft(), 0);
             });
         }
-        row.setVisible(!shown.isEmpty());
+        row.setVisible(row != allApps && !shown.isEmpty());
         if (row == apps) row.title.setVisibility(View.GONE);
         adjustAppRowPosition();
         if (shown.isEmpty()) {
@@ -1725,7 +1786,7 @@ public final class Home extends Activity {
             return;
         }
         boolean app = Catalog.APPS.equals(t.kind);
-        boolean pinning = app && "on".equals(cfg.get(Config.ALL_APPS));
+        boolean pinning = app && Catalog.shown(cfg, Catalog.APPS, t.item);
         // Icon picks from the chosen pack, so it is only offered while that pack is installed.
         boolean icon = app && iconPacks.containsKey(cfg.get(IconPack.KEY, IconPack.OFF));
         List<Integer> menu = new ArrayList<>();

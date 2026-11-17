@@ -18,8 +18,17 @@ public final class WidgetLayoutTest {
         WidgetLayout newWidgets = new WidgetLayout();
         check(newWidgets.add("diagnostics", "diagnostics", 0, 0, 3, 3), "accept diagnostics widget");
         check(newWidgets.add("device", "device", 3, 0, 3, 2), "accept device information widget");
-        check(!grid.add("too-small", "clock", 0, 2, 1, 2), "reject unreadably narrow widget");
+        check(newWidgets.add("narrow", "clock", 3, 2, 1, 2), "accept default 1x2 widget size");
         check(WidgetLayout.defaults().items().size() == 1, "first-run layout starts with the clock only");
+        check(WidgetLayout.defaults().find("clock").width == 1
+                && WidgetLayout.defaults().find("clock").height == 2, "clock default is 1x2");
+        WidgetLayout legacy = new WidgetLayout();
+        check(legacy.add("clock", "clock", 0, 0, 2, 2), "load existing user-sized clock");
+        check(legacy.add("network", "network", 2, 0, 2, 2), "load existing user-sized network");
+        check(WidgetLayout.decode(legacy.encode()).find("clock").width == 2,
+                "preserve existing 2x2 widget size");
+        check(WidgetLayout.decode(legacy.encode()).find("network").width == 2,
+                "preserve all existing widget sizes");
         check(grid.move("memory", 4, 0), "move into free cells");
         check(!grid.move("memory", 1, 0), "reject move into occupied cells");
         check(!grid.resize("clock", 5, 2), "reject resize into occupied cells");

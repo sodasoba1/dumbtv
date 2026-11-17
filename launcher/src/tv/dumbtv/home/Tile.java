@@ -61,8 +61,7 @@ final class Tile extends View {
         labelAlways = "always".equals(labels);
         labelOnFocus = "focus".equals(labels);
         radius = Ui.cornerRadius(c);
-        String appSize = AppStyle.get(Config.get(c), item, "size", "normal");
-        baseScale = "compact".equals(appSize) ? 0.90f : "large".equals(appSize) ? 1.08f : 1f;
+        baseScale = 1f;
         setScaleX(baseScale);
         setScaleY(baseScale);
         stroke = Ui.dp(c, afterglow == null ? 2.5f : 1f);
@@ -136,9 +135,9 @@ final class Tile extends View {
         animate().cancel();
         Config config = Config.get(getContext());
         if (focused) {
-            if ("glow".equals(AppStyle.get(config, item, "shadow", config.get(Config.TILE_SHADOW)))) setElevation(Ui.dp(getContext(), 8));
+            if ("glow".equals(config.get(Config.TILE_SHADOW))) setElevation(Ui.dp(getContext(), 8));
             float scale;
-            switch (AppStyle.get(config, item, "focus_scale", config.get(Config.FOCUS_SCALE))) {
+            switch (config.get(Config.FOCUS_SCALE)) {
                 case "off": scale = 1f; break;
                 case "subtle": scale = 1.04f; break;
                 case "strong": scale = 1.12f; break;
@@ -163,7 +162,14 @@ final class Tile extends View {
         if (afterglow != null) {
             afterglow.draw(canvas, icon, cardW, cardH);
         } else if (banner != null) {
-            banner.setBounds(0, 0, cardW, cardH);
+            int sourceWidth = Math.max(1, banner.getIntrinsicWidth());
+            int sourceHeight = Math.max(1, banner.getIntrinsicHeight());
+            float scale = Math.min(cardW / (float) sourceWidth, cardH / (float) sourceHeight);
+            int drawWidth = Math.max(1, Math.round(sourceWidth * scale));
+            int drawHeight = Math.max(1, Math.round(sourceHeight * scale));
+            int left = (cardW - drawWidth) / 2;
+            int top = (cardH - drawHeight) / 2;
+            banner.setBounds(left, top, left + drawWidth, top + drawHeight);
             banner.draw(canvas);
         } else if (icon != null) {
             float maxWidth = cardW * 0.88f, maxHeight = cardH * 0.88f;
@@ -185,14 +191,14 @@ final class Tile extends View {
         canvas.restore();
 
         if (afterglow != null) afterglow.edge(canvas, cardW, cardH, radius);
-        String borderMode = AppStyle.get(Config.get(getContext()), item, "border", Config.get(getContext()).get(Config.TILE_BORDER));
+        String borderMode = Config.get(getContext()).get(Config.TILE_BORDER);
         outline.setColor("accent".equals(borderMode) ? Config.get(getContext()).accent() : Ui.isGlass(getContext()) ? 0x66FFFFFF : 0x44FFFFFF);
         if ((!"off".equals(borderMode) || Ui.isGlass(getContext())) && !isFocused()) {
             float halfBorder = outline.getStrokeWidth() / 2f;
             canvas.drawRoundRect(halfBorder, halfBorder, cardW - halfBorder, cardH - halfBorder,
                     Math.max(0, radius - halfBorder), Math.max(0, radius - halfBorder), outline);
         }
-        if (isFocused() && "glow".equals(AppStyle.get(Config.get(getContext()), item, "shadow", Config.get(getContext()).get(Config.TILE_SHADOW)))) {
+        if (isFocused() && "glow".equals(Config.get(getContext()).get(Config.TILE_SHADOW))) {
             canvas.drawRoundRect(3, 3, cardW - 3, cardH - 3, radius, radius, glow);
         }
 

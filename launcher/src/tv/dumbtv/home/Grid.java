@@ -66,8 +66,12 @@ final class Grid extends ViewGroup {
         int cols = columns(avail, cw);
         int gap = gap();
         for (int i = 0; i < n; i++) {
-            int col = i % cols, row = i / cols;
-            int x = getPaddingLeft() + col * (cw + gap);
+            int row = i / cols;
+            int col = i % cols;
+            int rowItems = Math.min(cols, n - row * cols);
+            int rowWidth = rowItems * cw + (rowItems - 1) * gap;
+            int startX = getPaddingLeft() + Math.max(0, (avail - rowWidth) / 2);
+            int x = startX + col * (cw + gap);
             int y = getPaddingTop() + row * (ch + gap);
             getChildAt(i).layout(x, y, x + cw, y + ch);
         }

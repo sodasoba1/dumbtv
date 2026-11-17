@@ -147,12 +147,8 @@ final class Catalog {
         // Pinning, hiding and recent use only affect the pinned section. Child lock keeps apps
         // hidden there out of reach on this screen. Sort the full list by its displayed names.
         if (ALL_APPS.equals(kind)) {
-            List<Item> out = new ArrayList<>();
-            if (!"on".equals(cfg.get(Config.ALL_APPS)) || "on".equals(cfg.get(Config.LOCK))) return out;
-            out.addAll(all);
-            Collator collator = Collator.getInstance();
-            Collections.sort(out, (a, b) -> collator.compare(label(cfg, a).toString(), label(cfg, b).toString()));
-            return out;
+            // The home-screen catalogue row has been removed; All Apps is a separate Activity.
+            return new ArrayList<>();
         }
         List<String> order = cfg.list(kind + ".order");
         List<Item> out = new ArrayList<>();

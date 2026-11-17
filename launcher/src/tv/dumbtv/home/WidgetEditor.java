@@ -15,7 +15,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** DPAD-first widget placement editor. Changes are staged until Save is selected. */
 public final class WidgetEditor extends Activity {
@@ -33,6 +35,7 @@ public final class WidgetEditor extends Activity {
     private String pendingAddType;
     private String pendingText;
     private boolean addedMemory;
+    private final Map<String, Integer> fontSizes = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle state) {
@@ -41,6 +44,20 @@ public final class WidgetEditor extends Activity {
         cfg.refresh();
         layout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         pendingText = cfg.get("widgets.text", "Custom text");
+        for (WidgetLayout.Widget widget : layout.items()) {
+            int fallback = "clock".equals(widget.type) ? 32
+                    : "diagnostics".equals(widget.type) ? 11
+                    : "device".equals(widget.type) ? 12
+                    : "memory".equals(widget.type) || "storage".equals(widget.type) ? 13 : 14;
+            int savedFont = fallback;
+            try {
+                savedFont = Integer.parseInt(cfg.get("widgets.font." + widget.id,
+                        String.valueOf(fallback)));
+            } catch (NumberFormatException ignored) {
+                // Ignore invalid saved font sizes and use the widget's normal size.
+            }
+            fontSizes.put(widget.id, savedFont);
+        }
         WidgetLayout.Widget initial = layout.find(getIntent().getStringExtra(EXTRA_WIDGET_ID));
         if (initial != null) selectedId = initial.id;
 
@@ -55,7 +72,7 @@ public final class WidgetEditor extends Activity {
         root.addView(title);
 
         TextView instructions = Ui.text(this, 13, Ui.MUTED, Ui.MEDIUM);
-        instructions.setText("Use the directional pad to select cells. Select a widget, then Move, Resize or Remove.");
+        instructions.setText("Use the directional pad to select cells. Select a widget, then Move, Resize, Configure or Remove.");
         instructions.setPadding(dp(8), 0, 0, dp(12));
         root.addView(instructions);
 
@@ -66,6 +83,7 @@ public final class WidgetEditor extends Activity {
 
         preview = new WidgetPreview(this);
         preview.setLayout(layout, pendingText);
+        applyPreviewFonts();
         LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(
                 MATCH, WidgetGridView.preferredHeight(this));
         previewLp.bottomMargin = dp(10);
@@ -88,6 +106,7 @@ public final class WidgetEditor extends Activity {
         addAction(actions, "Resize", this::resize);
         addAction(actions, "Remove", this::remove);
         addAction(actions, "Text", this::editText);
+        addAction(actions, "Configure", this::configure);
         addAction(actions, "Save", this::save);
         addAction(actions, "Cancel", this::cancel);
         root.addView(actions, new LinearLayout.LayoutParams(MATCH, WRAP));
@@ -120,6 +139,7 @@ public final class WidgetEditor extends Activity {
         grid.removeAllViews();
         updateSelectionInfo();
         preview.setLayout(layout, pendingText);
+        applyPreviewFonts();
         for (int row = 0; row < WidgetLayout.ROWS; row++) {
             for (int column = 0; column < WidgetLayout.COLUMNS; column++) {
                 final int x = column, y = row, index = row * WidgetLayout.COLUMNS + column;
@@ -204,12 +224,15 @@ public final class WidgetEditor extends Activity {
         if (pendingAddType != null) {
             String type = pendingAddType;
             pendingAddType = null;
-            int width = "clock".equals(type) || "memory".equals(type) ? 2
-                    : "diagnostics".equals(type) ? 3
-                    : "recent".equals(type) || "device".equals(type) ? 3 : 2;
-            int height = "diagnostics".equals(type) ? 3 : 2;
+            int width = 1;
+            int height = 2;
             if (layout.add(type, type, x, y, width, height)) {
                 selectedId = type;
+                int defaultFont = "clock".equals(type) ? 32
+                        : "diagnostics".equals(type) ? 11
+                        : "device".equals(type) ? 12
+                        : "memory".equals(type) || "storage".equals(type) ? 13 : 14;
+                fontSizes.put(type, defaultFont);
                 if ("memory".equals(type)) addedMemory = true;
                 message("Widget added");
             } else {
@@ -278,7 +301,7 @@ public final class WidgetEditor extends Activity {
         List<String> sizeLabels = new ArrayList<>();
         List<int[]> dimensions = new ArrayList<>();
         for (int height = 2; height <= WidgetLayout.ROWS; height++) {
-            for (int width = 2; width <= WidgetLayout.COLUMNS; width++) {
+            for (int width = 1; width <= WidgetLayout.COLUMNS; width++) {
                 sizeLabels.add(width + " × " + height);
                 dimensions.add(new int[] {width, height});
             }
@@ -308,8 +331,48 @@ public final class WidgetEditor extends Activity {
             return;
         }
         layout.remove(selectedId);
+        fontSizes.remove(selectedId);
         selectedId = null;
         renderGrid(0);
+    }
+
+    private void configure() {
+        pendingMove = null;
+        pendingAddType = null;
+        WidgetLayout.Widget widget = selectedId == null ? null : layout.find(selectedId);
+        if (widget == null) {
+            message("Select a widget first");
+            return;
+        }
+        int current = fontSizes.containsKey(selectedId) ? fontSizes.get(selectedId)
+                : ("clock".equals(widget.type) ? 32
+                : "diagnostics".equals(widget.type) ? 11
+                : "device".equals(widget.type) ? 12
+                : "memory".equals(widget.type) || "storage".equals(widget.type) ? 13 : 14);
+        int[] sizes = {11, 12, 13, 14, 16, 18, 22, 26, 30, 32, 34, 38};
+        String[] labels = new String[sizes.length];
+        int selected = 0;
+        for (int i = 0; i < sizes.length; i++) {
+            labels[i] = sizes[i] + " sp";
+            if (sizes[i] == current) selected = i;
+        }
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
+                .setTitle("Font size · " + widget.type)
+                .setSingleChoiceItems(labels, selected, (d, which) -> {
+                    fontSizes.put(selectedId, sizes[which]);
+                    preview.setWidgetFontSize(selectedId, sizes[which]);
+                    d.dismiss();
+                })
+                .setNegativeButton("Cancel", null)
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
+    }
+
+    private void applyPreviewFonts() {
+        for (Map.Entry<String, Integer> entry : fontSizes.entrySet()) {
+            preview.setWidgetFontSize(entry.getKey(), entry.getValue());
+        }
     }
 
     private void editText() {
@@ -341,6 +404,10 @@ public final class WidgetEditor extends Activity {
     private void save() {
         cfg.set(WidgetLayout.CONFIG_KEY, layout.encode());
         cfg.set("widgets.text", pendingText);
+        for (WidgetLayout.Widget widget : layout.items()) {
+            Integer size = fontSizes.get(widget.id);
+            if (size != null) cfg.set("widgets.font." + widget.id, String.valueOf(size));
+        }
         if (addedMemory && layout.find("memory") != null) cfg.set(Config.MEMORY.key, "on");
         cfg.set("widgets.initialized", "1");
         setResult(RESULT_OK);

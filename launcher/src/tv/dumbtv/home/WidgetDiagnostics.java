@@ -16,16 +16,9 @@ final class WidgetDiagnostics {
     private WidgetDiagnostics() {}
 
     static String snapshot(Context context) {
-        StringBuilder out = new StringBuilder("DumbTV diagnostics");
-        out.append("\nCPU time since start · ").append(cpuTime(Process.getElapsedCpuTime()));
-        out.append("\nApp memory · ").append(memory(context));
-        out.append("\nKeeper · ").append(keeperState(context));
-        out.append("\nPermissions · ").append(permissionSummary(context));
-        return out.toString();
-    }
-
-    private static String cpuTime(long millis) {
-        return String.format(Locale.ROOT, "%.1f s", Math.max(0, millis) / 1000.0);
+        return "DumbTV diagnostics\nKeeper · " + keeperState(context)
+                + "\nApp memory · " + memory(context)
+                + "\nPermissions · " + permissionSummary(context);
     }
 
     private static String memory(Context context) {
@@ -67,7 +60,6 @@ final class WidgetDiagnostics {
             String[] requested = info.requestedPermissions;
             if (requested == null || requested.length == 0) return "No permissions requested";
             int granted = 0;
-            StringBuilder details = new StringBuilder();
             for (int i = 0; i < requested.length; i++) {
                 String permission = requested[i];
                 boolean allowed;
@@ -78,14 +70,8 @@ final class WidgetDiagnostics {
                             == PackageManager.PERMISSION_GRANTED;
                 }
                 if (allowed) granted++;
-                if (details.length() > 0) details.append('\n');
-                details.append("  ").append(shortName(permission)).append(allowed ? " ✓" : " ✕");
             }
-            if (!java.util.Arrays.asList(requested).contains("android.permission.INTERNET")) {
-                if (details.length() > 0) details.append('\n');
-                details.append("  INTERNET not requested");
-            }
-            return granted + "/" + requested.length + " granted\n" + details;
+            return granted + "/" + requested.length + " granted";
         } catch (PackageManager.NameNotFoundException | RuntimeException e) {
             return "Status unavailable";
         }
@@ -103,8 +89,15 @@ final class WidgetDiagnostics {
         }
     }
 
-    private static String shortName(String permission) {
-        int dot = permission.lastIndexOf('.');
-        return dot < 0 ? permission : permission.substring(dot + 1);
+    /** Device details stay separate from app and Keeper diagnostics. */
+    static String deviceInformation() {
+        long minutes = android.os.SystemClock.elapsedRealtime() / 60000L;
+        long days = minutes / 1440L;
+        long hours = (minutes / 60L) % 24L;
+        long mins = minutes % 60L;
+        String uptime = days > 0 ? days + "d " + hours + "h"
+                : hours > 0 ? hours + "h " + mins + "m" : mins + "m";
+        return android.os.Build.MODEL + "\nAndroid " + android.os.Build.VERSION.RELEASE
+                + " · API " + android.os.Build.VERSION.SDK_INT + "\nUptime " + uptime;
     }
 }
