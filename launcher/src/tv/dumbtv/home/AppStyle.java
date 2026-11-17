@@ -16,6 +16,7 @@ final class AppStyle {
         else if ("border".equals(property)) allowed = values(2);
         else if ("shadow".equals(property)) allowed = values(3);
         else if ("labels".equals(property)) allowed = values(4);
+        else if ("size".equals(property)) allowed = values(5);
         else if ("background".equals(property)) {
             return value.matches("#[0-9A-Fa-f]{6}") ? value : fallback;
         } else return fallback;
@@ -33,7 +34,7 @@ final class AppStyle {
     }
 
     static String[] properties() {
-        return new String[] {"Corners", "Focus scale", "Border", "Shadow / glow", "App name", "Background colour"};
+        return new String[] {"Corners", "Focus scale", "Border", "Shadow / glow", "App name", "Tile size", "Background colour"};
     }
 
     static String[] values(int property) {
@@ -52,6 +53,7 @@ final class AppStyle {
             case 1: return new String[] {"Off", "Subtle", "Normal", "Strong"};
             case 2: return new String[] {"Off", "Subtle", "Accent"};
             case 3: return new String[] {"Off", "Soft shadow", "Focus glow"};
+            case 5: return new String[] {"Compact", "Normal", "Large"};
             default: return new String[] {"On focus", "Always", "Never"};
         }
     }
@@ -62,6 +64,7 @@ final class AppStyle {
             case 1: return "focus_scale";
             case 2: return "border";
             case 3: return "shadow";
+            case 5: return "size";
             default: return "labels";
         }
     }
@@ -72,6 +75,7 @@ final class AppStyle {
             case 1: return config.get(Config.FOCUS_SCALE);
             case 2: return config.get(Config.TILE_BORDER);
             case 3: return config.get(Config.TILE_SHADOW);
+            case 5: return "normal";
             default: return config.get(Config.LABELS);
         }
     }
