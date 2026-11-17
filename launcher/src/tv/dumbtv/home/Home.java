@@ -1718,10 +1718,38 @@ public final class Home extends Activity {
         String[] properties = AppStyle.properties();
         AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle(getString(R.string.tile_customize) + " · " + Catalog.label(cfg, tile.item))
-                .setItems(properties, (d, which) -> chooseTileStyle(tile, which))
+                .setItems(properties, (d, which) -> {
+                    if (which == 5) chooseTileBackground(tile);
+                    else chooseTileStyle(tile, which);
+                })
                 .setNeutralButton(R.string.original, (d, which) -> {
                     cfg.removePrefix("appstyle." + tile.item.id + ".");
                     apply();
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
+    }
+
+    /** Per-app background colour uses the shared HSV picker and remains independent of theme. */
+    private void chooseTileBackground(Tile tile) {
+        int fallback = AppStyle.backgroundColor(cfg, tile.item, Ui.tileSurface(this, true));
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
+                .setTitle("App background")
+                .setItems(new String[] {"Choose custom colour", "Use theme default"}, (d, which) -> {
+                    if (which == 0) {
+                        ColorPicker.show(this, fallback, color -> {
+                            AppStyle.set(cfg, tile.item, "background",
+                                    String.format(java.util.Locale.US, "#%06X", color & 0x00FFFFFF));
+                            apply();
+                            customizeTile(tile);
+                        });
+                    } else {
+                        cfg.set(AppStyle.key(tile.item, "background"), null);
+                        apply();
+                        customizeTile(tile);
+                    }
                 })
                 .setNegativeButton(R.string.cancel, null)
                 .create();
