@@ -77,6 +77,11 @@ final class Ui {
         return d;
     }
 
+    /** A rounded surface that always follows the global UI roundness setting. */
+    static GradientDrawable round(Context context, int color) {
+        return round(color, cornerRadius(context));
+    }
+
     /** Theme-aware card surface; Glass gets a fine highlight edge instead of a flat fill. */
     static float cornerRadius(Context c) {
         switch (Config.get(c).get(Config.TILE_RADIUS)) {
@@ -98,7 +103,7 @@ final class Ui {
         if ("classic".equals(Config.get(c).get(Config.THEME)) || dialog.getWindow() == null) return;
         Drawable background = isGlass(c)
                 ? surface(c, optionSurface(c), dp(c, 18))
-                : round(optionSurface(c), dp(c, 18));
+                : round(c, optionSurface(c));
         dialog.getWindow().setBackgroundDrawable(background);
         android.widget.Button positive = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
         android.widget.Button negative = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
