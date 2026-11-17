@@ -10,9 +10,7 @@ A home screen for the Fire TV Stick 4K (1st generation, AFTMM) on Fire OS 6.7.1.
   Services or any other library.
 - **No network.** There is no `INTERNET` permission, so Android will not let it
   open a connection.
-- **Boot permission.** Used only to start the Keeper after boot or an app update.
-  The Fire OS 6 Keeper uses UsageStats and task reordering; ActivityManager logcat
-  is an additional foreground signal when its ADB-granted permission is available.
+- **Boot and standby access.** The installer grants the `GET_USAGE_STATS` and Fire OS `AUTO_START` AppOps, adds the package to the Doze whitelist, and starts Keeper after boot or an app update. `AUTO_START` is checked after it is set so an install cannot silently claim standby recovery is configured when Fire OS refused it. ActivityManager logcat is an optional additional foreground signal when ADB grants `READ_LOGS`.
 - **No ads, no recommended rows, no account, no analytics, no update checks.**
 - About 60–70 MB of memory with the home screen showing, about 37 MB while an app
   plays (measured on a Fire TV Edition television with 1.4 GB of RAM).
