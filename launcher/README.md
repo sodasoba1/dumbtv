@@ -91,7 +91,7 @@ you open an app.
 | Afterglow strength | 20%, 40% (default), 60%, 80%; controls the dark fade over brand colours |
 | Afterglow icon | grayscale (default), original app icon colours |
 | Child lock | off, on: hides Options and Settings and turns off Hold OK and ☰ Menu on tiles, so the home screen only opens apps and inputs (see below) |
-| App tile style | Original (default) or Afterglow. Per-app Customize sets focus scale, border, shadow, app-name visibility, tile size, background colour and a bundled banner; banner changes require an explicit Save confirmation. |
+| App tile style | Original (default) or Afterglow. Per-app Customize is limited to rename, bundled banner image, background colour, reset and Save changes. |
 | Chip style | Text (default), Icons: the top-bar controls use matching icon buttons and show their names while focused |
 | Library banner | shown (default), hidden. It only appears once a library folder holds titles (see below) |
 | Icon pack | off, or an installed icon pack; reads "None installed" until one is ([Icon packs](#icon-packs)) |
@@ -101,38 +101,33 @@ reset for order, names, picked icons and hidden tiles, **Export settings** (for 
 or transfer), and **Open Amazon's home screen**. Apps
 without a TV banner, like the Appstore, start hidden; tick them to add them.
 
-The **All apps** button is in the top bar beside Widgets, Options and Settings. Select
-it and press Down when Options › All apps section is shown to open the full installed-app
-catalogue as a panel that slides up from the bottom. The button also opens it with OK.
-In icon-chip mode it uses a matching catalogue icon. This navigation button is separate
-from Options › All apps section: that setting adds an alphabetical **All apps** row below
-your pinned apps on the home screen.
+The **All Apps** button is in the top bar beside Widgets, Options and Settings. It
+opens the full installed-app catalogue directly. In icon-chip mode it uses its own
+catalogue icon, distinct from the Widgets shortcut.
 
-**All apps** is optional. Turn on Options › All apps section to keep the current
-Apps section as **Pinned apps** and add **All apps** below it as a horizontal row. The full list includes unpinned apps and apps without TV banners;
-apps with no launcher entry are not listed. In the home-screen All apps row, the tile menu
-can Pin or Unpin an app, Rename it, Customize its appearance, or open App info. In the
-full catalogue window, hold OK or press Menu to open its appearance editor. The full list stays alphabetical;
-your custom or recently-used order applies to pinned apps only. Options › Apps on
-home screen still selects those pins. Turning the section off preserves them.
-
-Up and down move between nonempty sections and remember a separate focused tile
-in each. Back and HOME return to the first pinned app, or the first app in All
-apps if nothing is pinned. Child lock hides All apps and disables tile menus, so
-apps hidden from the pinned section stay hidden from this screen while it is locked.
+The home screen keeps only the pinned favourites row; the separate alphabetical
+All Apps row has been removed. The full catalogue includes unpinned apps and apps
+without TV banners; apps with no launcher entry are not listed. Long-press an app
+or press Menu to pin or unpin it, rename it, customise it, or open App info. The
+catalogue remains alphabetical; custom or recently-used order applies to favourites.
+Options › Apps on home screen still selects which apps appear in favourites.
 
 **Widgets** are arranged in a fixed 6 × 4 placement area above the app rows. The
 top-bar **Widgets** shortcut opens the layout editor; Add, Move, Resize and Remove
 are handled there, not by selecting widgets on the home screen. Every widget is
-display-only. The editor offers sizes from 2 × 2 through 6 × 4. Options can show or
-hide individual widgets and turn their backgrounds on; backgrounds are off by default.
-The first-run layout contains only the clock. The available widgets are clock, memory,
-recent apps, network, storage, custom text, DumbTV diagnostics and device information.
+display-only. New widgets start at 1 × 2 cells and can be widened or made taller
+(up to 6 × 4). The editor supports per-widget font sizing, including the clock, and
+shows a live preview. Options can show or hide individual widgets and turn their
+backgrounds on; backgrounds are off by default. The first-run layout contains only
+the clock. Available widgets are clock, memory, recent apps, network, storage,
+custom text, DumbTV diagnostics and device information.
 
-**Per-app appearance** is available from Customize on a home tile or by holding OK
-or pressing Menu on an app in the full catalogue. It can override focus scale, border, shadow, app-name visibility, tile size and
-background colour. Roundness is global rather than per-app. Banner image can use the
-app's original artwork or one of the bundled custom banners, with an explicit Save step.
+**Per-app appearance** is available from Customize on a home tile or from the full
+catalogue. It is limited to rename, bundled banner image, background colour, reset
+and Save changes. Banner artwork keeps its proportions and is drawn over the selected
+background, so transparent PNG artwork reveals the chosen colour. Per-app size,
+focus, border and shadow overrides are no longer part of this editor; those behaviours
+remain global.
 
 **Afterglow** changes app tiles only. Select it in
 Options or set `tile_style=afterglow` in `home.conf`. The name remains visible inside
