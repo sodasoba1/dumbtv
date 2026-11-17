@@ -871,7 +871,7 @@ public final class Home extends Activity {
             chipLook(c, c.isFocused());
             c.setVisibility(locked() ? View.GONE : View.VISIBLE);
         }
-        memoryWidget.setVisibility("on".equals(cfg.get(Config.MEMORY)) ? View.VISIBLE : View.GONE);
+        widgetGrid.setWidgetEnabled("memory", "on".equals(cfg.get(Config.MEMORY)));
         meter.setAccent(accent);
         hero.setAccent(accent);
         apps.title.setText(getString("on".equals(cfg.get(Config.ALL_APPS))
