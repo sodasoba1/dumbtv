@@ -158,7 +158,7 @@ public final class WidgetEditor extends Activity {
             pendingAddType = null;
             int width = "clock".equals(type) || "memory".equals(type) ? 2
                     : "recent".equals(type) ? 3 : 2;
-            int height = "clock".equals(type) || "memory".equals(type) ? 2 : 1;
+            int height = 2;
             if (layout.add(type, type, x, y, width, height)) {
                 selectedId = type;
                 message("Widget added");
@@ -214,8 +214,8 @@ public final class WidgetEditor extends Activity {
             message("Select a widget first");
             return;
         }
-        String[] sizes = {"2 × 1", "2 × 2", "3 × 1", "3 × 2", "4 × 2"};
-        int[][] dimensions = {{2, 1}, {2, 2}, {3, 1}, {3, 2}, {4, 2}};
+        String[] sizes = {"2 × 2", "3 × 2", "4 × 2", "2 × 3", "3 × 3", "4 × 3"};
+        int[][] dimensions = {{2, 2}, {3, 2}, {4, 2}, {2, 3}, {3, 3}, {4, 3}};
         new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle("Widget size")
                 .setItems(sizes, (dialog, which) -> {
