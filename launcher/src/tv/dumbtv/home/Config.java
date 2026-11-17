@@ -90,9 +90,6 @@ final class Config {
     static final Choice ORDER = new Choice("order", "App order", "custom",
             new String[] {"custom", "recent"},
             new String[] {"Your order", "Recently used"});
-    static final Choice ALL_APPS = new Choice("all_apps", "All apps section", "off",
-            new String[] {"off", "on"},
-            new String[] {"Hidden", "Shown"});
     static final Choice LABELS = new Choice("labels", "App names", "focus",
             new String[] {"focus", "always", "never"},
             new String[] {"On focus", "Always", "Never"});
@@ -187,7 +184,7 @@ final class Config {
     /** The banner of hand-picked titles from {@link Library}; hidden anyway while it has none. */
     static final Choice LIBRARY = new Choice("library", "Library banner", "on",
             new String[] {"on", "off"}, new String[] {"Shown", "Hidden"});
-    static final Choice[] CHOICES = {ACCENT, THEME, TOOLBAR_ALIGN, TOOLBAR_AUTO_HIDE, WIDGET_BACKGROUNDS, FAVOURITES_ALIGN, TILES, ORDER, ALL_APPS, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, GRADIENT, GRADIENT_COLOR, GRADIENT_STRENGTH, ROTATE, LOCK, TILE_STYLE, FOCUS_SCALE, FOCUS_INDICATOR, FOCUS_ANIMATION, TILE_RADIUS, TILE_SPACING, TILE_BORDER, TILE_BORDER_WIDTH, TILE_SHADOW, AFTERGLOW_STRENGTH, AFTERGLOW_ICON, CHIPS, LIBRARY};
+    static final Choice[] CHOICES = {ACCENT, THEME, TOOLBAR_ALIGN, TOOLBAR_AUTO_HIDE, WIDGET_BACKGROUNDS, FAVOURITES_ALIGN, TILES, ORDER, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, GRADIENT, GRADIENT_COLOR, GRADIENT_STRENGTH, ROTATE, LOCK, TILE_STYLE, FOCUS_SCALE, FOCUS_INDICATOR, FOCUS_ANIMATION, TILE_RADIUS, TILE_SPACING, TILE_BORDER, TILE_BORDER_WIDTH, TILE_SHADOW, AFTERGLOW_STRENGTH, AFTERGLOW_ICON, CHIPS, LIBRARY};
 
     /** Folder of wallpapers, next to home.conf, that Background › Image file rotates through. */
     static final String WALLPAPERS = "wallpapers";
