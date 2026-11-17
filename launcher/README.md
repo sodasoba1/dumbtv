@@ -130,7 +130,7 @@ The first-run layout contains only the clock. The available widgets are clock, m
 recent apps, network, storage, custom text, DumbTV diagnostics and device information.
 
 **Per-app appearance** is available from Customize on a home tile or by holding OK
-on an app in the full catalogue. It can override corners, focus scale, border, shadow,
+or pressing Menu on an app in the full catalogue. It can override corners, focus scale, border, shadow,
 app-name visibility, tile size and background colour. Banner image can use the app's
 original artwork or one of the bundled custom banners.
 
@@ -164,7 +164,7 @@ The home uses a 6-column by 4-row widget area. The available widgets are Clock, 
 
 Widget visibility and placement are separate. Turning a widget off hides it but preserves its position. A widget that is enabled but has no saved position is shown as **On · not added** in Widget Settings. Widget backgrounds are off by default and can be enabled separately. The Network widget reads Android's active connection state; it does not make network requests and does not require the INTERNET permission.
 
-Favourites display up to six tiles at once. With six or fewer, the row uses the selected left, centre or right alignment (centre by default). With more than six, it shows a six-tile viewport and loops horizontally in either direction; the row title hints that more favourites are available. The pinned apps themselves remain in the launcher catalogue and are not changed by hiding the row.
+The favourites strip has no heading and uses the selected tile size. With six or fewer favourites, it shows the row directly using the selected left, centre or right alignment (centre by default). Only when there are more than six does it become a looping six-tile carousel. The pinned apps themselves remain in the launcher catalogue and are not changed by hiding the row.
 
 **Options** is DumbTV's own configuration page, organised into Home screen, App tiles & icons, Theme & background, Top bar & favourites, Focus & navigation, Widgets, Inputs, and System & security. **Settings** is separate: it opens Fire OS Settings, using a Fire OS 6-specific section list where available. Child lock only restricts DumbTV's own controls; it is not a Fire OS PIN or parental-control replacement.
 ## HDMI inputs
