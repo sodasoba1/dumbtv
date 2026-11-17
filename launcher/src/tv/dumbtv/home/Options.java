@@ -156,7 +156,8 @@ public final class Options extends Activity {
         row.addView(name, new LinearLayout.LayoutParams(0, WRAP, 1f));
         row.addView(value, new LinearLayout.LayoutParams(WRAP, WRAP));
         row.setOnClickListener(v -> {
-            if (isColorChoice(c)) chooseCustomColor(c);
+            if (c == Config.BACKGROUND && !"custom".equals(cfg.get(c))) choose(c);
+            else if (isColorChoice(c)) chooseCustomColor(c);
             else choose(c);
         });
         row.setOnKeyListener((v, code, e) -> {
@@ -167,7 +168,7 @@ public final class Options extends Activity {
         });
         Runnable show = () -> {
             boolean focused = row.isFocused();
-            String text = isColorChoice(c)
+            String text = isColorChoice(c) && (c != Config.BACKGROUND || "custom".equals(cfg.get(c)))
                     ? String.format(Locale.US, "#%06X", selectedColor(c) & 0x00FFFFFF)
                     : Text.name(this, c, cfg.get(c));
             if (c == Config.ACCENT) {
@@ -228,7 +229,7 @@ public final class Options extends Activity {
     }
 
     private boolean step(Config.Choice c, int by) {
-        if (isColorChoice(c)) {
+        if (c != Config.BACKGROUND && isColorChoice(c)) {
             chooseCustomColor(c);
             return true;
         }
