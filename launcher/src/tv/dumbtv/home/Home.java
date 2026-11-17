@@ -408,8 +408,7 @@ public final class Home extends Activity {
         if (moving == null) {
             if (e.getAction() == KeyEvent.ACTION_DOWN
                     && e.getKeyCode() == KeyEvent.KEYCODE_DPAD_DOWN
-                    && getCurrentFocus() == allAppsButton
-                    && "on".equals(cfg.get(Config.ALL_APPS))) {
+                    && getCurrentFocus() == allAppsButton) {
                 openAllApps();
                 return true;
             }
@@ -1215,8 +1214,7 @@ public final class Home extends Activity {
         }
         meter.setAccent(accent);
         hero.setAccent(accent);
-        apps.title.setText(getString("on".equals(cfg.get(Config.ALL_APPS))
-                ? R.string.row_pinned_apps : R.string.row_apps).toUpperCase(Locale.ROOT));
+        apps.title.setText(getString(R.string.row_pinned_apps).toUpperCase(Locale.ROOT));
         String state = artState();
         if (!state.equals(artState)) {
             artState = state;
