@@ -199,6 +199,7 @@ final class Tile extends View {
 
         if (afterglow != null) afterglow.edge(canvas, cardW, cardH, radius);
         String borderMode = AppStyle.get(Config.get(getContext()), item, "border", Config.get(getContext()).get(Config.TILE_BORDER));
+        outline.setColor("accent".equals(borderMode) ? Config.get(getContext()).accent() : Ui.isGlass(getContext()) ? 0x66FFFFFF : 0x44FFFFFF);
         if ((!"off".equals(borderMode) || Ui.isGlass(getContext())) && !isFocused()) {
             float halfBorder = outline.getStrokeWidth() / 2f;
             canvas.drawRoundRect(halfBorder, halfBorder, cardW - halfBorder, cardH - halfBorder,
