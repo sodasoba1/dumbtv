@@ -57,7 +57,7 @@ final class Tile extends View {
         afterglow = app && "afterglow".equals(tileStyle)
                 && Config.get(c).get(AppStyle.key(item, "banner"), null) == null
                 ? new AfterglowTile(c, item.id, title, accent) : null;
-        labelH = app ? Ui.dp(c, 26) : 0;
+        labelH = app && afterglow == null ? Ui.dp(c, 26) : 0;
         labelAlways = "always".equals(labels);
         labelOnFocus = "focus".equals(labels);
         radius = Ui.cornerRadius(c);
