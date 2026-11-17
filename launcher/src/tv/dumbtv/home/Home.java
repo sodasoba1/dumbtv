@@ -76,6 +76,7 @@ public final class Home extends Activity {
     private LinearLayout head, toolbar;
     private TextView clock, date;
     private Meter meter;
+    private View memoryWidget;
     private WidgetGridView widgetGrid;
     private WidgetLayout widgetLayout;
     private Row apps, allApps, inputs;
@@ -680,6 +681,7 @@ public final class Home extends Activity {
         clockWidget.setOrientation(LinearLayout.VERTICAL);
         clockWidget.setGravity(Gravity.CENTER_VERTICAL);
         clockWidget.setPadding(dp(18), dp(8), dp(18), dp(8));
+        clockWidget.setBackground(Ui.round(Ui.tileSurface(this, true), dp(12)));
         clock = Ui.text(this, 34, Ui.TEXT, Ui.LIGHT);
         date = Ui.text(this, 13, Ui.MUTED, Ui.MEDIUM);
         date.setPadding(dp(2), dp(2), 0, 0);
@@ -687,11 +689,16 @@ public final class Home extends Activity {
         clockWidget.addView(date);
         widgetGrid.addWidgetView("clock", clockWidget);
 
+        memoryWidget = new FrameLayout(this);
+        memoryWidget.setBackground(Ui.round(Ui.tileSurface(this, true), dp(12)));
+        memoryWidget.setVisibility(View.GONE);
         meter = new Meter(this);
         meter.setWords(getString(R.string.meter_title), getString(R.string.meter_free),
                 getString(R.string.meter_low));
-        meter.setPadding(dp(14), dp(8), dp(14), dp(8));
-        widgetGrid.addWidgetView("memory", meter);
+        meter.setAccent(cfg.accent());
+        FrameLayout.LayoutParams meterLp = new FrameLayout.LayoutParams(WRAP, WRAP, Gravity.CENTER);
+        ((FrameLayout) memoryWidget).addView(meter, meterLp);
+        widgetGrid.addWidgetView("memory", memoryWidget);
 
         int screenDp = (int) (getResources().getDisplayMetrics().heightPixels
                 / getResources().getDisplayMetrics().density);
@@ -864,7 +871,7 @@ public final class Home extends Activity {
             chipLook(c, c.isFocused());
             c.setVisibility(locked() ? View.GONE : View.VISIBLE);
         }
-        meter.setVisibility("on".equals(cfg.get(Config.MEMORY)) ? View.VISIBLE : View.GONE);
+        memoryWidget.setVisibility("on".equals(cfg.get(Config.MEMORY)) ? View.VISIBLE : View.GONE);
         meter.setAccent(accent);
         hero.setAccent(accent);
         apps.title.setText(getString("on".equals(cfg.get(Config.ALL_APPS))
@@ -1222,7 +1229,7 @@ public final class Home extends Activity {
         }
         Locale locale = Locale.getDefault();
         date.setText(DateFormat.format(DateFormat.getBestDateTimePattern(locale, "EEEEdMMMM"), now));
-        if (meter.getVisibility() == View.VISIBLE) {
+        if (memoryWidget.getVisibility() == View.VISIBLE) {
             meter.update((android.app.ActivityManager) getSystemService(Context.ACTIVITY_SERVICE));
         }
         // hourly and time-of-day rotations change while the screen stays open; a no-op otherwise
