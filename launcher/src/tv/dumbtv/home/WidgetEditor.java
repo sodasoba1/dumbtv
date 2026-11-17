@@ -188,7 +188,7 @@ public final class WidgetEditor extends Activity {
             String type = pendingAddType;
             pendingAddType = null;
             int width = "clock".equals(type) || "memory".equals(type) ? 2
-                    : "recent".equals(type) ? 3 : 2;
+                    : "recent".equals(type) || "diagnostics".equals(type) || "device".equals(type) ? 3 : 2;
             int height = 2;
             if (layout.add(type, type, x, y, width, height)) {
                 selectedId = type;
@@ -208,8 +208,8 @@ public final class WidgetEditor extends Activity {
     private void add() {
         pendingMove = null;
         pendingAddType = null;
-        String[] types = {"clock", "memory", "recent", "network", "storage", "text"};
-        String[] labels = {"Clock", "Memory", "Recently opened apps", "Network", "Storage", "Custom text"};
+        String[] types = {"clock", "memory", "recent", "network", "storage", "text", "diagnostics", "device"};
+        String[] labels = {"Clock", "Memory", "Recently opened apps", "Network", "Storage", "Custom text", "DumbTV diagnostics", "Device information"};
         List<String> available = new ArrayList<>();
         List<String> names = new ArrayList<>();
         for (int i = 0; i < types.length; i++) {
