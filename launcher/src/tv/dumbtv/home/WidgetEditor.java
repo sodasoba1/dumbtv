@@ -224,16 +224,18 @@ public final class WidgetEditor extends Activity {
         }
         String[] choices = available.toArray(new String[0]);
         CharSequence[] choiceLabels = names.toArray(new CharSequence[0]);
-        new AlertDialog.Builder(this, Ui.DIALOG)
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle("Add widget")
-                .setItems(choiceLabels, (dialog, which) -> {
+                .setItems(choiceLabels, (d, which) -> {
                     pendingMove = null;
                     pendingAddType = choices[which];
                     updateSelectionInfo();
                     message("Choose an empty cell");
                 })
                 .setNegativeButton("Cancel", null)
-                .show();
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private void move() {
@@ -257,9 +259,9 @@ public final class WidgetEditor extends Activity {
         }
         String[] sizes = {"2 × 2", "3 × 2", "4 × 2", "2 × 3", "3 × 3", "4 × 3"};
         int[][] dimensions = {{2, 2}, {3, 2}, {4, 2}, {2, 3}, {3, 3}, {4, 3}};
-        new AlertDialog.Builder(this, Ui.DIALOG)
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle("Widget size")
-                .setItems(sizes, (dialog, which) -> {
+                .setItems(sizes, (d, which) -> {
                     if (layout.resize(selectedId, dimensions[which][0], dimensions[which][1])) {
                         message("Widget resized");
                     } else {
@@ -268,7 +270,9 @@ public final class WidgetEditor extends Activity {
                     renderGrid(0);
                 })
                 .setNegativeButton("Cancel", null)
-                .show();
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private void remove() {
@@ -296,13 +300,15 @@ public final class WidgetEditor extends Activity {
         input.setMinLines(1);
         input.setMaxLines(3);
         input.setFilters(new InputFilter[] {new InputFilter.LengthFilter(80)});
-        new AlertDialog.Builder(this, Ui.DIALOG)
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle("Custom widget text")
                 .setView(input)
-                .setPositiveButton("Use text", (dialog, which) ->
+                .setPositiveButton("Use text", (d, which) ->
                         pendingText = input.getText().toString().trim())
                 .setNegativeButton("Cancel", null)
-                .show();
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private void save() {
