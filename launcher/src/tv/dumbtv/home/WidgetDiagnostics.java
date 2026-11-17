@@ -5,7 +5,6 @@ import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Process;
 import android.text.format.Formatter;
 
@@ -18,7 +17,7 @@ final class WidgetDiagnostics {
 
     static String snapshot(Context context) {
         StringBuilder out = new StringBuilder("DumbTV diagnostics");
-        out.append("\nCPU time · ").append(cpuTime(Process.getElapsedCpuTime()));
+        out.append("\nCPU time since start · ").append(cpuTime(Process.getElapsedCpuTime()));
         out.append("\nApp memory · ").append(memory(context));
         out.append("\nKeeper · ").append(keeperState(context));
         out.append("\nPermissions · ").append(permissionSummary(context));
@@ -50,7 +49,7 @@ final class WidgetDiagnostics {
             String name = context.getPackageName() + ".Keeper";
             if (services != null) {
                 for (ActivityManager.RunningServiceInfo service : services) {
-                    if (name.equals(service.service.getClassName())) {
+                    if (service.service != null && name.equals(service.service.getClassName())) {
                         return "Service running · internals unverified";
                     }
                 }
