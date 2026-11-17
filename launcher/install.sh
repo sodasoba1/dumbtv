@@ -124,7 +124,15 @@ echo "installed $PKG"
 
 sh_ dumpsys deviceidle whitelist +$PKG >/dev/null
 # Fire OS 6 only: Keeper uses UsageStats and ActivityManager logcat; no accessibility service.
-sh_ appops set $PKG GET_USAGE_STATS allow
+if ! sh_ appops set $PKG GET_USAGE_STATS allow; then
+  echo "error: could not grant Keeper UsageStats access" >&2
+  exit 1
+fi
+usage_access=$(sh_ appops get $PKG GET_USAGE_STATS 2>/dev/null | tr -d '\r')
+if ! grep -Eq 'GET_USAGE_STATS:[[:space:]]*allow([,[:space:]]|$)' <<<"$usage_access"; then
+  echo "error: Keeper UsageStats access is not enabled ($usage_access)" >&2
+  exit 1
+fi
 # Fire OS 6 vendor AppOp: allow Keeper to restart/continue after standby.
 if ! sh_ appops set $PKG AUTO_START allow; then
   echo "error: Fire OS refused Keeper's AUTO_START permission" >&2
@@ -140,8 +148,7 @@ fi
 echo "standby start: AUTO_START allowed"
 # Request READ_LOGS on every install/update, then verify the resulting package
 # permission state. Fire OS 6 does not reliably implement pm check-permission.
-grant_error=""
-sh_ pm grant $PKG android.permission.READ_LOGS >/dev/null 2>&1 || grant_error="pm grant returned a failure"
+sh_ pm grant $PKG android.permission.READ_LOGS >/dev/null 2>&1 || true
 package_dump=$(sh_ dumpsys package $PKG 2>/dev/null || true)
 if grep -Eq '^[[:space:]]*android\.permission\.READ_LOGS:[[:space:]]*granted=true([,[:space:]]|$)' <<<"$package_dump"; then
   echo "logcat monitoring: READ_LOGS granted"
