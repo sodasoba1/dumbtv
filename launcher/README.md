@@ -68,10 +68,10 @@ you open an app.
 | Accent | White, Blue, Cyan, Green, Amber, Red, Pink, Violet, or a custom colour selected with the remote-friendly HSV picker. The other legacy palette values remain supported in existing `home.conf` files. |
 | Tile size | extra small, small, medium, large, extra large; applies to favourites, app and input rows |
 | App order | your order, or recently used: the apps row re-sorts on each return home, newest first. It counts apps opened from dumbtv home, plus apps opened any other way (voice, another app) on this device, where the launcher already has usage access. Apps never opened keep your order after the rest |
-| App order | your order, or recently used: the apps row re-sorts on each return home, newest first. It counts apps opened from dumbtv home, plus apps opened any other way (voice, another app) on this device, where the launcher already has usage access. Apps never opened keep your order after the rest |
 | All apps section | hidden (default), shown: a separate alphabetical list of every launchable app below your pinned apps. Child lock hides this section |
 | App names | on focus, always, never |
 | Clock | system, 24-hour, 12-hour |
+| Widget backgrounds | off (default), on |
 | Memory meter | hidden, shown: free memory under the date, with a bar of what is in use; amber, with "running low", when Android reports low memory or under 15% is free. It only shows the numbers: it closes and frees nothing, and needs no permission |
 | Inputs row | shown, hidden |
 | Open inputs with | Automatic, the TV's app, dumbtv home (see below) |
@@ -91,8 +91,8 @@ you open an app.
 | Afterglow strength | 20%, 40% (default), 60%, 80%; controls the dark fade over brand colours |
 | Afterglow icon | grayscale (default), original app icon colours |
 | Child lock | off, on: hides Options and Settings and turns off Hold OK and ☰ Menu on tiles, so the home screen only opens apps and inputs (see below) |
-| App tile style | Original (default), Afterglow, or Brand Focus: monochrome app artwork replaces the TV banner; Brand Focus changes from graphite to the mapped app colour when focused |
-| Chip style | Text (default), Icons: Options and Settings become round icon buttons whose knobs and gear hub take the accent colour; the name shows next to the icon while it has focus |
+| App tile style | Original (default), Afterglow, or Brand Focus: monochrome app artwork replaces the TV banner; Brand Focus changes from graphite to the mapped app colour when focused. Per-app Customize also sets background colour, tile style details and a bundled banner |
+| Chip style | Text (default), Icons: the top-bar controls use matching icon buttons and show their names while focused |
 | Library banner | shown (default), hidden. It only appears once a library folder holds titles (see below) |
 | Icon pack | off, or an installed icon pack; reads "None installed" until one is ([Icon packs](#icon-packs)) |
 
@@ -149,19 +149,19 @@ for unmapped apps. It applies to pinned and All Apps tiles only; input tiles and
 the Library banner remain unchanged. Switching back to Original restores the
 normal banners and App names behavior. Background and layout remain separate choices.
 
-| Grid layout | Adaptive background | Adaptive tint |
-|---|---|---|
-| ![Grid layout](../docs/assets/screens/grid.png) | ![Adaptive background](../docs/assets/screens/adaptive.png) | ![Adaptive tint](../docs/assets/screens/tint.png) |
+| Adaptive background | Adaptive tint |
+|---|---|
+| ![Adaptive background](../docs/assets/screens/adaptive.png) | ![Adaptive tint](../docs/assets/screens/tint.png) |
 
 ## Glass theme, top bar and widgets
 
-The **Theme** option includes Classic, Glass, Midnight and Slate. Glass applies the shared translucent surface treatment to the home UI and its settings surfaces; it does not change app launch, HDMI handling or Keeper. Tile shape, spacing, borders, shadows, focus treatment and accent remain separate controls.
+The **Theme** option includes Classic, Glass, Midnight and Slate. Glass keeps the translucent treatment on buttons and focus states without adding a glass panel behind the top bar, favourites or widgets; it does not change app launch, HDMI handling or Keeper. Tile shape, spacing, borders, shadows, focus treatment and accent remain separate controls.
 
-The top bar can be aligned left, centre or right. **Auto-hide top bar** is off by default; when enabled, the bar fades/slides away without reclaiming its layout space or shifting the widget grid, scrolling content or bottom favourites panel. The **Widgets** shortcut opens widget visibility settings. **Widget editing mode** is off by default; when enabled, placed widgets can be focused and opened in the layout editor.
+The top bar can be aligned left, centre or right. **Auto-hide top bar** is off by default; when enabled, the bar fades/slides away without reclaiming its layout space or shifting the widget grid, scrolling content or bottom favourites panel. The **Widgets** shortcut opens the layout editor directly. Widgets themselves are never focusable or clickable; their placement is changed only in this editor.
 
-The home uses a 6-column by 4-row widget grid. The available widgets are Clock, Memory, Recently opened apps, Network, Storage, Custom text, DumbTV diagnostics and Device information. A fresh layout starts with the Clock placed. Widgets have a minimum size of 2 × 2 cells; placements cannot overlap or extend beyond the grid. The editor supports Add, Move, Resize, Remove and custom text editing. Changes are staged until **Save**; **Cancel** discards them.
+The home uses a 6-column by 4-row widget area. The available widgets are Clock, Memory, Recently opened apps, Network, Storage, Custom text, DumbTV diagnostics and Device information. A fresh layout starts with the Clock placed. Widgets have a minimum size of 2 × 2 cells and can be resized in every supported combination up to 6 × 4; placements cannot overlap or extend beyond the grid. The editor supports Add, Move, Resize, Remove and custom text editing. Changes are staged until **Save**; **Cancel** discards them.
 
-Widget visibility and placement are separate. Turning a widget off hides it but preserves its position. A widget that is enabled but has no saved position is shown as **On · not added** in Widget Settings. The Network widget reads Android's active connection state; it does not make network requests and does not require the INTERNET permission.
+Widget visibility and placement are separate. Turning a widget off hides it but preserves its position. A widget that is enabled but has no saved position is shown as **On · not added** in Widget Settings. Widget backgrounds are off by default and can be enabled separately. The Network widget reads Android's active connection state; it does not make network requests and does not require the INTERNET permission.
 
 Favourites display up to six tiles at once. With six or fewer, the row uses the selected left, centre or right alignment (centre by default). With more than six, it shows a six-tile viewport and loops horizontally in either direction; the row title hints that more favourites are available. The pinned apps themselves remain in the launcher catalogue and are not changed by hiding the row.
 
@@ -260,10 +260,8 @@ Everything lives in one text file on the TV:
 # white blue cyan green amber red pink violet teal mint lime yellow orange coral crimson rose magenta purple indigo lavender sky ice gold copper custom
 # custom colours are saved separately as accent_custom=#RRGGBB
 accent=blue
-# small medium large
+# extra-small small medium large extra-large
 tiles=medium
-# rows grid
-layout=rows
 # custom recent (recent = newest first; the history stays in the app's private storage)
 order=custom
 # off on (Child lock hides this section)
@@ -444,7 +442,7 @@ Delete both to stop.
 |---|---|
 | `src/.../Home.java` | the home screen: clock, Apps row, Inputs row, tile menu, move mode |
 | `src/.../Tile.java` | one tile, drawn in a single `onDraw`: banner or icon, focus ring |
-| `src/.../Grid.java` | the grid layout |
+| `src/.../Grid.java` | the full All Apps catalogue grid |
 | `src/.../FocusColor.java` | the colour for the adaptive backgrounds |
 | `src/.../Catalog.java` | which apps and inputs exist, and their order |
 | `src/.../Item.java` | one app or input |
