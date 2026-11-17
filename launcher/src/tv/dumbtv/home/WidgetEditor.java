@@ -2,6 +2,7 @@ package tv.dumbtv.home;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.graphics.drawable.StateListDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -39,7 +40,7 @@ public final class WidgetEditor extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(48), dp(24), dp(48), dp(24));
-        root.setBackgroundColor(0xFF0C0C0E);
+        root.setBackgroundColor(Ui.optionSurface(this));
 
         TextView title = Ui.text(this, 28, Ui.TEXT, Ui.LIGHT);
         title.setText("Edit widgets");
@@ -83,7 +84,7 @@ public final class WidgetEditor extends Activity {
         button.setFocusable(true);
         button.setClickable(true);
         button.setPadding(dp(8), dp(14), dp(8), dp(14));
-        button.setBackground(Ui.round(0xFF252B33, dp(8)));
+        button.setBackground(focusableBackground(Ui.optionSurface(this), dp(8)));
         button.setOnClickListener(v -> action.run());
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, WRAP, 1f);
         lp.setMargins(dp(3), 0, dp(3), 0);
@@ -103,13 +104,13 @@ public final class WidgetEditor extends Activity {
                 cell.setPadding(dp(4), dp(4), dp(4), dp(4));
                 if (occupied == null) {
                     cell.setText("Empty");
-                    cell.setBackground(Ui.round(0xFF171C23, dp(7)));
+                    cell.setBackground(focusableBackground(Ui.tileSurface(this, true), dp(7)));
                 } else {
                     boolean selected = occupied.id.equals(selectedId);
                     cell.setText(x == occupied.x && y == occupied.y
                             ? occupied.type.toUpperCase(java.util.Locale.ROOT) + "\n" + occupied.id : "·");
-                    cell.setBackground(Ui.round(selected ? cfg.accent() & 0x55FFFFFF | 0x55000000
-                            : 0xAA263341, dp(7)));
+                    cell.setBackground(focusableBackground(selected ? (cfg.accent() & 0x55FFFFFF) | 0x55000000
+                            : Ui.optionSurface(this), dp(7)));
                 }
                 cell.setOnClickListener(v -> chooseCell(x, y));
                 GridLayout.LayoutParams lp = new GridLayout.LayoutParams(
@@ -121,6 +122,14 @@ public final class WidgetEditor extends Activity {
                 if (index == focusIndex) cell.requestFocus();
             }
         }
+    }
+
+    private StateListDrawable focusableBackground(int normal, int radius) {
+        StateListDrawable background = new StateListDrawable();
+        background.addState(new int[] {android.R.attr.state_focused},
+                Ui.round((cfg.accent() & 0x00FFFFFF) | 0x66000000, radius));
+        background.addState(new int[0], Ui.round(normal, radius));
+        return background;
     }
 
     private WidgetLayout.Widget occupant(int x, int y) {
