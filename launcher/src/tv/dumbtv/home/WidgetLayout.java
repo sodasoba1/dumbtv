@@ -40,12 +40,14 @@ final class WidgetLayout {
     private final List<Widget> widgets = new ArrayList<>();
 
     static WidgetLayout load(Config config) {
-        WidgetLayout saved = decode(config.get(CONFIG_KEY, ""));
-        if (!saved.items().isEmpty()) return saved;
-        WidgetLayout defaults = new WidgetLayout();
-        defaults.add("clock", "clock", 0, 0, 2, 2);
-        defaults.add("memory", "memory", 2, 0, 2, 2);
-        return defaults;
+        return decode(config.get(CONFIG_KEY, ""));
+    }
+
+    static WidgetLayout defaults() {
+        WidgetLayout result = new WidgetLayout();
+        result.add("clock", "clock", 0, 0, 2, 2);
+        result.add("memory", "memory", 2, 0, 2, 2);
+        return result;
     }
 
     void save(Config config) {
