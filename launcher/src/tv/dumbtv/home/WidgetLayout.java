@@ -47,23 +47,6 @@ final class WidgetLayout {
         return Collections.unmodifiableList(new ArrayList<>(widgets));
     }
 
-    /** One-time migration: compact only the old editor's default sizes, preserving custom resizes. */
-    static WidgetLayout compactDefaults(WidgetLayout source) {
-        WidgetLayout result = new WidgetLayout();
-        if (source == null) return result;
-        for (Widget widget : source.items()) {
-            boolean oldTwoByTwo = widget.width == 2 && widget.height == 2;
-            boolean oldWideTwoHigh = ("recent".equals(widget.type) || "device".equals(widget.type))
-                    && widget.width == 3 && widget.height == 2;
-            boolean oldDiagnostics = "diagnostics".equals(widget.type)
-                    && widget.width == 3 && widget.height == 3;
-            int width = oldTwoByTwo || oldWideTwoHigh || oldDiagnostics ? 1 : widget.width;
-            int height = oldDiagnostics ? 2 : oldTwoByTwo || oldWideTwoHigh ? 2 : widget.height;
-            result.add(widget.id, widget.type, widget.x, widget.y, width, height);
-        }
-        return result;
-    }
-
     Widget find(String id) {
         for (Widget widget : widgets) if (widget.id.equals(id)) return widget;
         return null;
