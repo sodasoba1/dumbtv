@@ -716,7 +716,7 @@ public final class Home extends Activity {
         toolbar.setClipChildren(false);
         toolbar.setClipToPadding(false);
         toolbar.addView(allAppsChip());
-        toolbar.addView(chip("Widgets", R.drawable.chip_options, R.drawable.chip_options_mark,
+        toolbar.addView(chip("Widgets", R.drawable.chip_widgets, R.drawable.chip_widgets_mark,
                 v -> startActivity(new Intent(this, WidgetEditor.class))));
         toolbar.addView(chip(getString(R.string.options), R.drawable.chip_options, R.drawable.chip_options_mark,
                 v -> startActivity(new Intent(this, Options.class))));
