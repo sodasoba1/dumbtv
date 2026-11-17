@@ -17,8 +17,6 @@ final class WidgetGridView extends ViewGroup {
 
     private WidgetLayout layout = new WidgetLayout();
     private final Set<String> disabled = new HashSet<>();
-    private boolean interactive;
-    private View.OnClickListener widgetClick;
 
     WidgetGridView(Context context) {
         super(context);
@@ -61,19 +59,6 @@ final class WidgetGridView extends ViewGroup {
     String widgetId(View child) {
         if (child == null || child.getParent() != this) return null;
         return ((LayoutParams) child.getLayoutParams()).widgetId;
-    }
-
-    private void configureChild(View child) {
-        child.setFocusable(interactive);
-        child.setClickable(interactive);
-        child.setOnClickListener(interactive ? widgetClick : null);
-        child.setOnFocusChangeListener((view, focused) -> {
-            float scale = focused ? 1.035f : 1f;
-            view.animate().scaleX(scale).scaleY(scale).setDuration(110).start();
-        });
-        if (child instanceof ViewGroup) {
-            ((ViewGroup) child).setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
-        }
     }
 
     void addWidgetView(String widgetId, View child) {
