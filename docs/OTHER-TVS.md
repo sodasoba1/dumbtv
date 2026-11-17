@@ -3,13 +3,13 @@
 Whether a TV can be cleaned up comes down to one question: does it let its owner
 run commands on it, without root and without opening the case?
 
-| Platform | Disable vendor apps | Replace the home screen | On-device DNS filter | Status |
+| Platform | Disable vendor apps | Replace the home screen | DNS filtering route (separate from DumbTV) | Status |
 |---|---|---|---|---|
-| **Fire OS 5** (Android 5.1, e.g. Fire TV Stick 2nd gen) | no, `pm disable-user` is refused | no, the launcher needs Android 7.1 | yes, privacy settings work too | not supported: the scripts stop on it (issue #42) |
-| **Fire OS 6** (2017–2018 devices) | yes, some are protected | yes, `Keeper` + usage stats on AFTMM only | yes | launcher tested on Stick 4K (AFTMM); scripts use `data/fireos6/` |
-| **Fire OS 7** (Android 9) | yes, some are protected | no: this fork's launcher is API 25 only | yes | debloat scripts supported; launcher not targeted |
-| **Fire OS 8** (Android 11) | yes, protected list differs | no: this fork's launcher is API 25 only | yes, with one step in the app | debloat scripts supported; launcher not targeted |
-| **Android TV / Google TV** (Sony, TCL, Philips, Hisense, Xiaomi, onn…) | yes, by hand with `pm disable-user` | no: this fork's launcher is AFTMM / API 25 only | yes, Private DNS or a local-VPN app | manual cleanup reports in the catalog; the scripts are Fire OS only |
+| **Fire OS 5** (Android 5.1, e.g. Fire TV Stick 2nd gen) | no, `pm disable-user` is refused | no, the launcher needs Android 7.1 | external router/Pi-hole only | not supported: the scripts stop on it (issue #42) |
+| **Fire OS 6** (2017–2018 devices) | yes, some are protected | yes, `Keeper` + UsageStats on AFTMM only | external router/Pi-hole only; no local VPN in this fork | launcher target is Stick 4K (AFTMM); scripts use `data/fireos6/` |
+| **Fire OS 7** (Android 9) | yes, some are protected | no: this fork's launcher is API 25 only | external router/Pi-hole only; no local VPN in this fork | debloat scripts supported; launcher not targeted |
+| **Fire OS 8** (Android 11) | yes, protected list differs | no: this fork's launcher is API 25 only | external router/Pi-hole only; no local VPN in this fork | debloat scripts supported; launcher not targeted |
+| **Android TV / Google TV** (Sony, TCL, Philips, Hisense, Xiaomi, onn…) | yes, by hand with `pm disable-user` | no: this fork's launcher is AFTMM / API 25 only | Private DNS or a separate VPN app may be possible; not provided by this fork | manual cleanup reports in the catalog; the scripts are Fire OS only |
 | **Samsung Tizen** | store apps only | no | no | a wall without root |
 | **LG webOS** | no | no | no | dev mode installs apps, nothing else |
 | **Roku TV** (TCL/Hisense/Sharp) | no | no | no | control API only |
@@ -18,9 +18,7 @@ run commands on it, without root and without opening the case?
 | **Panasonic My Home Screen** | no | no | no | closed, no dev path |
 | **Philips Saphi** (cheap sets) | no | no | no | control API only |
 
-Blocking at the network works on every one of them, including the closed ones:
-point the TV's DNS at a blocker such as Pi-hole or AdGuard Home and it stops
-reaching the vendor's ad and telemetry servers.
+Router-level DNS filtering can be used with many of these platforms, including closed TVs, if the network allows the device to use the chosen resolver. That is separate from DumbTV: this fork does not install a local DNS-filter app or VPN. A DNS blocklist is not a guarantee that every vendor endpoint or in-app advertisement will be blocked.
 
 ## Fire OS
 
@@ -197,7 +195,7 @@ fighting, no OTA risk, nothing to re-apply after an update.
   launcher is protected) and on Android TV (the stock launcher has a higher
   priority). On Android TV the stock launcher has to be disabled.
 - "Dev mode on webOS/Roku lets you disable things." It installs your own app.
-- "On-device DNS filtering works everywhere." It needs an Android-style local VPN
-  or Private DNS, so: Fire OS and Android TV only. Everywhere else the filter
-  lives on your router.
+- "DumbTV provides on-device DNS filtering." It does not. This fork deliberately
+  removed the local personalDNSfilter/VPN dependency; optional DNS filtering is
+  configured separately on the network with Pi-hole or another resolver.
 - "You can remove the operating system." See `WHY-NOT-REPLACE-OS.md`.
