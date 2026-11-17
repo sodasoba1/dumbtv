@@ -116,9 +116,9 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("back to Amazon's values: limit_ad_tracking=0", result.stdout)
 
     def test_a_disabled_package_enabled_again_is_reported(self):
-        result, _ = self.run_verify(installed="package:com.amazon.tv.acr\npackage:com.netflix.ninja")
+        result, _ = self.run_verify(installed="package:com.amazon.hedwig\npackage:com.netflix.ninja")
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn("enabled again: com.amazon.tv.acr", result.stdout)
+        self.assertIn("enabled again: com.amazon.hedwig", result.stdout)
 
     def test_data_saver_disabled_is_reported(self):
         result, _ = self.run_verify(data_saver="disabled")
