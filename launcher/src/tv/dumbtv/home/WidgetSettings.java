@@ -14,6 +14,7 @@ import android.widget.TextView;
 public final class WidgetSettings extends Activity {
     private static final int WRAP = ViewGroup.LayoutParams.WRAP_CONTENT;
     private Config cfg;
+    private WidgetLayout layout;
     private final java.util.List<Runnable> refreshers = new java.util.ArrayList<>();
 
     @Override
@@ -21,6 +22,7 @@ public final class WidgetSettings extends Activity {
         super.onCreate(state);
         cfg = Config.get(this);
         cfg.refresh();
+        layout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
 
         ScrollView scroll = new ScrollView(this);
         scroll.setVerticalScrollBarEnabled(false);
@@ -68,7 +70,8 @@ public final class WidgetSettings extends Activity {
         row.addView(value, new LinearLayout.LayoutParams(WRAP, WRAP));
         Runnable show = () -> {
             boolean enabled = WidgetVisibility.isEnabled(cfg, definition.id);
-            value.setText(enabled ? "On" : "Off");
+            boolean placed = layout.find(definition.id) != null;
+            value.setText(enabled ? (placed ? "On" : "On · not added") : "Off");
             value.setTextColor(row.isFocused() ? Ui.TEXT : Ui.MUTED);
             StateListDrawable background = new StateListDrawable();
             background.addState(new int[] {android.R.attr.state_focused},
