@@ -20,6 +20,35 @@ final class Ui {
     static final Typeface LIGHT = Typeface.create("sans-serif-light", Typeface.NORMAL);
     static final Typeface MEDIUM = Typeface.create("sans-serif-medium", Typeface.NORMAL);
 
+    static int tileSurface(Context c) {
+        switch (Config.get(c).get(Config.THEME)) {
+            case "glass": return 0xA61A2633;
+            case "midnight": return 0xFF111722;
+            case "slate": return 0xFF252B33;
+            default: return SURFACE;
+        }
+    }
+
+    static int optionSurface(Context c) {
+        switch (Config.get(c).get(Config.THEME)) {
+            case "glass": return 0xB31B2733;
+            case "midnight": return 0xFF151C28;
+            case "slate": return 0xFF303842;
+            default: return 0xFF15161A;
+        }
+    }
+
+    static int optionFocus(Context c) {
+        int accent = Config.get(c).accent();
+        return "glass".equals(Config.get(c).get(Config.THEME))
+                ? (accent & 0x00FFFFFF) | 0x553D8BFF
+                : (accent & 0x00FFFFFF) | 0x33000000;
+    }
+
+    static boolean isGlass(Context c) {
+        return "glass".equals(Config.get(c).get(Config.THEME));
+    }
+
     private Ui() {}
 
     static int dp(Context c, float v) {
