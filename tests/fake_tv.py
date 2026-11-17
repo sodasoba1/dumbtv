@@ -184,6 +184,9 @@ elif words[:2] == ['appops', 'set'] and len(words) >= 5:
     save()
 elif words[:2] == ['appops', 'get'] and len(words) >= 4:
     package, operation = words[2], words[3]
+    if operation == 'AUTO_START' and state.get('auto_start_unsupported'):
+        print('Error: Unknown operation string: AUTO_START')
+        sys.exit(1)
     value = state.get('appops', {}).get(package, {}).get(operation, 'default')
     print(f'{operation}: {value}')
 elif words[:2] == ['appops', 'write-settings']:

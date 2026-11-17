@@ -133,19 +133,28 @@ if ! grep -Eq 'GET_USAGE_STATS:[[:space:]]*allow([,[:space:]]|$)' <<<"$usage_acc
   echo "error: Keeper UsageStats access is not enabled ($usage_access)" >&2
   exit 1
 fi
-# Fire OS 6 vendor AppOp: allow Keeper to restart/continue after standby.
-if ! sh_ appops set $PKG AUTO_START allow; then
-  echo "error: Fire OS refused Keeper's AUTO_START permission" >&2
-  exit 1
+# AUTO_START is a vendor-specific AppOp, not part of Android's standard
+# AppOps API. Some Fire OS 6 builds expose it; others (including AFTMM
+# firmware) return "Unknown operation string". Skip only that unsupported
+# case. If the operation exists, a refused grant or failed verification remains
+# a hard error because standby recovery may otherwise be unreliable.
+auto_start_probe=$(sh_ appops get $PKG AUTO_START 2>&1 || true)
+if grep -Fq 'Unknown operation string: AUTO_START' <<<"$auto_start_probe"; then
+  echo "standby start: AUTO_START is not supported by this firmware; using the Fire OS boot receiver"
+else
+  if ! sh_ appops set $PKG AUTO_START allow; then
+    echo "error: Fire OS refused Keeper's AUTO_START permission" >&2
+    exit 1
+  fi
+  sh_ appops write-settings >/dev/null 2>&1 || true
+  auto_start=$(sh_ appops get $PKG AUTO_START 2>/dev/null | tr -d '\r')
+  if ! grep -Eq 'AUTO_START:[[:space:]]*allow([,[:space:]]|$)' <<<"$auto_start"; then
+    echo "error: Keeper AUTO_START permission is not enabled ($auto_start)" >&2
+    echo "  Fire OS may block standby recovery; enable automatic start for dumbtv home in device app settings." >&2
+    exit 1
+  fi
+  echo "standby start: AUTO_START allowed"
 fi
-sh_ appops write-settings >/dev/null 2>&1 || true
-auto_start=$(sh_ appops get $PKG AUTO_START 2>/dev/null | tr -d '\r')
-if ! grep -Eq 'AUTO_START:[[:space:]]*allow([,[:space:]]|$)' <<<"$auto_start"; then
-  echo "error: Keeper AUTO_START permission is not enabled ($auto_start)" >&2
-  echo "  Fire OS may block standby recovery; enable automatic start for dumbtv home in device app settings." >&2
-  exit 1
-fi
-echo "standby start: AUTO_START allowed"
 # Request READ_LOGS on every install/update, then verify the resulting package
 # permission state. Fire OS 6 does not reliably implement pm check-permission.
 if ! sh_ pm grant $PKG android.permission.READ_LOGS; then
