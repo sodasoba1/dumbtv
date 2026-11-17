@@ -299,7 +299,7 @@ public final class Home extends Activity {
     /** What the tiles' art depends on besides the apps themselves. */
     private String artState() {
         return cfg.get(Config.TILE_STYLE) + "|" + cfg.get(IconPack.KEY, IconPack.OFF)
-                + "|" + cfg.joined(IconPack.CHOSEN);
+                + "|" + cfg.joined(IconPack.CHOSEN) + "|" + cfg.joined("appstyle.");
     }
 
     /** Loads one tile's art: the settings are read here, on the UI thread; run it on io. */
@@ -307,8 +307,14 @@ public final class Home extends Activity {
         String pack = cfg.get(IconPack.KEY, IconPack.OFF);
         String chosen = cfg.get(IconPack.CHOSEN + it.id, null);
         boolean brandFocus = "brand-focus".equals(cfg.get(Config.TILE_STYLE));
-        return () -> Catalog.art(getPackageManager(), it, cornerIcon,
-                replacementArt(it, chosen, pack), brandFocus);
+        return () -> {
+            Catalog.art(getPackageManager(), it, cornerIcon, replacementArt(it, chosen, pack), brandFocus);
+            Drawable custom = Catalog.customBanner(this, it);
+            if (custom != null) {
+                it.banner = custom;
+                it.icon = null;
+            }
+        };
     }
 
     /**
@@ -1836,7 +1842,10 @@ public final class Home extends Activity {
 
     /** Per-app appearance overrides; unset properties continue to inherit global settings. */
     private void customizeTile(Tile tile) {
-        AppStyleEditor.show(this, cfg, tile.item, this::apply);
+        AppStyleEditor.show(this, cfg, tile.item, () -> {
+            tile.item.artRequested = false;
+            apply();
+        });
     }
 
     private void appInfo(Tile t) {
