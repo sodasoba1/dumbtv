@@ -34,7 +34,10 @@ final class WidgetPreview extends WidgetGridView {
                 Ui.dp(context, 18), Ui.dp(context, 4));
         clock.setBackground(backgrounds ? Ui.surface(context, surface, Ui.dp(context, 12)) : null);
         TextView time = Ui.text(context, 32, Ui.TEXT, Ui.LIGHT);
-        time.setText(DateFormat.format("HH:mm", new Date()));
+        String clockMode = Config.get(context).get(Config.CLOCK);
+        boolean use24Hour = "24h".equals(clockMode)
+                || "auto".equals(clockMode) && DateFormat.is24HourFormat(context);
+        time.setText(DateFormat.format(use24Hour ? "HH:mm" : "h:mm a", new Date()));
         TextView date = Ui.text(context, 13, Ui.MUTED, Ui.MEDIUM);
         date.setText(DateFormat.format(DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEEdMMMM"),
                 new Date()).toString().toUpperCase(Locale.ROOT));
