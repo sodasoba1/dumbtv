@@ -552,7 +552,7 @@ public final class Home extends Activity {
                     }
                     if (below == null && favoritesPanel.getVisibility() == View.VISIBLE
                             && apps.tiles().getChildCount() > 0) {
-                        below = apps.tiles().getChildAt(0);
+                        below = nearestFavourite(focused);
                     }
                     if (below != null) return below;
                 }
@@ -662,7 +662,7 @@ public final class Home extends Activity {
                         View below = adjacentTile(tile.kind, 1, focused);
                         if (below == null && favoritesPanel.getVisibility() == View.VISIBLE
                                 && (Catalog.INPUTS.equals(tile.kind) || Catalog.ALL_APPS.equals(tile.kind))) {
-                            below = nearest(apps.tiles(), focused);
+                            below = nearestFavourite(focused);
                         }
                         return below != null ? below : focused;
                     }
@@ -901,6 +901,29 @@ public final class Home extends Activity {
     /**
      * The child in the favourites strip nearest {@code from}; used when moving up from favourites.
      */
+    private View nearestFavourite(View from) {
+        ViewGroup strip = apps.tiles();
+        int count = strip.getChildCount();
+        if (count == 0) return null;
+        int start = count > 6 && count % 3 == 0 ? count / 3 : 0;
+        int end = count > 6 && count % 3 == 0 ? start + count / 3 : count;
+        int[] at = new int[2];
+        from.getLocationOnScreen(at);
+        int x = at[0] + from.getWidth() / 2;
+        View best = null;
+        int bestGap = Integer.MAX_VALUE;
+        for (int i = start; i < end; i++) {
+            View child = strip.getChildAt(i);
+            child.getLocationOnScreen(at);
+            int gap = Math.abs(at[0] + child.getWidth() / 2 - x);
+            if (gap < bestGap) {
+                bestGap = gap;
+                best = child;
+            }
+        }
+        return best;
+    }
+
     private static View nearestBottom(ViewGroup strip, View from) {
         int n = strip.getChildCount();
         if (n == 0) return null;
