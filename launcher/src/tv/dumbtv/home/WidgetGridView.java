@@ -24,6 +24,8 @@ final class WidgetGridView extends ViewGroup {
         super(context);
         setClipChildren(false);
         setClipToPadding(false);
+        setFocusable(false);
+        setClickable(false);
     }
 
     void setLayout(WidgetLayout value) {
