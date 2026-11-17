@@ -201,6 +201,9 @@ public final class Home extends Activity {
 
         void setVisible(boolean on) {
             boolean gridMode = !Catalog.APPS.equals(kind) && "grid".equals(cfg.get(Config.LAYOUT));
+            if (Catalog.APPS.equals(kind) && favoritesPanel != null) {
+                favoritesPanel.setVisibility(on ? View.VISIBLE : View.GONE);
+            }
             title.setVisibility(on ? View.VISIBLE : View.GONE);
             scroll.setVisibility(on && !gridMode ? View.VISIBLE : View.GONE);
             grid.setVisibility(on && gridMode ? View.VISIBLE : View.GONE);
@@ -784,6 +787,7 @@ public final class Home extends Activity {
         favoritesPanel.setClipChildren(false);
         favoritesPanel.setClipToPadding(false);
         favoritesPanel.setBackground(Ui.round(Ui.optionSurface(this), dp(14)));
+        favoritesPanel.setVisibility(View.GONE);
         FrameLayout.LayoutParams favoritesLp = new FrameLayout.LayoutParams(MATCH, WRAP, Gravity.BOTTOM);
         favoritesLp.leftMargin = dp(32);
         favoritesLp.rightMargin = dp(32);
@@ -808,7 +812,8 @@ public final class Home extends Activity {
      * it takes the last tile of the line below, the nearest one in that line.
      */
     private int favoriteBottomReserve() {
-        return favoriteCardSize()[1] + dp(94);
+        return apps == null || apps.title.getVisibility() != View.VISIBLE
+                ? dp(16) : favoriteCardSize()[1] + dp(94);
     }
 
     private int[] favoriteCardSize() {
@@ -1227,9 +1232,15 @@ public final class Home extends Activity {
         return Math.min(desired, maxShift);
     }
 
-    /** Favourites now live in their own bottom panel; no scrolling-row compensation is needed. */
+    /** Keep the scrolling content clear of the fixed favourites panel. */
     private void adjustAppRowPosition() {
-        // Kept as a call-site no-op while older row refresh paths remain shared.
+        if (homeScroll == null) return;
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) homeScroll.getLayoutParams();
+        int reserve = favoriteBottomReserve();
+        if (lp.bottomMargin != reserve) {
+            lp.bottomMargin = reserve;
+            homeScroll.setLayoutParams(lp);
+        }
     }
 
     private void loadArt(Item it) {
