@@ -66,7 +66,8 @@ public final class WidgetEditor extends Activity {
 
         preview = new WidgetPreview(this);
         preview.setLayout(layout, pendingText);
-        LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(MATCH, dp(138));
+        LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(
+                MATCH, WidgetGridView.preferredHeight(this));
         previewLp.bottomMargin = dp(10);
         root.addView(preview, previewLp);
 
