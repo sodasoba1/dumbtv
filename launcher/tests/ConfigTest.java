@@ -115,6 +115,8 @@ public final class ConfigTest {
     private static void favouritesAlignmentDefaultsAndPersists() throws Exception {
         try (Fixture f = new Fixture()) {
             Config cfg = f.open();
+            check(java.util.Arrays.asList(Config.CHOICES).contains(Config.FAVOURITES_ALIGN),
+                    "favourites alignment is registered with the settings choices");
             check("center".equals(cfg.get(Config.FAVOURITES_ALIGN)),
                     "favourites alignment defaults to centre");
             cfg.set(Config.FAVOURITES_ALIGN.key, "left");
