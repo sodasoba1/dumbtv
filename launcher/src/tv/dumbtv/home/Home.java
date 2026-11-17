@@ -1169,15 +1169,16 @@ public final class Home extends Activity {
         widgetLayout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         widgetGrid.setLayout(widgetLayout);
         int widgetSurface = Ui.tileSurface(this, true);
-        clockWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        memoryWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        recentWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        networkWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        storageWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        textWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        diagnosticsWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        deviceWidget.setBackground(Ui.surface(this, widgetSurface, dp(12)));
-        favoritesPanel.setBackground(Ui.surface(this, Ui.optionSurface(this), dp(14)));
+        boolean widgetBackgrounds = "on".equals(cfg.get(Config.WIDGET_BACKGROUNDS));
+        clockWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        memoryWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        recentWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        networkWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        storageWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        textWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        diagnosticsWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        deviceWidget.setBackground(widgetBackgrounds ? Ui.round(widgetSurface, dp(12)) : null);
+        favoritesPanel.setBackgroundColor(Color.TRANSPARENT);
         FrameLayout.LayoutParams scrollParams = (FrameLayout.LayoutParams) homeScroll.getLayoutParams();
         scrollParams.bottomMargin = favoriteBottomReserve();
         homeScroll.setLayoutParams(scrollParams);
@@ -1196,11 +1197,6 @@ public final class Home extends Activity {
         for (WidgetVisibility.Definition definition : WidgetVisibility.ALL) {
             widgetGrid.setWidgetEnabled(definition.id, WidgetVisibility.isEnabled(cfg, definition.id));
         }
-        widgetGrid.setInteractive("on".equals(cfg.get(Config.WIDGET_EDITING)), view -> {
-            String id = widgetGrid.widgetId(view);
-            if (id != null) startActivity(new Intent(this, WidgetEditor.class)
-                    .putExtra(WidgetEditor.EXTRA_WIDGET_ID, id));
-        });
         meter.setAccent(accent);
         hero.setAccent(accent);
         apps.title.setText(getString("on".equals(cfg.get(Config.ALL_APPS))
@@ -1305,8 +1301,8 @@ public final class Home extends Activity {
         View focused = getCurrentFocus();
         String keep = focused instanceof Tile && ((Tile) focused).kind.equals(row.kind)
                 ? ((Tile) focused).item.id : null;
-        boolean gridMode = !Catalog.APPS.equals(row.kind) && "grid".equals(cfg.get(Config.LAYOUT));
-        ViewGroup target = gridMode ? row.grid : row.strip;
+        boolean gridMode = false;
+        ViewGroup target = row.strip;
         row.strip.removeAllViews();
         row.grid.removeAllViews();
 
@@ -1326,11 +1322,10 @@ public final class Home extends Activity {
                     : "right".equals(cfg.get(Config.FAVOURITES_ALIGN)) ? Gravity.RIGHT
                     : Gravity.CENTER_HORIZONTAL;
             row.strip.setGravity(Gravity.CENTER_VERTICAL | (loopingFavourites ? Gravity.LEFT : alignment));
+            int availableWidth = getResources().getDisplayMetrics().widthPixels - dp(48);
+            int contentWidth = shown.size() * w + Math.max(0, shown.size() - 1) * tileGap;
             row.strip.setLayoutParams(new FrameLayout.LayoutParams(
-                    loopingFavourites ? WRAP : MATCH, WRAP));
-            String favouritesTitle = getString("on".equals(cfg.get(Config.ALL_APPS))
-                    ? R.string.row_pinned_apps : R.string.row_apps).toUpperCase(Locale.ROOT);
-            row.title.setText(loopingFavourites ? favouritesTitle + "  ·  MORE  ‹  ›" : favouritesTitle);
+                    loopingFavourites || contentWidth > availableWidth ? WRAP : MATCH, WRAP));
         }
         int index = 0, restore = -1;
         String spacing = cfg.get(Config.TILE_SPACING);
@@ -1387,6 +1382,7 @@ public final class Home extends Activity {
             });
         }
         row.setVisible(!shown.isEmpty());
+        if (row == apps) row.title.setVisibility(View.GONE);
         adjustAppRowPosition();
         if (shown.isEmpty()) {
             // Nothing is left to come back to: forget the tile that used to be here.
