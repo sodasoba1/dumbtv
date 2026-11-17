@@ -1719,7 +1719,7 @@ public final class Home extends Activity {
         AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle(getString(R.string.tile_customize) + " · " + Catalog.label(cfg, tile.item))
                 .setItems(properties, (d, which) -> {
-                    if (which == 5) chooseTileBackground(tile);
+                    if (which == 6) chooseTileBackground(tile);
                     else chooseTileStyle(tile, which);
                 })
                 .setNeutralButton(R.string.original, (d, which) -> {
@@ -1804,6 +1804,7 @@ public final class Home extends Activity {
             String appLabels = property == 4 ? value : AppStyle.current(cfg, tile.item, 4);
             if (property != 4 && cfg.get(AppStyle.key(tile.item, "labels"), null) == null)
                 appLabels = cfg.get(Config.LABELS);
+            String appSize = property == 5 ? value : AppStyle.current(cfg, tile.item, 5);
 
             int previewSurface = AppStyle.backgroundColor(cfg, tile.item, Ui.tileSurface(this, true));
             preview.setBackground(Ui.surface(this, previewSurface, radius));
@@ -1817,8 +1818,9 @@ public final class Home extends Activity {
             preview.setTextColor(Ui.ink(previewSurface));
             preview.setElevation(dp("off".equals(shadow) ? 0 : "soft".equals(shadow) ? 4 : 8));
             float focus = "off".equals(scale) ? 1f : "subtle".equals(scale) ? 1.04f : "strong".equals(scale) ? 1.12f : 1.08f;
-            preview.setScaleX(focus);
-            preview.setScaleY(focus);
+            float size = "compact".equals(appSize) ? 0.90f : "large".equals(appSize) ? 1.08f : 1f;
+            preview.setScaleX(size * focus);
+            preview.setScaleY(size * focus);
             preview.setText("never".equals(appLabels) ? "APP ICON" : "APP ICON\nExample app");
         };
         choices.setOnCheckedChangeListener((group, checkedId) -> {
