@@ -44,9 +44,9 @@ Undo: `./launcher/install.sh --undo` gives HOME back to Amazon's launcher.
 | Remote | Does |
 |---|---|
 | OK | open the app, or switch to the input |
-| Hold OK, or ☰ Menu | Move, Rename, Icon (with an icon pack chosen), Hide, App info |
+| Hold OK, or ☰ Menu | Move, Rename, Customize (background, style, banner), Icon (with an icon pack chosen), Hide, App info |
 | With Child lock on: hold ☰ Menu for 3 s | Options |
-| Move mode | ◀ ▶ moves the tile, ▲ ▼ moves it a line in the grid, any other key drops it |
+| Move mode | ◀ ▶ moves the tile; any other key drops it |
 | Up from the top row | Options and Settings |
 | Back on the home screen | jump to the first tile |
 | On an input: Back | back to the home screen |
@@ -66,8 +66,8 @@ you open an app.
 | Setting | Choices |
 |---|---|
 | Accent | White, Blue, Cyan, Green, Amber, Red, Pink, Violet, or a custom colour selected with the remote-friendly HSV picker. The other legacy palette values remain supported in existing `home.conf` files. |
-| Tiles | small, medium, large |
-| Layout | rows, or a grid that wraps to as many columns as fit |
+| Tile size | extra small, small, medium, large, extra large; applies to favourites, app and input rows |
+| App order | your order, or recently used: the apps row re-sorts on each return home, newest first. It counts apps opened from dumbtv home, plus apps opened any other way (voice, another app) on this device, where the launcher already has usage access. Apps never opened keep your order after the rest |
 | App order | your order, or recently used: the apps row re-sorts on each return home, newest first. It counts apps opened from dumbtv home, plus apps opened any other way (voice, another app) on this device, where the launcher already has usage access. Apps never opened keep your order after the rest |
 | All apps section | hidden (default), shown: a separate alphabetical list of every launchable app below your pinned apps. Child lock hides this section |
 | App names | on focus, always, never |
@@ -81,7 +81,7 @@ you open an app.
 | Gradient colour | Black (default), White, Blue, Red, or a custom colour selected with the HSV picker. The full legacy palette remains supported in existing settings files. |
 | Gradient strength | 20%, 40% (default), 60%, 80%; available when a gradient direction is selected |
 | Tile corners | square, soft (default), rounded |
-| Tile spacing | compact, normal (default), spacious; applies to rows and grid |
+| Tile spacing | compact, normal (default), spacious; applies to horizontal rows |
 | Tile border | off (default), subtle, accent |
 | Border thickness | thin (default), medium, thick; used when a border is enabled |
 | Tile shadow / glow | off (default), soft shadow, focus glow |
@@ -101,14 +101,15 @@ reset for order, names, picked icons and hidden tiles, **Export settings** (for 
 or transfer), and **Open Amazon's home screen**. Apps
 without a TV banner, like the Appstore, start hidden; tick them to add them.
 
-The **All apps** chip is in the top-right header beside Options and Settings.
-It opens the full installed-app catalogue. This navigation button is separate from
-Options › All apps section: that setting adds an alphabetical **All apps** row below
+The **All apps** button is in the top bar beside Widgets, Options and Settings. Select
+it and press Down when Options › All apps section is shown to open the full installed-app
+catalogue as a panel that slides up from the bottom. The button also opens it with OK.
+In icon-chip mode it uses a matching catalogue icon. This navigation button is separate
+from Options › All apps section: that setting adds an alphabetical **All apps** row below
 your pinned apps on the home screen.
 
 **All apps** is optional. Turn on Options › All apps section to keep the current
-Apps section as **Pinned apps** and add **All apps** below it, in either rows or
-grid layout. The full list includes unpinned apps and apps without TV banners;
+Apps section as **Pinned apps** and add **All apps** below it as a horizontal row. The full list includes unpinned apps and apps without TV banners;
 apps with no launcher entry are not listed. Hold OK or press Menu on an app there
 to Pin or Unpin it, Rename it, or open App info. The full list stays alphabetical;
 your custom or recently-used order applies to pinned apps only. Options › Apps on
@@ -119,7 +120,20 @@ in each. Back and HOME return to the first pinned app, or the first app in All
 apps if nothing is pinned. Child lock hides All apps and disables tile menus, so
 apps hidden from the pinned section stay hidden from this screen while it is locked.
 
-**Afterglow** changes app tiles only, in both rows and grid layouts. Select it in
+**Widgets** are arranged in a fixed 6 × 4 placement area above the app rows. The
+top-bar **Widgets** shortcut opens the layout editor; Add, Move, Resize and Remove
+are handled there, not by selecting widgets on the home screen. Every widget is
+display-only. The editor offers sizes from 2 × 2 through 6 × 4. Options can show or
+hide individual widgets and turn their backgrounds on; backgrounds are off by default.
+The first-run layout contains only the clock. The available widgets are clock, memory,
+recent apps, network, storage, custom text, DumbTV diagnostics and device information.
+
+**Per-app appearance** is available from Customize on a home tile or by holding OK
+on an app in the full catalogue. It can override corners, focus scale, border, shadow,
+app-name visibility, tile size and background colour. Banner image can use the app's
+original artwork or one of the bundled custom banners.
+
+**Afterglow** changes app tiles only. Select it in
 Options or set `tile_style=afterglow` in `home.conf`. The name remains visible inside
 each tile regardless of the App names setting; input tiles are unchanged.
 Known apps use locally defined colors; other apps use the selected accent.
