@@ -213,8 +213,8 @@ public final class WidgetEditor extends Activity {
             message("Select a widget first");
             return;
         }
-        String[] sizes = {"1 × 1", "2 × 1", "2 × 2", "3 × 1", "3 × 2"};
-        int[][] dimensions = {{1, 1}, {2, 1}, {2, 2}, {3, 1}, {3, 2}};
+        String[] sizes = {"2 × 1", "2 × 2", "3 × 1", "3 × 2", "4 × 2"};
+        int[][] dimensions = {{2, 1}, {2, 2}, {3, 1}, {3, 2}, {4, 2}};
         new AlertDialog.Builder(this, Ui.DIALOG)
                 .setTitle("Widget size")
                 .setItems(sizes, (dialog, which) -> {
