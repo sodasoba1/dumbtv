@@ -61,7 +61,7 @@ public final class Options extends Activity {
         list.addView(action(getString(R.string.reset_layout), this::reset));
 
         heading(list, R.string.options_app_tiles);
-        addChoices(list, Config.TILE_STYLE, Config.TILE_RADIUS, Config.TILE_SPACING,
+        addChoices(list, Config.TILE_STYLE, Config.TILE_SPACING,
                 Config.TILE_BORDER, Config.TILE_BORDER_WIDTH, Config.TILE_SHADOW,
                 Config.AFTERGLOW_STRENGTH, Config.AFTERGLOW_ICON);
         LinearLayout packRow = new LinearLayout(this);
@@ -76,7 +76,7 @@ public final class Options extends Activity {
         }, "icon-packs").start();
 
         heading(list, R.string.options_theme_background);
-        addChoices(list, Config.THEME, Config.ACCENT, Config.BACKGROUND, Config.DIM,
+        addChoices(list, Config.THEME, Config.TILE_RADIUS, Config.ACCENT, Config.BACKGROUND, Config.DIM,
                 Config.GRADIENT, Config.GRADIENT_COLOR, Config.GRADIENT_STRENGTH, Config.ROTATE);
         list.addView(action(getString(R.string.next_wallpaper), () -> {
             cfg.nextWallpaper();
