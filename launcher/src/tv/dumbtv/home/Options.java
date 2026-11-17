@@ -155,7 +155,10 @@ public final class Options extends Activity {
         value.setGravity(Gravity.END);
         row.addView(name, new LinearLayout.LayoutParams(0, WRAP, 1f));
         row.addView(value, new LinearLayout.LayoutParams(WRAP, WRAP));
-        row.setOnClickListener(v -> choose(c));
+        row.setOnClickListener(v -> {
+            if (isColorChoice(c)) chooseCustomColor(c);
+            else choose(c);
+        });
         row.setOnKeyListener((v, code, e) -> {
             if (e.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (code == KeyEvent.KEYCODE_DPAD_LEFT) return step(c, -1);
@@ -164,10 +167,9 @@ public final class Options extends Activity {
         });
         Runnable show = () -> {
             boolean focused = row.isFocused();
-            String text = Text.name(this, c, cfg.get(c));
-            if ("custom".equals(cfg.get(c)) && isColorChoice(c)) {
-                text = String.format(Locale.US, "#%06X", selectedColor(c) & 0x00FFFFFF);
-            }
+            String text = isColorChoice(c)
+                    ? String.format(Locale.US, "#%06X", selectedColor(c) & 0x00FFFFFF)
+                    : Text.name(this, c, cfg.get(c));
             if (c == Config.ACCENT) {
                 SpannableString s = new SpannableString("●  " + text);
                 s.setSpan(new ForegroundColorSpan(cfg.accent()), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -226,6 +228,10 @@ public final class Options extends Activity {
     }
 
     private boolean step(Config.Choice c, int by) {
+        if (isColorChoice(c)) {
+            chooseCustomColor(c);
+            return true;
+        }
         String[] options = c.optionValues;
         int n = options.length;
         // Nothing to switch to, as Icon pack with none installed: keep what is saved, so a pack
