@@ -16,9 +16,16 @@ final class AppStyle {
         else if ("border".equals(property)) allowed = values(2);
         else if ("shadow".equals(property)) allowed = values(3);
         else if ("labels".equals(property)) allowed = values(4);
-        else return fallback;
+        else if ("background".equals(property)) {
+            return value.matches("#[0-9A-Fa-f]{6}") ? value : fallback;
+        } else return fallback;
         for (String option : allowed) if (option.equals(value)) return value;
         return fallback;
+    }
+
+    static int backgroundColor(Config config, Item item, int fallback) {
+        String value = get(config, item, "background", "");
+        return value.isEmpty() ? fallback : Config.parseColor(value, fallback);
     }
 
     static void set(Config config, Item item, String property, String value) {
@@ -26,7 +33,7 @@ final class AppStyle {
     }
 
     static String[] properties() {
-        return new String[] {"Corners", "Focus scale", "Border", "Shadow / glow", "App name"};
+        return new String[] {"Corners", "Focus scale", "Border", "Shadow / glow", "App name", "Background colour"};
     }
 
     static String[] values(int property) {
