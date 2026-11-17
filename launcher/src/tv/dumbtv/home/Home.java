@@ -685,6 +685,7 @@ public final class Home extends Activity {
         }
         widgetGrid = new WidgetGridView(this);
         widgetGrid.setLayout(widgetLayout);
+        widgetGrid.setWidgetEnabled("memory", "on".equals(cfg.get(Config.MEMORY)));
 
         LinearLayout clockWidget = new LinearLayout(this);
         clockWidget.setOrientation(LinearLayout.VERTICAL);
@@ -883,7 +884,7 @@ public final class Home extends Activity {
 
     private void updateRecentWidget() {
         if (recentWidget == null || widgetLayout == null || widgetLayout.find("recent") == null) return;
-        List<Item> latest = new ArrayList<>(Catalog.visible(cfg, Catalog.APPS, apps.all));
+        List<Item> latest = new ArrayList<>(apps.all);
         Collections.sort(latest, (a, b) -> Recent.compare(recent, a.id, b.id));
         StringBuilder value = new StringBuilder("Recently opened");
         int shown = 0;
