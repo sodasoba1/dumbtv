@@ -1640,13 +1640,15 @@ public final class Home extends Activity {
             AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
                     .setTitle(Catalog.label(cfg, t.item))
                     .setItems(new String[] {getString(pinned ? R.string.tile_unpin : R.string.tile_pin),
-                            getString(R.string.tile_rename), getString(R.string.tile_app_info)}, (d, which) -> {
+                            getString(R.string.tile_rename), getString(R.string.tile_customize), getString(R.string.tile_app_info)}, (d, which) -> {
                         if (which == 0) {
                             Catalog.setShown(cfg, Catalog.APPS, t.item, !pinned);
                             render(apps);
                             render(allApps);
                         } else if (which == 1) {
                             rename(t);
+                        } else if (which == 2) {
+                            customizeTile(t);
                         } else {
                             appInfo(t);
                         }
@@ -1663,6 +1665,7 @@ public final class Home extends Activity {
         List<Integer> menu = new ArrayList<>();
         menu.add(R.string.tile_move);
         menu.add(R.string.tile_rename);
+        if (app) menu.add(R.string.tile_customize);
         if (icon) menu.add(R.string.tile_icon);
         menu.add(pinning ? R.string.tile_unpin : R.string.tile_hide);
         if (app) menu.add(R.string.tile_app_info);
@@ -1684,6 +1687,9 @@ public final class Home extends Activity {
                         case R.string.tile_rename:
                             rename(t);
                             break;
+                        case R.string.tile_customize:
+                            customizeTile(t);
+                            break;
                         case R.string.tile_icon:
                             startActivity(new Intent(this, IconPicker.class)
                                     .putExtra(IconPicker.APP, t.item.id)
@@ -1700,6 +1706,46 @@ public final class Home extends Activity {
                             appInfo(t);
                     }
                 })
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
+    }
+
+    /** Per-app appearance overrides; unset properties continue to inherit global settings. */
+    private void customizeTile(Tile tile) {
+        String[] properties = AppStyle.properties();
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
+                .setTitle(getString(R.string.tile_customize) + " · " + Catalog.label(cfg, tile.item))
+                .setItems(properties, (d, which) -> chooseTileStyle(tile, which))
+                .setNeutralButton(R.string.original, (d, which) -> {
+                    cfg.removePrefix("appstyle." + tile.item.id + ".");
+                    apply();
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
+    }
+
+    private void chooseTileStyle(Tile tile, int property) {
+        String[] values = AppStyle.values(property);
+        String[] labels = AppStyle.labels(property);
+        String current = AppStyle.current(cfg, tile.item, property);
+        int selected = java.util.Arrays.asList(values).indexOf(current);
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
+                .setTitle(AppStyle.properties()[property])
+                .setSingleChoiceItems(labels, selected, (d, which) -> {
+                    AppStyle.set(cfg, tile.item, AppStyle.configProperty(property), values[which]);
+                    d.dismiss();
+                    apply();
+                    customizeTile(tile);
+                })
+                .setNeutralButton(R.string.original, (d, which) -> {
+                    cfg.set(AppStyle.key(tile.item, AppStyle.configProperty(property)), null);
+                    apply();
+                    customizeTile(tile);
+                })
+                .setNegativeButton(R.string.cancel, null)
                 .create();
         dialog.show();
         Ui.styleDialog(dialog);
