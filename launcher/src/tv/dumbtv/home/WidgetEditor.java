@@ -45,7 +45,7 @@ public final class WidgetEditor extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(48), dp(24), dp(48), dp(24));
+        root.setPadding(dp(24), dp(24), dp(24), dp(24));
         root.setBackground(editorShape(Ui.optionSurface(this), dp(18), Ui.isGlass(this) ? 0x44FFFFFF : 0));
 
         TextView title = Ui.text(this, 28, Ui.TEXT, Ui.LIGHT);
