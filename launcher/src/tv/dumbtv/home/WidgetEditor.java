@@ -47,7 +47,8 @@ public final class WidgetEditor extends Activity {
         for (WidgetLayout.Widget widget : layout.items()) {
             int fallback = "clock".equals(widget.type) ? 32
                     : "diagnostics".equals(widget.type) ? 11
-                    : "device".equals(widget.type) ? 12 : 14;
+                    : "device".equals(widget.type) ? 12
+                    : "memory".equals(widget.type) || "storage".equals(widget.type) ? 13 : 14;
             int savedFont = fallback;
             try {
                 savedFont = Integer.parseInt(cfg.get("widgets.font." + widget.id,
@@ -229,7 +230,8 @@ public final class WidgetEditor extends Activity {
                 selectedId = type;
                 int defaultFont = "clock".equals(type) ? 32
                         : "diagnostics".equals(type) ? 11
-                        : "device".equals(type) ? 12 : 14;
+                        : "device".equals(type) ? 12
+                        : "memory".equals(type) || "storage".equals(type) ? 13 : 14;
                 fontSizes.put(type, defaultFont);
                 if ("memory".equals(type)) addedMemory = true;
                 message("Widget added");
@@ -342,13 +344,12 @@ public final class WidgetEditor extends Activity {
             message("Select a widget first");
             return;
         }
-        if ("memory".equals(widget.type)) {
-            message("The memory meter uses its own fixed text sizing");
-            return;
-        }
         int current = fontSizes.containsKey(selectedId) ? fontSizes.get(selectedId)
-                : ("clock".equals(widget.type) ? 32 : 14);
-        int[] sizes = {12, 14, 16, 18, 22, 26, 30, 34, 38};
+                : ("clock".equals(widget.type) ? 32
+                : "diagnostics".equals(widget.type) ? 11
+                : "device".equals(widget.type) ? 12
+                : "memory".equals(widget.type) || "storage".equals(widget.type) ? 13 : 14);
+        int[] sizes = {11, 12, 13, 14, 16, 18, 22, 26, 30, 32, 34, 38};
         String[] labels = new String[sizes.length];
         int selected = 0;
         for (int i = 0; i < sizes.length; i++) {
