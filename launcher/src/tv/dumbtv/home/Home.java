@@ -843,8 +843,8 @@ public final class Home extends Activity {
             if (has) focusBackground(null);
         });
         LinearLayout.LayoutParams heroLp = new LinearLayout.LayoutParams(MATCH, dp(220));
-        heroLp.leftMargin = dp(56);
-        heroLp.rightMargin = dp(56);
+        heroLp.leftMargin = dp(24);
+        heroLp.rightMargin = dp(24);
         heroLp.topMargin = dp(2);
         column.addView(hero, heroLp);
         this.column = column;
