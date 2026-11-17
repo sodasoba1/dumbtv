@@ -7,6 +7,7 @@ written to `/system`.
 There are five layers. Each one exists because the layer before it cannot reach
 everything.
 
+**Scope and setup:** this guide explains the cleanup mechanisms. The complete support boundaries, first-run sequence, restore limitations, launcher/Keeper architecture, widget model and release process are in the [fork architecture and operating guide](FORK-ARCHITECTURE.md). The cleanup scripts support Fire OS 6/7/8; the launcher APK is a separate AFTMM / Fire OS 6 / API 25 target.
 ## 1. Packages: disabled, never uninstalled
 
 `debloat.sh` runs `pm disable-user --user 0 <package>` for every entry in
