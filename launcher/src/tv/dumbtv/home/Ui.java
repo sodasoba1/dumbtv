@@ -20,12 +20,12 @@ final class Ui {
     static final Typeface LIGHT = Typeface.create("sans-serif-light", Typeface.NORMAL);
     static final Typeface MEDIUM = Typeface.create("sans-serif-medium", Typeface.NORMAL);
 
-    static int tileSurface(Context c) {
+    static int tileSurface(Context c, boolean app) {
         switch (Config.get(c).get(Config.THEME)) {
             case "glass": return 0xA61A2633;
             case "midnight": return 0xFF111722;
             case "slate": return 0xFF252B33;
-            default: return SURFACE;
+            default: return app ? SURFACE : 0xFF17181B;
         }
     }
 
