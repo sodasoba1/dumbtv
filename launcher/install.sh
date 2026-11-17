@@ -126,7 +126,10 @@ sh_ dumpsys deviceidle whitelist +$PKG >/dev/null
 # Fire OS 6 only: Keeper uses UsageStats and ActivityManager logcat; no accessibility service.
 sh_ appops set $PKG GET_USAGE_STATS allow
 # Fire OS 6 vendor AppOp: allow Keeper to restart/continue after standby.
-sh_ appops set $PKG AUTO_START allow
+if ! sh_ appops set $PKG AUTO_START allow; then
+  echo "error: Fire OS refused Keeper's AUTO_START permission" >&2
+  exit 1
+fi
 sh_ appops write-settings >/dev/null 2>&1 || true
 auto_start=$(sh_ appops get $PKG AUTO_START 2>/dev/null | tr -d '\r')
 if ! grep -Eq 'AUTO_START:[[:space:]]*allow([,[:space:]]|$)' <<<"$auto_start"; then
