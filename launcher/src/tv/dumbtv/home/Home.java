@@ -74,7 +74,7 @@ public final class Home extends Activity {
     private String lastFocusedKind;
     private final Map<String, String> lastIds = new HashMap<>();
     private FrameLayout root;
-    private LinearLayout column;
+    private LinearLayout column, favoritesPanel;
     private ImageView wall;
     private View shade;
     private View tint;
@@ -160,7 +160,7 @@ public final class Home extends Activity {
 
         Row(String kind, String name, LinearLayout parent) {
             this.kind = kind;
-            int edge = dp(56), bleed = dp(14);
+            int edge = Catalog.APPS.equals(kind) ? dp(24) : dp(56), bleed = dp(14);
             title = Ui.text(Home.this, 12, Ui.FAINT, Ui.MEDIUM);
             title.setText(name.toUpperCase(Locale.ROOT));
             title.setLetterSpacing(0.14f);
@@ -195,11 +195,11 @@ public final class Home extends Activity {
 
         /** Whichever container currently holds the tiles, following Options › Layout. */
         ViewGroup tiles() {
-            return "grid".equals(cfg.get(Config.LAYOUT)) ? grid : strip;
+            return !Catalog.APPS.equals(kind) && "grid".equals(cfg.get(Config.LAYOUT)) ? grid : strip;
         }
 
         void setVisible(boolean on) {
-            boolean gridMode = "grid".equals(cfg.get(Config.LAYOUT));
+            boolean gridMode = !Catalog.APPS.equals(kind) && "grid".equals(cfg.get(Config.LAYOUT));
             title.setVisibility(on ? View.VISIBLE : View.GONE);
             scroll.setVisibility(on && !gridMode ? View.VISIBLE : View.GONE);
             grid.setVisibility(on && gridMode ? View.VISIBLE : View.GONE);
@@ -518,7 +518,37 @@ public final class Home extends Activity {
     }
 
     private View build() {
-        root = new FrameLayout(this);
+        root = new FrameLayout(this) {
+            @Override
+            public View focusSearch(View focused, int direction) {
+                if (focused instanceof Tile && Catalog.APPS.equals(((Tile) focused).kind)) {
+                    if (direction == View.FOCUS_DOWN) return focused;
+                    if (direction == View.FOCUS_UP) {
+                        if (heroShown()) return hero;
+                        View above = inputs.title.getVisibility() == View.VISIBLE
+                                ? nearest(inputs.tiles(), focused) : null;
+                        if (above == null && allApps.title.getVisibility() == View.VISIBLE) {
+                            above = nearest(allApps.tiles(), focused);
+                        }
+                        if (above != null) return above;
+                        return nearestToolbarChip(focused);
+                    }
+                }
+                if (chips.contains(focused) && direction == View.FOCUS_DOWN) {
+                    if (heroShown()) return hero;
+                    View below = allApps.title.getVisibility() == View.VISIBLE
+                            ? nearest(allApps.tiles(), focused) : null;
+                    if (below == null && inputs.title.getVisibility() == View.VISIBLE) {
+                        below = nearest(inputs.tiles(), focused);
+                    }
+                    if (below == null && apps.tiles().getChildCount() > 0) {
+                        below = apps.tiles().getChildAt(0);
+                    }
+                    if (below != null) return below;
+                }
+                return super.focusSearch(focused, direction);
+            }
+        };
         wall = new ImageView(this);
         wall.setScaleType(ImageView.ScaleType.CENTER_CROP);
         root.addView(wall, new FrameLayout.LayoutParams(MATCH, MATCH));
@@ -674,7 +704,8 @@ public final class Home extends Activity {
                 v -> openSettings()));
         head.addView(toolbar, new LinearLayout.LayoutParams(MATCH, WRAP));
 
-        column.addView(head, new LinearLayout.LayoutParams(MATCH, WRAP));
+        head.setPadding(dp(48), 0, dp(48), 0);
+        root.addView(head, new FrameLayout.LayoutParams(MATCH, dp(56), Gravity.TOP));
 
         if (!"1".equals(cfg.get("widgets.initialized", ""))) {
             widgetLayout = WidgetLayout.defaults();
@@ -722,12 +753,11 @@ public final class Home extends Activity {
         int screenDp = (int) (getResources().getDisplayMetrics().heightPixels
                 / getResources().getDisplayMetrics().density);
         int widgetHeight = Math.max(180, Math.min(260, screenDp / 3));
-        LinearLayout.LayoutParams widgetLp = new LinearLayout.LayoutParams(MATCH, dp(widgetHeight));
+        FrameLayout.LayoutParams widgetLp = new FrameLayout.LayoutParams(MATCH, dp(widgetHeight), Gravity.TOP);
         widgetLp.leftMargin = dp(48);
         widgetLp.rightMargin = dp(48);
-        widgetLp.topMargin = dp(8);
-        widgetLp.bottomMargin = dp(8);
-        column.addView(widgetGrid, widgetLp);
+        widgetLp.topMargin = dp(64);
+        root.addView(widgetGrid, widgetLp);
 
         hero = new Hero(this, ui, io);
         hero.setOnClickListener(v -> hero.openCurrent());
@@ -741,10 +771,26 @@ public final class Home extends Activity {
         column.addView(hero, heroLp);
         this.column = column;
 
-        apps = new Row(Catalog.APPS, getString(R.string.row_apps), column);
+        favoritesPanel = new LinearLayout(this);
+        favoritesPanel.setOrientation(LinearLayout.VERTICAL);
+        favoritesPanel.setClipChildren(false);
+        favoritesPanel.setClipToPadding(false);
+        favoritesPanel.setBackground(Ui.round(Ui.optionSurface(this), dp(14)));
+        FrameLayout.LayoutParams favoritesLp = new FrameLayout.LayoutParams(MATCH, WRAP, Gravity.BOTTOM);
+        favoritesLp.leftMargin = dp(32);
+        favoritesLp.rightMargin = dp(32);
+        favoritesLp.bottomMargin = dp(8);
+        root.addView(favoritesPanel, favoritesLp);
+
+        apps = new Row(Catalog.APPS, getString(R.string.row_apps), favoritesPanel);
         allApps = new Row(Catalog.ALL_APPS, getString(R.string.row_all_apps), column);
         allApps.setVisible(false);
         inputs = new Row(Catalog.INPUTS, getString(R.string.row_inputs), column);
+
+        FrameLayout.LayoutParams scrollLp = (FrameLayout.LayoutParams) scroll.getLayoutParams();
+        scrollLp.topMargin = dp(64 + widgetHeight + 12);
+        scrollLp.bottomMargin = favoriteBottomReserve();
+        scroll.setLayoutParams(scrollLp);
         return root;
     }
 
@@ -753,6 +799,38 @@ public final class Home extends Activity {
      * last line of a grid can be shorter than the others: a tile with no tile directly under
      * it takes the last tile of the line below, the nearest one in that line.
      */
+    private int favoriteBottomReserve() {
+        return favoriteCardSize()[1] + dp(94);
+    }
+
+    private int[] favoriteCardSize() {
+        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
+        int spacing = dp("compact".equals(cfg.get(Config.TILE_SPACING)) ? 10
+                : "spacious".equals(cfg.get(Config.TILE_SPACING)) ? 28 : 18);
+        int available = metrics.widthPixels - dp(112) - spacing * 5;
+        int width = Math.max(dp(96), Math.min(dp(180), available / 6));
+        return new int[] {width, Math.round(width * 9f / 16f)};
+    }
+
+    private View nearestToolbarChip(View from) {
+        if (chips.isEmpty()) return null;
+        int[] at = new int[2];
+        from.getLocationOnScreen(at);
+        int x = at[0] + from.getWidth() / 2;
+        TextView best = null;
+        int bestGap = Integer.MAX_VALUE;
+        for (TextView chip : chips) {
+            if (chip.getVisibility() != View.VISIBLE) continue;
+            chip.getLocationOnScreen(at);
+            int gap = Math.abs(at[0] + chip.getWidth() / 2 - x);
+            if (gap < bestGap) {
+                bestGap = gap;
+                best = chip;
+            }
+        }
+        return best != null ? best : chips.get(0);
+    }
+
     private static int belowInGrid(ViewGroup parent, Tile tile) {
         int cols = ((Grid) parent).columns();
         int index = parent.indexOfChild(tile), count = parent.getChildCount();
