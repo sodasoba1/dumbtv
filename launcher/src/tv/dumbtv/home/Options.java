@@ -189,8 +189,7 @@ public final class Options extends Activity {
                     && "off".equals(cfg.get(Config.GRADIENT))
                     || (c == Config.AFTERGLOW_STRENGTH || c == Config.AFTERGLOW_ICON) && !afterglow
                     || c == Config.TILE_BORDER_WIDTH && "off".equals(cfg.get(Config.TILE_BORDER))
-                    || c == Config.SWITCH && "off".equals(cfg.get(Config.INPUTS))
-                    || c == Config.ALL_APPS && "on".equals(cfg.get(Config.LOCK));
+                    || c == Config.SWITCH && "off".equals(cfg.get(Config.INPUTS));
             row.setAlpha(off ? 0.4f : 1f);
         };
         row.setOnFocusChangeListener((v, has) -> show.run());
