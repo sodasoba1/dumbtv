@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LauncherInstallTest(unittest.TestCase):
-    def install(self, appops_refused=False):
+    def install(self, appops_refused=False, read_logs_refused=False):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
             launcher = tmp / "launcher"
@@ -35,6 +35,7 @@ class LauncherInstallTest(unittest.TestCase):
                 "sdk": 25,
                 "keeper_running": True,
                 "appops_refused": appops_refused,
+                "read_logs_refused": read_logs_refused,
                 "appops": {"tv.dumbtv.home": {}},
             }))
             log = tmp / "commands.log"
@@ -57,12 +58,21 @@ class LauncherInstallTest(unittest.TestCase):
         self.assertEqual(state["appops"]["tv.dumbtv.home"]["AUTO_START"], "allow")
         self.assertTrue(state["permissions"]["tv.dumbtv.home"]["android.permission.READ_LOGS"])
         self.assertIn("standby start: AUTO_START allowed", result.stdout)
+        self.assertIn("READ_LOGS granted and verified", result.stdout)
 
     def test_install_stops_if_fire_os_refuses_standby_access(self):
         result, commands, _ = self.install(appops_refused=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("appops set tv.dumbtv.home AUTO_START allow", commands)
         self.assertIn("Fire OS refused Keeper's AUTO_START permission", result.stderr)
+
+    def test_install_fails_if_adb_refuses_read_logs(self):
+        result, commands, state = self.install(read_logs_refused=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("pm grant tv.dumbtv.home android.permission.READ_LOGS", commands)
+        self.assertIn("could not grant Keeper READ_LOGS", result.stderr)
+        self.assertFalse(state.get("permissions", {}).get("tv.dumbtv.home", {}).get(
+            "android.permission.READ_LOGS", False))
 
 
 if __name__ == "__main__":
