@@ -131,6 +131,22 @@ public final class ConfigTest {
         }
     }
 
+    private static void toolbarAutoHideDefaultsAndPersists() throws Exception {
+        try (Fixture f = new Fixture()) {
+            Config cfg = f.open();
+            check(java.util.Arrays.asList(Config.CHOICES).contains(Config.TOOLBAR_AUTO_HIDE),
+                    "top bar auto-hide is registered with Options choices");
+            check("off".equals(cfg.get(Config.TOOLBAR_AUTO_HIDE)),
+                    "top bar auto-hide defaults to off");
+            cfg.set(Config.TOOLBAR_AUTO_HIDE.key, "on");
+            check("on".equals(f.open().get(Config.TOOLBAR_AUTO_HIDE)),
+                    "top bar auto-hide On persists");
+            cfg.set(Config.TOOLBAR_AUTO_HIDE.key, "off");
+            check("off".equals(f.open().get(Config.TOOLBAR_AUTO_HIDE)),
+                    "top bar auto-hide Off persists");
+        }
+    }
+
     private static void failedWriteCanRecover() throws Exception {
         try (Fixture f = new Fixture()) {
             File blocked = new File(f.dir, Config.FILE + ".tmp");
@@ -151,6 +167,7 @@ public final class ConfigTest {
         legacyValuesRemainReadable();
         themeAndTileSizePresets();
         favouritesAlignmentDefaultsAndPersists();
+        toolbarAutoHideDefaultsAndPersists();
         failedWriteCanRecover();
         System.out.println("ConfigTest passed (settings persistence, export, custom colours, legacy values, failed-write recovery)");
     }
