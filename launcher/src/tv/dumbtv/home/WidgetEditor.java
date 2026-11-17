@@ -29,6 +29,7 @@ public final class WidgetEditor extends Activity {
     private String pendingMove;
     private String pendingAddType;
     private String pendingText;
+    private boolean addedMemory;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -161,6 +162,7 @@ public final class WidgetEditor extends Activity {
             int height = 2;
             if (layout.add(type, type, x, y, width, height)) {
                 selectedId = type;
+                if ("memory".equals(type)) addedMemory = true;
                 message("Widget added");
             } else {
                 message("That position is occupied or outside the grid");
@@ -264,7 +266,7 @@ public final class WidgetEditor extends Activity {
     private void save() {
         cfg.set(WidgetLayout.CONFIG_KEY, layout.encode());
         cfg.set("widgets.text", pendingText);
-        if (layout.find("memory") != null) cfg.set(Config.MEMORY.key, "on");
+        if (addedMemory && layout.find("memory") != null) cfg.set(Config.MEMORY.key, "on");
         cfg.set("widgets.initialized", "1");
         setResult(RESULT_OK);
         finish();
