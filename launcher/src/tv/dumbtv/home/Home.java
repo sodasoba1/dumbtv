@@ -159,7 +159,6 @@ public final class Home extends Activity {
         final TextView title;
         final HorizontalScrollView scroll;
         final LinearLayout strip;
-        final Grid grid;
         List<Item> all = new ArrayList<>();
         int initialFocusIndex;
         int renderGeneration;
@@ -193,11 +192,8 @@ public final class Home extends Activity {
             scroll.setClipToPadding(false);
             scroll.setPadding(edge - bleed, 0, edge - bleed, 0);
             scroll.addView(strip, new FrameLayout.LayoutParams(WRAP, WRAP));
-            grid = new Grid(Home.this);
-            grid.setPadding(edge, dp(12), edge, dp(8));
             parent.addView(title, new LinearLayout.LayoutParams(MATCH, WRAP));
             parent.addView(scroll, new LinearLayout.LayoutParams(MATCH, WRAP));
-            parent.addView(grid, new LinearLayout.LayoutParams(MATCH, WRAP));
         }
 
         /** Whichever container currently holds the tiles, following Options › Layout. */
@@ -210,12 +206,10 @@ public final class Home extends Activity {
                 favoritesPanel.setVisibility(on ? View.VISIBLE : View.GONE);
                 title.setVisibility(View.GONE);
                 scroll.setVisibility(on ? View.VISIBLE : View.GONE);
-                grid.setVisibility(View.GONE);
                 return;
             }
             title.setVisibility(on ? View.VISIBLE : View.GONE);
             scroll.setVisibility(on ? View.VISIBLE : View.GONE);
-            grid.setVisibility(View.GONE);
         }
     }
 
@@ -420,19 +414,6 @@ public final class Home extends Activity {
                 openAllApps();
                 return true;
             }
-            if (e.getAction() == KeyEvent.ACTION_DOWN
-                    && e.getKeyCode() == KeyEvent.KEYCODE_DPAD_UP
-                    && toolbarCollapsed && widgetGrid != null) {
-                View focused = getCurrentFocus();
-                if (widgetGrid.widgetId(focused) != null) {
-                    View chip = nearestToolbarChip(focused);
-                    if (chip != null) {
-                        setToolbarVisible(true);
-                        chip.requestFocus();
-                        return true;
-                    }
-                }
-            }
             return super.dispatchKeyEvent(e);
         }
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
@@ -445,11 +426,6 @@ public final class Home extends Activity {
                     break;
                 case KeyEvent.KEYCODE_DPAD_UP:
                 case KeyEvent.KEYCODE_DPAD_DOWN:
-                    // In a grid, up and down move the tile a whole line; a strip has no lines.
-                    if (moving.getParent() instanceof Grid) {
-                        int cols = ((Grid) moving.getParent()).columns();
-                        shift(e.getKeyCode() == KeyEvent.KEYCODE_DPAD_UP ? -cols : cols);
-                    }
                     break;
                 default:
                     stopMoving();
@@ -506,16 +482,7 @@ public final class Home extends Activity {
             if (row == apps) continue;
             if (row.scroll.getVisibility() == View.VISIBLE) {
                 rows.add(new int[] {topIn(row.title, content), topIn(row.scroll, content) + row.scroll.getHeight()});
-            } else if (row.grid.getVisibility() == View.VISIBLE) {
-                int gridTop = topIn(row.grid, content), lastTop = Integer.MIN_VALUE;
-                for (int i = 0; i < row.grid.getChildCount(); i++) {
-                    View t = row.grid.getChildAt(i);
-                    if (t.getTop() == lastTop) continue;
-                    int start = lastTop == Integer.MIN_VALUE ? topIn(row.title, content) : gridTop + t.getTop() - dp(12);
-                    lastTop = t.getTop();
-                    rows.add(new int[] {start, gridTop + t.getBottom() + dp(8)});
-                }
-            }
+
         }
         return rows;
     }
@@ -676,33 +643,26 @@ public final class Home extends Activity {
                     ViewGroup parent = (ViewGroup) tile.getParent();
                     int idx = parent.indexOfChild(tile);
                     int count = parent.getChildCount();
-                    boolean grid = parent instanceof Grid;
-                    int cols = grid ? ((Grid) parent).columns() : 1;
+                    boolean grid = false;
 
                     // Left and right stop at the edge of a row instead of jumping away
                     // from it: no tile of another row takes the focus.
                     if (direction == View.FOCUS_LEFT) {
-                        boolean edge = grid ? idx % cols == 0 : idx == 0;
-                        if (edge) return focused;
+                        if (idx == 0) return focused;
                     }
                     if (direction == View.FOCUS_RIGHT) {
-                        boolean edge = grid
-                                ? (idx + 1) % cols == 0 || idx == count - 1
-                                : idx == count - 1;
-                        if (edge) return focused;
+                        if (idx == count - 1) return focused;
                     }
 
                     // Up from the first line of the apps row goes to the library banner.
                     if (direction == View.FOCUS_UP && Catalog.APPS.equals(tile.kind)
-                            && heroShown() && !(grid && aboveInGrid(parent, tile))) {
+                            && heroShown()) {
                         return hero;
                     }
 
                     // Stay in a grid until its last/first line. Crossing a section restores
                     // that section's own last tile, even if the same app is also pinned above.
                     if (direction == View.FOCUS_DOWN) {
-                        int target = grid ? belowInGrid(parent, tile) : -1;
-                        if (target >= 0) return parent.getChildAt(target);
                         View below = adjacentTile(tile.kind, 1, focused);
                         if (below == null && apps.title.getVisibility() == View.VISIBLE
                                 && (Catalog.INPUTS.equals(tile.kind) || Catalog.ALL_APPS.equals(tile.kind))) {
@@ -710,7 +670,7 @@ public final class Home extends Activity {
                         }
                         return below != null ? below : focused;
                     }
-                    if (direction == View.FOCUS_UP && !(grid && aboveInGrid(parent, tile))) {
+                    if (direction == View.FOCUS_UP) {
                         View above = adjacentTile(tile.kind, -1, focused);
                         if (above != null) return above;
                         View chip = nearestToolbarChip(focused);
@@ -936,19 +896,6 @@ public final class Home extends Activity {
             }
         }
         return best;
-    }
-
-    private static int belowInGrid(ViewGroup parent, Tile tile) {
-        int cols = ((Grid) parent).columns();
-        int index = parent.indexOfChild(tile), count = parent.getChildCount();
-        if (index / cols >= (count - 1) / cols) return -1;
-        return Math.min(index + cols, count - 1);
-    }
-
-    /** True when the grid has another line above {@code tile}. */
-    private static boolean aboveInGrid(ViewGroup parent, Tile tile) {
-        int cols = ((Grid) parent).columns();
-        return parent.indexOfChild(tile) - cols >= 0;
     }
 
     /**
@@ -1313,7 +1260,6 @@ public final class Home extends Activity {
                 ? ((Tile) focused).item.id : null;
         ViewGroup target = row.strip;
         row.strip.removeAllViews();
-        row.grid.removeAllViews();
 
         boolean enabled = !Catalog.INPUTS.equals(row.kind) || "on".equals(cfg.get(Config.INPUTS));
         List<Item> shown = enabled ? Catalog.visible(cfg, row.kind,
