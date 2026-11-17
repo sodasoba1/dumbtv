@@ -211,8 +211,9 @@ public final class Home extends Activity {
         super.onCreate(state);
         Future<List<Item>> catalog = io.submit(() -> Catalog.apps(this));
         cfg = Config.get(this);
-        Future<Map<String, Long>> times = recentFor(Catalog.APPS) == null ? null
-                : io.submit(() -> Recent.times(this));
+        boolean needsRecent = recentFor(Catalog.APPS) != null
+                || WidgetLayout.load(cfg).find("recent") != null;
+        Future<Map<String, Long>> times = needsRecent ? io.submit(() -> Recent.times(this)) : null;
         tv = (TvInputManager) getSystemService(Context.TV_INPUT_SERVICE);
         setContentView(build());
 
@@ -708,9 +709,9 @@ public final class Home extends Activity {
         ((FrameLayout) memoryWidget).addView(meter, meterLp);
         widgetGrid.addWidgetView("memory", memoryWidget);
 
-        recentWidget = widgetText("Recently opened\\nNo recent apps");
-        networkWidget = widgetText("Network\\nChecking connection…");
-        storageWidget = widgetText("Storage\\nChecking available space…");
+        recentWidget = widgetText("Recently opened\nNo recent apps");
+        networkWidget = widgetText("Network\nChecking connection…");
+        storageWidget = widgetText("Storage\nChecking available space…");
         textWidget = widgetText(cfg.get("widgets.text", "Custom text"));
         widgetGrid.addWidgetView("recent", recentWidget);
         widgetGrid.addWidgetView("network", networkWidget);
@@ -889,11 +890,11 @@ public final class Home extends Activity {
         for (Item item : latest) {
             Long used = recent.get(item.id);
             if (used == null || used == 0) continue;
-            value.append(shown == 0 ? "\\n" : "  ·  ");
+            value.append(shown == 0 ? "\n" : "  ·  ");
             value.append(Catalog.label(cfg, item));
             if (++shown == 3) break;
         }
-        if (shown == 0) value.append("\\nNo recent apps");
+        if (shown == 0) value.append("\nNo recent apps");
         recentWidget.setText(value.toString());
     }
 
@@ -904,17 +905,17 @@ public final class Home extends Activity {
             NetworkInfo info = manager == null ? null : manager.getActiveNetworkInfo();
             String state = info == null || !info.isConnected() ? "Disconnected"
                     : "Connected · " + info.getTypeName();
-            networkWidget.setText("Network\\n" + state);
+            networkWidget.setText("Network\n" + state);
         }
         if (widgetLayout.find("storage") != null) {
             try {
                 StatFs stats = new StatFs(Environment.getDataDirectory().getPath());
                 long free = stats.getAvailableBytes();
                 long total = stats.getTotalBytes();
-                storageWidget.setText("Storage\\n" + Formatter.formatFileSize(this, free)
+                storageWidget.setText("Storage\n" + Formatter.formatFileSize(this, free)
                         + " free of " + Formatter.formatFileSize(this, total));
             } catch (RuntimeException ignored) {
-                storageWidget.setText("Storage\\nUnavailable");
+                storageWidget.setText("Storage\nUnavailable");
             }
         }
     }
@@ -977,6 +978,7 @@ public final class Home extends Activity {
                 apps.all = list;
                 render(apps);
                 render(allApps);
+                updateRecentWidget();
             });
         });
     }
