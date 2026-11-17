@@ -50,7 +50,7 @@ public final class Options extends Activity {
         list.addView(title);
 
         heading(list, R.string.options_appearance);
-        addChoices(list, Config.ACCENT, Config.BACKGROUND, Config.DIM, Config.GRADIENT,
+        addChoices(list, Config.ACCENT, Config.THEME, Config.BACKGROUND, Config.DIM, Config.GRADIENT,
                 Config.GRADIENT_COLOR, Config.GRADIENT_STRENGTH, Config.ROTATE, Config.TILES, Config.LAYOUT,
                 Config.TILE_STYLE, Config.FOCUS_SCALE, Config.FOCUS_INDICATOR, Config.FOCUS_ANIMATION,
                 Config.TILE_RADIUS, Config.TILE_SPACING, Config.TILE_BORDER,
@@ -271,8 +271,8 @@ public final class Options extends Activity {
     private void style(View row) {
         StateListDrawable bg = new StateListDrawable();
         bg.addState(new int[] {android.R.attr.state_focused},
-                Ui.round((cfg.accent() & 0x00FFFFFF) | 0x33000000, dp(10)));
-        bg.addState(new int[0], Ui.round(0xFF15161A, dp(10)));
+                Ui.round(Ui.optionFocus(this), dp(10)));
+        bg.addState(new int[0], Ui.round(Ui.optionSurface(this), dp(10)));
         row.setBackground(bg);
     }
 
