@@ -732,6 +732,11 @@ public final class Home extends Activity {
         } else {
             widgetLayout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         }
+        if (!"1".equals(cfg.get("widgets.compact_defaults", ""))) {
+            widgetLayout = WidgetLayout.compactDefaults(widgetLayout);
+            cfg.set(WidgetLayout.CONFIG_KEY, widgetLayout.encode());
+            cfg.set("widgets.compact_defaults", "1");
+        }
         widgetGrid = new WidgetGridView(this);
         widgetGrid.setLayout(widgetLayout);
         for (WidgetVisibility.Definition definition : WidgetVisibility.ALL) {
