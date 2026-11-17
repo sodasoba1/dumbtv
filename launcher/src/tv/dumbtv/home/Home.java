@@ -461,6 +461,7 @@ public final class Home extends Activity {
     private List<int[]> rowBlocks(View content) {
         List<int[]> rows = new ArrayList<>();
         for (Row row : rows()) {
+            if (row == apps) continue;
             if (row.scroll.getVisibility() == View.VISIBLE) {
                 rows.add(new int[] {topIn(row.title, content), topIn(row.scroll, content) + row.scroll.getHeight()});
             } else if (row.grid.getVisibility() == View.VISIBLE) {
@@ -652,6 +653,10 @@ public final class Home extends Activity {
                         int target = grid ? belowInGrid(parent, tile) : -1;
                         if (target >= 0) return parent.getChildAt(target);
                         View below = adjacentTile(tile.kind, 1, focused);
+                        if (below == null && (Catalog.INPUTS.equals(tile.kind)
+                                || Catalog.ALL_APPS.equals(tile.kind))) {
+                            below = nearest(apps.tiles(), focused);
+                        }
                         return below != null ? below : focused;
                     }
                     if (direction == View.FOCUS_UP && !(grid && aboveInGrid(parent, tile))) {
@@ -675,7 +680,7 @@ public final class Home extends Activity {
                             best = c;
                         }
                     }
-                    return best != null ? best : chips.get(0);
+                    return best;
                 }
                 return next;
             }
@@ -1119,7 +1124,7 @@ public final class Home extends Activity {
         View focused = getCurrentFocus();
         String keep = focused instanceof Tile && ((Tile) focused).kind.equals(row.kind)
                 ? ((Tile) focused).item.id : null;
-        boolean gridMode = "grid".equals(cfg.get(Config.LAYOUT));
+        boolean gridMode = !Catalog.APPS.equals(row.kind) && "grid".equals(cfg.get(Config.LAYOUT));
         ViewGroup target = gridMode ? row.grid : row.strip;
         row.strip.removeAllViews();
         row.grid.removeAllViews();
@@ -1128,7 +1133,7 @@ public final class Home extends Activity {
         List<Item> shown = enabled ? Catalog.visible(cfg, row.kind,
                 row == allApps ? apps.all : row.all, recentFor(row.kind))
                 : new ArrayList<>();
-        int[] size = cardSize();
+        int[] size = row == apps ? favoriteCardSize() : cardSize();
         int w = size[0], h = Catalog.isApp(row.kind) ? size[1] : Math.round(size[1] * 0.56f);
         String labels = cfg.get(Config.LABELS);
         int accent = cfg.accent();
@@ -1208,18 +1213,9 @@ public final class Home extends Activity {
         return Math.min(desired, maxShift);
     }
 
+    /** Favourites now live in their own bottom panel; no scrolling-row compensation is needed. */
     private void adjustAppRowPosition() {
-        if (apps == null || apps.title == null) return;
-        ViewGroup.LayoutParams params = apps.title.getLayoutParams();
-        if (!(params instanceof LinearLayout.LayoutParams)) return;
-        LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) params;
-        // The library banner takes that space when it shows, and so does All apps.
-        int targetMargin = (!"grid".equals(cfg.get(Config.LAYOUT)) && isInputsHidden()
-                && !heroShown() && allApps.title.getVisibility() != View.VISIBLE) ? appRowShift() : 0;
-        if (lp.topMargin != targetMargin) {
-            lp.topMargin = targetMargin;
-            apps.title.setLayoutParams(lp);
-        }
+        // Kept as a call-site no-op while older row refresh paths remain shared.
     }
 
     private void loadArt(Item it) {
@@ -1349,6 +1345,7 @@ public final class Home extends Activity {
             if (!sections[i].kind.equals(kind)) continue;
             for (int j = i + step; j >= 0 && j < sections.length; j += step) {
                 Row next = sections[j];
+                if (next == apps && step < 0) continue;
                 if (next.title.getVisibility() != View.VISIBLE) continue;
                 View remembered = rememberedTile(next.kind);
                 if (remembered != null) return remembered;
