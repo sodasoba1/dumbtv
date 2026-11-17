@@ -19,16 +19,20 @@ on the network.
    `Fire TV`. Keep your normal devices in the default group.
 3. Open **Group Management → Clients** and add the Fire Stick. Use its reserved
    IP address (or a stable MAC/client identifier that Pi-hole actually sees),
-   give it a recognisable comment, and assign it to the `Fire TV` group.
+   give it a recognisable comment, and assign it to the `Fire TV` group. Pi-hole
+   normally leaves the client in `Default` as well; that is expected.
 4. Confirm the Fire Stick appears as that client in Pi-hole's Query Log. If the
    query log shows only your router's address for every device, the router is
    proxying DNS; Pi-hole cannot distinguish the Fire Stick from other clients
    in that arrangement. Configure clients to use Pi-hole directly, or use a
    router/Pi-hole integration that preserves per-client identity.
-5. When adding or editing each DumbTV-specific list, set its group assignment
-   to `Fire TV` and remove `Default` from that list's group selection. This
-   scopes the supplemental rules to Fire TV clients. Leave `Default` selected
-   only if you deliberately want that list to affect every client.
+5. When adding or editing a list intended only for the Fire Stick, set its group
+   assignment to `Fire TV` and remove `Default` from that list's group selection.
+   This includes the HaGeZi Amazon list and the DumbTV supplemental list if you
+   want the recommended Amazon filtering to affect only the Stick. Apply the
+   same rule to optional Alexa or Prime Video lists. Leave `Default` selected
+   only when you deliberately want a list to affect every client. You normally
+   do not need to remove the Fire Stick itself from the `Default` client group.
 
 The labels differ slightly between Pi-hole releases, but the underlying steps
 are the same: create the group, register the client, assign the client to the
