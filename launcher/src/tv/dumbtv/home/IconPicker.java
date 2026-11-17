@@ -85,8 +85,10 @@ public final class IconPicker extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor("classic".equals(cfg.get(Config.THEME))
-                ? 0xFF0C0C0E : Ui.optionSurface(this));
+        int pickerSurface = "classic".equals(cfg.get(Config.THEME))
+                ? 0xFF0C0C0E : Ui.optionSurface(this);
+        root.setBackground(Ui.isGlass(this)
+                ? Ui.surface(this, pickerSurface, 0) : Ui.round(pickerSurface, 0));
         root.setPadding(dp(56), dp(32), dp(56), 0);
 
         TextView title = Ui.text(this, 26, Ui.TEXT, Ui.LIGHT);
