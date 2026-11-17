@@ -5,6 +5,9 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.drawable.Drawable;
@@ -87,6 +90,18 @@ final class Catalog {
         it.banner = wide ? replacement : replacement == null ? it.info.loadBanner(pm) : null;
         it.icon = replacement != null && !wide ? replacement
                 : it.banner == null || cornerIcon ? it.info.loadIcon(pm) : null;
+    }
+
+    /** Loads an optional user-selected bundled banner for one app. Slow: off the UI thread. */
+    static Drawable customBanner(Context context, Item item) {
+        String filename = Config.get(context).get("appstyle." + item.id + ".banner", null);
+        if (filename == null || !filename.matches("[A-Za-z0-9_.-]+\\.png")) return null;
+        try (java.io.InputStream input = context.getAssets().open("custom-banners/" + filename)) {
+            Bitmap bitmap = BitmapFactory.decodeStream(input);
+            return bitmap == null ? null : new BitmapDrawable(context.getResources(), bitmap);
+        } catch (java.io.IOException | RuntimeException e) {
+            return null;
+        }
     }
 
     /** TV banners are 16:9; anything clearly wider than tall is drawn across the whole tile. */
