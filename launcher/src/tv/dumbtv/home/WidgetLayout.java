@@ -39,6 +39,14 @@ final class WidgetLayout {
 
     private final List<Widget> widgets = new ArrayList<>();
 
+    static WidgetLayout load(Config config) {
+        return decode(config.get(CONFIG_KEY, ""));
+    }
+
+    void save(Config config) {
+        config.set(CONFIG_KEY, encode());
+    }
+
     List<Widget> items() {
         return Collections.unmodifiableList(new ArrayList<>(widgets));
     }
