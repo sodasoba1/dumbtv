@@ -47,15 +47,19 @@ final class WidgetLayout {
         return Collections.unmodifiableList(new ArrayList<>(widgets));
     }
 
-    /** One-time migration for the old 2x2 minimum: retain positions, compact every card to 1x2. */
+    /** One-time migration: compact only the old editor's default sizes, preserving custom resizes. */
     static WidgetLayout compactDefaults(WidgetLayout source) {
         WidgetLayout result = new WidgetLayout();
         if (source == null) return result;
         for (Widget widget : source.items()) {
-            if (!result.add(widget.id, widget.type, widget.x, widget.y, 1, 2)) {
-                result.add(widget.id, widget.type, widget.x, widget.y,
-                        widget.width, widget.height);
-            }
+            boolean oldTwoByTwo = widget.width == 2 && widget.height == 2;
+            boolean oldWideTwoHigh = ("recent".equals(widget.type) || "device".equals(widget.type))
+                    && widget.width == 3 && widget.height == 2;
+            boolean oldDiagnostics = "diagnostics".equals(widget.type)
+                    && widget.width == 3 && widget.height == 3;
+            int width = oldTwoByTwo || oldWideTwoHigh || oldDiagnostics ? 1 : widget.width;
+            int height = oldDiagnostics ? 2 : oldTwoByTwo || oldWideTwoHigh ? 2 : widget.height;
+            result.add(widget.id, widget.type, widget.x, widget.y, width, height);
         }
         return result;
     }
