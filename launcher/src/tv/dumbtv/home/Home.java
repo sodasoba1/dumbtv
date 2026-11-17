@@ -1054,6 +1054,35 @@ public final class Home extends Activity {
         return view;
     }
 
+    private void applyWidgetFontSizes() {
+        if (widgetGrid == null || widgetLayout == null) return;
+        for (WidgetLayout.Widget widget : widgetLayout.items()) {
+            int fallback = "clock".equals(widget.type) ? 32
+                    : "diagnostics".equals(widget.type) ? 11
+                    : "device".equals(widget.type) ? 12 : 14;
+            int size;
+            try {
+                size = Integer.parseInt(cfg.get("widgets.font." + widget.id,
+                        String.valueOf(fallback)));
+            } catch (NumberFormatException ignored) {
+                size = fallback;
+            }
+            if ("clock".equals(widget.id)) {
+                clock.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, size);
+                date.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP,
+                        Math.max(10, Math.round(size * 0.4f)));
+                continue;
+            }
+            for (int i = 0; i < widgetGrid.getChildCount(); i++) {
+                View child = widgetGrid.getChildAt(i);
+                if (widget.id.equals(widgetGrid.widgetId(child)) && child instanceof TextView) {
+                    ((TextView) child).setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, size);
+                    break;
+                }
+            }
+        }
+    }
+
     private void updateRecentWidget() {
         if (recentWidget == null || widgetLayout == null || widgetLayout.find("recent") == null
                 || !WidgetVisibility.isEnabled(cfg, "recent")) return;
