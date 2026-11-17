@@ -66,14 +66,15 @@ final class Tile extends View {
         radius = Ui.dp(c, "square".equals(corners) ? 0 : "rounded".equals(corners) ? 18 : 10);
         stroke = Ui.dp(c, afterglow == null ? 2.5f : 1f);
 
-        fill.setColor(brandFocus ? 0xFF17181B : app ? Ui.SURFACE : 0xFF17181B);
+        fill.setColor(brandFocus ? 0xFF17181B : app ? Ui.tileSurface(c) : Ui.tileSurface(c));
         ring.setStyle(Paint.Style.STROKE);
         ring.setStrokeWidth(stroke);
         ring.setColor(accent);
         outline.setStyle(Paint.Style.STROKE);
         outline.setStrokeWidth(Ui.dp(c, Float.parseFloat(Config.get(c).get(Config.TILE_BORDER_WIDTH))));
         String borderMode = Config.get(c).get(Config.TILE_BORDER);
-        outline.setColor("accent".equals(borderMode) ? accent : 0x44FFFFFF);
+        outline.setColor("accent".equals(borderMode) ? accent
+                : Ui.isGlass(c) ? 0x66FFFFFF : 0x44FFFFFF);
         glow.setStyle(Paint.Style.STROKE);
         glow.setStrokeWidth(Ui.dp(c, 5));
         glow.setColor((accent & 0x00FFFFFF) | 0x55000000);
@@ -187,7 +188,7 @@ final class Tile extends View {
 
         if (afterglow != null) afterglow.edge(canvas, cardW, cardH, radius);
         String borderMode = Config.get(getContext()).get(Config.TILE_BORDER);
-        if (!"off".equals(borderMode) && !isFocused()) {
+        if ((! "off".equals(borderMode) || Ui.isGlass(getContext())) && !isFocused()) {
             float halfBorder = outline.getStrokeWidth() / 2f;
             canvas.drawRoundRect(halfBorder, halfBorder, cardW - halfBorder, cardH - halfBorder,
                     Math.max(0, radius - halfBorder), Math.max(0, radius - halfBorder), outline);
