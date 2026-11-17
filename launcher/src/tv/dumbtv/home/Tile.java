@@ -5,6 +5,8 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Outline;
+import android.graphics.LinearGradient;
+import android.graphics.Shader;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -31,6 +33,7 @@ final class Tile extends View {
     private final Path clip = new Path();
     private final Path arrow = new Path();
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint glassSheen = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint outline = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint glow = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -67,6 +70,9 @@ final class Tile extends View {
         stroke = Ui.dp(c, afterglow == null ? 2.5f : 1f);
 
         fill.setColor(brandFocus ? 0xFF17181B : Ui.tileSurface(c, app));
+        glassSheen.setShader(new LinearGradient(0, 0, 0, cardH,
+                new int[] {0x24FFFFFF, 0x08FFFFFF, 0x00FFFFFF},
+                new float[] {0f, 0.38f, 1f}, Shader.TileMode.CLAMP));
         ring.setStyle(Paint.Style.STROKE);
         ring.setStrokeWidth(stroke);
         ring.setColor(accent);
@@ -182,6 +188,9 @@ final class Tile extends View {
             drawLine(canvas, inner, cardW / 2f, cardH - cardH * 13 / 100f);
         } else if (!Catalog.isApp(kind)) {
             drawLine(canvas, inner, cardW / 2f, cardH / 2f - (inner.ascent() + inner.descent()) / 2);
+        }
+        if (Ui.isGlass(getContext())) {
+            canvas.drawRoundRect(card, radius, radius, glassSheen);
         }
         if (moving) canvas.drawColor(0x99000000);
         canvas.restore();
