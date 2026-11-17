@@ -47,6 +47,19 @@ final class WidgetLayout {
         return Collections.unmodifiableList(new ArrayList<>(widgets));
     }
 
+    /** One-time migration for the old 2x2 minimum: retain positions, compact every card to 1x2. */
+    static WidgetLayout compactDefaults(WidgetLayout source) {
+        WidgetLayout result = new WidgetLayout();
+        if (source == null) return result;
+        for (Widget widget : source.items()) {
+            if (!result.add(widget.id, widget.type, widget.x, widget.y, 1, 2)) {
+                result.add(widget.id, widget.type, widget.x, widget.y,
+                        widget.width, widget.height);
+            }
+        }
+        return result;
+    }
+
     Widget find(String id) {
         for (Widget widget : widgets) if (widget.id.equals(id)) return widget;
         return null;
