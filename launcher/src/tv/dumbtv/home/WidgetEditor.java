@@ -71,7 +71,7 @@ public final class WidgetEditor extends Activity {
         root.addView(title);
 
         TextView instructions = Ui.text(this, 13, Ui.MUTED, Ui.MEDIUM);
-        instructions.setText("Use the directional pad to select cells. Select a widget, then Move, Resize or Remove.");
+        instructions.setText("Use the directional pad to select cells. Select a widget, then Move, Resize, Configure or Remove.");
         instructions.setPadding(dp(8), 0, 0, dp(12));
         root.addView(instructions);
 
