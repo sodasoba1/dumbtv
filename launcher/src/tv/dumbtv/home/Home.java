@@ -723,8 +723,8 @@ public final class Home extends Activity {
                 / getResources().getDisplayMetrics().density);
         int widgetHeight = Math.max(180, Math.min(260, screenDp / 3));
         LinearLayout.LayoutParams widgetLp = new LinearLayout.LayoutParams(MATCH, dp(widgetHeight));
-        widgetLp.leftMargin = dp(56);
-        widgetLp.rightMargin = dp(56);
+        widgetLp.leftMargin = dp(48);
+        widgetLp.rightMargin = dp(48);
         widgetLp.topMargin = dp(8);
         widgetLp.bottomMargin = dp(8);
         column.addView(widgetGrid, widgetLp);
