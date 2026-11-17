@@ -100,11 +100,12 @@ final class Ui {
     /** Apply the selected non-Classic theme to system dialogs while preserving Classic. */
     static void styleDialog(AlertDialog dialog) {
         Context c = dialog.getContext();
-        if ("classic".equals(Config.get(c).get(Config.THEME)) || dialog.getWindow() == null) return;
+        if (dialog.getWindow() == null) return;
         Drawable background = isGlass(c)
                 ? surface(c, optionSurface(c), dp(c, 18))
                 : round(c, optionSurface(c));
         dialog.getWindow().setBackgroundDrawable(background);
+        if ("classic".equals(Config.get(c).get(Config.THEME))) return;
         android.widget.Button positive = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
         android.widget.Button negative = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
         android.widget.Button neutral = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
