@@ -1054,6 +1054,8 @@ public final class Home extends Activity {
         int align = "left".equals(cfg.get(Config.TOOLBAR_ALIGN)) ? Gravity.LEFT
                 : "center".equals(cfg.get(Config.TOOLBAR_ALIGN)) ? Gravity.CENTER_HORIZONTAL : Gravity.RIGHT;
         toolbar.setGravity(Gravity.CENTER_VERTICAL | align);
+        toolbar.setBackground(Ui.isGlass(this)
+                ? Ui.surface(this, Ui.optionSurface(this), dp(14)) : null);
         widgetLayout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         widgetGrid.setLayout(widgetLayout);
         int widgetSurface = Ui.tileSurface(this, true);
