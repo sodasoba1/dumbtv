@@ -31,10 +31,10 @@ public final class FocusColorTest {
         check("top-left".equals(Config.GRADIENT.values[5]), "top-left direction is exposed");
         check("bottom-right".equals(Config.GRADIENT.values[8]), "bottom-right direction is exposed");
         check(Config.ACCENT.values.length == 25, "all legacy accent values remain readable");
-        check(Config.ACCENT.optionValues.length == 9, "accent shows eight presets and custom");
-        check(Config.BACKGROUND.optionValues.length == 8, "background shows core presets, image modes and custom");
+        check(Config.ACCENT.optionValues.length == 1, "accent uses the colour sliders without presets");
+        check(Config.BACKGROUND.optionValues.length == 1, "background colour uses the sliders without presets");
         check(Config.GRADIENT_COLOR.values.length == 26, "all legacy gradient values plus custom remain readable");
-        check(Config.GRADIENT_COLOR.optionValues.length == 5, "gradient shows four presets and custom");
+        check(Config.GRADIENT_COLOR.optionValues.length == 1, "gradient colour uses the sliders without presets");
         check(Config.paletteColor("blue") == 0xFF3D8BFF, "gradient blue matches accent palette");
         check(Config.paletteColor("black") == 0xFF000000, "gradient defaults to black");
         System.out.println("FocusColorTest passed");
