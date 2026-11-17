@@ -196,7 +196,7 @@ public final class Home extends Activity {
             parent.addView(scroll, new LinearLayout.LayoutParams(MATCH, WRAP));
         }
 
-        /** Whichever container currently holds the tiles, following Options › Layout. */
+        /** The single horizontal strip that holds this section's tiles. */
         ViewGroup tiles() {
             return strip;
         }
@@ -657,8 +657,8 @@ public final class Home extends Activity {
                         return hero;
                     }
 
-                    // Stay in a grid until its last/first line. Crossing a section restores
-                    // that section's own last tile, even if the same app is also pinned above.
+                    // Crossing a section restores that section's own last tile, even if the
+                    // same app is also pinned in the favourites strip.
                     if (direction == View.FOCUS_DOWN) {
                         View below = adjacentTile(tile.kind, 1, focused);
                         if (below == null && favoritesPanel.getVisibility() == View.VISIBLE
@@ -896,10 +896,8 @@ public final class Home extends Activity {
     }
 
     /**
-     * The child of {@code strip} horizontally closest to {@code from}, restricted to its top
-     * visual row so a wrapped grid does not match a tile several rows further down.
+     * The child in the favourites strip nearest {@code from}; used when moving up from favourites.
      */
-    /** The child in the bottom visual row nearest {@code from}; used when moving up from favourites. */
     private static View nearestBottom(ViewGroup strip, View from) {
         int n = strip.getChildCount();
         if (n == 0) return null;
