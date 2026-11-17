@@ -998,6 +998,8 @@ public final class Home extends Activity {
         view.setText(value);
         view.setGravity(Gravity.CENTER_VERTICAL);
         view.setPadding(dp(16), dp(8), dp(16), dp(8));
+        view.setMaxLines(3);
+        view.setEllipsize(android.text.TextUtils.TruncateAt.END);
         view.setBackground(Ui.round(Ui.tileSurface(this, true), dp(12)));
         view.setFocusable(false);
         return view;
