@@ -144,7 +144,7 @@ final class Config {
     static final Choice FOCUS_ANIMATION = new Choice("focus_animation", "Focus animation", "smooth",
             new String[] {"immediate", "smooth"},
             new String[] {"Immediate", "Smooth"});
-    static final Choice TILE_RADIUS = new Choice("tile_radius", "Tile corners", "soft",
+    static final Choice TILE_RADIUS = new Choice("tile_radius", "UI roundness", "soft",
             new String[] {"square", "soft", "rounded"},
             new String[] {"Square", "Soft", "Rounded"});
     static final Choice TILE_SPACING = new Choice("tile_spacing", "Tile spacing", "normal",
