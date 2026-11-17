@@ -20,7 +20,7 @@ On a Fire TV, over ADB, with no root:
 - **Only if the owner names them:** removing apps, switching off Alexa, replacing
   YouTube with SmartTube.
 
-Every step is undone by `./scripts/restore.sh`.
+Package, settings, app-ops, network-policy and HOME changes can be reversed with `./scripts/restore.sh`. Store apps explicitly uninstalled at the owner's request must be reinstalled from the Appstore; DumbTV home and SmartTube remain installed.
 
 ## Hard rules
 
@@ -189,7 +189,7 @@ path. Use the table below; do not disable more packages.
 | What the owner sees | Fix |
 |---|---|
 | Amazon's home screen is back | `./scripts/launcher.sh -y` |
-| Amazon's home shows for ~5 s before dumbtv home | `./scripts/launcher.sh -y` (an update reset the alarm setting) |
+| Amazon's home remains visible or Keeper does not recover | Re-run `./scripts/launcher.sh -y`, then check UsageStats, AUTO_START, READ_LOGS and the Doze whitelist with `docs/TROUBLESHOOTING.md`; this fork no longer uses an alarm-based takeover |
 | `verify.sh` warns `enabled again` or `back to Amazon's values` | an update undid part of the cleanup: `./scripts/debloat.sh -y` |
 | `verify.sh` warns `data-saver off` | `./scripts/lockdown.sh -y` |
 | "Unable to Detect Your Remote" over everything | `adb shell pm enable --user 0 com.amazon.vizzini`, then reboot |
