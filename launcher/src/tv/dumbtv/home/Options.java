@@ -91,7 +91,7 @@ public final class Options extends Activity {
         addChoices(list, Config.FOCUS_SCALE, Config.FOCUS_INDICATOR, Config.FOCUS_ANIMATION);
 
         heading(list, R.string.options_widgets);
-        addChoices(list, Config.CLOCK, Config.WIDGET_EDITING, Config.WIDGET_BACKGROUNDS);
+        addChoices(list, Config.CLOCK, Config.WIDGET_BACKGROUNDS);
         list.addView(action("Show / hide widgets", () ->
                 startActivity(new Intent(this, WidgetSettings.class))));
 
