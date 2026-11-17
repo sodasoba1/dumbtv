@@ -6,6 +6,9 @@ import android.graphics.Paint;
 import android.view.View;
 import android.view.ViewGroup;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Fixed 6x4 native widget surface. Child bounds are driven exclusively by WidgetLayout;
  * the same cell measurements are used in normal and edit modes.
@@ -17,6 +20,7 @@ final class WidgetGridView extends ViewGroup {
 
     private final Paint gridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private WidgetLayout layout = new WidgetLayout();
+    private final Set<String> disabled = new HashSet<>();
     private boolean editing;
 
     WidgetGridView(Context context) {
@@ -36,6 +40,16 @@ final class WidgetGridView extends ViewGroup {
 
     WidgetLayout getLayoutModel() {
         return layout;
+    }
+
+    void setWidgetEnabled(String id, boolean enabled) {
+        if (enabled) disabled.remove(id);
+        else disabled.add(id);
+        requestLayout();
+    }
+
+    boolean isWidgetEnabled(String id) {
+        return !disabled.contains(id);
     }
 
     void setEditing(boolean value) {
@@ -68,7 +82,7 @@ final class WidgetGridView extends ViewGroup {
             View child = getChildAt(i);
             LayoutParams params = (LayoutParams) child.getLayoutParams();
             WidgetLayout.Widget widget = layout.find(params.widgetId);
-            if (widget == null) {
+            if (widget == null || disabled.contains(params.widgetId)) {
                 child.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.EXACTLY),
                         MeasureSpec.makeMeasureSpec(0, MeasureSpec.EXACTLY));
                 continue;
@@ -92,7 +106,7 @@ final class WidgetGridView extends ViewGroup {
         for (int i = 0; i < getChildCount(); i++) {
             View child = getChildAt(i);
             WidgetLayout.Widget widget = layout.find(((LayoutParams) child.getLayoutParams()).widgetId);
-            if (widget == null) {
+            if (widget == null || disabled.contains(((LayoutParams) child.getLayoutParams()).widgetId)) {
                 child.layout(0, 0, 0, 0);
                 child.setVisibility(GONE);
                 continue;
