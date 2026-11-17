@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LauncherInstallTest(unittest.TestCase):
-    def install(self, appops_refused=False, read_logs_refused=False):
+    def install(self, appops_refused=False, read_logs_refused=False, read_logs_not_recorded=False):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
             launcher = tmp / "launcher"
@@ -36,6 +36,7 @@ class LauncherInstallTest(unittest.TestCase):
                 "keeper_running": True,
                 "appops_refused": appops_refused,
                 "read_logs_refused": read_logs_refused,
+                "read_logs_not_recorded": read_logs_not_recorded,
                 "appops": {"tv.dumbtv.home": {}},
             }))
             log = tmp / "commands.log"
@@ -71,6 +72,14 @@ class LauncherInstallTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("pm grant tv.dumbtv.home android.permission.READ_LOGS", commands)
         self.assertIn("could not grant Keeper READ_LOGS", result.stderr)
+        self.assertFalse(state.get("permissions", {}).get("tv.dumbtv.home", {}).get(
+            "android.permission.READ_LOGS", False))
+
+    def test_install_fails_if_read_logs_grant_does_not_persist(self):
+        result, commands, state = self.install(read_logs_not_recorded=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("pm grant tv.dumbtv.home android.permission.READ_LOGS", commands)
+        self.assertIn("READ_LOGS grant was not verified", result.stderr)
         self.assertFalse(state.get("permissions", {}).get("tv.dumbtv.home", {}).get(
             "android.permission.READ_LOGS", False))
 
