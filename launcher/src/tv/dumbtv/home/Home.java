@@ -404,7 +404,22 @@ public final class Home extends Activity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
-        if (moving == null) return super.dispatchKeyEvent(e);
+        if (moving == null) {
+            if (e.getAction() == KeyEvent.ACTION_DOWN
+                    && e.getKeyCode() == KeyEvent.KEYCODE_DPAD_UP
+                    && toolbarCollapsed && widgetGrid != null) {
+                View focused = getCurrentFocus();
+                if (widgetGrid.widgetId(focused) != null) {
+                    View chip = nearestToolbarChip(focused);
+                    if (chip != null) {
+                        setToolbarVisible(true);
+                        chip.requestFocus();
+                        return true;
+                    }
+                }
+            }
+            return super.dispatchKeyEvent(e);
+        }
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
             switch (e.getKeyCode()) {
                 case KeyEvent.KEYCODE_DPAD_LEFT:
@@ -629,7 +644,12 @@ public final class Home extends Activity {
                 // The library banner sits between the chips and the rows; Down from it
                 // goes where Down from the chips goes without it.
                 if (focused == hero && direction == View.FOCUS_UP) {
-                    for (TextView c : chips) if (c.getVisibility() == View.VISIBLE) return c;
+                    for (TextView c : chips) {
+                        if (c.getVisibility() == View.VISIBLE) {
+                            setToolbarVisible(true);
+                            return c;
+                        }
+                    }
                 }
                 if (focused == hero && direction != View.FOCUS_DOWN) return focused;
                 if (direction == View.FOCUS_DOWN && chips.contains(focused) && heroShown()) {
@@ -686,6 +706,13 @@ public final class Home extends Activity {
                     if (direction == View.FOCUS_UP && !(grid && aboveInGrid(parent, tile))) {
                         View above = adjacentTile(tile.kind, -1, focused);
                         if (above != null) return above;
+                        View widget = nearestWidget(focused);
+                        if (widget != null) return widget;
+                        View chip = nearestToolbarChip(focused);
+                        if (chip != null && !locked()) {
+                            setToolbarVisible(true);
+                            return chip;
+                        }
                         if (locked()) return focused;
                     }
                 }
