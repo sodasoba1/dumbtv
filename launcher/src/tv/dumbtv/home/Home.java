@@ -408,6 +408,13 @@ public final class Home extends Activity {
     public boolean dispatchKeyEvent(KeyEvent e) {
         if (moving == null) {
             if (e.getAction() == KeyEvent.ACTION_DOWN
+                    && e.getKeyCode() == KeyEvent.KEYCODE_DPAD_DOWN
+                    && getCurrentFocus() == allAppsButton
+                    && "on".equals(cfg.get(Config.ALL_APPS))) {
+                openAllApps();
+                return true;
+            }
+            if (e.getAction() == KeyEvent.ACTION_DOWN
                     && e.getKeyCode() == KeyEvent.KEYCODE_DPAD_UP
                     && toolbarCollapsed && widgetGrid != null) {
                 View focused = getCurrentFocus();
@@ -561,18 +568,10 @@ public final class Home extends Activity {
                             above = nearestBottom(allApps.tiles(), focused);
                         }
                         if (above != null) return above;
-                        View widget = nearestWidget(focused);
-                        if (widget != null) return widget;
                         View chip = nearestToolbarChip(focused);
                         if (chip != null) setToolbarVisible(true);
                         return chip != null ? chip : focused;
                     }
-                }
-                if (widgetGrid != null && widgetGrid.widgetId(focused) != null
-                        && direction == View.FOCUS_UP) {
-                    View chip = nearestToolbarChip(focused);
-                    if (chip != null) setToolbarVisible(true);
-                    if (chip != null) return chip;
                 }
                 if (chips.contains(focused) && direction == View.FOCUS_DOWN) {
                     if (heroShown()) return hero;
@@ -820,12 +819,15 @@ public final class Home extends Activity {
         widgetGrid.addWidgetView("diagnostics", diagnosticsWidget);
         widgetGrid.addWidgetView("device", deviceWidget);
 
-        int screenDp = (int) (getResources().getDisplayMetrics().heightPixels
+        int screenWidthDp = (int) (getResources().getDisplayMetrics().widthPixels
                 / getResources().getDisplayMetrics().density);
-        widgetHeight = Math.max(120, Math.min(220, screenDp / 4));
-        FrameLayout.LayoutParams widgetLp = new FrameLayout.LayoutParams(MATCH, dp(widgetHeight), Gravity.TOP);
-        widgetLp.leftMargin = dp(48);
-        widgetLp.rightMargin = dp(48);
+        int widgetContentWidth = screenWidthDp - dp(48) - dp(8 * (WidgetLayout.COLUMNS - 1));
+        int widgetCellHeight = Math.max(dp(44),
+                Math.round((widgetContentWidth / (float) WidgetLayout.COLUMNS) * 0.36f));
+        widgetHeight = widgetCellHeight * WidgetLayout.ROWS + dp(8 * (WidgetLayout.ROWS - 1));
+        FrameLayout.LayoutParams widgetLp = new FrameLayout.LayoutParams(MATCH, widgetHeight, Gravity.TOP);
+        widgetLp.leftMargin = dp(24);
+        widgetLp.rightMargin = dp(24);
         widgetLp.topMargin = dp(64);
         root.addView(widgetGrid, widgetLp);
 
@@ -872,8 +874,8 @@ public final class Home extends Activity {
      * it takes the last tile of the line below, the nearest one in that line.
      */
     private int favoriteBottomReserve() {
-        return apps == null || apps.title.getVisibility() != View.VISIBLE
-                ? dp(16) : favoriteCardSize()[1] + dp(94);
+        return apps == null || favoritesPanel.getVisibility() != View.VISIBLE
+                ? dp(16) : favoriteCardSize()[1] + dp(68);
     }
 
     private int[] favoriteCardSize() {
@@ -912,26 +914,6 @@ public final class Home extends Activity {
         toolbarCollapsed = !visible;
         head.animate().alpha(visible ? 1f : 0f)
                 .translationY(visible ? 0f : -dp(60)).setDuration(160).start();
-    }
-
-    private View nearestWidget(View from) {
-        if (!"on".equals(cfg.get(Config.WIDGET_EDITING)) || widgetGrid == null) return null;
-        int[] at = new int[2];
-        from.getLocationOnScreen(at);
-        int x = at[0] + from.getWidth() / 2;
-        View best = null;
-        int bestGap = Integer.MAX_VALUE;
-        for (int i = 0; i < widgetGrid.getChildCount(); i++) {
-            View child = widgetGrid.getChildAt(i);
-            if (child.getVisibility() != View.VISIBLE || !child.isFocusable()) continue;
-            child.getLocationOnScreen(at);
-            int gap = Math.abs(at[0] + child.getWidth() / 2 - x);
-            if (gap < bestGap) {
-                bestGap = gap;
-                best = child;
-            }
-        }
-        return best;
     }
 
     private View nearestToolbarChip(View from) {
