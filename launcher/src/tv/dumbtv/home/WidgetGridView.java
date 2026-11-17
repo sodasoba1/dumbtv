@@ -10,7 +10,7 @@ import java.util.Set;
 /**
  * Fixed 6x4 native widget surface. Child bounds are driven exclusively by WidgetLayout.
  */
-final class WidgetGridView extends ViewGroup {
+class WidgetGridView extends ViewGroup {
     private static final int COLUMNS = WidgetLayout.COLUMNS;
     private static final int ROWS = WidgetLayout.ROWS;
     private static final int GAP_DP = 8;
