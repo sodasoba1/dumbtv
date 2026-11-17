@@ -85,10 +85,11 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("standby-start", result.stdout)
         self.assertIn("AUTO_START", result.stdout)
 
-    def test_read_logs_is_optional_when_usage_stats_remain_enabled(self):
+    def test_missing_read_logs_is_a_failure_even_when_usage_stats_are_enabled(self):
         result, _ = self.run_verify(read_logs=False)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("READ_LOGS unavailable", result.stdout)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("FAIL", result.stdout)
+        self.assertIn("READ_LOGS not granted", result.stdout)
 
     def test_non_api25_device_is_rejected_before_keeper_checks(self):
         result, calls = self.run_verify(sdk="28")
