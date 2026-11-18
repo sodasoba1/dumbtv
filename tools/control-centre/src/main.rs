@@ -495,6 +495,45 @@ impl ControlCentre {
 
 
     #[cfg(windows)]
+    fn verify_last_cleanup(
+        &self,
+        ip: std::net::IpAddr,
+        profile: device_profile::DeviceProfile,
+        snapshot_path: PathBuf,
+    ) {
+        let shared = Arc::clone(&self.shared);
+        {
+            let mut state = shared.lock().expect("state lock poisoned");
+            if state.busy { return; }
+            state.busy = true;
+            state.status = "Re-reading all verified cleanup results from the Fire TV. No changes will be made…".into();
+        }
+        thread::spawn(move || {
+            let result = (|| -> Result<usize, String> {
+                let original = snapshot::DeviceSnapshot::load(&snapshot_path)?;
+                if original.manufacturer != profile.manufacturer
+                    || original.model != profile.model
+                    || original.build_display_id != profile.build_display_id
+                    || original.android_sdk != profile.sdk
+                {
+                    return Err("the original snapshot belongs to a different device".into());
+                }
+                let journal = latest_cleanup_journal(&profile, &original.source_commit)?
+                    .ok_or("no matching cleanup journal is available")?;
+                let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
+                    .map_err(|error| format!("cannot start the ADB runtime: {error}"))?;
+                runtime.block_on(adb_transport::verify_cleanup_journal(ip, &profile, &journal))
+            })();
+            let mut state = shared.lock().expect("state lock poisoned");
+            state.status = match result {
+                Ok(count) => format!("Read-only verification passed for all {count} verified cleanup operations on the matching Fire TV."),
+                Err(error) => format!("Read-only cleanup verification failed: {error}. Inspect the TV and review restore; no changes were sent."),
+            };
+            state.busy = false;
+        });
+    }
+
+    #[cfg(windows)]
     fn review_restore_plan(&self, ip: std::net::IpAddr, profile: device_profile::DeviceProfile, snapshot_path: PathBuf) {
         let shared = Arc::clone(&self.shared);
         {
@@ -810,6 +849,9 @@ impl eframe::App for ControlCentre {
                 }
             }
             if let (Some(ip), Some(profile), Some(path)) = (connected_ip, device_profile.as_ref(), snapshot_path.as_ref()) {
+                if ui.add_enabled(!busy, egui::Button::new("Verify last cleanup (read-only)")).clicked() {
+                    self.verify_last_cleanup(ip, profile.clone(), path.clone());
+                }
                 if ui.add_enabled(!busy, egui::Button::new("Review restore plan")).clicked() {
                     self.confirm_restore = false;
                     self.review_restore_plan(ip, profile.clone(), path.clone());
