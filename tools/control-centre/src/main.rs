@@ -11,6 +11,7 @@ mod package_inventory;
 mod settings_catalogue;
 mod snapshot;
 mod device_command;
+mod home_config;
 mod operations;
 mod operation_journal;
 
