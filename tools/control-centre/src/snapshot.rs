@@ -352,7 +352,7 @@ mod tests {
         let mut original = snapshot();
         original.secure_settings.insert("safe_key".into(), Some("value with spaces".into()));
         assert!(original.validate().is_ok());
-        original.secure_settings.insert("unsafe_key".into(), Some("bad\\nvalue".into()));
+        original.secure_settings.insert("unsafe_key".into(), Some("bad\nvalue".into()));
         assert!(original.validate().is_err());
         let mut original = snapshot();
         original.packages.insert("notapackage".into(), PackageState::Enabled);
