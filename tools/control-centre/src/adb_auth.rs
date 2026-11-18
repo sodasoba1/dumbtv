@@ -6,6 +6,7 @@
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use num_bigint::BigUint;
+use sha2::{Digest, Sha256};
 
 const MODULUS_BYTES: usize = 256;
 const MODULUS_WORDS: u32 = (MODULUS_BYTES / 4) as u32;
@@ -14,6 +15,7 @@ const STRUCT_BYTES: usize = 4 + 4 + MODULUS_BYTES + MODULUS_BYTES + 4;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AdbPublicKey {
     wire_payload: Vec<u8>,
+    fingerprint: [u8; 32],
 }
 
 impl AdbPublicKey {
@@ -66,16 +68,23 @@ impl AdbPublicKey {
         blob.extend_from_slice(&exponent.to_le_bytes());
 
         debug_assert_eq!(blob.len(), STRUCT_BYTES);
+        let fingerprint: [u8; 32] = Sha256::digest(&blob).into();
         let mut wire_payload = STANDARD.encode(blob).into_bytes();
         wire_payload.push(b' ');
         wire_payload.extend_from_slice(key_name.as_bytes());
         wire_payload.push(0);
 
-        Ok(Self { wire_payload })
+        Ok(Self { wire_payload, fingerprint })
     }
 
     pub fn as_wire_payload(&self) -> &[u8] {
         &self.wire_payload
+    }
+
+    /// SHA-256 fingerprint of the raw mincrypt RSA public-key structure.
+    /// This is safe to display to the owner and is not private key material.
+    pub fn fingerprint_sha256(&self) -> String {
+        self.fingerprint.iter().map(|byte| format!("{byte:02x}")).collect()
     }
 }
 
@@ -107,6 +116,7 @@ mod tests {
             .unwrap();
         let payload = key.as_wire_payload();
         assert!(payload.ends_with(b" dumbtv@test\0"));
+        assert_eq!(key.fingerprint_sha256().len(), 64);
 
         let encoded = std::str::from_utf8(&payload[..payload.len() - 1]).unwrap();
         let blob_text = encoded.split(' ').next().unwrap();
