@@ -60,6 +60,7 @@ jobs:
           Compress-Archive -Path (Join-Path $package "*") -DestinationPath (Join-Path $env:RUNNER_TEMP "DumbTV-Control-Centre-test-windows-x64.zip") -Force
 
       - name: Upload resolved Cargo lockfile for dependency audit
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: control-centre-cargo-lock
