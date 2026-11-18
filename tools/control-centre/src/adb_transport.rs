@@ -969,6 +969,14 @@ pub async fn install_smarttube(
     if final_code < crate::apk_release::SMARTTUBE_VERSION_CODE {
         return Err("SmartTube version verification changed after launch".into());
     }
+    if stock_installed {
+        let disabled_after = crate::package_inventory::parse_pm_list_output(
+            &run_command(&mut connection, "pm list packages -d").await?
+        )?;
+        if !disabled_after.contains(stock) {
+            return Err("SmartTube is installed, but stock YouTube is no longer disabled; the restore backup has been retained".into());
+        }
+    }
     Ok(format!(
         "SmartTube installed and verified (versionCode {installed_code}). Stock YouTube {}. DumbTV home.conf {}. Exact original state saved to {}. SmartTube remains installed if you later undo the replacement.",
         if stock_installed && !stock_was_disabled { "was disabled reversibly" } else if stock_installed { "was already disabled and was left unchanged" } else { "was not installed" },
@@ -1905,6 +1913,37 @@ fn is_local_target(ip: IpAddr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn SmartTube_backup_round_trips_exact_home_config_bytes() {
+        let original = b"apps.order=com.amazon.firetv.youtube,com.example.player\\r\\nlayout=compact\\r\\n".to_vec();
+        let applied = crate::home_config::rewrite_apps_order(&original).unwrap();
+        let backup = SmartTubeBackup {
+            schema_version: 1,
+            manufacturer: "Amazon".into(),
+            model: "AFTMM".into(),
+            build_display_id: "PS7613".into(),
+            android_sdk: 25,
+            stock_youtube_installed: true,
+            stock_youtube_was_disabled: false,
+            home_conf: Some(original.clone()),
+            applied_home_conf: Some(applied.clone()),
+        };
+        let encoded = serde_json::to_vec(&backup).unwrap();
+        let decoded: SmartTubeBackup = serde_json::from_slice(&encoded).unwrap();
+        assert_eq!(decoded.home_conf, Some(original));
+        assert_eq!(decoded.applied_home_conf, Some(applied));
+    }
+
+    #[test]
+    fn launcher_restore_only_accepts_known_appops_modes() {
+        for mode in ["allow", "ignore", "deny", "default", "foreground", "errored"] {
+            assert!(valid_appop_restore_mode(mode));
+        }
+        for mode in ["unknown", "reboot", "allow; reboot", ""] {
+            assert!(!valid_appop_restore_mode(mode));
+        }
+    }
 
     #[test]
     fn staged_apk_path_is_confined_to_the_control_centre_temp_prefix() {
