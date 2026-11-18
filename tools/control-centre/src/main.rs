@@ -535,17 +535,25 @@ fn extract_verified_archive(bytes: &[u8], destination: &Path, expected_sha: &str
             continue;
         }
 
-        total_written = total_written
-            .checked_add(entry.size())
+        let declared_size = entry.size();
+        let next_total = total_written
+            .checked_add(declared_size)
             .ok_or("archive size overflow")?;
-        if total_written > MAX_EXTRACTED_BYTES {
+        if next_total > MAX_EXTRACTED_BYTES {
             return Err("extracted source exceeds the 1 GiB safety limit".into());
         }
         if let Some(parent) = output.parent() {
             fs::create_dir_all(parent).map_err(|e| format!("cannot create archive directory: {e}"))?;
         }
         let mut file = fs::File::create(&output).map_err(|e| format!("cannot create extracted file: {e}"))?;
-        std::io::copy(&mut entry, &mut file).map_err(|e| format!("cannot extract archive entry: {e}"))?;
+        let copied = std::io::copy(&mut entry.take(declared_size.saturating_add(1)), &mut file)
+            .map_err(|e| format!("cannot extract archive entry: {e}"))?;
+        if copied != declared_size {
+            return Err(format!(
+                "archive entry size did not match its declared length: {name}"
+            ));
+        }
+        total_written = next_total;
         file.flush().map_err(|e| format!("cannot flush extracted file: {e}"))?;
     }
     Ok(())
