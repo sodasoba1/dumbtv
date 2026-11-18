@@ -32,7 +32,7 @@ public final class AppSectionsTest {
         cfg.set("appstyle.alpha.size", "large");
 
         AppStyle.save(cfg, item, "Renamed", item.label.toString(),
-                "custom.png", "#123456", "large", false);
+                "custom.png", "#123456", false);
         check("always".equals(cfg.get("appstyle.alpha.labels", "")),
                 "ordinary save preserves per-app labels");
         check("glow".equals(cfg.get("appstyle.alpha.shadow", "")),
@@ -46,7 +46,7 @@ public final class AppSectionsTest {
                 "ordinary save applies background");
 
         AppStyle.save(cfg, item, item.label.toString(), item.label.toString(),
-                null, null, "normal", true);
+                null, null, true);
         check("".equals(cfg.get("appstyle.alpha.labels", "")),
                 "explicit reset clears per-app labels");
         check("".equals(cfg.get("appstyle.alpha.shadow", "")),
