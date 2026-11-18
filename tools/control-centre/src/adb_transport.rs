@@ -581,11 +581,25 @@ pub async fn push_staged_apk(
 /// Install the already checksum-verified published DumbTV APK on an API 25
 /// Fire TV. This intentionally does not uninstall an existing package: an
 /// update signed with a different key must fail without deleting user settings.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct LauncherBackup {
+    schema_version: u32,
+    manufacturer: String,
+    model: String,
+    build_display_id: String,
+    android_sdk: u32,
+    usage_stats_mode: String,
+    auto_start_mode: Option<String>,
+    read_logs_granted: bool,
+    idle_whitelisted: bool,
+}
+
 pub async fn install_launcher(
     ip: IpAddr,
     expected: &DeviceProfile,
     apk_bytes: &[u8],
     expected_version_code: u64,
+    backup_path: &Path,
 ) -> Result<String, String> {
     if expected.launcher_compatibility() != Compatibility::Supported {
         return Err("DumbTV HOME installation is supported only on Amazon Fire OS 6 / API 25".into());
@@ -593,6 +607,48 @@ pub async fn install_launcher(
     if expected_version_code == 0 {
         return Err("launcher release versionCode is invalid".into());
     }
+    if backup_path.exists() {
+        return Err("a launcher restore backup already exists; undo the previous installation before starting another".into());
+    }
+    let package = crate::apk_release::LAUNCHER_PACKAGE;
+    let mut before = connect(ip).await?;
+    let actual = read_profile(&mut before).await?;
+    if !same_device(&actual, expected) || actual.sdk != 25 {
+        return Err("device identity or API level changed before launcher installation".into());
+    }
+    let inventory = read_package_inventory(&mut before).await?;
+    let package_installed = inventory.installed.contains(package);
+    let usage_output = run_command(&mut before, &format!("appops get {package} GET_USAGE_STATS")).await?;
+    let usage_stats_mode = parse_appop_mode(&usage_output, "GET_USAGE_STATS")?;
+    let auto_output = run_command(&mut before, &format!("appops get {package} AUTO_START")).await.unwrap_or_default();
+    let auto_start_mode = if auto_output.contains("Unknown operation string: AUTO_START") {
+        None
+    } else {
+        Some(parse_appop_mode(&auto_output, "AUTO_START")?)
+    };
+    let package_dump = if package_installed {
+        run_command(&mut before, &format!("dumpsys package {package}")).await?
+    } else {
+        String::new()
+    };
+    let read_logs_granted = package_dump.lines().any(|line| {
+        let line = line.trim();
+        line.starts_with("android.permission.READ_LOGS:") && line.contains("granted=true")
+    });
+    let whitelist_before = run_command(&mut before, "dumpsys deviceidle whitelist").await?;
+    let backup = LauncherBackup {
+        schema_version: 1,
+        manufacturer: expected.manufacturer.clone(),
+        model: expected.model.clone(),
+        build_display_id: expected.build_display_id.clone(),
+        android_sdk: expected.sdk,
+        usage_stats_mode,
+        auto_start_mode,
+        read_logs_granted,
+        idle_whitelisted: whitelist_before.contains(package),
+    };
+    drop(before);
+
     let remote = "/data/local/tmp/dumbtv-home-release.apk";
     push_staged_apk(ip, expected, remote, apk_bytes).await?;
 
@@ -609,7 +665,15 @@ pub async fn install_launcher(
         return Err(format!("Android package installer did not report Success: {}", installed.trim()));
     }
 
-    let package = crate::apk_release::LAUNCHER_PACKAGE;
+    let backup_bytes = serde_json::to_vec_pretty(&backup)
+        .map_err(|error| format!("cannot encode launcher restore backup: {error}"))?;
+    if let Some(parent) = backup_path.parent() {
+        fs::create_dir_all(parent).map_err(|error| format!("cannot create launcher backup folder: {error}"))?;
+    }
+    AtomicFile::new(backup_path, AllowOverwrite)
+        .write(|file| file.write_all(&backup_bytes))
+        .map_err(|error| format!("cannot persist launcher restore backup: {error}"))?;
+
     run_command(&mut connection, &format!("dumpsys deviceidle whitelist +{package}")).await?;
     let whitelist = run_command(&mut connection, "dumpsys deviceidle whitelist").await?;
     if !whitelist.contains(package) {
@@ -671,7 +735,30 @@ pub async fn install_launcher(
 
 /// Return HOME to Amazon and remove the runtime grants exactly as the existing
 /// launcher undo script does. The launcher APK remains installed.
-pub async fn undo_launcher(ip: IpAddr, expected: &DeviceProfile) -> Result<String, String> {
+pub async fn undo_launcher(
+    ip: IpAddr,
+    expected: &DeviceProfile,
+    backup_path: &Path,
+) -> Result<String, String> {
+    let backup = if backup_path.is_file() {
+        let bytes = fs::read(backup_path).map_err(|error| format!("cannot read launcher restore backup: {error}"))?;
+        if bytes.len() > 64 * 1024 {
+            return Err("launcher restore backup exceeds the 64 KiB safety limit".into());
+        }
+        let value: LauncherBackup = serde_json::from_slice(&bytes)
+            .map_err(|error| format!("launcher restore backup is invalid: {error}"))?;
+        if value.schema_version != 1
+            || value.manufacturer != expected.manufacturer
+            || value.model != expected.model
+            || value.build_display_id != expected.build_display_id
+            || value.android_sdk != expected.sdk
+        {
+            return Err("launcher restore backup does not match this Fire TV identity".into());
+        }
+        Some(value)
+    } else {
+        None
+    };
     let mut connection = connect(ip).await?;
     let actual = read_profile(&mut connection).await?;
     if !same_device(&actual, expected) {
@@ -679,28 +766,49 @@ pub async fn undo_launcher(ip: IpAddr, expected: &DeviceProfile) -> Result<Strin
     }
     let package = crate::apk_release::LAUNCHER_PACKAGE;
     let _ = run_command(&mut connection, &format!("am force-stop {package}")).await;
-    run_command(&mut connection, &format!("appops set {package} GET_USAGE_STATS default")).await?;
-    let _ = run_command(&mut connection, &format!("appops set {package} AUTO_START default")).await;
+    let usage_mode = backup.as_ref().map(|value| value.usage_stats_mode.as_str()).unwrap_or("default");
+    run_command(&mut connection, &format!("appops set {package} GET_USAGE_STATS {usage_mode}")).await?;
+    if let Some(mode) = backup.as_ref().and_then(|value| value.auto_start_mode.as_deref()) {
+        run_command(&mut connection, &format!("appops set {package} AUTO_START {mode}")).await?;
+    } else {
+        let _ = run_command(&mut connection, &format!("appops set {package} AUTO_START default")).await;
+    }
     let _ = run_command(&mut connection, "appops write-settings").await;
-    run_command(&mut connection, &format!("pm revoke {package} android.permission.READ_LOGS")).await?;
-    run_command(&mut connection, &format!("dumpsys deviceidle whitelist -{package}")).await?;
+    let keep_read_logs = backup.as_ref().is_some_and(|value| value.read_logs_granted);
+    if keep_read_logs {
+        run_command(&mut connection, &format!("pm grant {package} android.permission.READ_LOGS")).await?;
+    } else {
+        run_command(&mut connection, &format!("pm revoke {package} android.permission.READ_LOGS")).await?;
+    }
+    let keep_whitelisted = backup.as_ref().is_some_and(|value| value.idle_whitelisted);
+    if keep_whitelisted {
+        run_command(&mut connection, &format!("dumpsys deviceidle whitelist +{package}")).await?;
+    } else {
+        run_command(&mut connection, &format!("dumpsys deviceidle whitelist -{package}")).await?;
+    }
     run_command(&mut connection, "am start -a android.intent.action.MAIN -c android.intent.category.HOME").await?;
+
     let usage = run_command(&mut connection, &format!("appops get {package} GET_USAGE_STATS")).await?;
-    if parse_appop_mode(&usage, "GET_USAGE_STATS")? != "default" {
-        return Err("UsageStats AppOp did not return to default during launcher undo".into());
+    if parse_appop_mode(&usage, "GET_USAGE_STATS")? != usage_mode {
+        return Err("UsageStats AppOp did not return to its captured pre-install state".into());
     }
     let whitelist = run_command(&mut connection, "dumpsys deviceidle whitelist").await?;
-    if whitelist.contains(package) {
-        return Err("DumbTV HOME remains on the device-idle whitelist after undo".into());
+    if whitelist.contains(package) != keep_whitelisted {
+        return Err("DumbTV HOME device-idle whitelist did not return to its captured pre-install state".into());
     }
     let permission = run_command(&mut connection, &format!("dumpsys package {package}")).await?;
-    if permission.lines().any(|line| {
+    let granted = permission.lines().any(|line| {
         let line = line.trim();
         line.starts_with("android.permission.READ_LOGS:") && line.contains("granted=true")
-    }) {
-        return Err("Keeper READ_LOGS remains granted after launcher undo".into());
+    });
+    if granted != keep_read_logs {
+        return Err("Keeper READ_LOGS permission did not return to its captured pre-install state".into());
     }
-    Ok("Amazon HOME restored. DumbTV HOME remains installed; its Keeper grants and idle whitelist have been reset.".into())
+    if backup.is_some() {
+        fs::remove_file(backup_path)
+            .map_err(|error| format!("device state was restored, but the local launcher backup could not be retired: {error}"))?;
+    }
+    Ok("Amazon HOME restored. DumbTV HOME remains installed; Keeper permissions and idle-whitelist state have been returned to their pre-install values.".into())
 }
 
 /// Install the pinned SmartTube release. A dropped Wi-Fi ADB session after the
