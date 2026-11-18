@@ -310,8 +310,8 @@ mod tests {
 
     fn inventory() -> PackageInventory {
         PackageInventory::from_pm_outputs(
-            "package:com.amazon.ads\npackage:com.amazon.client.metrics\npackage:com.example.player\n",
-            "package:com.amazon.ads\npackage:com.amazon.client.metrics\n",
+            "package:com.amazon.ads\npackage:com.amazon.hedwig\npackage:com.amazon.client.metrics\npackage:com.example.player\n",
+            "package:com.amazon.ads\npackage:com.amazon.hedwig\npackage:com.amazon.client.metrics\n",
             "",
         ).unwrap()
     }
@@ -338,7 +338,7 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let remove = ["com.example.player".to_owned()].into_iter().collect();
         let choices = PackageChoices { remove, ..PackageChoices::default() };
-        let uids = [("com.amazon.client.metrics".to_owned(), 10025), ("com.amazon.ads".to_owned(), 10026)].into_iter().collect();
+        let uids = [("com.amazon.client.metrics".to_owned(), 10025), ("com.amazon.hedwig".to_owned(), 10026)].into_iter().collect();
         let original = snapshot();
         let plan = build_cleanup_plan(&root, 25, &inventory(), &choices, &uids, &original).unwrap();
         assert!(plan.operations.iter().any(|item| matches!(
@@ -347,7 +347,7 @@ mod tests {
         )));
         assert!(!plan.operations.iter().any(|item| matches!(
             &item.command, DeviceCommand::UninstallPackageForUser { package, .. }
-                if package == "com.amazon.ads"
+                if package == "com.amazon.hedwig"
         )));
         assert!(plan.operations.iter().any(|item| matches!(
             &item.command, DeviceCommand::AddMeteredBlacklistUid(10025)
