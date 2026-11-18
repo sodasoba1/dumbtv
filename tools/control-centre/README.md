@@ -19,7 +19,7 @@ The active source manifest is stored separately in `active-source.json`. Existin
 
 ## Not enabled in this first test build
 
-ADB connection and device operations are deliberately not enabled yet. The first Rust migration foundations now include typed device identity/compatibility gates and a parser for the existing Fire OS package catalogues. The shell-to-Rust mapping and safety invariants are documented in `MIGRATION-PLAN.md`. The ADB protocol and authentication dependency still need final selection and physical AFTMM testing. This build does not bundle Google's platform-tools, Python, Bash, Git or any ADB executable.
+ADB connection and device operations are deliberately not enabled yet. The first Rust migration foundations now include typed device identity/compatibility gates and a parser for the existing Fire OS package catalogues. The shell-to-Rust mapping and safety invariants are documented in `MIGRATION-PLAN.md`. The current ADB candidate and authentication design are assessed in `ADB-RESEARCH.md`; physical AFTMM testing is still required. This build does not bundle Google's platform-tools, Python, Bash, Git or any ADB executable.
 
 No debloat, package, settings, launcher, Keeper, install or restore operation can be triggered from this GUI. The new Rust modules are offline foundations only; they do not connect to or modify a TV.
 
