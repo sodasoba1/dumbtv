@@ -18,10 +18,19 @@ by this migration.
   installed, system, user and disabled sets; accepts the special `android`
   framework package and rejects inconsistent inventories.
 - `package_plan.rs`: builds an offline, read-only cleanup plan from the
-  catalogue, installed/system package inventories and explicit owner choices and original enabled/disabled state.
-  Defaults keep Alexa; already-disabled packages are skipped; named system apps
-  are disabled; named user apps are uninstalled; never-disable entries are
-  rejected; contradictory keep/remove choices fail closed.
+  catalogue, installed/system package inventories, original enabled/disabled
+  state and explicit owner choices. Defaults keep Alexa; already-disabled
+  packages are skipped; named system apps are disabled; named user apps are
+  uninstalled; never-disable entries are rejected; contradictory keep/remove
+  choices fail closed.
+- `adb_auth.rs`: encodes the 2048-bit RSA public key into Android's mincrypt
+  ADB AUTH format and calculates both the Android 7 MD5 prompt fingerprint
+  and a separate SHA-256 fingerprint.
+- `cng_auth.rs`: creates a dedicated non-exportable host key in the current
+  Windows user's CNG key store and signs ADB AUTH tokens with PKCS#1 v1.5/SHA-1.
+- `adb_transport.rs`: connects to one owner-entered private/local IP on TCP
+  5555, uses bounded ADB buffers, reads device properties, and queries package
+  inventories only after the Amazon Fire OS SDK 25–30 compatibility gate.
 - Unit tests cover API 25/28/30, unsupported manufacturers, older/newer SDKs,
   getprop parsing, catalogue parsing, actual repository catalogues, duplicate
   entries, generation fallback and cleanup-plan safety rules.
@@ -45,9 +54,9 @@ by this migration.
 ## Implementation order
 
 1. **ADB transport and authentication:** select a Rust protocol library and a
-   maintained signing implementation; validate legacy TCP ADB and RSA trust on
-   the AFTMM. Until then, the GUI exposes no connection or device-changing
-   controls.
+   Windows CNG signing implementation; validate legacy TCP ADB and RSA trust on
+   the AFTMM. Until physical validation, the GUI exposes guarded read-only
+   inspection only; no device-changing controls are available.
 2. **Read-only inventory:** connect to one explicitly selected device, collect
    the minimum required properties, package states, settings and capabilities,
    and build a report. No device writes.
