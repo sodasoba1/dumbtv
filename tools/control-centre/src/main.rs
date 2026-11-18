@@ -471,7 +471,8 @@ impl ControlCentre {
                     .map_err(|error| format!("cannot start the ADB runtime: {error}"))?;
                 let report = runtime.block_on(adb_transport::execute_plan(ip, &profile, &original, &plan.operations, &never_disable, &journal_path))?;
                 let rebooted = if report.failure.is_none() && reboot_after_cleanup {
-                    runtime.block_on(adb_transport::reboot_and_reconnect(ip, &profile, &plan.operations))?;
+                    let journal = operation_journal::OperationJournal::load(&journal_path)?;
+                    runtime.block_on(adb_transport::reboot_and_reconnect(ip, &profile, &plan.operations, &journal))?;
                     true
                 } else { false };
                 Ok((report, rebooted))
