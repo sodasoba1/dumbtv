@@ -979,12 +979,13 @@ pub async fn undo_smarttube(
     let home_conf_path = "/sdcard/Android/data/tv.dumbtv.home/files/home.conf";
     if let Some(applied) = backup.applied_home_conf.as_deref() {
         let current = read_remote_small_file(&mut connection, home_conf_path).await?;
-        if current.as_deref() != Some(applied) {
-            return Err("DumbTV home.conf has been edited since SmartTube replacement; refusing to overwrite the newer user settings. The restore backup has been retained.".into());
-        }
         let original = backup.home_conf.as_deref()
             .ok_or("restore backup is missing the original home.conf bytes")?;
-        push_remote_small_file(ip, expected, home_conf_path, original).await?;
+        if current.as_deref() == Some(applied) {
+            push_remote_small_file(ip, expected, home_conf_path, original).await?;
+        } else if current.as_deref() != Some(original) {
+            return Err("DumbTV home.conf has been edited since SmartTube replacement; refusing to overwrite the newer user settings. The restore backup has been retained.".into());
+        }
     }
     if backup.stock_youtube_installed {
         let stock = crate::apk_release::STOCK_YOUTUBE_PACKAGE;
