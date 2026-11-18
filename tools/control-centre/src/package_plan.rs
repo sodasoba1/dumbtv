@@ -31,6 +31,7 @@ pub enum PackageActionKind {
     SkipKept,
     SkipNeverDisable,
     SkipNotInstalled,
+    SkipAlreadyDisabled,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,6 +51,7 @@ pub fn build_package_plan(
     choices: &PackageChoices,
     installed: &BTreeSet<String>,
     system: &BTreeSet<String>,
+    disabled: &BTreeSet<String>,
 ) -> Result<PackagePlan, String> {
     for package in choices.keep.iter().chain(choices.remove.iter()) {
         if !valid_package_name(package) {
@@ -122,6 +124,12 @@ pub fn build_package_plan(
                 kind: PackageActionKind::SkipNotInstalled,
                 reason: "not installed on this device".into(),
             });
+        } else if disabled.contains(&package) {
+            actions.push(PackageAction {
+                package,
+                kind: PackageActionKind::SkipAlreadyDisabled,
+                reason: "already disabled before this run".into(),
+            });
         } else {
             actions.push(PackageAction {
                 package,
@@ -140,6 +148,12 @@ pub fn build_package_plan(
                 package: package.clone(),
                 kind: PackageActionKind::SkipNotInstalled,
                 reason: "owner-named package is not installed".into(),
+            });
+        } else if system.contains(package) && disabled.contains(package) {
+            actions.push(PackageAction {
+                package: package.clone(),
+                kind: PackageActionKind::SkipAlreadyDisabled,
+                reason: "owner-named system app is already disabled".into(),
             });
         } else if system.contains(package) {
             actions.push(PackageAction {
@@ -187,6 +201,7 @@ mod tests {
             &PackageChoices::default(),
             &installed,
             &BTreeSet::new(),
+            &BTreeSet::new(),
         )
         .unwrap();
 
@@ -217,6 +232,7 @@ mod tests {
             &PackageChoices::default(),
             &installed,
             &BTreeSet::new(),
+            &BTreeSet::new(),
         )
         .unwrap();
         assert!(plan.actions.iter().any(|action| {
@@ -233,6 +249,7 @@ mod tests {
             &PackageChoices { keep_alexa: false, ..Default::default() },
             &installed,
             &BTreeSet::new(),
+            &BTreeSet::new(),
         )
         .unwrap();
         assert!(plan.actions.iter().any(|action| {
@@ -248,6 +265,7 @@ mod tests {
             &catalogue(),
             &PackageChoices { keep_alexa: true, remove, ..Default::default() },
             &installed,
+            &BTreeSet::new(),
             &BTreeSet::new(),
         )
         .unwrap();
@@ -267,6 +285,7 @@ mod tests {
             &PackageChoices { keep_alexa: true, remove, ..Default::default() },
             &installed,
             &system,
+            &BTreeSet::new(),
         )
         .unwrap();
         assert!(plan.actions.iter().any(|action| {
