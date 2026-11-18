@@ -8,7 +8,6 @@
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    fs::OpenOptions,
     io::Write,
     path::Path,
 };
@@ -91,15 +90,14 @@ impl DeviceSnapshot {
             .map_err(|error| format!("cannot create snapshot folder: {error}"))?;
         let bytes = serde_json::to_vec_pretty(self)
             .map_err(|error| format!("cannot encode original snapshot: {error}"))?;
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(path)
-            .map_err(|error| format!("cannot create original snapshot without overwrite: {error}"))?;
-        file.write_all(&bytes)
-            .map_err(|error| format!("cannot write original snapshot: {error}"))?;
-        file.sync_all()
-            .map_err(|error| format!("cannot flush original snapshot: {error}"))?;
+        let mut staged = tempfile::NamedTempFile::new_in(parent)
+            .map_err(|error| format!("cannot stage original snapshot: {error}"))?;
+        staged.write_all(&bytes)
+            .map_err(|error| format!("cannot write staged original snapshot: {error}"))?;
+        staged.as_file().sync_all()
+            .map_err(|error| format!("cannot flush staged original snapshot: {error}"))?;
+        staged.persist_noclobber(path)
+            .map_err(|error| format!("cannot atomically save original snapshot without overwrite: {}", error.error))?;
         Ok(())
     }
 }
