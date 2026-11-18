@@ -26,7 +26,7 @@ const COMMAND_OUTPUT_LIMIT: usize = 256 * 1024;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceInventory {
     pub profile: DeviceProfile,
-    pub packages: PackageInventory,
+    pub packages: Option<PackageInventory>,
 }
 
 #[derive(Clone, Copy)]
@@ -84,6 +84,12 @@ pub async fn inspect_device(ip: IpAddr) -> Result<DeviceInventory, String> {
     let properties = run_read_only_command(&mut connection, ReadOnlyCommand::GetProp).await?;
     let profile = DeviceProfile::parse_getprop_output(&properties)?;
 
+    // Do not collect installed-app inventory from an unrecognised or
+    // unvalidated Android device. Identity is the first compatibility gate.
+    if profile.cleanup_compatibility() != crate::device_profile::Compatibility::Supported {
+        return Ok(DeviceInventory { profile, packages: None });
+    }
+
     let all_packages = run_read_only_command(&mut connection, ReadOnlyCommand::AllPackages).await?;
     let system_packages = run_read_only_command(&mut connection, ReadOnlyCommand::SystemPackages).await?;
     let disabled_packages =
@@ -94,7 +100,7 @@ pub async fn inspect_device(ip: IpAddr) -> Result<DeviceInventory, String> {
         &disabled_packages,
     )?;
 
-    Ok(DeviceInventory { profile, packages })
+    Ok(DeviceInventory { profile, packages: Some(packages) })
 }
 
 async fn run_read_only_command(
