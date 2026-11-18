@@ -48,6 +48,7 @@ jobs:
       - name: Commit generated lockfile and rustfmt output to the same-repository PR branch
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         continue-on-error: true
+        working-directory: tools/control-centre
         shell: pwsh
         env:
           PR_BRANCH: ${{ github.head_ref }}
