@@ -904,20 +904,18 @@ fn load_unfinished_journals() -> Vec<String> {
         Ok(entries) => entries,
         Err(_) => return Vec::new(),
     };
-    // Journal filenames begin with workflow and Unix time. Sort before limiting
-    // so a large history cannot hide the most recent recovery items.
-    let mut paths: Vec<PathBuf> = entries.flatten()
+    let mut journals: Vec<(u64, PathBuf, operation_journal::OperationJournal)> = entries.flatten()
         .map(|entry| entry.path())
         .filter(|path| path.extension().and_then(|value| value.to_str()) == Some("json"))
+        .filter_map(|path| operation_journal::OperationJournal::load(&path).ok()
+            .map(|journal| (journal.created_unix_seconds, path, journal)))
         .collect();
-    paths.sort_by(|left, right| right.file_name().cmp(&left.file_name()));
-    paths.truncate(256);
+    // Keep the newest recovery records, regardless of cleanup/restore filename prefix.
+    journals.sort_by(|left, right| right.0.cmp(&left.0));
+    journals.truncate(256);
 
     let mut summaries = Vec::new();
-    for path in paths {
-        let Ok(journal) = operation_journal::OperationJournal::load(&path) else {
-            continue;
-        };
+    for (_, path, journal) in journals {
         let verified = journal.operations.iter().filter(|item| item.status == operation_journal::OperationStatus::Verified).count();
         let running = journal.operations.iter().filter(|item| item.status == operation_journal::OperationStatus::Running).count();
         let failed = journal.operations.iter().filter(|item| item.status == operation_journal::OperationStatus::Failed).count();
