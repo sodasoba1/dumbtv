@@ -28,6 +28,7 @@ const KEY_NAME: [u16; 33] = wide("DumbTV-ControlCentre-ADB-HostKey");
 const LENGTH_PROPERTY: [u16; 7] = wide("Length");
 const EXPORT_POLICY_PROPERTY: [u16; 14] = wide("Export Policy");
 const RSA_PUBLIC_BLOB: [u16; 14] = wide("RSAPUBLICBLOB");
+const RSA_FULL_PRIVATE_BLOB: [u16; 19] = wide("RSAFULLPRIVATEBLOB");
 const SHA1_ALGORITHM: [u16; 5] = wide("SHA1");
 const PUBLIC_KEY_NAME: &str = "dumbtv-control-centre@windows";
 
@@ -194,6 +195,24 @@ impl WindowsCngAdbKey {
             return Err(format!("set ephemeral ADB key length failed (0x{:08x})", set_status as u32));
         }
 
+        let export_policy = 0u32.to_le_bytes();
+        let policy_status = unsafe {
+            NCryptSetProperty(
+                key,
+                EXPORT_POLICY_PROPERTY.as_ptr(),
+                export_policy.as_ptr(),
+                export_policy.len() as u32,
+                0,
+            )
+        };
+        if policy_status != STATUS_SUCCESS {
+            unsafe {
+                NCryptFreeObject(key);
+                NCryptFreeObject(provider);
+            }
+            return Err(format!("make ephemeral ADB key non-exportable failed (0x{:08x})", policy_status as u32));
+        }
+
         let finalize_status = unsafe { NCryptFinalizeKey(key, 0) };
         if finalize_status != STATUS_SUCCESS {
             unsafe {
@@ -353,6 +372,22 @@ mod tests {
         let token = [0x5au8; 20];
         let signature = key.sign_token(&token).unwrap();
         assert_eq!(signature.len(), 256);
+
+        let mut private_blob = vec![0u8; 4096];
+        let mut private_written = 0u32;
+        let private_export_status = unsafe {
+            NCryptExportKey(
+                key.key,
+                0,
+                RSA_FULL_PRIVATE_BLOB.as_ptr(),
+                ptr::null(),
+                private_blob.as_mut_ptr(),
+                private_blob.len() as u32,
+                &mut private_written,
+                0,
+            )
+        };
+        assert_ne!(private_export_status, STATUS_SUCCESS, "private host key must not be exportable");
 
         let digest = Sha1::digest(token);
         let padding = BCRYPT_PKCS1_PADDING_INFO {
