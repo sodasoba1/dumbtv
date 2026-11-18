@@ -314,9 +314,7 @@ fn load_active_source() -> Result<Option<ActiveSource>, String> {
         return Err("source manifest does not identify the expected repository and commit".into());
     }
     let source = app_root()?.join("source-versions").join(&manifest.commit);
-    if !source.join("README.md").is_file() || !source.join("LICENSE").is_file() {
-        return Err("active source folder is missing expected repository files".into());
-    }
+    validate_source_tree(&source)?;
     Ok(Some(manifest))
 }
 
@@ -362,9 +360,8 @@ fn download_latest_source() -> Result<String, String> {
     let destination = versions.join(&latest);
 
     if destination.exists() {
-        if !destination.join("README.md").is_file() || !destination.join("LICENSE").is_file() {
-            return Err("a source folder already exists for this commit but failed validation; it was left untouched".into());
-        }
+        validate_source_tree(&destination)
+            .map_err(|error| format!("existing source folder failed validation and was left untouched: {error}"))?;
         write_active_manifest(&latest)?;
         return Ok(format!("Source {} is already downloaded and selected.", short_sha(&latest)));
     }
@@ -402,9 +399,8 @@ fn download_latest_source() -> Result<String, String> {
     extract_verified_archive(&archive_bytes, temp.path(), &latest)?;
 
     let staged_root = temp.path().join(format!("{REPOSITORY}-{latest}"));
-    if !staged_root.join("README.md").is_file() || !staged_root.join("LICENSE").is_file() {
-        return Err("downloaded archive is missing expected repository files".into());
-    }
+    validate_source_tree(&staged_root)
+        .map_err(|error| format!("downloaded source failed validation: {error}"))?;
 
     fs::rename(&staged_root, &destination)
         .map_err(|e| format!("cannot activate downloaded source version: {e}"))?;
@@ -413,6 +409,47 @@ fn download_latest_source() -> Result<String, String> {
         "Downloaded and selected official source commit {}. Nothing from the archive was executed.",
         short_sha(&latest)
     ))
+}
+
+fn validate_source_tree(root: &Path) -> Result<(), String> {
+    for required in [
+        "README.md",
+        "LICENSE",
+        "scripts/all.sh",
+        "scripts/lib.sh",
+        "scripts/preflight.sh",
+        "scripts/configure.sh",
+        "scripts/debloat.sh",
+        "scripts/lockdown.sh",
+        "scripts/launcher.sh",
+        "scripts/youtube.sh",
+        "scripts/verify.sh",
+        "scripts/restore.sh",
+        "scripts/cleanup-legacy-dnsfilter.sh",
+        "scripts/dns-preflight.sh",
+        "launcher/install.sh",
+        "data/apps.txt",
+    ] {
+        if !root.join(required).is_file() {
+            return Err(format!("source archive is missing required file: {required}"));
+        }
+    }
+
+    let data = root.join("data");
+    for sdk in [25, 28, 30] {
+        let catalogue = catalogue::FireOsCatalogue::load(&data, sdk)?;
+        if !catalogue.never_disable.iter().any(|package| package == "com.amazon.vizzini")
+            || catalogue.packages.iter().any(|package| package == "com.amazon.vizzini")
+        {
+            return Err(format!("Fire OS SDK {sdk} catalogue violates the vizzini protection invariant"));
+        }
+    }
+
+    let settings = settings_catalogue::SettingsCatalogue::load(&data)?;
+    if settings.privacy.is_empty() || settings.restore_defaults.is_empty() {
+        return Err("source archive has an empty privacy or restore settings catalogue".into());
+    }
+    Ok(())
 }
 
 fn extract_verified_archive(bytes: &[u8], destination: &Path, expected_sha: &str) -> Result<(), String> {
@@ -532,6 +569,12 @@ fn main() -> eframe::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn validates_the_complete_maintained_source_tree() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        validate_source_tree(&root).unwrap();
+    }
 
     #[test]
     fn accepts_only_full_hex_commit_ids() {
