@@ -19,8 +19,10 @@ elif [[ $SDK != 25 ]]; then
   printf '%-10s %-38s %s\n' FAIL home "launcher supports only Fire OS 6 / API 25 (device reports API $SDK)"; fail=1
 else
   keeper=$(dev 'dumpsys activity services tv.dumbtv.home' | grep -c 'isForeground=true' || true)
-  if [[ ${keeper:-0} -gt 0 ]]; then
-    printf '%-10s %-38s %s\n' ok home "Keeper armed, front is ${home:-unknown}"
+  if [[ ${keeper:-0} -gt 0 && $home == tv.dumbtv.home/* ]]; then
+    printf '%-10s %-38s %s\n' ok home "Keeper armed, DumbTV is foreground"
+  elif [[ ${keeper:-0} -gt 0 ]]; then
+    printf '%-10s %-38s %s\n' FAIL home "Keeper is running but foreground is ${home:-unknown}"; fail=1
   else
     printf '%-10s %-38s %s\n' FAIL home "Keeper not running; re-run launcher.sh"; fail=1
   fi
@@ -30,8 +32,10 @@ else
   else
     printf '%-10s %-38s %s\n' FAIL usage-access "${usage_access:-could not read app-op}"; fail=1
   fi
-  auto_start=$(dev 'appops get tv.dumbtv.home AUTO_START' | tr -d '\r')
-  if grep -Eq 'AUTO_START:[[:space:]]*allow([,[:space:]]|$)' <<<"$auto_start"; then
+  auto_start=$(dev 'appops get tv.dumbtv.home AUTO_START' 2>&1 | tr -d '\r')
+  if grep -Fq 'Unknown operation string: AUTO_START' <<<"$auto_start"; then
+    printf '%-10s %-38s %s\n' skip standby-start "AUTO_START unsupported by this firmware; boot receiver remains available"
+  elif grep -Eq 'AUTO_START:[[:space:]]*allow([,[:space:]]|$)' <<<"$auto_start"; then
     printf '%-10s %-38s %s\n' ok standby-start "Keeper AUTO_START allowed"
   else
     printf '%-10s %-38s %s\n' FAIL standby-start "${auto_start:-AUTO_START unavailable}; rerun ./launcher/install.sh"; fail=1
