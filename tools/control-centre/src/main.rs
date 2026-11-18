@@ -1491,24 +1491,10 @@ fn download_latest_source() -> Result<String, String> {
 }
 
 fn validate_source_tree(root: &Path) -> Result<(), String> {
-    for required in [
-        "README.md",
-        "LICENSE",
-        "scripts/all.sh",
-        "scripts/lib.sh",
-        "scripts/preflight.sh",
-        "scripts/configure.sh",
-        "scripts/debloat.sh",
-        "scripts/lockdown.sh",
-        "scripts/launcher.sh",
-        "scripts/youtube.sh",
-        "scripts/verify.sh",
-        "scripts/restore.sh",
-        "scripts/cleanup-legacy-dnsfilter.sh",
-        "scripts/dns-preflight.sh",
-        "launcher/install.sh",
-        "data/apps.txt",
-    ] {
+    // The Windows controller consumes maintained catalogues and release
+    // metadata only. Shell scripts and Android source are behavioural
+    // references in the repository, not runtime inputs to this application.
+    for required in ["launcher/version.env"] {
         if !root.join(required).is_file() {
             return Err(format!(
                 "source archive is missing required file: {required}"
@@ -1591,6 +1577,17 @@ fn extract_verified_archive(
             .map_err(|_| "archive contains an unexpected top-level directory")?
             .to_path_buf();
         if relative.as_os_str().is_empty() {
+            continue;
+        }
+
+        // Retain only the small data/configuration surface needed by the
+        // installer. In particular, do not extract Android source, Gradle
+        // projects, APK build inputs, or shell scripts into the managed cache.
+        let relative_text = relative.to_string_lossy().replace('\\\\', "/");
+        let keep = relative_text.starts_with("data/")
+            || relative_text == "launcher/version.env"
+            || (entry.is_dir() && relative_text == "data");
+        if !keep {
             continue;
         }
 
@@ -1731,6 +1728,39 @@ mod tests {
         assert!(safe_windows_archive_path(
             "dumbtv/tools/control-centre/README.md"
         ));
+    }
+
+    #[test]
+    fn extracts_only_installer_catalogues_and_release_metadata() {
+        let mut bytes = Vec::new();
+        {
+            let mut writer = zip::ZipWriter::new(std::io::Cursor::new(&mut bytes));
+            let root = "dumbtv-0123456789abcdef0123456789abcdef01234567/";
+            for (path, contents) in [
+                ("data/fireos/packages.txt", "com.amazon.example"),
+                ("launcher/version.env", "VERSION=1.13\\nVERSION_CODE=14\\nVERSION_NAME=1.13"),
+                ("app/build.gradle", "android source must not be retained"),
+                ("scripts/all.sh", "shell scripts are reference only"),
+            ] {
+                writer.start_file(
+                    format!("{root}{path}"),
+                    zip::write::SimpleFileOptions::default(),
+                ).unwrap();
+                writer.write_all(contents.as_bytes()).unwrap();
+            }
+            writer.finish().unwrap();
+        }
+        let dir = tempfile::tempdir().unwrap();
+        extract_verified_archive(
+            &bytes,
+            dir.path(),
+            "0123456789abcdef0123456789abcdef01234567",
+        ).unwrap();
+        let extracted = dir.path().join("dumbtv-0123456789abcdef0123456789abcdef01234567");
+        assert_eq!(fs::read_to_string(extracted.join("data/fireos/packages.txt")).unwrap(), "com.amazon.example");
+        assert!(extracted.join("launcher/version.env").is_file());
+        assert!(!extracted.join("app/build.gradle").exists());
+        assert!(!extracted.join("scripts/all.sh").exists());
     }
 
     #[test]
