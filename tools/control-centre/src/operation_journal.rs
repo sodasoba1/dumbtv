@@ -304,6 +304,24 @@ mod tests {
     }
 
     #[test]
+    fn final_verification_error_is_durable_and_keeps_journal_reviewable() {
+        let dir = tempfile::tempdir().unwrap();
+        let (manufacturer, model, build, commit) = profile_values();
+        let path = OperationJournal::create(
+            dir.path(), WorkflowKind::Cleanup, manufacturer, model, build, 25, commit,
+            &["Disable package".into()],
+        ).unwrap();
+        let mut journal = OperationJournal::load(&path).unwrap();
+        journal.mark_running(&path, 0).unwrap();
+        journal.mark_verified(&path, 0).unwrap();
+        journal.finish_with_error(&path, "final package state changed").unwrap();
+        let loaded = OperationJournal::load(&path).unwrap();
+        assert!(loaded.finished);
+        assert_eq!(loaded.workflow_error.as_deref(), Some("final package state changed"));
+        assert_eq!(loaded.operations[0].status, OperationStatus::Verified);
+    }
+
+    #[test]
     fn journal_does_not_store_network_addresses_or_raw_command_output() {
         let dir = tempfile::tempdir().unwrap();
         let (manufacturer, model, build, commit) = profile_values();
