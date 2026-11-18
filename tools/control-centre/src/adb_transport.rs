@@ -202,6 +202,7 @@ pub async fn capture_original_snapshot(
             .trim()
             .to_owned(),
         manufacturer: profile.manufacturer,
+        device_fingerprint: profile.serial_fingerprint,
         model: profile.model,
         build_display_id: profile.build_display_id,
         android_sdk: profile.sdk,
@@ -584,6 +585,7 @@ pub async fn push_staged_apk(
 struct LauncherBackup {
     schema_version: u32,
     manufacturer: String,
+    device_fingerprint: String,
     model: String,
     build_display_id: String,
     android_sdk: u32,
@@ -643,6 +645,7 @@ pub async fn install_launcher(
     let captured_backup = LauncherBackup {
         schema_version: 1,
         manufacturer: expected.manufacturer.clone(),
+        device_fingerprint: expected.serial_fingerprint.clone(),
         model: expected.model.clone(),
         build_display_id: expected.build_display_id.clone(),
         android_sdk: expected.sdk,
@@ -666,6 +669,7 @@ pub async fn install_launcher(
             .map_err(|error| format!("existing launcher restore backup is invalid: {error}"))?;
         if saved.schema_version != 1
             || saved.manufacturer != expected.manufacturer
+            || saved.device_fingerprint != expected.serial_fingerprint
             || saved.model != expected.model
             || saved.build_display_id != expected.build_display_id
             || saved.android_sdk != expected.sdk
@@ -836,6 +840,7 @@ pub async fn undo_launcher(
             .map_err(|error| format!("launcher restore backup is invalid: {error}"))?;
         if value.schema_version != 1
             || value.manufacturer != expected.manufacturer
+            || value.device_fingerprint != expected.serial_fingerprint
             || value.model != expected.model
             || value.build_display_id != expected.build_display_id
             || value.android_sdk != expected.sdk
@@ -977,6 +982,7 @@ pub async fn undo_launcher(
 struct SmartTubeBackup {
     schema_version: u32,
     manufacturer: String,
+    device_fingerprint: String,
     model: String,
     build_display_id: String,
     android_sdk: u32,
@@ -1021,6 +1027,7 @@ pub async fn install_smarttube(
     let backup = SmartTubeBackup {
         schema_version: 1,
         manufacturer: expected.manufacturer.clone(),
+        device_fingerprint: expected.serial_fingerprint.clone(),
         model: expected.model.clone(),
         build_display_id: expected.build_display_id.clone(),
         android_sdk: expected.sdk,
@@ -1180,6 +1187,7 @@ pub async fn undo_smarttube(
     }
     if backup.schema_version != 1
         || backup.manufacturer != expected.manufacturer
+        || backup.device_fingerprint != expected.serial_fingerprint
         || backup.model != expected.model
         || backup.build_display_id != expected.build_display_id
         || backup.android_sdk != expected.sdk
@@ -1640,6 +1648,7 @@ async fn validate_original_snapshot_state(
 
 fn same_device(actual: &DeviceProfile, expected: &DeviceProfile) -> bool {
     actual.manufacturer == expected.manufacturer
+        && actual.serial_fingerprint == expected.serial_fingerprint
         && actual.model == expected.model
         && actual.sdk == expected.sdk
         && actual.build_display_id == expected.build_display_id
@@ -2136,6 +2145,7 @@ mod tests {
         let backup = SmartTubeBackup {
             schema_version: 1,
             manufacturer: "Amazon".into(),
+            device_fingerprint: "a".repeat(64),
             model: "AFTMM".into(),
             build_display_id: "PS7613".into(),
             android_sdk: 25,
