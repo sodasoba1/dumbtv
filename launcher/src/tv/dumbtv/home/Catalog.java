@@ -166,6 +166,17 @@ final class Catalog {
         return i < 0 ? Integer.MAX_VALUE : i;
     }
 
+    /**
+     * Extracts the logical favourites cycle from the duplicated scrolling strip. The carousel
+     * renders three copies for seamless wraparound; only the middle copy is user-editable order.
+     */
+    static List<String> logicalCycle(List<String> rendered, int start, int count) {
+        if (rendered == null || start < 0 || count < 0 || start > rendered.size() - count) {
+            throw new IllegalArgumentException("invalid carousel cycle");
+        }
+        return new ArrayList<>(rendered.subList(start, start + count));
+    }
+
     /** Saves {@code ids} as the new order, keeping the old positions of hidden items after them. */
     static void saveOrder(Config cfg, String kind, List<String> ids) {
         List<String> order = new ArrayList<>(ids);

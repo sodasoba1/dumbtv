@@ -6,6 +6,7 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Fire OS 6 settings persistence, export and failed-write checks; no TV required. */
 public final class ConfigTest {
@@ -151,6 +152,67 @@ public final class ConfigTest {
         }
     }
 
+    private static void customTextRoundTrips() throws Exception {
+        try (Fixture f = new Fixture()) {
+            Config cfg = f.open();
+            cfg.setText("widgets.singleline", "Readable text");
+            check("Readable text".equals(cfg.getText("widgets.singleline", "")),
+                    "single-line custom text remains readable");
+            String expected = "First line\nSecond=line\\path\n雪";
+            cfg.setText("widgets.text", expected);
+            String stored = new String(Files.readAllBytes(f.settings.toPath()), StandardCharsets.UTF_8);
+            check(stored.contains("widgets.text=!dumbtv-text-v1!"),
+                    "multiline widget text is stored on one settings line");
+            Config reopened = f.open();
+            check(expected.equals(reopened.getText("widgets.text", "Custom text")),
+                    "multiline text, equals, backslash and Unicode survive restart");
+            check("Readable text".equals(reopened.getText("widgets.singleline", "")),
+                    "single-line text survives restart without encoding");
+            check("legacy text".equals(Config.decodeText("legacy text")),
+                    "legacy plain-text values remain readable");
+            reopened.setText("widgets.text", "");
+            check("Custom text".equals(reopened.getText("widgets.text", "Custom text")),
+                    "empty custom text keeps the normal fallback");
+        }
+    }
+
+    private static void concurrentSettingsAccess() throws Exception {
+        try (Fixture f = new Fixture()) {
+            final Config cfg = f.open();
+            final AtomicReference<Throwable> failure = new AtomicReference<>();
+            Thread writer = new Thread(() -> {
+                try {
+                    for (int i = 0; i < 30; i++) cfg.set("race.value", String.valueOf(i));
+                } catch (Throwable e) {
+                    failure.compareAndSet(null, e);
+                }
+            });
+            Runnable reader = () -> {
+                try {
+                    for (int i = 0; i < 100; i++) {
+                        cfg.get("race.value", "");
+                        cfg.get(Config.ACCENT);
+                        cfg.joined("race.");
+                        cfg.list("apps.order");
+                        cfg.accent();
+                    }
+                } catch (Throwable e) {
+                    failure.compareAndSet(null, e);
+                }
+            };
+            Thread firstReader = new Thread(reader);
+            Thread secondReader = new Thread(reader);
+            writer.start();
+            firstReader.start();
+            secondReader.start();
+            writer.join();
+            firstReader.join();
+            secondReader.join();
+            check(failure.get() == null, "concurrent settings reads and writes remain safe: " + failure.get());
+            check("29".equals(cfg.get("race.value", "")), "concurrent writer completes its final setting");
+        }
+    }
+
     private static void failedWriteCanRecover() throws Exception {
         try (Fixture f = new Fixture()) {
             File blocked = new File(f.dir, Config.FILE + ".tmp");
@@ -172,6 +234,8 @@ public final class ConfigTest {
         themeAndTileSizePresets();
         favouritesAlignmentDefaultsAndPersists();
         toolbarAutoHideDefaultsAndPersists();
+        customTextRoundTrips();
+        concurrentSettingsAccess();
         failedWriteCanRecover();
         System.out.println("ConfigTest passed (settings persistence, export, custom colours, legacy values, top bar auto-hide, failed-write recovery)");
     }

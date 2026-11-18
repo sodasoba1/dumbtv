@@ -771,7 +771,7 @@ public final class Home extends Activity {
         storageMeter.setAccent(cfg.accent());
         storageWidget = storageFrame;
         storageFrame.addView(storageMeter, new FrameLayout.LayoutParams(MATCH, WRAP, Gravity.CENTER));
-        textWidget = widgetText(cfg.get("widgets.text", "Custom text"));
+        textWidget = widgetText(cfg.getText("widgets.text", "Custom text"));
         diagnosticsWidget = widgetText("DumbTV diagnostics\nCollecting process information…");
         diagnosticsWidget.setMaxLines(4);
         diagnosticsWidget.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
@@ -1188,7 +1188,7 @@ public final class Home extends Activity {
         FrameLayout.LayoutParams scrollParams = (FrameLayout.LayoutParams) homeScroll.getLayoutParams();
         scrollParams.bottomMargin = favoriteBottomReserve();
         homeScroll.setLayoutParams(scrollParams);
-        textWidget.setText(cfg.get("widgets.text", "Custom text"));
+        textWidget.setText(cfg.getText("widgets.text", "Custom text"));
         applyWidgetFontSizes();
         updateRecentWidget();
         updateSystemWidgets();
@@ -1308,7 +1308,7 @@ public final class Home extends Activity {
             return;
         }
         int renderGeneration = ++row.renderGeneration;
-        if (moving != null && moving.kind.equals(row.kind)) stopMoving();
+        if (moving != null && moving.kind.equals(row.kind)) stopMoving(false);
         View focused = getCurrentFocus();
         String keep = focused instanceof Tile && ((Tile) focused).kind.equals(row.kind)
                 ? ((Tile) focused).item.id : null;
@@ -1808,8 +1808,22 @@ public final class Home extends Activity {
                                 Toast.makeText(this, R.string.move_needs_order, Toast.LENGTH_LONG).show();
                                 break;
                             }
-                            moving = t;
-                            t.setMoving(true);
+                            Tile target = t;
+                            ViewGroup strip = (ViewGroup) t.getParent();
+                            int cycleStart = favouriteCycleStart(strip, t.kind);
+                            if (cycleStart > 0) {
+                                int item = strip.indexOfChild(t) % cycleStart;
+                                target = (Tile) strip.getChildAt(cycleStart + item);
+                                target.requestFocus();
+                            }
+                            moving = target;
+                            target.setMoving(true);
+                            Tile focusTarget = target;
+                            ui.post(() -> {
+                                if (moving == focusTarget && focusTarget.getParent() != null) {
+                                    focusTarget.requestFocus();
+                                }
+                            });
                             break;
                         case R.string.tile_rename:
                             rename(t);
@@ -1879,10 +1893,22 @@ public final class Home extends Activity {
         Ui.styleDialog(d);
     }
 
+    /** Start index of the editable middle cycle, or zero for a normal single-copy row. */
+    private int favouriteCycleStart(ViewGroup strip, String kind) {
+        Row owner = row(kind);
+        if (owner == apps && owner.initialFocusIndex > 0
+                && strip.getChildCount() == owner.initialFocusIndex * 3) {
+            return owner.initialFocusIndex;
+        }
+        return 0;
+    }
+
     private void shift(int by) {
         ViewGroup strip = (ViewGroup) moving.getParent();
+        int start = favouriteCycleStart(strip, moving.kind);
+        int end = start > 0 ? start * 2 : strip.getChildCount();
         int from = strip.indexOfChild(moving), to = from + by;
-        if (to < 0 || to >= strip.getChildCount()) return;
+        if (to < start || to >= end) return;
         ViewGroup.LayoutParams lp = moving.getLayoutParams();
         strip.removeViewAt(from);
         strip.addView(moving, to, lp);
@@ -1890,15 +1916,24 @@ public final class Home extends Activity {
     }
 
     private void stopMoving() {
+        stopMoving(true);
+    }
+
+    private void stopMoving(boolean refreshCarousel) {
         Tile t = moving;
         moving = null;
         t.setMoving(false);
         ViewGroup strip = (ViewGroup) t.getParent();
         if (strip == null) return;
-        List<String> ids = new ArrayList<>();
-        for (int i = 0; i < strip.getChildCount(); i++) ids.add(((Tile) strip.getChildAt(i)).item.id);
-        Catalog.saveOrder(cfg, t.kind, ids);
+        int start = favouriteCycleStart(strip, t.kind);
+        int count = start > 0 ? start : strip.getChildCount();
+        List<String> rendered = new ArrayList<>();
+        for (int i = 0; i < strip.getChildCount(); i++) {
+            rendered.add(((Tile) strip.getChildAt(i)).item.id);
+        }
+        Catalog.saveOrder(cfg, t.kind, Catalog.logicalCycle(rendered, start, count));
         applied = cfg.version();
+        if (refreshCarousel && Catalog.APPS.equals(t.kind)) render(apps);
     }
 
     private int dp(float v) {

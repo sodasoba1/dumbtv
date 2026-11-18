@@ -60,6 +60,20 @@ public final class AppSectionsTest {
             Catalog.setShown(cfg, Catalog.APPS, b, true);
             ids(Catalog.visible(cfg, Catalog.APPS, catalog, recent), "beta", "alpha");
 
+            List<String> carousel = Catalog.logicalCycle(Arrays.asList(
+                    "alpha", "beta", "gamma",
+                    "gamma", "alpha", "beta",
+                    "alpha", "beta", "gamma"), 3, 3);
+            check(carousel.equals(Arrays.asList("gamma", "alpha", "beta")),
+                    "carousel order comes from the editable middle copy only");
+            boolean invalidCycleRejected = false;
+            try {
+                Catalog.logicalCycle(Arrays.asList("a", "b"), 1, 2);
+            } catch (IllegalArgumentException expected) {
+                invalidCycleRejected = true;
+            }
+            check(invalidCycleRejected, "reject an invalid carousel cycle");
+
             cfg.set("lock", "on");
             ids(Catalog.visible(cfg, Catalog.ALL_APPS, catalog));
             ids(Catalog.visible(cfg, Catalog.APPS, catalog), "alpha", "beta");
