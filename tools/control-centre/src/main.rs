@@ -1,5 +1,7 @@
 use eframe::egui;
+use atomicwrites::{AllowOverwrite, AtomicFile};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::{
     fs,
     io::{Read, Write},
@@ -161,6 +163,10 @@ fn load_active_source() -> Result<Option<ActiveSource>, String> {
     if manifest.repository != format!("{OWNER}/{REPOSITORY}") || !valid_sha(&manifest.commit) {
         return Err("source manifest does not identify the expected repository and commit".into());
     }
+    let source = app_root()?.join("source-versions").join(&manifest.commit);
+    if !source.join("README.md").is_file() || !source.join("LICENSE").is_file() {
+        return Err("active source folder is missing expected repository files".into());
+    }
     Ok(Some(manifest))
 }
 
@@ -202,7 +208,10 @@ fn download_latest_source() -> Result<String, String> {
     fs::create_dir_all(&versions).map_err(|e| format!("cannot create managed source folder: {e}"))?;
     let destination = versions.join(&latest);
 
-    if destination.is_dir() {
+    if destination.exists() {
+        if !destination.join("README.md").is_file() || !destination.join("LICENSE").is_file() {
+            return Err("a source folder already exists for this commit but failed validation; it was left untouched".into());
+        }
         write_active_manifest(&latest)?;
         return Ok(format!("Source {} is already downloaded and selected.", short_sha(&latest)));
     }
@@ -257,6 +266,7 @@ fn extract_verified_archive(bytes: &[u8], destination: &Path, expected_sha: &str
 
     let expected_root = format!("{REPOSITORY}-{expected_sha}");
     let mut total_written = 0_u64;
+    let mut seen_paths = HashSet::new();
 
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index).map_err(|e| format!("cannot read ZIP entry: {e}"))?;
@@ -266,8 +276,15 @@ fn extract_verified_archive(bytes: &[u8], destination: &Path, expected_sha: &str
         if entry.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000) {
             return Err(format!("archive contains a symbolic link: {name}"));
         }
-        if path.components().any(|part| !matches!(part, Component::Normal(_))) {
+        if path.components().any(|part| !matches!(part, Component::Normal(_)))
+            || name.contains(':')
+            || name.split('/').any(|part| part.ends_with('.') || part.ends_with(' '))
+        {
             return Err(format!("archive contains an unsafe path: {name}"));
+        }
+        let collision_key = name.to_lowercase();
+        if !seen_paths.insert(collision_key) {
+            return Err(format!("archive contains a duplicate or case-colliding path: {name}"));
         }
         let mut components = path.components();
         match components.next() {
@@ -308,14 +325,14 @@ fn write_active_manifest(commit: &str) -> Result<(), String> {
     let path = active_manifest_path()?;
     let parent = path.parent().ok_or("invalid application data path")?;
     fs::create_dir_all(parent).map_err(|e| format!("cannot create application data folder: {e}"))?;
-    let temp = parent.join("active-source.json.tmp");
     let manifest = ActiveSource {
         repository: format!("{OWNER}/{REPOSITORY}"),
         commit: commit.to_owned(),
     };
     let bytes = serde_json::to_vec_pretty(&manifest).map_err(|e| format!("cannot encode manifest: {e}"))?;
-    fs::write(&temp, bytes).map_err(|e| format!("cannot write source manifest: {e}"))?;
-    fs::rename(temp, path).map_err(|e| format!("cannot activate source manifest: {e}"))?;
+    AtomicFile::new(&path, AllowOverwrite)
+        .write(|file| file.write_all(&bytes))
+        .map_err(|e| format!("cannot atomically activate source manifest: {e}"))?;
     Ok(())
 }
 
