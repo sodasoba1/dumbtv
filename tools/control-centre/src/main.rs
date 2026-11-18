@@ -65,6 +65,7 @@ struct ControlCentre {
     recovery_journals: Vec<String>,
     device_ip: String,
     keep_alexa: bool,
+    reboot_after_cleanup: bool,
     remove_packages: String,
     keep_packages: String,
     cleanup_plan: Option<operations::CleanupPlan>,
@@ -97,6 +98,7 @@ impl Default for ControlCentre {
             })),
             device_ip: String::new(),
             keep_alexa: true,
+            reboot_after_cleanup: false,
             remove_packages: String::new(),
             keep_packages: String::new(),
             cleanup_plan: None,
@@ -399,7 +401,7 @@ impl ControlCentre {
     }
 
     #[cfg(windows)]
-    fn apply_cleanup_plan(&mut self, ip: std::net::IpAddr, profile: device_profile::DeviceProfile) {
+    fn apply_cleanup_plan(&mut self, ip: std::net::IpAddr, profile: device_profile::DeviceProfile, reboot_after_cleanup: bool) {
         let Some(mut plan) = self.cleanup_plan.clone() else { return; };
         let Some(data_root) = self.plan_data_root.clone() else { return; };
         let Some(snapshot_path) = self.plan_snapshot_path.clone() else { return; };
@@ -462,18 +464,24 @@ impl ControlCentre {
             state.status = format!("Applying {} reviewed operations. The sequence stops on the first failed verification…", plan.operations.len());
         }
         thread::spawn(move || {
-            let result = (|| -> Result<adb_transport::ExecutionReport, String> {
+            let result = (|| -> Result<(adb_transport::ExecutionReport, bool), String> {
                 let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
                     .map_err(|error| format!("cannot start the ADB runtime: {error}"))?;
-                runtime.block_on(adb_transport::execute_plan(ip, &profile, &original, &plan.operations, &never_disable, &journal_path))
+                let report = runtime.block_on(adb_transport::execute_plan(ip, &profile, &original, &plan.operations, &never_disable, &journal_path))?;
+                let rebooted = if report.failure.is_none() && reboot_after_cleanup {
+                    runtime.block_on(adb_transport::reboot_and_reconnect(ip, &profile, &plan.operations))?;
+                    true
+                } else { false };
+                Ok((report, rebooted))
             })();
             let mut state = shared.lock().expect("state lock poisoned");
             state.status = match result {
-                Ok(report) => match report.failure {
+                Ok((report, rebooted)) => match report.failure {
                     Some(failure) => format!("Stopped after {} verified operations. {failure}. Journal: {journal_name}. The original snapshot remains available for restore.", report.completed.len()),
-                    None => format!("All {} reviewed operations completed and passed read-back verification. Journal: {journal_name}. The original snapshot has been retained. Reboot and run a fresh preflight before relying on the new state.", report.completed.len()),
+                    None if rebooted => format!("All {} reviewed operations passed final verification. The Fire TV rebooted, reconnected and passed the same-device and post-reboot verification checks. Journal: {journal_name}.", report.completed.len()),
+                    None => format!("All {} reviewed operations completed and passed final verification. Journal: {journal_name}. Reboot remains optional; reconnect and review the device before relying on the new state.", report.completed.len()),
                 },
-                Err(error) => format!("Cleanup did not start or could not complete: {error}. Journal: {journal_name}. The original snapshot has been retained."),
+                Err(error) => format!("Cleanup or its requested post-change verification/reconnect reported an error: {error}. Journal: {journal_name}. Inspect the TV before attempting another operation."),
             };
             state.busy = false;
             state.connected_ip = None;
@@ -770,6 +778,7 @@ impl eframe::App for ControlCentre {
                     self.plan_data_root = None;
                     self.plan_snapshot_path = None;
                 }
+                ui.checkbox(&mut self.reboot_after_cleanup, "Reboot Fire TV after successful cleanup and verify reconnect (optional)");
                 ui.label("Apps to remove — enter exact Android package IDs, separated by spaces. No other user apps will be removed.");
                 if ui.text_edit_singleline(&mut self.remove_packages).changed() { self.cleanup_plan = None; self.plan_data_root = None; self.plan_snapshot_path = None; }
                 ui.label("Packages to keep — optional exact package IDs from the maintained removal lists.");
@@ -849,6 +858,7 @@ impl eframe::App for ControlCentre {
                 let mut cancel_clicked = false;
                 egui::Window::new("Confirm Fire TV changes").collapsible(false).resizable(false).show(ctx, |ui| {
                     ui.label(format!("Apply {count} reviewed operations to the connected Fire TV?"));
+                    if self.reboot_after_cleanup { ui.label("After successful cleanup, the Fire TV will reboot. The app will wait for ADB to disconnect, reconnect and verify the same device and final cleanup state."); }
                     if has_uninstalls {
                         ui.label("This includes uninstalling the user apps you explicitly named. Reinstalling them may require the Amazon Appstore.");
                     }
@@ -862,7 +872,7 @@ impl eframe::App for ControlCentre {
                 if apply_clicked {
                     self.confirm_apply = false;
                     if let (Some(ip), Some(profile)) = (connected_ip, device_profile.clone()) {
-                        self.apply_cleanup_plan(ip, profile);
+                        self.apply_cleanup_plan(ip, profile, self.reboot_after_cleanup);
                     }
                 }
             }
