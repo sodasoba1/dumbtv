@@ -1502,6 +1502,10 @@ fn validate_source_tree(root: &Path) -> Result<(), String> {
         }
     }
 
+    let version_text = fs::read_to_string(root.join("launcher/version.env"))
+        .map_err(|error| format!("cannot read launcher version manifest: {error}"))?;
+    apk_release::parse_launcher_version_env(&version_text)?;
+
     let data = root.join("data");
     for sdk in [25, 28, 30] {
         let catalogue = catalogue::FireOsCatalogue::load(&data, sdk)?;
@@ -1583,10 +1587,8 @@ fn extract_verified_archive(
         // Retain only the small data/configuration surface needed by the
         // installer. In particular, do not extract Android source, Gradle
         // projects, APK build inputs, or shell scripts into the managed cache.
-        let relative_text = relative.to_string_lossy().replace('\\\\', "/");
-        let keep = relative_text.starts_with("data/")
-            || relative_text == "launcher/version.env"
-            || (entry.is_dir() && relative_text == "data");
+        let keep = relative.starts_with("data")
+            || relative == Path::new("launcher").join("version.env");
         if !keep {
             continue;
         }
