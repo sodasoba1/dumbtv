@@ -1587,20 +1587,6 @@ async fn read_current_state_on_connection(
     })
 }
 
-pub async fn execute_and_verify(
-    ip: IpAddr,
-    expected: &DeviceProfile,
-    command: &crate::device_command::DeviceCommand,
-    never_disable: &BTreeSet<String>,
-) -> Result<String, String> {
-    let mut connection = connect(ip).await?;
-    let actual = read_profile(&mut connection).await?;
-    if !same_device(&actual, expected) {
-        return Err("the device at the selected IP no longer matches the inspected Fire TV; operation aborted".into());
-    }
-    execute_one(&mut connection, command, never_disable).await
-}
-
 async fn validate_original_snapshot_state(
     connection: &mut Connection<TokioTcp>,
     original: &DeviceSnapshot,
