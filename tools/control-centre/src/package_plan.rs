@@ -182,7 +182,7 @@ mod tests {
         .collect();
         let plan = build_package_plan(
             &catalogue(),
-            &PackageChoices { keep_alexa: true, ..Default::default() },
+            &PackageChoices::default(),
             &installed,
             &BTreeSet::new(),
         )
