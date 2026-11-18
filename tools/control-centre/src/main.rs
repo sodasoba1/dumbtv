@@ -43,10 +43,14 @@ struct SharedState {
     latest_commit: Option<String>,
     active_commit: Option<String>,
     busy: bool,
+    host_key_md5: Option<String>,
+    host_key_sha256: Option<String>,
+    device_profile: Option<device_profile::DeviceProfile>,
 }
 
 struct ControlCentre {
     shared: Arc<Mutex<SharedState>>,
+    device_ip: String,
 }
 
 impl Default for ControlCentre {
@@ -54,11 +58,15 @@ impl Default for ControlCentre {
         let active_commit = load_active_source().ok().flatten().map(|m| m.commit);
         Self {
             shared: Arc::new(Mutex::new(SharedState {
-                status: "Ready. No device changes are available in this test build.".into(),
+                status: "Ready. Device-changing operations are not available in this test build.".into(),
                 latest_commit: None,
                 active_commit,
                 busy: false,
+                host_key_md5: None,
+                host_key_sha256: None,
+                device_profile: None,
             })),
+            device_ip: String::new(),
         }
     }
 }
@@ -90,6 +98,68 @@ impl ControlCentre {
             if latest.is_some() {
                 state.latest_commit = latest;
             }
+        });
+    }
+}
+
+impl ControlCentre {
+    #[cfg(windows)]
+    fn prepare_adb_key(&self) {
+        let shared = Arc::clone(&self.shared);
+        {
+            let mut state = shared.lock().expect("state lock poisoned");
+            if state.busy {
+                return;
+            }
+            state.busy = true;
+            state.status = "Preparing the Windows-protected ADB host key…".into();
+        }
+        thread::spawn(move || {
+            let result = cng_auth::WindowsCngAdbKey::open_or_create().map(|key| {
+                (key.public_key_fingerprint_md5(), key.public_key_fingerprint_sha256())
+            });
+            let mut state = shared.lock().expect("state lock poisoned");
+            match result {
+                Ok((md5, sha256)) => {
+                    state.host_key_md5 = Some(md5);
+                    state.host_key_sha256 = Some(sha256);
+                    state.status = "ADB host key is ready. Compare its MD5 fingerprint with the TV prompt before approving.".into();
+                }
+                Err(error) => state.status = format!("ADB key preparation failed: {error}"),
+            }
+            state.busy = false;
+        });
+    }
+
+    #[cfg(windows)]
+    fn inspect_fire_tv(&self, ip: std::net::IpAddr) {
+        let shared = Arc::clone(&self.shared);
+        {
+            let mut state = shared.lock().expect("state lock poisoned");
+            if state.busy {
+                return;
+            }
+            state.busy = true;
+            state.device_profile = None;
+            state.status = "Connecting to the specified Fire TV. Check the TV before approving its ADB key prompt…".into();
+        }
+        thread::spawn(move || {
+            let result = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|error| format!("cannot start the ADB runtime: {error}"))
+                .and_then(|runtime| {
+                    runtime.block_on(adb_transport::inspect_device(ip))
+                });
+            let mut state = shared.lock().expect("state lock poisoned");
+            match result {
+                Ok(profile) => {
+                    state.status = "Connected. Device properties read successfully; no package or settings changes were made.".into();
+                    state.device_profile = Some(profile);
+                }
+                Err(error) => state.status = format!("ADB inspection failed: {error}"),
+            }
+            state.busy = false;
         });
     }
 }
