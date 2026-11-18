@@ -360,6 +360,8 @@ pub async fn reboot_and_reconnect(
 
 /// Push a verified APK into the app-private staging area using ADB sync.
 /// The caller must verify the APK checksum before calling this function.
+/// Kept isolated until the launcher/YouTube snapshot and rollback flows are wired.
+#[allow(dead_code)]
 pub async fn push_staged_apk(
     ip: IpAddr,
     expected: &DeviceProfile,
