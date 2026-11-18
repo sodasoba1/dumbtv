@@ -57,8 +57,10 @@ pub fn build_package_plan(
         }
     }
 
-    let never_disable: BTreeSet<&str> =
+    let mut never_disable: BTreeSet<&str> =
         catalogue.never_disable.iter().map(String::as_str).collect();
+    // Hard guard independent of downloaded catalogue contents.
+    never_disable.insert("com.amazon.vizzini");
     let known: BTreeSet<&str> = catalogue
         .packages
         .iter()
@@ -203,6 +205,24 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn vizzini_is_never_disabled_even_if_catalogue_omits_it() {
+        let mut catalogue = catalogue();
+        catalogue.never_disable.clear();
+        let installed = ["com.amazon.vizzini".into()].into_iter().collect();
+        let plan = build_package_plan(
+            &catalogue,
+            &PackageChoices::default(),
+            &installed,
+            &BTreeSet::new(),
+        )
+        .unwrap();
+        assert!(plan.actions.iter().any(|action| {
+            action.package == "com.amazon.vizzini"
+                && action.kind == PackageActionKind::SkipNeverDisable
+        }));
     }
 
     #[test]
