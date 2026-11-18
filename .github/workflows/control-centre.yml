@@ -45,7 +45,7 @@ jobs:
       - name: Audit the complete locked dependency graph
         working-directory: tools/control-centre
         run: |
-          cargo audit --deny vulnerabilities
+          cargo audit
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Compile and run unit tests
