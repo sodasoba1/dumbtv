@@ -32,6 +32,7 @@ pub enum OperationStatus {
     Running,
     Verified,
     Failed,
+    NotAttempted,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -144,6 +145,21 @@ impl OperationJournal {
         self.save(path)
     }
 
+    pub fn finish_failed(&mut self, path: &Path) -> Result<(), String> {
+        if !self.operations.iter().any(|item| item.status == OperationStatus::Failed)
+            || self.operations.iter().any(|item| item.status == OperationStatus::Running)
+        {
+            return Err("cannot close a failed journal without a recorded failure and no running operation".into());
+        }
+        for operation in &mut self.operations {
+            if operation.status == OperationStatus::Pending {
+                operation.status = OperationStatus::NotAttempted;
+            }
+        }
+        self.finished = true;
+        self.save(path)
+    }
+
     pub fn finish(&mut self, path: &Path) -> Result<(), String> {
         if self.operations.iter().any(|item| item.status == OperationStatus::Running || item.status == OperationStatus::Pending) {
             return Err("cannot finish a journal with pending or running operations".into());
@@ -208,6 +224,24 @@ mod tests {
         assert_eq!(loaded.operations[0].status, OperationStatus::Verified);
         assert_eq!(loaded.operations[1].status, OperationStatus::Failed);
         assert!(!loaded.finished);
+    }
+
+    #[test]
+    fn failed_workflow_closes_with_later_steps_marked_not_attempted() {
+        let dir = tempfile::tempdir().unwrap();
+        let (manufacturer, model, build, commit) = profile_values();
+        let path = OperationJournal::create(
+            dir.path(), WorkflowKind::Cleanup, manufacturer, model, build, 25, commit,
+            &["First operation".into(), "Second operation".into()],
+        ).unwrap();
+        let mut journal = OperationJournal::load(&path).unwrap();
+        journal.mark_running(&path, 0).unwrap();
+        journal.mark_failed(&path, 0, "verification failed").unwrap();
+        journal.finish_failed(&path).unwrap();
+        let loaded = OperationJournal::load(&path).unwrap();
+        assert!(loaded.finished);
+        assert_eq!(loaded.operations[0].status, OperationStatus::Failed);
+        assert_eq!(loaded.operations[1].status, OperationStatus::NotAttempted);
     }
 
     #[test]
