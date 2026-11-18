@@ -6,6 +6,7 @@ mod adb_transport;
 mod catalogue;
 mod device_profile;
 mod package_plan;
+mod package_inventory;
 
 use eframe::egui;
 use atomicwrites::{AllowOverwrite, AtomicFile};
