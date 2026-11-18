@@ -89,18 +89,23 @@ by this migration.
    recheck, typed ADB commands, bounded timeouts, per-operation read-back and
    stop-on-first-failure reporting.
 5. **Restore:** implemented as a reviewed delta plan with live-state recheck,
-   typed restore commands and per-operation verification. User-app reinstall
-   and missing system-package recovery remain manual and are explicitly shown.
-6. **Remaining parity:** automatic reboot/reconnect, complete post-change
-   verification and guided reconciliation of interrupted journals remains in progress. Durable
-   per-operation journals now include typed intent and are listed at startup.
-   Automatic replay/resume remains deliberately disabled; restore only reverses
-   operations marked verified after a fresh live-state read.
-   Force-stop uses the API 25 process-list fallback and read-back verification.
-7. **Launcher:** still gated separately; API 25 only, with APK signing, grants,
-   Keeper lifecycle, reboot/reconnect and undo to validate.
-8. **Optional YouTube replacement:** last, with explicit opt-in and pinned
-   checksum/version verification.
+   scoped to verified cleanup commands from the matching durable journal and
+   only when live values still equal the cleanup-applied target. Later manual
+   edits are excluded and reported. Typed restore commands receive per-operation
+   verification. User-app reinstall and missing system-package recovery remain
+   manual and are explicitly shown.
+6. **Verification and recovery:** cleanup performs a second full read-back pass;
+   a read-only verifier can recheck the journal later. Owner-opt-in reboot waits
+   for a real ADB disconnect, reconnects within 120 seconds, checks device
+   identity and repeats verification. Interrupted/failed journals are visible
+   at startup and never replayed automatically; guided reconciliation remains
+   in progress. Force-stop uses the API 25 process-list fallback.
+7. **Launcher:** APK metadata parsing, release checksum validation, download
+   and bounded ADB sync staging are implemented. Installation, API 25 state
+   snapshot, grants, Keeper lifecycle and undo remain gated.
+8. **Optional YouTube replacement:** pinned SmartTube metadata/checksum and
+   explicit APK preparation are implemented. Install, stock-app choice,
+   home.conf backup/edit/restore and verification remain outstanding.
 
 ## Safety invariants
 
