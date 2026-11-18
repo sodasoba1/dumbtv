@@ -61,3 +61,18 @@ The repository's MIT licence applies to this Control Centre source. Third-party 
 7. Prepare the ADB host key and record the MD5 fingerprint shown by the app.
 8. On a physical AFTMM, connect to its local IP, compare the TV's RSA prompt fingerprint, and approve only if it matches.
 9. Confirm the app reports the expected AFTMM / API 25 properties and package counts, and does not change packages or settings.
+
+## Snapshot and restore model (not yet connected to the device)
+
+The current source also contains an offline-tested snapshot schema and restore
+planner in `src/snapshot.rs`. It models the original package enabled/disabled
+states, secure/global settings (including settings that were originally absent),
+AppOps modes, Data Saver and the metered-data UID blacklist. Snapshots are
+validated and created once; a second save refuses to overwrite the original.
+The restore planner computes only the delta back to captured values and reports
+unknown original policy state rather than substituting defaults. User apps
+uninstalled for user 0 are explicitly reported for manual Store reinstall.
+
+This is a data model and planner only. The app does not yet collect these values
+from ADB, persist a device snapshot, execute restore actions or enable any
+cleanup operation. Do not use this prototype to modify a Fire TV.
