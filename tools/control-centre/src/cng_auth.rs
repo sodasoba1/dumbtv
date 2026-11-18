@@ -233,6 +233,21 @@ impl WindowsCngAdbKey {
     }
 }
 
+impl libadb::auth::Authenticator for WindowsCngAdbKey {
+    type Error = String;
+
+    fn sign(
+        &mut self,
+        token: &[u8],
+    ) -> impl std::future::Future<Output = Result<Vec<u8>, Self::Error>> {
+        std::future::ready(self.sign_token(token))
+    }
+
+    fn public_key(&self) -> &[u8] {
+        self.public_key_wire()
+    }
+}
+
 impl Drop for WindowsCngAdbKey {
     fn drop(&mut self) {
         unsafe {
