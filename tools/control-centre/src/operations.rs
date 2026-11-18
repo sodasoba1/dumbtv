@@ -251,6 +251,7 @@ mod tests {
             device_label: "Fire TV".into(),
             manufacturer: "Amazon".into(),
             model: "AFTMM".into(),
+            build_display_id: "FireOS-6.7.1.1".into(),
             android_sdk: 25,
             source_commit: "0123456789abcdef0123456789abcdef01234567".into(),
             packages: BTreeMap::new(),

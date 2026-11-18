@@ -321,6 +321,14 @@ impl ControlCentre {
                     state.protected_uids.clear();
                     state.status = format!("Original snapshot was saved, but the device preflight must be repeated: {reason}");
                 }
+                Ok((path, Some(_inventory), Some(reason))) => {
+                    state.snapshot_path = Some(path);
+                    state.connected_ip = None;
+                    state.device_profile = None;
+                    state.package_inventory = None;
+                    state.protected_uids.clear();
+                    state.status = format!("Original snapshot was saved, but the device preflight must be repeated: {reason}");
+                }
                 Ok((path, None, None)) => {
                     state.snapshot_path = Some(path);
                     state.status = "Original snapshot was saved; reconnect before planning cleanup.".into();
@@ -345,6 +353,7 @@ impl ControlCentre {
         let data_root = source_root.join("data");
         if original.manufacturer != profile.manufacturer
             || original.model != profile.model
+            || original.build_display_id != profile.build_display_id
             || original.android_sdk != profile.sdk
         {
             return Err("the saved original snapshot belongs to a different device; refusing to use it".into());
@@ -400,6 +409,7 @@ impl ControlCentre {
         };
         if original.manufacturer != profile.manufacturer
             || original.model != profile.model
+            || original.build_display_id != profile.build_display_id
             || original.android_sdk != profile.sdk
         {
             let mut state = self.shared.lock().expect("state lock poisoned");
@@ -471,7 +481,7 @@ impl ControlCentre {
         thread::spawn(move || {
             let result = (|| -> Result<(snapshot::RestorePlan, snapshot::CurrentDeviceState), String> {
                 let original = snapshot::DeviceSnapshot::load(&snapshot_path)?;
-                if original.manufacturer != profile.manufacturer || original.model != profile.model || original.android_sdk != profile.sdk {
+                if original.manufacturer != profile.manufacturer || original.model != profile.model || original.build_display_id != profile.build_display_id || original.android_sdk != profile.sdk {
                     return Err("the saved original snapshot belongs to a different device".into());
                 }
                 let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
@@ -516,7 +526,7 @@ impl ControlCentre {
                 return;
             }
         };
-        if original.manufacturer != profile.manufacturer || original.model != profile.model || original.android_sdk != profile.sdk {
+        if original.manufacturer != profile.manufacturer || original.model != profile.model || original.build_display_id != profile.build_display_id || original.android_sdk != profile.sdk {
             let mut state = self.shared.lock().expect("state lock poisoned");
             state.status = "Cannot restore: the original snapshot belongs to a different device.".into();
             return;
@@ -1017,7 +1027,7 @@ fn extract_verified_archive(bytes: &[u8], destination: &Path, expected_sha: &str
     let mut seen_paths = HashSet::new();
 
     for index in 0..archive.len() {
-        let mut entry = archive.by_index(index).map_err(|e| format!("cannot read ZIP entry: {e}"))?;
+        let entry = archive.by_index(index).map_err(|e| format!("cannot read ZIP entry: {e}"))?;
         let name = entry.name()
             .map_err(|error| format!("archive entry has invalid path encoding: {error}"))?
             .into_owned();

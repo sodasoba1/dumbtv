@@ -152,6 +152,7 @@ pub async fn capture_original_snapshot(
         device_label: format!("{} {}", profile.manufacturer, profile.model).trim().to_owned(),
         manufacturer: profile.manufacturer,
         model: profile.model,
+        build_display_id: profile.build_display_id,
         android_sdk: profile.sdk,
         source_commit: source_commit.to_owned(),
         packages: package_states,

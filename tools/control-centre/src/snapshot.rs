@@ -34,6 +34,7 @@ pub struct DeviceSnapshot {
     pub device_label: String,
     pub manufacturer: String,
     pub model: String,
+    pub build_display_id: String,
     pub android_sdk: u32,
     /// Exact source revision whose catalogues defined this baseline and plan.
     pub source_commit: String,
@@ -304,6 +305,7 @@ mod tests {
             device_label: "Fire TV (local)".into(),
             manufacturer: "Amazon".into(),
             model: "AFTMM".into(),
+            build_display_id: "FireOS-6.7.1.1".into(),
             android_sdk: 25,
             source_commit: "0123456789abcdef0123456789abcdef01234567".into(),
             packages: [("com.amazon.ads".into(), PackageState::Enabled)]
