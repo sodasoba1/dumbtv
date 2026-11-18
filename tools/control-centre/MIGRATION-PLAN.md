@@ -14,6 +14,9 @@ by this migration.
 - `catalogue.rs`: parses the existing package lists without sourcing shell
   files. It preserves list order, strips comments, rejects malformed package
   identifiers, and mirrors the Fire OS 6 list fallback used by `fos()`.
+- `package_inventory.rs`: parses read-only package-manager output into
+  installed, system, user and disabled sets; accepts the special `android`
+  framework package and rejects inconsistent inventories.
 - `package_plan.rs`: builds an offline, read-only cleanup plan from the
   catalogue, installed/system package inventories and explicit owner choices.
   Defaults keep Alexa; named system apps are disabled; named user apps are
