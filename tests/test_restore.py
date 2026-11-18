@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class RestoreTest(unittest.TestCase):
     def run_restore(self, ignores_reboot=False, settings=None, svc_refused=False,
-                    package_snapshot=None):
+                    package_snapshot=None, manufacturer='Amazon'):
         packages = {
             "dnsfilter.android": {"system": False, "enabled": True},
             "com.amazon.tv.acr": {"system": True, "enabled": False},
@@ -28,6 +28,7 @@ class RestoreTest(unittest.TestCase):
                 **(settings or {}),
             }
             state.write_text(json.dumps({"packages": packages, "settings": hooked,
+                                         "manufacturer": manufacturer,
                                          "ignores_reboot": ignores_reboot,
                                          "svc_refused": svc_refused}))
             log = tmp / "commands.log"
@@ -68,6 +69,13 @@ class RestoreTest(unittest.TestCase):
         self.assertIn("left disabled (was not enabled in the original snapshot)", result.stdout)
         self.assertFalse(self.package_snapshot_exists_after,
                          "successful restore clears snapshots for the next cleanup cycle")
+
+    def test_restore_refuses_to_run_on_non_fire_os_devices(self):
+        result, commands, _ = self.run_restore(manufacturer="Google")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("this is for Amazon Fire OS", result.stderr)
+        self.assertFalse(any(command.startswith("pm enable") or command.startswith("settings put")
+                             for command in commands))
 
     def test_amazons_screensaver_comes_back(self):
         amazon = "com.amazon.ftv.screensaver/.app.services.ScreensaverService"
