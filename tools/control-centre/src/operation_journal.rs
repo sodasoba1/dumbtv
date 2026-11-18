@@ -367,11 +367,12 @@ mod tests {
     #[test]
     fn failed_workflow_closes_with_later_steps_marked_not_attempted() {
         let dir = tempfile::tempdir().unwrap();
-        let (manufacturer, model, build, commit) = profile_values();
+        let (manufacturer, fingerprint, model, build, commit) = profile_values();
         let path = OperationJournal::create(
             dir.path(),
             WorkflowKind::Cleanup,
             manufacturer,
+            fingerprint,
             model,
             build,
             25,
@@ -394,11 +395,12 @@ mod tests {
     #[test]
     fn finished_journal_requires_every_operation_to_be_resolved() {
         let dir = tempfile::tempdir().unwrap();
-        let (manufacturer, model, build, commit) = profile_values();
+        let (manufacturer, fingerprint, model, build, commit) = profile_values();
         let path = OperationJournal::create(
             dir.path(),
             WorkflowKind::Restore,
             manufacturer,
+            fingerprint,
             model,
             build,
             25,
@@ -417,11 +419,12 @@ mod tests {
     #[test]
     fn verified_outcome_detail_is_durable() {
         let dir = tempfile::tempdir().unwrap();
-        let (manufacturer, model, build, commit) = profile_values();
+        let (manufacturer, fingerprint, model, build, commit) = profile_values();
         let path = OperationJournal::create(
             dir.path(),
             WorkflowKind::Cleanup,
             manufacturer,
+            fingerprint,
             model,
             build,
             25,
@@ -450,11 +453,12 @@ mod tests {
     #[test]
     fn final_verification_error_is_durable_and_keeps_journal_reviewable() {
         let dir = tempfile::tempdir().unwrap();
-        let (manufacturer, model, build, commit) = profile_values();
+        let (manufacturer, fingerprint, model, build, commit) = profile_values();
         let path = OperationJournal::create(
             dir.path(),
             WorkflowKind::Cleanup,
             manufacturer,
+            fingerprint,
             model,
             build,
             25,
@@ -480,11 +484,12 @@ mod tests {
     #[test]
     fn journal_does_not_store_network_addresses_or_raw_command_output() {
         let dir = tempfile::tempdir().unwrap();
-        let (manufacturer, model, build, commit) = profile_values();
+        let (manufacturer, fingerprint, model, build, commit) = profile_values();
         let path = OperationJournal::create(
             dir.path(),
             WorkflowKind::Cleanup,
             manufacturer,
+            fingerprint,
             model,
             build,
             25,
