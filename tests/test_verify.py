@@ -80,6 +80,11 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("FAIL", result.stdout)
         self.assertIn("foreground is com.amazon.tv.launcher", result.stdout)
 
+    def test_running_keeper_passes_with_an_ordinary_app_in_foreground(self):
+        result, _ = self.run_verify(home="com.netflix.ninja/.MainActivity")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Keeper armed; foreground is com.netflix.ninja", result.stdout)
+
     def test_missing_usage_stats_is_a_failure(self):
         result, _ = self.run_verify(usage="default")
         self.assertEqual(result.returncode, 1)
