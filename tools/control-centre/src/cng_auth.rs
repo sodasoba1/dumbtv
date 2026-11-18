@@ -465,4 +465,3 @@ mod tests {
         assert_eq!(status, STATUS_SUCCESS);
     }
 }
-
