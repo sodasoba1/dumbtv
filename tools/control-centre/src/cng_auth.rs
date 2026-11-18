@@ -26,6 +26,7 @@ const PROVIDER: [u16; 40] = wide("Microsoft Software Key Storage Provider");
 const RSA_ALGORITHM: [u16; 4] = wide("RSA");
 const KEY_NAME: [u16; 33] = wide("DumbTV-ControlCentre-ADB-HostKey");
 const LENGTH_PROPERTY: [u16; 7] = wide("Length");
+const EXPORT_POLICY_PROPERTY: [u16; 14] = wide("Export Policy");
 const RSA_PUBLIC_BLOB: [u16; 14] = wide("RSAPUBLICBLOB");
 const SHA1_ALGORITHM: [u16; 5] = wide("SHA1");
 const PUBLIC_KEY_NAME: &str = "dumbtv-control-centre@windows";
@@ -101,6 +102,26 @@ impl WindowsCngAdbKey {
                     NCryptFreeObject(provider);
                 }
                 return Err(format!("set ADB host key length failed (0x{:08x})", set_status as u32));
+            }
+
+            let export_policy = 0u32.to_le_bytes();
+            let policy_status = unsafe {
+                NCryptSetProperty(
+                    key,
+                    EXPORT_POLICY_PROPERTY.as_ptr(),
+                    export_policy.as_ptr(),
+                    export_policy.len() as u32,
+                    0,
+                )
+            };
+            if policy_status != STATUS_SUCCESS {
+                unsafe {
+                    if NCryptDeleteKey(key, 0) != STATUS_SUCCESS {
+                        NCryptFreeObject(key);
+                    }
+                    NCryptFreeObject(provider);
+                }
+                return Err(format!("make ADB host key non-exportable failed (0x{:08x})", policy_status as u32));
             }
 
             let finalize_status = unsafe { NCryptFinalizeKey(key, 0) };
