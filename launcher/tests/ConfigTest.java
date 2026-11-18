@@ -165,6 +165,9 @@ public final class ConfigTest {
                     "multiline text, equals, backslash and Unicode survive restart");
             check("legacy text".equals(Config.decodeText("legacy text")),
                     "legacy plain-text values remain readable");
+            reopened.setText("widgets.text", "");
+            check("Custom text".equals(reopened.getText("widgets.text", "Custom text")),
+                    "empty custom text keeps the normal fallback");
         }
     }
 
