@@ -1,8 +1,7 @@
 //! Pinned APK release metadata and checksum validation.
 //!
-//! This module deliberately does not install anything. The launcher and
-//! optional YouTube workflows consume these validated descriptors only after
-//! their device-state snapshot and explicit owner approval are implemented.
+//! The Windows installer consumes these pinned descriptors for its typed ADB
+//! install workflows. Android source and published APK assets are never rebuilt or modified.
 
 use sha2::{Digest, Sha256};
 
