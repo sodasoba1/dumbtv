@@ -76,3 +76,10 @@ uninstalled for user 0 are explicitly reported for manual Store reinstall.
 This is a data model and planner only. The app does not yet collect these values
 from ADB, persist a device snapshot, execute restore actions or enable any
 cleanup operation. Do not use this prototype to modify a Fire TV.
+
+The offline command boundary in `src/device_command.rs` is also implemented:
+it accepts only typed package, setting, AppOps and network-policy operations,
+validates all dynamic arguments, quotes settings values as single shell arguments,
+blocks the maintained never-disable list and `com.amazon.vizzini`, and requires
+explicit confirmation before uninstalling an owner-named user app. It is not
+connected to the ADB transport and cannot currently send these commands.
