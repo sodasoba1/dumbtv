@@ -368,7 +368,7 @@ mod tests {
         {
             let mut writer = zip::ZipWriter::new(std::io::Cursor::new(&mut bytes));
             writer
-                .start_file("dumbtv-0123456789abcdef0123456789abcdef01234567/../../outside.txt", zip::write::FileOptions::default())
+                .start_file("dumbtv-0123456789abcdef0123456789abcdef01234567/../../outside.txt", zip::write::SimpleFileOptions::default())
                 .unwrap();
             writer.write_all(b"bad").unwrap();
             writer.finish().unwrap();
