@@ -473,7 +473,7 @@ pub async fn verify_cleanup_journal(
     if !same_device(&actual, expected) {
         return Err("the device at the selected IP no longer matches the inspected Fire TV".into());
     }
-    verify_cleanup_operations(&mut connection, &operations).await?;
+    verify_cleanup_operations(&mut connection, &operations, Some(journal)).await?;
     Ok(operations.len())
 }
 
