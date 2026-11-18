@@ -2,10 +2,11 @@
 
 ## Preferred candidate for a Windows-only Control Centre
 
-The Rust ADB AUTH public-key encoder is now implemented and unit-tested in
-`src/adb_auth.rs`. It accepts a 2048-bit RSA modulus and exponent from the
-Windows provider and builds the mincrypt wire payload. It does not generate,
-store or sign with a private key.
+The Rust ADB AUTH public-key encoder is implemented and unit-tested in
+`src/adb_auth.rs`. The Windows CNG adapter in `src/cng_auth.rs` now creates a
+dedicated current-user key in the Microsoft Software Key Storage Provider,
+exports only its public key and signs ADB tokens through CNG. It has not yet
+been wired into a live ADB connection or tested on an AFTMM.
 
 **Candidate: `libadb` 0.9.x with its built-in `keys` and `host-keys` features disabled.**
 
@@ -20,9 +21,8 @@ The proposed Windows authentication design is:
 2. Use CNG for PKCS#1 v1.5 / SHA-1 token signing, as required by legacy ADB.
 3. Export only the public modulus and exponent to construct Android's
    mincrypt `adbkey.pub` payload.
-4. Implement `libadb::auth::Authenticator` in Rust and keep the private key
-   protected with Windows DPAPI in the current user's profile. Do not reuse or
-   overwrite another application's ADB key.
+4. Implement `libadb::auth::Authenticator` in Rust and use the dedicated
+   non-exportable CNG key. Do not reuse or overwrite another application's ADB key.
 5. Connect directly to the TV's TCP ADB endpoint; no ADB server or
    `adb.exe` is required.
 
