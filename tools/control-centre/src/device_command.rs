@@ -36,7 +36,7 @@ impl DeviceCommand {
                 Ok(format!("pm disable-user --user 0 {package}"))
             }
             Self::EnablePackage(package) => {
-                validate_package(package)?;
+                validate_protected_package(package, never_disable)?;
                 Ok(format!("pm enable --user 0 {package}"))
             }
             Self::UninstallPackageForUser { package, owner_confirmed } => {
