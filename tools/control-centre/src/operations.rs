@@ -81,10 +81,22 @@ pub fn build_cleanup_plan(
             && !catalogue.protected.contains(package)
             && !(choices.keep_alexa && catalogue.alexa.contains(package))
         {
-            operations.push(PlannedOperation {
-                description: format!("Force-stop {package} only if it is still running"),
-                command: DeviceCommand::ForceStopPackage(package.clone()),
-            });
+            if let Some(uid) = protected_uids.get(package).copied() {
+                operations.push(PlannedOperation {
+                    description: format!("If {package} survives disable, restrict background execution, block metered background data where its UID is app-specific, and force-stop it"),
+                    command: DeviceCommand::ForceStopAndRestrictIfRunning {
+                        package: package.clone(),
+                        uid: (uid >= 10_000).then_some(uid),
+                        sdk,
+                    },
+                });
+            } else {
+                skipped.push(format!("{package} — UID unavailable; conditional background/data restriction skipped"));
+                operations.push(PlannedOperation {
+                    description: format!("Force-stop {package} only if it is still running (UID unavailable; no additional restrictions)"),
+                    command: DeviceCommand::ForceStopPackage(package.clone()),
+                });
+            }
         }
     }
 
