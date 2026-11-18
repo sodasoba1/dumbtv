@@ -107,8 +107,7 @@ final class WidgetLayout {
     }
 
     private static boolean validType(String type) {
-        return "clock".equals(type) || "memory".equals(type) || "recent".equals(type)
-                || "network".equals(type) || "storage".equals(type) || "text".equals(type)
+        return "clock".equals(type) || "memory".equals(type) || "network".equals(type) || "storage".equals(type) || "text".equals(type)
                 || "diagnostics".equals(type) || "device".equals(type);
     }
 
