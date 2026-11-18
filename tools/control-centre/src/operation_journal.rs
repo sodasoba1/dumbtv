@@ -51,6 +51,9 @@ pub struct OperationJournal {
     pub workflow: WorkflowKind,
     pub created_unix_seconds: u64,
     pub manufacturer: String,
+    /// SHA-256 device fingerprint; raw serials are never written to journals.
+    #[serde(default)]
+    pub device_fingerprint: String,
     pub model: String,
     pub build_display_id: String,
     pub android_sdk: u32,
@@ -66,6 +69,7 @@ impl OperationJournal {
         root: &Path,
         workflow: WorkflowKind,
         manufacturer: &str,
+        device_fingerprint: &str,
         model: &str,
         build_display_id: &str,
         android_sdk: u32,
@@ -83,6 +87,9 @@ impl OperationJournal {
             return Err(
                 "operation journal contains an invalid or excessive operation description".into(),
             );
+        }
+        if device_fingerprint.len() != 64 || !device_fingerprint.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err("operation journal requires a valid unique device fingerprint".into());
         }
         if source_commit.len() != 40 || !source_commit.bytes().all(|b| b.is_ascii_hexdigit()) {
             return Err("operation journal requires a full source commit identifier".into());
@@ -106,6 +113,7 @@ impl OperationJournal {
             workflow,
             created_unix_seconds: created,
             manufacturer: manufacturer.to_owned(),
+            device_fingerprint: device_fingerprint.to_owned(),
             model: model.to_owned(),
             build_display_id: build_display_id.to_owned(),
             android_sdk,
@@ -132,6 +140,7 @@ impl OperationJournal {
         root: &Path,
         workflow: WorkflowKind,
         manufacturer: &str,
+        device_fingerprint: &str,
         model: &str,
         build_display_id: &str,
         android_sdk: u32,
@@ -146,6 +155,7 @@ impl OperationJournal {
             root,
             workflow,
             manufacturer,
+            device_fingerprint,
             model,
             build_display_id,
             android_sdk,
@@ -272,6 +282,8 @@ impl OperationJournal {
             || self.source_commit.len() != 40
             || !self.source_commit.bytes().all(|b| b.is_ascii_hexdigit())
             || self.manufacturer.len() > 128
+            || self.device_fingerprint.len() != 64
+            || !self.device_fingerprint.bytes().all(|b| b.is_ascii_hexdigit())
             || self.model.len() > 128
             || self.build_display_id.len() > 256
             || self
@@ -314,9 +326,10 @@ impl OperationJournal {
 mod tests {
     use super::*;
 
-    fn profile_values() -> (&'static str, &'static str, &'static str, &'static str) {
+    fn profile_values() -> (&'static str, &'static str, &'static str, &'static str, &'static str) {
         (
             "Amazon",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             "AFTMM",
             "FireOS-6.7.1.1",
             "0123456789abcdef0123456789abcdef01234567",
@@ -326,11 +339,12 @@ mod tests {
     #[test]
     fn journal_persists_each_verified_step_and_rejects_reexecution() {
         let dir = tempfile::tempdir().unwrap();
-        let (manufacturer, model, build, commit) = profile_values();
+        let (manufacturer, fingerprint, model, build, commit) = profile_values();
         let path = OperationJournal::create(
             dir.path(),
             WorkflowKind::Cleanup,
             manufacturer,
+            fingerprint,
             model,
             build,
             25,
