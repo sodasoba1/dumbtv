@@ -294,8 +294,7 @@ fn extract_verified_archive(bytes: &[u8], destination: &Path, expected_sha: &str
             return Err(format!("archive contains a symbolic link: {name}"));
         }
         if path.components().any(|part| !matches!(part, Component::Normal(_)))
-            || name.contains(':')
-            || name.split('/').any(|part| part.ends_with('.') || part.ends_with(' '))
+            || !safe_windows_archive_path(&name)
         {
             return Err(format!("archive contains an unsafe path: {name}"));
         }
@@ -331,6 +330,30 @@ fn extract_verified_archive(bytes: &[u8], destination: &Path, expected_sha: &str
         file.flush().map_err(|e| format!("cannot flush extracted file: {e}"))?;
     }
     Ok(())
+}
+
+fn safe_windows_archive_path(name: &str) -> bool {
+    name.split('/').all(|part| {
+        if part.is_empty() {
+            return true;
+        }
+        if part.contains([':', '\\', '<', '>', '"', '|', '?', '*'])
+            || part.chars().any(char::is_control)
+            || part.ends_with('.')
+            || part.ends_with(' ')
+        {
+            return false;
+        }
+        let device_name = part.split('.').next().unwrap_or("").to_ascii_uppercase();
+        !matches!(
+            device_name.as_str(),
+            "CON" | "PRN" | "AUX" | "NUL"
+                | "COM1" | "COM2" | "COM3" | "COM4" | "COM5"
+                | "COM6" | "COM7" | "COM8" | "COM9"
+                | "LPT1" | "LPT2" | "LPT3" | "LPT4" | "LPT5"
+                | "LPT6" | "LPT7" | "LPT8" | "LPT9"
+        )
+    })
 }
 
 fn write_active_manifest(commit: &str) -> Result<(), String> {
@@ -375,6 +398,14 @@ mod tests {
         assert!(!valid_sha("0123456"));
         assert!(!valid_sha("../0123456789abcdef0123456789abcdef012345"));
         assert!(!valid_sha("0123456789abcdef0123456789abcdef0123456g"));
+    }
+
+    #[test]
+    fn rejects_windows_device_names_and_special_paths() {
+        assert!(!safe_windows_archive_path("dumbtv/CON.txt"));
+        assert!(!safe_windows_archive_path("dumbtv/folder./file"));
+        assert!(!safe_windows_archive_path("dumbtv/name:stream"));
+        assert!(safe_windows_archive_path("dumbtv/tools/control-centre/README.md"));
     }
 
     #[test]
