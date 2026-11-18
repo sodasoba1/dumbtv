@@ -17,11 +17,21 @@ Managed files are stored under:
 
 The active source manifest is stored separately in `active-source.json`. Existing checkouts and user configuration are not touched.
 
-## Not enabled in this first test build
+## Available in this test build
 
-ADB connection and device operations are deliberately not enabled yet. The first Rust migration foundations now include typed device identity/compatibility gates, a parser for the existing Fire OS package catalogues, an offline cleanup planner and a tested encoder for Android's ADB RSA public-key format. The Windows CNG key provider and token signer are implemented but not yet connected to a live ADB transport. The shell-to-Rust mapping and safety invariants are documented in `MIGRATION-PLAN.md`. The current ADB candidate and authentication design are assessed in `ADB-RESEARCH.md`; physical AFTMM testing is still required. This build does not bundle Google's platform-tools, Python, Bash, Git or any ADB executable.
+- Prepare a dedicated 2048-bit ADB host key in the current Windows user's CNG key store. The private key is not exported.
+- Display the Android 7-era MD5 fingerprint (for comparison with the Fire TV's authorisation prompt) and a separate SHA-256 fingerprint.
+- Connect to one owner-entered private/local IP address on TCP 5555 using Rust `libadb` and the Windows CNG authenticator.
+- Read the device's `getprop` output with a bounded response buffer and show model, build, Android version, SDK, ABI and the separate cleanup/launcher compatibility decisions.
+- Restrict the connection target to private, loopback or link-local addresses.
 
-No debloat, package, settings, launcher, Keeper, install or restore operation can be triggered from this GUI. The new Rust modules are offline foundations only; they do not connect to or modify a TV.
+On a first connection, the Fire TV may ask to authorise this PC's ADB public key. Compare the MD5 fingerprint shown in the app with the TV prompt before allowing it. The TV adds the key to its trusted ADB host list only if you approve. Selecting "Always allow" on the TV saves that authorisation for later connections.
+
+**This ADB path has not yet been physically tested on the AFTMM.** The selected `libadb` release documents Android 9+ as its supported range; the AFTMM is Android 7.1.2 / API 25. Its protocol code supports older ADB protocol versions, but that does not prove compatibility with Fire OS 6. If the handshake fails, no fallback executable or shell runtime will be bundled.
+
+No debloat, package, settings, launcher, Keeper, install or restore operation can be triggered from this GUI. The connection runs only the constant `getprop` command. It does not alter packages or settings beyond the optional ADB trust record that the owner explicitly approves.
+
+The Rust migration foundations also include typed device compatibility gates, the existing Fire OS package-catalogue parser and an offline cleanup planner. The shell-to-Rust mapping and safety invariants are documented in `MIGRATION-PLAN.md`; ADB dependency decisions are documented in `ADB-RESEARCH.md`. The application does not bundle Google's platform-tools, Python, Bash, Git or any ADB executable.
 
 ## Build on Windows
 
@@ -36,7 +46,7 @@ The resulting executable is self-contained with respect to the Rust runtime; Win
 
 ## Dependencies and licensing
 
-The application uses eframe/egui, reqwest, serde, dirs, tempfile and zip. Their licences and the complete resolved dependency tree must be checked and recorded before a public release. This prototype does not redistribute Google's Android SDK Platform Tools or any third-party ADB executable.
+The application uses eframe/egui, reqwest, serde, dirs, tempfile, zip, libadb, Tokio, Windows CNG bindings, and RustCrypto digest/encoding crates. Their licences and the complete resolved dependency tree must be checked and recorded before a public release. This prototype does not redistribute Google's Android SDK Platform Tools or any third-party ADB executable.
 
 The repository's MIT licence applies to this Control Centre source. Third-party dependencies remain under their own licences. This file is not legal advice or a substitute for the generated third-party notices required for distribution.
 
@@ -48,4 +58,6 @@ The repository's MIT licence applies to this Control Centre source. Third-party 
 4. Download the same commit again; confirm it does not overwrite the existing version.
 5. Confirm an unrelated existing checkout and its local changes remain untouched.
 6. Inspect the managed source folder and active manifest.
-7. Confirm no device prompt or Fire TV change occurs.
+7. Prepare the ADB host key and record the MD5 fingerprint shown by the app.
+8. On a physical AFTMM, connect to its local IP, compare the TV's RSA prompt fingerprint, and approve only if it matches.
+9. Confirm the app reports the expected AFTMM / API 25 properties and does not change packages or settings.
