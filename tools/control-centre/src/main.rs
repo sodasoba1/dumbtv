@@ -872,7 +872,8 @@ impl eframe::App for ControlCentre {
                 if apply_clicked {
                     self.confirm_apply = false;
                     if let (Some(ip), Some(profile)) = (connected_ip, device_profile.clone()) {
-                        self.apply_cleanup_plan(ip, profile, self.reboot_after_cleanup);
+                        let reboot_after_cleanup = self.reboot_after_cleanup;
+                        self.apply_cleanup_plan(ip, profile, reboot_after_cleanup);
                     }
                 }
             }
