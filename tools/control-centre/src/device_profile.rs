@@ -10,6 +10,8 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceProfile {
     pub manufacturer: String,
+    /// SHA-256 of the device serial; the raw serial is never retained or displayed.
+    pub serial_fingerprint: String,
     pub model: String,
     pub build_display_id: String,
     pub android_release: String,
@@ -58,9 +60,16 @@ impl DeviceProfile {
         let sdk = sdk_text
             .parse::<u32>()
             .map_err(|_| format!("device reported an invalid Android SDK level: {sdk_text}"))?;
+        let serial = ["ro.serialno", "ro.boot.serialno"]
+            .iter()
+            .find_map(|key| properties.get(*key).map(|value| value.trim()))
+            .filter(|value| !value.is_empty() && !value.eq_ignore_ascii_case("unknown"))
+            .ok_or("device did not report a usable serial property; refusing to operate without a unique device identity")?;
+        let serial_fingerprint = crate::apk_release::sha256_hex(serial.as_bytes());
 
         Ok(Self {
             manufacturer: required("ro.product.manufacturer")?,
+            serial_fingerprint,
             model: optional("ro.product.model"),
             build_display_id: optional("ro.build.display.id"),
             android_release: optional("ro.build.version.release"),
@@ -145,6 +154,7 @@ mod tests {
     fn properties(manufacturer: &str, sdk: &str) -> BTreeMap<String, String> {
         [
             ("ro.product.manufacturer", manufacturer),
+            ("ro.serialno", "G070L1234567890"),
             ("ro.product.model", "AFTMM"),
             ("ro.build.display.id", "PS7613/"),
             ("ro.build.version.release", "7.1.2"),
