@@ -76,6 +76,7 @@ struct ControlCentre {
     confirm_apply: bool,
     confirm_restore: bool,
     replace_youtube: bool,
+    install_launcher_after_cleanup: bool,
 }
 
 impl Default for ControlCentre {
@@ -110,6 +111,7 @@ impl Default for ControlCentre {
             confirm_apply: false,
             confirm_restore: false,
             replace_youtube: false,
+            install_launcher_after_cleanup: true,
         };
         app.start_initial_update_check();
         app
@@ -483,6 +485,8 @@ impl ControlCentre {
         ip: std::net::IpAddr,
         profile: device_profile::DeviceProfile,
         reboot_after_cleanup: bool,
+        install_launcher_after: bool,
+        install_smarttube_after: bool,
     ) {
         let Some(mut plan) = self.cleanup_plan.clone() else {
             return;
@@ -579,7 +583,7 @@ impl ControlCentre {
             state.status = format!("Applying {} reviewed operations. The sequence stops on the first failed verification…", plan.operations.len());
         }
         thread::spawn(move || {
-            let result = (|| -> Result<(adb_transport::ExecutionReport, bool), String> {
+            let result = (|| -> Result<(adb_transport::ExecutionReport, bool, Vec<String>, Option<String>), String> {
                 let runtime = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
@@ -604,14 +608,46 @@ impl ControlCentre {
                 } else {
                     false
                 };
-                Ok((report, rebooted))
+                let mut installed = Vec::new();
+                let mut install_error = None;
+                if report.failure.is_none() && install_launcher_after {
+                    match (|| -> Result<String, String> {
+                        let (bytes, version_code) = verified_launcher_apk()?;
+                        let backup = launcher_backup_path(&profile)?;
+                        runtime.block_on(adb_transport::install_launcher(ip, &profile, &bytes, version_code, &backup))
+                    })() {
+                        Ok(message) => installed.push(message),
+                        Err(error) => install_error = Some(format!("DumbTV HOME installation failed after cleanup: {error}")),
+                    }
+                }
+                if report.failure.is_none() && install_error.is_none() && install_smarttube_after {
+                    match (|| -> Result<String, String> {
+                        let bytes = verified_smarttube_apk()?;
+                        let backup = smarttube_backup_path(&profile)?;
+                        runtime.block_on(adb_transport::install_smarttube(ip, &profile, &bytes, &backup))
+                    })() {
+                        Ok(message) => installed.push(message),
+                        Err(error) => install_error = Some(format!("SmartTube installation failed after cleanup: {error}")),
+                    }
+                }
+                Ok((report, rebooted, installed, install_error))
             })();
             let mut state = shared.lock().expect("state lock poisoned");
             state.status = match result {
-                Ok((report, rebooted)) => match report.failure {
-                    Some(failure) => format!("Stopped after {} verified operations. {failure}. Journal: {journal_name}. The original snapshot remains available for restore.", report.completed.len()),
-                    None if rebooted => format!("All {} reviewed operations passed final verification. The Fire TV rebooted, reconnected and passed the same-device and post-reboot verification checks. Journal: {journal_name}.", report.completed.len()),
-                    None => format!("All {} reviewed operations completed and passed final verification. Journal: {journal_name}. Reboot remains optional; reconnect and review the device before relying on the new state.", report.completed.len()),
+                Ok((report, rebooted, installed, install_error)) => match report.failure {
+                    Some(failure) => format!("Stopped after {} verified cleanup operations. {failure}. Journal: {journal_name}. The original snapshot remains available for restore.", report.completed.len()),
+                    None => {
+                        let cleanup = if rebooted {
+                            format!("All {} reviewed cleanup operations passed verification; the Fire TV rebooted and reconnected as the same device. Journal: {journal_name}.", report.completed.len())
+                        } else {
+                            format!("All {} reviewed cleanup operations passed verification. Journal: {journal_name}.", report.completed.len())
+                        };
+                        let follow_up = if installed.is_empty() { String::new() } else { format!(" {}", installed.join(" ")) };
+                        match install_error {
+                            Some(error) => format!("{cleanup} {error}. Use the available undo action if a partial installer change needs reversing."),
+                            None => format!("{cleanup}{follow_up}"),
+                        }
+                    }
                 },
                 Err(error) => format!("Cleanup or its requested post-change verification/reconnect reported an error: {error}. Journal: {journal_name}. Inspect the TV before attempting another operation."),
             };
@@ -1060,6 +1096,14 @@ impl eframe::App for ControlCentre {
                     self.plan_snapshot_path = None;
                 }
                 ui.checkbox(&mut self.reboot_after_cleanup, "Reboot Fire TV after successful cleanup and verify reconnect (optional)");
+                if let Some(profile) = device_profile.as_ref() {
+                    if profile.launcher_compatibility() == device_profile::Compatibility::Supported {
+                        ui.checkbox(&mut self.install_launcher_after_cleanup, "After cleanup, install / update DumbTV HOME (recommended)");
+                    } else {
+                        self.install_launcher_after_cleanup = false;
+                        ui.label("DumbTV HOME installation is not supported on this API level; cleanup can still run.");
+                    }
+                }
                 ui.label("Apps to remove — enter exact Android package IDs, separated by spaces. No other user apps will be removed.");
                 if ui.text_edit_singleline(&mut self.remove_packages).changed() { self.cleanup_plan = None; self.plan_data_root = None; self.plan_snapshot_path = None; }
                 ui.label("Packages to keep — optional exact package IDs from the maintained removal lists.");
@@ -1147,6 +1191,12 @@ impl eframe::App for ControlCentre {
                         ui.label("This includes uninstalling the user apps you explicitly named. Reinstalling them may require the Amazon Appstore.");
                     }
                     ui.label("The app will stop at the first failed operation or failed read-back. The original snapshot will be retained.");
+                    if self.install_launcher_after_cleanup {
+                        ui.label("After successful cleanup (and optional reboot verification), the app will download/verify and install the published DumbTV HOME APK.");
+                    }
+                    if self.replace_youtube {
+                        ui.label("SmartTube is also selected: after DumbTV HOME succeeds, it will be installed and stock YouTube disabled reversibly.");
+                    }
                     ui.horizontal(|ui| {
                         if ui.button("Apply these changes").clicked() { apply_clicked = true; }
                         if ui.button("Cancel").clicked() { cancel_clicked = true; }
@@ -1157,7 +1207,9 @@ impl eframe::App for ControlCentre {
                     self.confirm_apply = false;
                     if let (Some(ip), Some(profile)) = (connected_ip, device_profile.clone()) {
                         let reboot_after_cleanup = self.reboot_after_cleanup;
-                        self.apply_cleanup_plan(ip, profile, reboot_after_cleanup);
+                        let install_launcher = self.install_launcher_after_cleanup;
+                        let install_smarttube = self.replace_youtube;
+                        self.apply_cleanup_plan(ip, profile, reboot_after_cleanup, install_launcher, install_smarttube);
                     }
                 }
             }
