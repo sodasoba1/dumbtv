@@ -200,7 +200,11 @@ impl WindowsCngAdbKey {
         self.public_key.as_wire_payload()
     }
 
-    pub fn public_key_fingerprint(&self) -> String {
+    pub fn public_key_fingerprint_md5(&self) -> String {
+        self.public_key.fingerprint_md5()
+    }
+
+    pub fn public_key_fingerprint_sha256(&self) -> String {
         self.public_key.fingerprint_sha256()
     }
 
@@ -322,7 +326,8 @@ mod tests {
     fn cng_generates_key_exports_public_key_and_signs_adb_token() {
         let key = WindowsCngAdbKey::generate_ephemeral().unwrap();
         assert!(key.public_key_wire().ends_with(b" dumbtv-control-centre@windows\0"));
-        assert_eq!(key.public_key_fingerprint().len(), 64);
+        assert_eq!(key.public_key_fingerprint_md5().len(), 47);
+        assert_eq!(key.public_key_fingerprint_sha256().len(), 64);
 
         let token = [0x5au8; 20];
         let signature = key.sign_token(&token).unwrap();
