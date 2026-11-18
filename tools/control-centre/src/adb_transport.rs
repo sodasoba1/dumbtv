@@ -1412,6 +1412,7 @@ pub async fn verify_cleanup_journal(
 ) -> Result<usize, String> {
     if journal.workflow != WorkflowKind::Cleanup
         || journal.manufacturer != expected.manufacturer
+        || journal.device_fingerprint != expected.serial_fingerprint
         || journal.model != expected.model
         || journal.build_display_id != expected.build_display_id
         || journal.android_sdk != expected.sdk
@@ -1450,6 +1451,9 @@ pub async fn read_current_device_state(
     expected: &DeviceProfile,
     original: &DeviceSnapshot,
 ) -> Result<crate::snapshot::CurrentDeviceState, String> {
+    if original.device_fingerprint != expected.serial_fingerprint {
+        return Err("the original snapshot belongs to a different Fire TV".into());
+    }
     let mut connection = connect(ip).await?;
     let actual = read_profile(&mut connection).await?;
     if !same_device(&actual, expected) {
