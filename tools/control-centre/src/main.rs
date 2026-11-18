@@ -972,7 +972,7 @@ fn load_unfinished_journals() -> Vec<String> {
         let pending = journal.operations.iter().filter(|item| item.status == operation_journal::OperationStatus::Pending).count();
         // Failed workflows are marked finished to prevent accidental replay,
         // but they still require owner review and must remain visible on restart.
-        if journal.finished && failed == 0 {
+        if journal.finished && failed == 0 && journal.workflow_error.is_none() {
             continue;
         }
         let attention: Vec<String> = journal.operations.iter().filter_map(|item| {
@@ -984,6 +984,10 @@ fn load_unfinished_journals() -> Vec<String> {
                 _ => None,
             }
         }).take(2).collect();
+        let mut attention = attention;
+        if let Some(error) = journal.workflow_error.as_deref() {
+            attention.push(format!("final verification failed: {}", error.chars().take(240).collect::<String>()));
+        }
         let attention = if attention.is_empty() { String::new() } else { format!(" Review: {}.", attention.join("; ")) };
         let name = path.file_name().and_then(|value| value.to_str()).unwrap_or("operation journal");
         summaries.push(format!(
