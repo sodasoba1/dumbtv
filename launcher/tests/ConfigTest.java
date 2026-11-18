@@ -154,7 +154,7 @@ public final class ConfigTest {
     private static void customTextRoundTrips() throws Exception {
         try (Fixture f = new Fixture()) {
             Config cfg = f.open();
-            String expected = "First line\\nSecond=line\\\\path\\n雪";
+            String expected = "First line\nSecond=line\\path\n雪";
             cfg.setText("widgets.text", expected);
             String stored = new String(Files.readAllBytes(f.settings.toPath()), StandardCharsets.UTF_8);
             check(stored.contains("widgets.text=!dumbtv-text-v1!"),
