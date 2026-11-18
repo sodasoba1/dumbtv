@@ -42,8 +42,9 @@ implementation into the executable.
 owner-supplied IP on port 5555, uses bounded ADB packet/channel buffers, and
 runs only the constant `getprop` command. It performs no package or settings
 writes. On a first connection the TV may add this host key to its ADB trust
-store, but only after the owner approves the on-TV prompt. The UI does not yet
-expose this function and no physical device test has been performed.
+store, but only after the owner approves the on-TV prompt. The GUI now exposes a two-step flow: prepare/display the host-key fingerprint,
+then connect to an owner-entered local IP. No physical device test has been
+performed.
 
 ## Compatibility caveat
 
