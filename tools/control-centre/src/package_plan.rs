@@ -5,13 +5,23 @@ use std::collections::BTreeSet;
 
 use crate::catalogue::{valid_package_name, FireOsCatalogue};
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PackageChoices {
     /// true keeps Alexa; false adds the Alexa package list to cleanup.
     pub keep_alexa: bool,
     pub keep: BTreeSet<String>,
     /// Packages explicitly named by the owner for removal.
     pub remove: BTreeSet<String>,
+}
+
+impl Default for PackageChoices {
+    fn default() -> Self {
+        Self {
+            keep_alexa: true,
+            keep: BTreeSet::new(),
+            remove: BTreeSet::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
