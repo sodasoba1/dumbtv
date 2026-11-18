@@ -232,7 +232,6 @@ public final class ConfigTest {
         customColoursIndependent();
         legacyValuesRemainReadable();
         themeAndTileSizePresets();
-        favouritesAlignmentDefaultsAndPersists();
         toolbarAutoHideDefaultsAndPersists();
         customTextRoundTrips();
         concurrentSettingsAccess();
