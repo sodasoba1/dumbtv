@@ -1,6 +1,6 @@
-# DumbTV Control Centre — test build
+# DumbTV Windows Installer — test build
 
-This is a separate Windows desktop utility for the AFTMM DumbTV fork. It does not replace the Android launcher and does not modify Keeper or the existing scripts.
+This is the portable Windows GUI installer and maintenance frontend for the AFTMM DumbTV fork. It is distributed as an extract-and-run ZIP rather than an MSI. It installs the existing published Android launcher APK; it does not replace or rebuild the Android launcher source, modify Keeper, or execute the existing scripts.
 
 ## What this test build does
 
