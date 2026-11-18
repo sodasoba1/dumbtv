@@ -14,7 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class RestoreTest(unittest.TestCase):
-    def run_restore(self, ignores_reboot=False, settings=None, svc_refused=False):
+    def run_restore(self, ignores_reboot=False, settings=None, svc_refused=False,
+                    package_snapshot=None, manufacturer='Amazon'):
         packages = {
             "dnsfilter.android": {"system": False, "enabled": True},
             "com.amazon.tv.acr": {"system": True, "enabled": False},
@@ -27,17 +28,23 @@ class RestoreTest(unittest.TestCase):
                 **(settings or {}),
             }
             state.write_text(json.dumps({"packages": packages, "settings": hooked,
+                                         "manufacturer": manufacturer,
                                          "ignores_reboot": ignores_reboot,
                                          "svc_refused": svc_refused}))
             log = tmp / "commands.log"
             log.touch()
             (tmp / "dumbtv.conf").write_text("")
+            report = tmp / "report"
+            report.mkdir()
+            if package_snapshot is not None:
+                (report / "packages-before.txt").write_text(package_snapshot)
             env = dict(os.environ, ADB=str(ROOT / "tests" / "fake_tv.py"), ADB_SERIAL="test-tv:5555",
                        FAKE_TV_STATE=str(state), FAKE_TV_LOG=str(log),
-                       CONF=str(tmp / "dumbtv.conf"), REPORT=str(tmp / "report"), BOOT_SECONDS="0",
+                       CONF=str(tmp / "dumbtv.conf"), REPORT=str(report), BOOT_SECONDS="0",
                        PM_WRITE_SECONDS="0")
             result = subprocess.run(["bash", str(ROOT / "scripts" / "restore.sh"), "-y"],
                                     env=env, capture_output=True, text=True, timeout=120)
+            self.package_snapshot_exists_after = (report / "packages-before.txt").exists()
             return result, log.read_text().splitlines(), json.loads(state.read_text())
 
     def test_every_change_reaches_the_tv_before_the_reboot(self):
@@ -52,6 +59,23 @@ class RestoreTest(unittest.TestCase):
         self.assertEqual(state["boots"], 1)
         self.assertTrue(state["packages"]["com.amazon.tv.acr"]["enabled"])
         self.assertEqual(state.get("bad", []), [])
+
+    def test_restore_preserves_packages_disabled_before_dumbtv(self):
+        result, commands, state = self.run_restore(
+            package_snapshot="com.amazon.tv.acr\tdisabled\n")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse(state["packages"]["com.amazon.tv.acr"]["enabled"])
+        self.assertNotIn("pm enable --user 0 com.amazon.tv.acr", commands)
+        self.assertIn("left disabled (was not enabled in the original snapshot)", result.stdout)
+        self.assertFalse(self.package_snapshot_exists_after,
+                         "successful restore clears snapshots for the next cleanup cycle")
+
+    def test_restore_refuses_to_run_on_non_fire_os_devices(self):
+        result, commands, _ = self.run_restore(manufacturer="Google")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("this is for Amazon Fire OS", result.stderr)
+        self.assertFalse(any(command.startswith("pm enable") or command.startswith("settings put")
+                             for command in commands))
 
     def test_amazons_screensaver_comes_back(self):
         amazon = "com.amazon.ftv.screensaver/.app.services.ScreensaverService"

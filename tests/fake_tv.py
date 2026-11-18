@@ -127,7 +127,7 @@ elif command in ('svc power reboot', 'reboot'):
 elif command == 'getprop ro.build.version.sdk':
     print(state.get('sdk', 28))
 elif command == 'getprop ro.product.manufacturer':
-    print('Amazon')
+    print(state.get('manufacturer', 'Amazon'))
 elif command == 'getprop sys.boot_completed':
     print(1)
 elif words[:1] == ['getprop'] and len(words) == 2 and words[1] in state.get('props', {}):
@@ -139,6 +139,8 @@ elif command == 'cmd package help':
 elif words[:2] == ['pm', 'path']:
     if words[2] in apps:
         print(f'package:/system/app/{words[2]}.apk')
+elif command == 'pm list packages':
+    print('\n'.join(f'package:{p}' for p in apps))
 elif command == 'pm list packages -s':
     print('\n'.join(f'package:{p}' for p, a in apps.items() if a['system']))
 elif command == 'pm list packages -d':

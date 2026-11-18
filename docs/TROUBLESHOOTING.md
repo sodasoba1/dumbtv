@@ -193,9 +193,12 @@ The scripts select `data/fireos6/` automatically.
   `dumpsys activity services tv.dumbtv.home`.
 - **UsageStats is unavailable.** The installer grants `GET_USAGE_STATS`; check
   it with `appops get tv.dumbtv.home GET_USAGE_STATS`.
-- **Standby recovery does not start.** Check `appops get tv.dumbtv.home AUTO_START`;
-  it must report `allow`. Re-run `./launcher/install.sh` to apply and verify it.
-  Also check `dumpsys deviceidle whitelist` includes `tv.dumbtv.home`.
+- **Standby recovery does not start.** Check `appops get tv.dumbtv.home AUTO_START`.
+  If the firmware supports this vendor-specific AppOp, it must report `allow`.
+  Some Fire OS 6 builds return `Unknown operation string: AUTO_START`; the
+  installer recognises that as unsupported and uses the boot receiver instead.
+  `verify.sh` reports that case as skipped, not failed. Also check
+  `dumpsys deviceidle whitelist` includes `tv.dumbtv.home`.
 - **READ_LOGS is not granted.** The launcher installer should stop with an error.
   Re-run `./launcher/install.sh`; it issues `pm grant tv.dumbtv.home
   android.permission.READ_LOGS` and checks the package dump. If Fire OS refuses
