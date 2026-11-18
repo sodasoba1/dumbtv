@@ -460,6 +460,9 @@ mod tests {
             ("Restrict AppOp".into(), DeviceCommand::SetAppOp {
                 package: "com.amazon.hedwig".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "ignore".into(),
             }),
+            ("Restrict second AppOp".into(), DeviceCommand::SetAppOp {
+                package: "com.amazon.other".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "ignore".into(),
+            }),
             ("Enable Data Saver".into(), DeviceCommand::SetRestrictBackground(true)),
             ("Blacklist UID".into(), DeviceCommand::AddMeteredBlacklistUid(10025)),
         ];
@@ -485,7 +488,30 @@ mod tests {
             RestoreAction::RemoveMeteredBlacklistUid(10025),
             RestoreAction::RemoveMeteredBlacklistUid(10026),
         ]};
-        let (scoped, excluded) = scope_restore_to_verified_cleanup(&plan, &journal);
+        let current = crate::snapshot::CurrentDeviceState {
+            packages: [
+                ("com.amazon.ads".into(), PackageState::Disabled),
+                ("com.amazon.other".into(), PackageState::Enabled),
+            ].into_iter().collect(),
+            user_packages: BTreeSet::new(),
+            secure_settings: [
+                ("advertising_id".into(), Some("0".into())),
+                ("manual_key".into(), Some("owner".into())),
+            ].into_iter().collect(),
+            global_settings: BTreeMap::new(),
+            app_ops: vec![
+                crate::snapshot::AppOpState {
+                    package: "com.amazon.hedwig".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "ignore".into(),
+                },
+                // A later manual change no longer matches the cleanup target.
+                crate::snapshot::AppOpState {
+                    package: "com.amazon.other".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "deny".into(),
+                },
+            ],
+            restrict_background: Some(true),
+            metered_blacklist_uids: Some([10025, 10026].into_iter().collect()),
+        };
+        let (scoped, excluded) = scope_restore_to_verified_cleanup(&plan, &journal, &current);
         assert_eq!(excluded, 4);
         assert_eq!(scoped.actions.len(), 6); // five verified changes plus the manual-review notice
         assert!(scoped.actions.iter().any(|item| matches!(item, RestoreAction::SetPackageState { package, .. } if package == "com.amazon.ads")));
