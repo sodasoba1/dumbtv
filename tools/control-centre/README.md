@@ -22,7 +22,7 @@ The active source manifest is stored separately in `active-source.json`. Existin
 - Prepare a dedicated 2048-bit ADB host key in the current Windows user's CNG key store. The private key is not exported.
 - Display the Android 7-era MD5 fingerprint (for comparison with the Fire TV's authorisation prompt) and a separate SHA-256 fingerprint.
 - Connect to one owner-entered private/local IP address on TCP 5555 using Rust `libadb` and the Windows CNG authenticator.
-- Read the device's `getprop` output and package-manager inventories with bounded response buffers; show model, build, Android version, SDK, ABI, cleanup/launcher compatibility and installed/system/user/disabled package counts.
+- Read the device's `getprop` output first; only if it identifies a supported Amazon Fire OS SDK 25–30 device, read package-manager inventories with bounded response buffers. Show model, build, Android version, SDK, ABI, cleanup/launcher compatibility and installed/system/user/disabled package counts.
 - Restrict the connection target to private, loopback or link-local addresses.
 
 On a first connection, the Fire TV may ask to authorise this PC's ADB public key. Compare the MD5 fingerprint shown in the app with the TV prompt before allowing it. The TV adds the key to its trusted ADB host list only if you approve. Selecting "Always allow" on the TV saves that authorisation for later connections.
