@@ -62,8 +62,12 @@ impl DeviceProfile {
             .map_err(|_| format!("device reported an invalid Android SDK level: {sdk_text}"))?;
         let serial = ["ro.serialno", "ro.boot.serialno"]
             .iter()
-            .find_map(|key| properties.get(*key).map(|value| value.trim()))
-            .filter(|value| !value.is_empty() && !value.eq_ignore_ascii_case("unknown"))
+            .filter_map(|key| properties.get(*key).map(|value| value.trim()))
+            .find(|value| {
+                !value.is_empty()
+                    && !value.eq_ignore_ascii_case("unknown")
+                    && !value.bytes().all(|byte| byte == b'0')
+            })
             .ok_or("device did not report a usable serial property; refusing to operate without a unique device identity")?;
         let serial_fingerprint = crate::apk_release::sha256_hex(serial.as_bytes());
 
