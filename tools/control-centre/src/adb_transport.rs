@@ -332,10 +332,14 @@ pub async fn reboot_and_reconnect(
         return Err("the ADB port did not disconnect; reboot could not be confirmed".into());
     }
 
-    for _ in 0..60 {
-        if let Ok(Ok(stream)) = timeout(Duration::from_secs(2), TcpStream::connect(address)).await {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(120);
+    while tokio::time::Instant::now() < deadline {
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if let Ok(Ok(stream)) = timeout(remaining.min(Duration::from_secs(2)), TcpStream::connect(address)).await {
             drop(stream);
-            if let Ok(Ok(mut connection)) = timeout(Duration::from_secs(12), connect(ip)).await {
+            let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+            if remaining.is_zero() { break; }
+            if let Ok(Ok(mut connection)) = timeout(remaining.min(Duration::from_secs(12)), connect(ip)).await {
                 if let Ok(profile) = read_profile(&mut connection).await {
                     if same_device(&profile, expected) {
                         verify_cleanup_operations(&mut connection, operations).await?;
@@ -345,7 +349,9 @@ pub async fn reboot_and_reconnect(
                 }
             }
         }
-        tokio::time::sleep(Duration::from_secs(2)).await;
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if remaining.is_zero() { break; }
+        tokio::time::sleep(remaining.min(Duration::from_secs(2))).await;
     }
     Err("the Fire TV did not complete ADB reconnect within 120 seconds".into())
 }
