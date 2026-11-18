@@ -1,3 +1,5 @@
+mod device_profile;
+
 use eframe::egui;
 use atomicwrites::{AllowOverwrite, AtomicFile};
 use serde::{Deserialize, Serialize};
