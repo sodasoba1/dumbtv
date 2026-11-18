@@ -18,24 +18,32 @@ by this migration.
 - `package_inventory.rs`: parses read-only package-manager output into
   installed, system, user and disabled sets; accepts the special `android`
   framework package and rejects inconsistent inventories.
-- `package_plan.rs`: builds an offline, read-only cleanup plan from the
-  catalogue, installed/system package inventories, original enabled/disabled
-  state and explicit owner choices. Defaults keep Alexa; already-disabled
+- `package_plan.rs`: builds a package plan from the catalogue, installed/system
+  inventories and explicit owner choices. Defaults keep Alexa; already-disabled
   packages are skipped; named system apps are disabled; named user apps are
-  uninstalled; never-disable entries are rejected; contradictory keep/remove
-  choices fail closed.
+  uninstalled; never-disable entries are rejected; conflicting choices fail closed.
 - `adb_auth.rs`: encodes the 2048-bit RSA public key into Android's mincrypt
   ADB AUTH format and calculates both the Android 7 MD5 prompt fingerprint
   and a separate SHA-256 fingerprint.
 - `cng_auth.rs`: creates a dedicated non-exportable host key in the current
   Windows user's CNG key store and signs ADB AUTH tokens with PKCS#1 v1.5/SHA-1.
 - `adb_transport.rs`: connects to one owner-entered private/local IP on TCP
-  5555, uses bounded ADB buffers, reads device properties, and queries package
-  inventories only after the Amazon Fire OS SDK 25–30 compatibility gate.
-- `adb_transport.rs` also captures a complete pre-change snapshot of package
-  states, whitelisted secure/global settings, protected-package AppOps, Data
-  Saver and the metered-data UID blacklist. It fails closed on unknown output
-  and persists the fixed original snapshot path without overwrite.
+  5555, uses bounded ADB buffers, reads device properties and package
+  inventories, and queries protected-package UIDs after the SDK 25–30 gate.
+- `adb_transport.rs`: captures the original package/user-system classification,
+  whitelisted secure/global settings, protected-package AppOps, Data Saver and
+  the complete metered-data UID blacklist. The snapshot is pinned to the exact
+  source commit and persisted once without overwrite.
+- `operations.rs`: creates a visible cleanup plan from catalogue data, explicit
+  Alexa/keep/remove choices, protected UIDs and the saved baseline. It plans
+  package disable/uninstall, privacy settings, screensaver fallback, AppOps,
+  Data Saver and metered-data UID restrictions.
+- `adb_transport.rs`: validates that the live device still matches the saved
+  baseline before cleanup; executes typed operations over one authenticated
+  connection, verifies each operation by read-back and stops on first failure.
+- `snapshot.rs` and `operations.rs`: read current state, build a delta-only
+  restore plan, separate automatic operations from manual Store/system recovery,
+  and execute restore actions with the same per-operation verification.
 - Unit tests cover API 25/28/30, unsupported manufacturers, older/newer SDKs,
   getprop parsing, catalogue parsing, actual repository catalogues, duplicate
   entries, generation fallback and cleanup-plan safety rules.
@@ -59,28 +67,26 @@ by this migration.
 
 ## Implementation order
 
-1. **ADB transport and authentication:** select a Rust protocol library and a
-   Windows CNG signing implementation; validate legacy TCP ADB and RSA trust on
-   the AFTMM. Until physical validation, the GUI exposes guarded read-only
-   inspection only; no device-changing controls are available.
-2. **Read-only inventory and snapshot:** connect to one explicitly selected
-   device, collect properties, package states, settings, protected-package
-   AppOps and network-policy state. Save the complete original snapshot once
-   before any device write. No device writes.
-3. **Configuration and plan:** load the source catalogue, validate owner
-   choices, calculate the exact proposed operations, and display them without
-   executing them.
-4. **Snapshots:** save package enabled/disabled state, secure/global settings,
-   AppOps modes and Data Saver/UID blacklist state atomically to local app data
-   before the first device write. Never replace an existing original snapshot
-   with a later, already-modified state.
-5. **Reversible cleanup:** implement package disable/uninstall, privacy
-   settings, background policy, screensaver fallback and post-change
-   verification. Restore only the changes made by this app, not assumed defaults.
-6. **Restore:** implement and test restore before exposing cleanup as a normal
-   user workflow.
-7. **Launcher:** only after separate AFTMM validation of APK signing, grants,
-   Keeper lifecycle, reboot/reconnect and undo.
+1. **ADB transport and authentication:** implemented in Rust with Windows CNG
+   signing and direct TCP ADB. The Windows build, tests and dependency audit
+   pass. Physical AFTMM verification remains a device-level release check, not
+   a reason to assume the protocol is broken.
+2. **Read-only inventory and original snapshot:** implemented. Snapshot capture
+   fails closed on unknown package/settings/AppOps/network-policy output and is
+   pinned to the exact source revision.
+3. **Configuration and cleanup plan:** implemented for Alexa, keep/remove app
+   choices, maintained privacy settings, protected-package AppOps, Data Saver,
+   metered UID restrictions and screensaver fallback.
+4. **Cleanup execution:** implemented with a final confirmation, live baseline
+   recheck, typed ADB commands, bounded timeouts, per-operation read-back and
+   stop-on-first-failure reporting.
+5. **Restore:** implemented as a reviewed delta plan with live-state recheck,
+   typed restore commands and per-operation verification. User-app reinstall
+   and missing system-package recovery remain manual and are explicitly shown.
+6. **Remaining parity:** force-stop/process handling, automatic reboot/reconnect,
+   complete post-change verification and a more detailed failure journal.
+7. **Launcher:** still gated separately; API 25 only, with APK signing, grants,
+   Keeper lifecycle, reboot/reconnect and undo to validate.
 8. **Optional YouTube replacement:** last, with explicit opt-in and pinned
    checksum/version verification.
 

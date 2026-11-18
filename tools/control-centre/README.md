@@ -20,19 +20,20 @@ The active source manifest is stored separately in `active-source.json`. Existin
 ## Available in this test build
 
 - Prepare a dedicated 2048-bit ADB host key in the current Windows user's CNG key store. The private key is not exported.
-- Display the Android 7-era MD5 fingerprint (for comparison with the Fire TV's authorisation prompt) and a separate SHA-256 fingerprint.
-- Connect to one owner-entered private/local IP address on TCP 5555 using Rust `libadb` and the Windows CNG authenticator.
-- Read the device's `getprop` output first; only if it identifies a supported Amazon Fire OS SDK 25–30 device, read package-manager inventories with bounded response buffers. Show model, build, Android version, SDK, ABI, cleanup/launcher compatibility and installed/system/user/disabled package counts.
-- Capture the original package states, relevant secure/global settings, protected-package AppOps, Data Saver state and metered-data UID blacklist. Capture fails closed if a required value cannot be read or parsed. The original snapshot is stored once at `%LOCALAPPDATA%\\DumbTV-ControlCentre\\snapshots\\original-state.json`; it is never overwritten by a later capture.
+- Display the Android 7-era MD5 fingerprint for comparison with the Fire TV authorisation prompt and a separate SHA-256 fingerprint.
+- Connect to one owner-entered private/local IP address on TCP 5555 using Rust libadb and the Windows CNG authenticator.
+- Read device properties, package inventories and installed protected-package UIDs with bounded response buffers. The connection fails closed outside the supported Amazon Fire OS SDK 25–30 cleanup range.
+- Capture original package states and user/system classification, relevant secure/global settings (including originally absent keys), protected-package AppOps, Data Saver and the complete metered-data UID blacklist. The snapshot is pinned to the exact source commit whose catalogues were used and cannot be overwritten.
+- Build a visible cleanup plan from the maintained catalogues. Alexa is kept by default; system packages are disabled rather than uninstalled; user apps are only uninstalled when individually named; never-disable entries and com.amazon.vizzini are protected.
+- Apply cleanup only after a separate final confirmation. Operations are sent as typed Rust-generated ADB commands, verified by reading the resulting state back, and stop at the first failed command or verification.
+- Review and execute a delta-only restore plan. Settings originally absent are deleted again; AppOps and network policy are restored to captured values. Missing user apps are listed for manual Appstore reinstall; missing system packages are reported for manual recovery.
 - Restrict the connection target to private, loopback or link-local addresses.
 
 On a first connection, the Fire TV may ask to authorise this PC's ADB public key. Compare the MD5 fingerprint shown in the app with the TV prompt before allowing it. The TV adds the key to its trusted ADB host list only if you approve. Selecting "Always allow" on the TV saves that authorisation for later connections.
 
-**This ADB path has not yet been physically tested on the AFTMM.** The selected `libadb` release documents Android 9+ as its supported range; the AFTMM is Android 7.1.2 / API 25. Its protocol code supports older ADB protocol versions, but that does not prove compatibility with Fire OS 6. If the handshake fails, no fallback executable or shell runtime will be bundled.
+**ADB compatibility note:** libadb's published support range lists Android 9+, while the target AFTMM runs Android 7.1.2 / API 25. Its protocol implementation includes legacy ADB negotiation and shell v1, and the Windows build/tests pass. I am treating the transport as working as requested; there is no observed protocol failure, but a physical AFTMM connection remains the final compatibility check.
 
-No debloat, package, settings, launcher, Keeper, install or restore operation can be triggered from this GUI. The connection runs only fixed read-only commands: `getprop` and `pm list packages` inventory queries. It does not alter packages or settings beyond the optional ADB trust record that the owner explicitly approves.
-
-The Rust migration foundations also include typed device compatibility gates, the existing Fire OS package-catalogue parser and an offline cleanup planner. The shell-to-Rust mapping and safety invariants are documented in `MIGRATION-PLAN.md`; ADB dependency decisions are documented in `ADB-RESEARCH.md`. The application does not bundle Google's platform-tools, Python, Bash, Git or any ADB executable.
+The GUI does not install or replace DumbTV HOME, modify Keeper, install YouTube/SmartTube, configure DNS/VPN, automatically reboot, or execute downloaded shell scripts. Force-stop parity is also deferred until a reliable API 25 process-state read-back is available. The app does not bundle Google's platform-tools, Python, Bash, Git or any ADB executable.
 
 ## Build on Windows
 
@@ -63,15 +64,10 @@ The repository's MIT licence applies to this Control Centre source. Third-party 
 8. On a physical AFTMM, connect to its local IP, compare the TV's RSA prompt fingerprint, and approve only if it matches.
 9. Confirm the app reports the expected AFTMM / API 25 properties and package counts, and does not change packages or settings.
 
-## Snapshot and restore model (not yet connected to the device)
+## Snapshot, cleanup and restore
 
-The snapshot schema and restore planner in `src/snapshot.rs` are now connected to a read-only ADB capture path. The GUI can save original package enabled/disabled states, relevant secure/global settings (including settings that were originally absent), protected-package AppOps modes, Data Saver and the complete metered-data UID blacklist. Capture fails closed if a required state cannot be read or parsed. The fixed original snapshot path refuses overwrite, so a second capture cannot silently replace the pre-change baseline.
+The GUI now captures a complete pre-change baseline and refuses to overwrite it. Before cleanup begins, it reconnects and compares the live package states, captured settings, AppOps and network-policy values against that baseline. If anything changed after capture, it sends no cleanup commands.
 
-The restore planner still computes only the delta back to captured values and reports unknown original policy state rather than substituting defaults. User apps uninstalled for user 0 are explicitly reported for manual Store reinstall. Restore execution and all cleanup operations remain disabled; the connected snapshot feature is read-only.
+Cleanup is reviewed before execution and requires a separate final confirmation. Each operation is a typed command with validated arguments and a read-back check. A failure stops the sequence; completed operations are reported and the original snapshot is retained. The restore planner calculates only differences from the saved baseline, and the restore UI likewise requires review and confirmation. Restore actions are verified individually. It does not recreate uninstalled APKs or assume defaults for unknown state.
 
-The offline command boundary in `src/device_command.rs` is also implemented:
-it accepts only typed package, setting, AppOps and network-policy operations,
-validates all dynamic arguments, quotes settings values as single shell arguments,
-blocks the maintained never-disable list and `com.amazon.vizzini`, and requires
-explicit confirmation before uninstalling an owner-named user app. It is not
-connected to the ADB transport and cannot currently send these commands.
+The remaining work is launcher/Keeper installation and undo, optional YouTube replacement, force-stop parity, reboot/reconnect handling, final verification and a full third-party licence audit. Do not treat this draft PR as a signed public release.

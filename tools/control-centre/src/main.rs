@@ -10,6 +10,7 @@ mod package_inventory;
 mod settings_catalogue;
 mod snapshot;
 mod device_command;
+mod operations;
 
 use eframe::egui;
 use atomicwrites::{AllowOverwrite, AtomicFile};
@@ -51,13 +52,24 @@ struct SharedState {
     host_key_sha256: Option<String>,
     device_profile: Option<device_profile::DeviceProfile>,
     package_inventory: Option<package_inventory::PackageInventory>,
+    protected_uids: std::collections::BTreeMap<String, u32>,
     connected_ip: Option<std::net::IpAddr>,
     snapshot_path: Option<PathBuf>,
+    restore_plan: Option<snapshot::RestorePlan>,
+    restore_current: Option<snapshot::CurrentDeviceState>,
 }
 
 struct ControlCentre {
     shared: Arc<Mutex<SharedState>>,
     device_ip: String,
+    keep_alexa: bool,
+    remove_packages: String,
+    keep_packages: String,
+    cleanup_plan: Option<operations::CleanupPlan>,
+    plan_data_root: Option<PathBuf>,
+    plan_snapshot_path: Option<PathBuf>,
+    confirm_apply: bool,
+    confirm_restore: bool,
 }
 
 impl Default for ControlCentre {
@@ -73,10 +85,21 @@ impl Default for ControlCentre {
                 host_key_sha256: None,
                 device_profile: None,
                 package_inventory: None,
+                protected_uids: std::collections::BTreeMap::new(),
                 connected_ip: None,
                 snapshot_path: None,
+                restore_plan: None,
+                restore_current: None,
             })),
             device_ip: String::new(),
+            keep_alexa: true,
+            remove_packages: String::new(),
+            keep_packages: String::new(),
+            cleanup_plan: None,
+            plan_data_root: None,
+            plan_snapshot_path: None,
+            confirm_apply: false,
+            confirm_restore: false,
         };
         app.start_initial_update_check();
         app
@@ -193,18 +216,31 @@ impl ControlCentre {
             state.busy = true;
             state.device_profile = None;
             state.package_inventory = None;
+            state.protected_uids.clear();
             state.connected_ip = None;
             state.snapshot_path = None;
+            state.restore_plan = None;
+            state.restore_current = None;
             state.status = "Connecting to the specified Fire TV. Check the TV before approving its ADB key prompt…".into();
         }
         thread::spawn(move || {
-            let result = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .map_err(|error| format!("cannot start the ADB runtime: {error}"))
-                .and_then(|runtime| {
-                    runtime.block_on(adb_transport::inspect_device(ip))
-                });
+            let result = (|| -> Result<adb_transport::DeviceInventory, String> {
+                let root = app_root()?;
+                let saved_snapshot_path = root.join("snapshots").join("original-state.json");
+                let source_commit = if saved_snapshot_path.is_file() {
+                    snapshot::DeviceSnapshot::load(&saved_snapshot_path)?.source_commit
+                } else {
+                    load_active_source()?.ok_or("download the official source before connecting to a Fire TV")?.commit
+                };
+                let source_root = root.join("source-versions").join(&source_commit);
+                validate_source_tree(&source_root)?;
+                let data_root = source_root.join("data");
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|error| format!("cannot start the ADB runtime: {error}"))?;
+                runtime.block_on(adb_transport::inspect_device(ip, &data_root))
+            })();
             let mut state = shared.lock().expect("state lock poisoned");
             match result {
                 Ok(inventory) => {
@@ -216,8 +252,16 @@ impl ControlCentre {
                     state.connected_ip = Some(ip);
                     state.device_profile = Some(inventory.profile);
                     state.package_inventory = inventory.packages;
+                    state.protected_uids = inventory.protected_uids;
+                    let saved_snapshot = app_root().ok().map(|root| root.join("snapshots").join("original-state.json"));
+                    if let Some(path) = saved_snapshot.filter(|path| path.is_file()) {
+                        state.snapshot_path = Some(path);
+                    }
                 }
-                Err(error) => state.status = format!("ADB inspection failed: {error}"),
+                Err(error) => {
+                    state.protected_uids.clear();
+                    state.status = format!("ADB inspection failed: {error}");
+                },
             }
             state.busy = false;
         });
@@ -244,7 +288,7 @@ impl ControlCentre {
                 let path = snapshots.join("original-state.json");
                 let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
                     .map_err(|error| format!("cannot start the ADB runtime: {error}"))?;
-                runtime.block_on(adb_transport::capture_original_snapshot(ip, &data_root, &path))?;
+                runtime.block_on(adb_transport::capture_original_snapshot(ip, &data_root, &manifest.commit, &path))?;
                 Ok(path)
             })();
             let mut state = shared.lock().expect("state lock poisoned");
@@ -258,17 +302,270 @@ impl ControlCentre {
             state.busy = false;
         });
     }
+
+
+    fn prepare_cleanup_plan(
+        &mut self,
+        profile: &device_profile::DeviceProfile,
+        inventory: &package_inventory::PackageInventory,
+        protected_uids: &std::collections::BTreeMap<String, u32>,
+        snapshot_path: &Path,
+    ) -> Result<(), String> {
+        let original = snapshot::DeviceSnapshot::load(snapshot_path)?;
+        let source_root = app_root()?.join("source-versions").join(&original.source_commit);
+        validate_source_tree(&source_root)?;
+        let data_root = source_root.join("data");
+        if original.manufacturer != profile.manufacturer
+            || original.model != profile.model
+            || original.android_sdk != profile.sdk
+        {
+            return Err("the saved original snapshot belongs to a different device; refusing to use it".into());
+        }
+        if original.restrict_background.is_none() || original.metered_blacklist_uids.is_none() {
+            return Err("the saved snapshot is missing Data Saver or metered-data policy state; refusing to apply cleanup".into());
+        }
+        let original_packages: std::collections::BTreeSet<String> = original.packages.keys().cloned().collect();
+        if original_packages != inventory.installed || original.user_packages != inventory.user {
+            return Err("the installed package inventory changed after the original snapshot; reconnect and capture a fresh baseline before planning".into());
+        }
+        for (package, original_state) in &original.packages {
+            let current_state = if inventory.disabled.contains(package) {
+                snapshot::PackageState::Disabled
+            } else {
+                snapshot::PackageState::Enabled
+            };
+            if current_state != *original_state {
+                return Err(format!("package state changed after the original snapshot: {package}"));
+            }
+        }
+        let choices = package_plan::PackageChoices {
+            keep_alexa: self.keep_alexa,
+            keep: self.keep_packages.split_whitespace().map(str::to_owned).collect(),
+            remove: self.remove_packages.split_whitespace().map(str::to_owned).collect(),
+        };
+        let plan = operations::build_cleanup_plan(
+            &data_root,
+            profile.sdk,
+            inventory,
+            &choices,
+            protected_uids,
+            &original,
+        )?;
+        self.plan_data_root = Some(data_root);
+        self.plan_snapshot_path = Some(snapshot_path.to_path_buf());
+        self.cleanup_plan = Some(plan);
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    fn apply_cleanup_plan(&mut self, ip: std::net::IpAddr, profile: device_profile::DeviceProfile) {
+        let Some(mut plan) = self.cleanup_plan.clone() else { return; };
+        let Some(data_root) = self.plan_data_root.clone() else { return; };
+        let Some(snapshot_path) = self.plan_snapshot_path.clone() else { return; };
+        let original = match snapshot::DeviceSnapshot::load(&snapshot_path) {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                let mut state = self.shared.lock().expect("state lock poisoned");
+                state.status = format!("Cannot apply cleanup: {error}");
+                return;
+            }
+        };
+        if original.manufacturer != profile.manufacturer
+            || original.model != profile.model
+            || original.android_sdk != profile.sdk
+        {
+            let mut state = self.shared.lock().expect("state lock poisoned");
+            state.status = "Cannot apply cleanup: the saved original snapshot belongs to a different device.".into();
+            return;
+        }
+        let catalogue = match catalogue::FireOsCatalogue::load(&data_root, profile.sdk) {
+            Ok(catalogue) => catalogue,
+            Err(error) => {
+                let mut state = self.shared.lock().expect("state lock poisoned");
+                state.status = format!("Cannot load the protected-package policy: {error}");
+                return;
+            }
+        };
+        let never_disable: std::collections::BTreeSet<String> = catalogue.never_disable.into_iter().collect();
+        // This flag is set only after the owner presses the final Apply button.
+        for operation in &mut plan.operations {
+            if let device_command::DeviceCommand::UninstallPackageForUser { owner_confirmed, .. } = &mut operation.command {
+                *owner_confirmed = true;
+            }
+        }
+        self.cleanup_plan = None;
+        self.plan_data_root = None;
+        self.plan_snapshot_path = None;
+        self.confirm_apply = false;
+        let shared = Arc::clone(&self.shared);
+        {
+            let mut state = shared.lock().expect("state lock poisoned");
+            if state.busy { return; }
+            state.busy = true;
+            state.status = format!("Applying {} reviewed operations. The sequence stops on the first failed verification…", plan.operations.len());
+        }
+        thread::spawn(move || {
+            let result = (|| -> Result<adb_transport::ExecutionReport, String> {
+                let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
+                    .map_err(|error| format!("cannot start the ADB runtime: {error}"))?;
+                runtime.block_on(adb_transport::execute_plan(ip, &profile, &original, &plan.operations, &never_disable))
+            })();
+            let mut state = shared.lock().expect("state lock poisoned");
+            state.status = match result {
+                Ok(report) => match report.failure {
+                    Some(failure) => format!("Stopped after {} verified operations. {failure}. The original snapshot remains available for restore.", report.completed.len()),
+                    None => format!("All {} reviewed operations completed and passed read-back verification. The original snapshot has been retained. Reboot and run a fresh preflight before relying on the new state.", report.completed.len()),
+                },
+                Err(error) => format!("Cleanup did not start or could not complete: {error}. The original snapshot has been retained."),
+            };
+            state.busy = false;
+            state.connected_ip = None;
+            state.device_profile = None;
+            state.package_inventory = None;
+            state.protected_uids.clear();
+            state.restore_plan = None;
+            state.restore_current = None;
+        });
+    }
+
+
+    #[cfg(windows)]
+    fn review_restore_plan(&self, ip: std::net::IpAddr, profile: device_profile::DeviceProfile, snapshot_path: PathBuf) {
+        let shared = Arc::clone(&self.shared);
+        {
+            let mut state = shared.lock().expect("state lock poisoned");
+            if state.busy { return; }
+            state.busy = true;
+            state.restore_plan = None;
+            state.restore_current = None;
+            state.status = "Reading current device state and calculating the restore delta…".into();
+        }
+        thread::spawn(move || {
+            let result = (|| -> Result<(snapshot::RestorePlan, snapshot::CurrentDeviceState), String> {
+                let original = snapshot::DeviceSnapshot::load(&snapshot_path)?;
+                if original.manufacturer != profile.manufacturer || original.model != profile.model || original.android_sdk != profile.sdk {
+                    return Err("the saved original snapshot belongs to a different device".into());
+                }
+                let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
+                    .map_err(|error| format!("cannot start the ADB runtime: {error}"))?;
+                let current = runtime.block_on(adb_transport::read_current_device_state(ip, &profile, &original))?;
+                let plan = snapshot::build_restore_plan(&original, &current)?;
+                Ok((plan, current))
+            })();
+            let mut state = shared.lock().expect("state lock poisoned");
+            match result {
+                Ok((plan, current)) => {
+                    let (commands, manual) = operations::build_restore_operations(&plan);
+                    state.status = format!("Restore plan ready: {} automatic operations and {} manual items. Nothing has been changed.", commands.len(), manual.len());
+                    state.restore_plan = Some(plan);
+                    state.restore_current = Some(current);
+                }
+                Err(error) => state.status = format!("Cannot prepare restore plan: {error}"),
+            }
+            state.busy = false;
+        });
+    }
+
+    #[cfg(windows)]
+    fn apply_restore_plan(&self, ip: std::net::IpAddr, profile: device_profile::DeviceProfile) {
+        let (Some(plan), Some(reviewed_current)) = ({
+            let state = self.shared.lock().expect("state lock poisoned");
+            (state.restore_plan.clone(), state.restore_current.clone())
+        }) else { return; };
+        let snapshot_path = match app_root() {
+            Ok(root) => root.join("snapshots").join("original-state.json"),
+            Err(error) => {
+                let mut state = self.shared.lock().expect("state lock poisoned");
+                state.status = error;
+                return;
+            }
+        };
+        let original = match snapshot::DeviceSnapshot::load(&snapshot_path) {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                let mut state = self.shared.lock().expect("state lock poisoned");
+                state.status = format!("Cannot load original snapshot: {error}");
+                return;
+            }
+        };
+        if original.manufacturer != profile.manufacturer || original.model != profile.model || original.android_sdk != profile.sdk {
+            let mut state = self.shared.lock().expect("state lock poisoned");
+            state.status = "Cannot restore: the original snapshot belongs to a different device.".into();
+            return;
+        }
+        let source_root = match app_root() {
+            Ok(root) => root.join("source-versions").join(&original.source_commit),
+            Err(error) => {
+                let mut state = self.shared.lock().expect("state lock poisoned");
+                state.status = error;
+                return;
+            }
+        };
+        if let Err(error) = validate_source_tree(&source_root) {
+            let mut state = self.shared.lock().expect("state lock poisoned");
+            state.status = format!("Cannot load the pinned source policy: {error}");
+            return;
+        }
+        let catalogue = match catalogue::FireOsCatalogue::load(&source_root.join("data"), profile.sdk) {
+            Ok(catalogue) => catalogue,
+            Err(error) => {
+                let mut state = self.shared.lock().expect("state lock poisoned");
+                state.status = format!("Cannot load protected-package policy: {error}");
+                return;
+            }
+        };
+        let never_disable: std::collections::BTreeSet<String> = catalogue.never_disable.into_iter().collect();
+        let (operations, manual) = operations::build_restore_operations(&plan);
+        if operations.is_empty() {
+            let mut state = self.shared.lock().expect("state lock poisoned");
+            state.status = format!("No automatic restore operations are available. Manual actions: {}", manual.join("; "));
+            return;
+        }
+        let shared = Arc::clone(&self.shared);
+        {
+            let mut state = shared.lock().expect("state lock poisoned");
+            if state.busy { return; }
+            state.busy = true;
+            state.status = format!("Restoring {} reviewed items. The sequence stops on the first failed verification…", operations.len());
+        }
+        thread::spawn(move || {
+            let result = (|| -> Result<adb_transport::ExecutionReport, String> {
+                let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
+                    .map_err(|error| format!("cannot start the ADB runtime: {error}"))?;
+                runtime.block_on(adb_transport::execute_restore_plan(ip, &profile, &original, &reviewed_current, &operations, &never_disable))
+            })();
+            let mut state = shared.lock().expect("state lock poisoned");
+            state.status = match result {
+                Ok(report) => {
+                    let manual_text = if manual.is_empty() { String::new() } else { format!(" Manual actions still required: {}.", manual.join("; ")) };
+                    match report.failure {
+                        Some(failure) => format!("Restore stopped after {} verified operations. {failure}.{manual_text}", report.completed.len()),
+                        None => format!("{} restore operations completed and passed read-back verification.{manual_text} Reconnect and review the device state again.", report.completed.len()),
+                    }
+                }
+                Err(error) => format!("Restore aborted before or during execution: {error}"),
+            };
+            state.busy = false;
+            state.connected_ip = None;
+            state.device_profile = None;
+            state.package_inventory = None;
+            state.protected_uids.clear();
+            state.restore_plan = None;
+            state.restore_current = None;
+        });
+    }
 }
 
 impl eframe::App for ControlCentre {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.request_repaint_after(Duration::from_millis(250));
         egui::CentralPanel::default().show(ctx, |ui| {
+            egui::ScrollArea::vertical().show(ui, |ui| {
             ui.heading("DumbTV Control Centre");
             ui.label("Windows test build · AFTMM / Fire OS 6 project");
             ui.separator();
 
-            let (busy, status, latest, active, host_key_md5, host_key_sha256, device_profile, package_counts, connected_ip, snapshot_path) = {
+            let (busy, status, latest, active, host_key_md5, host_key_sha256, device_profile, package_inventory, protected_uids, connected_ip, snapshot_path, restore_plan) = {
                 let state = self.shared.lock().expect("state lock poisoned");
                 (
                     state.busy,
@@ -278,16 +575,17 @@ impl eframe::App for ControlCentre {
                     state.host_key_md5.clone(),
                     state.host_key_sha256.clone(),
                     state.device_profile.clone(),
-                    state.package_inventory.as_ref().map(|packages| (
-                        packages.installed.len(),
-                        packages.system.len(),
-                        packages.user.len(),
-                        packages.disabled.len(),
-                    )),
+                    state.package_inventory.clone(),
+                    state.protected_uids.clone(),
                     state.connected_ip,
                     state.snapshot_path.clone(),
+                    state.restore_plan.clone(),
                 )
             };
+
+            let package_counts = package_inventory.as_ref().map(|packages| (
+                packages.installed.len(), packages.system.len(), packages.user.len(), packages.disabled.len()
+            ));
 
             ui.heading("Project updates");
             ui.label(format!("Official source: {OWNER}/{REPOSITORY} · main"));
@@ -326,7 +624,14 @@ impl eframe::App for ControlCentre {
                 }
                 if ui.add_enabled(!busy && host_key_md5.is_some(), egui::Button::new("Connect and inspect")).clicked() {
                     match self.device_ip.trim().parse::<std::net::IpAddr>() {
-                        Ok(ip) => self.inspect_fire_tv(ip),
+                        Ok(ip) => {
+                            self.cleanup_plan = None;
+                            self.plan_data_root = None;
+                            self.plan_snapshot_path = None;
+                            self.confirm_apply = false;
+                            self.confirm_restore = false;
+                            self.inspect_fire_tv(ip);
+                        },
                         Err(_) => {
                             let mut state = self.shared.lock().expect("state lock poisoned");
                             state.device_profile = None;
@@ -367,7 +672,130 @@ impl eframe::App for ControlCentre {
                     ui.label(format!("Original-state snapshot: {}", path.file_name().and_then(|name| name.to_str()).unwrap_or("saved")));
                 }
             }
-            ui.small("Connection uses one owner-selected private/local IP on TCP 5555. Inventory and original-state capture are read-only; no package, setting, HOME, Keeper or installed-app changes are made.");
+            if connected_ip.is_some() && package_inventory.is_some() && device_profile.is_some() {
+                ui.separator();
+                ui.heading("Cleanup choices");
+                if ui.checkbox(&mut self.keep_alexa, "Keep Alexa and the remote voice button (default)").changed() {
+                    self.cleanup_plan = None;
+                    self.plan_data_root = None;
+                    self.plan_snapshot_path = None;
+                }
+                ui.label("Apps to remove — enter exact Android package IDs, separated by spaces. No other user apps will be removed.");
+                if ui.text_edit_singleline(&mut self.remove_packages).changed() { self.cleanup_plan = None; self.plan_data_root = None; self.plan_snapshot_path = None; }
+                ui.label("Packages to keep — optional exact package IDs from the maintained removal lists.");
+                if ui.text_edit_singleline(&mut self.keep_packages).changed() { self.cleanup_plan = None; self.plan_data_root = None; self.plan_snapshot_path = None; }
+                if snapshot_path.is_none() {
+                    ui.small("Capture the original state before reviewing or applying any changes.");
+                } else {
+                    let mut review_clicked = false;
+                    if ui.add_enabled(!busy, egui::Button::new("Review cleanup plan")).clicked() {
+                        review_clicked = true;
+                    }
+                    if review_clicked {
+                        match (device_profile.as_ref(), package_inventory.as_ref(), connected_ip, snapshot_path.as_ref()) {
+                            (Some(profile), Some(inventory), Some(_ip), Some(path)) => {
+                                match self.prepare_cleanup_plan(profile, inventory, &protected_uids, path) {
+                                    Ok(()) => {
+                                        let mut state = self.shared.lock().expect("state lock poisoned");
+                                        state.status = "Cleanup plan prepared. Review every operation below; nothing has been changed.".into();
+                                    }
+                                    Err(error) => {
+                                        let mut state = self.shared.lock().expect("state lock poisoned");
+                                        state.status = format!("Cannot prepare cleanup plan: {error}");
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            if let (Some(ip), Some(profile), Some(path)) = (connected_ip, device_profile.as_ref(), snapshot_path.as_ref()) {
+                if ui.add_enabled(!busy, egui::Button::new("Review restore plan")).clicked() {
+                    self.confirm_restore = false;
+                    self.review_restore_plan(ip, profile.clone(), path.clone());
+                }
+            }
+            if let Some(plan) = restore_plan.as_ref() {
+                ui.separator();
+                ui.heading("Restore original state");
+                let (restore_operations, manual_actions) = operations::build_restore_operations(plan);
+                ui.label(format!("{} automatic operations; {} manual actions", restore_operations.len(), manual_actions.len()));
+                for (index, operation) in restore_operations.iter().enumerate() {
+                    ui.label(format!("{}. {}", index + 1, operation.description));
+                }
+                for action in &manual_actions {
+                    ui.label(format!("Manual: {action}"));
+                }
+                if restore_operations.is_empty() {
+                    ui.label("No automatic restore changes are available.");
+                } else if ui.add_enabled(!busy, egui::Button::new("Confirm and restore captured state")).clicked() {
+                    self.confirm_restore = true;
+                }
+            }
+
+            if let Some(plan) = self.cleanup_plan.as_ref() {
+                ui.separator();
+                ui.heading("Reviewed cleanup plan");
+                ui.label(format!("{} device operations; {} items skipped", plan.operations.len(), plan.skipped.len()));
+                for (index, operation) in plan.operations.iter().enumerate() {
+                    ui.label(format!("{}. {}", index + 1, operation.description));
+                }
+                if !plan.skipped.is_empty() {
+                    ui.collapsing("Skipped items", |ui| {
+                        for item in &plan.skipped { ui.small(item); }
+                    });
+                }
+                if plan.operations.is_empty() {
+                    ui.label("No changes are needed for the selected options.");
+                } else if ui.add_enabled(!busy, egui::Button::new("Confirm and apply reviewed changes")).clicked() {
+                    self.confirm_apply = true;
+                }
+            }
+            if self.confirm_apply {
+                let has_uninstalls = self.cleanup_plan.as_ref().is_some_and(|plan| plan.operations.iter().any(|operation| matches!(&operation.command, device_command::DeviceCommand::UninstallPackageForUser { .. })));
+                let count = self.cleanup_plan.as_ref().map(|plan| plan.operations.len()).unwrap_or(0);
+                let mut apply_clicked = false;
+                let mut cancel_clicked = false;
+                egui::Window::new("Confirm Fire TV changes").collapsible(false).resizable(false).show(ctx, |ui| {
+                    ui.label(format!("Apply {count} reviewed operations to the connected Fire TV?"));
+                    if has_uninstalls {
+                        ui.label("This includes uninstalling the user apps you explicitly named. Reinstalling them may require the Amazon Appstore.");
+                    }
+                    ui.label("The app will stop at the first failed operation or failed read-back. The original snapshot will be retained.");
+                    ui.horizontal(|ui| {
+                        if ui.button("Apply these changes").clicked() { apply_clicked = true; }
+                        if ui.button("Cancel").clicked() { cancel_clicked = true; }
+                    });
+                });
+                if cancel_clicked { self.confirm_apply = false; }
+                if apply_clicked {
+                    self.confirm_apply = false;
+                    if let (Some(ip), Some(profile)) = (connected_ip, device_profile.clone()) {
+                        self.apply_cleanup_plan(ip, profile);
+                    }
+                }
+            }
+            if self.confirm_restore {
+                let mut restore_clicked = false;
+                let mut cancel_restore = false;
+                egui::Window::new("Confirm restore").collapsible(false).resizable(false).show(ctx, |ui| {
+                    ui.label("Restore the captured package, settings, AppOps and network-policy state on this Fire TV?");
+                    ui.label("User apps removed for user 0 cannot be reconstructed by this app and must be reinstalled manually from the Appstore.");
+                    ui.horizontal(|ui| {
+                        if ui.button("Restore captured state").clicked() { restore_clicked = true; }
+                        if ui.button("Cancel").clicked() { cancel_restore = true; }
+                    });
+                });
+                if cancel_restore { self.confirm_restore = false; }
+                if restore_clicked {
+                    self.confirm_restore = false;
+                    if let (Some(ip), Some(profile)) = (connected_ip, device_profile.clone()) {
+                        self.apply_restore_plan(ip, profile);
+                    }
+                }
+            }
+            ui.small("Connection uses one owner-selected private/local IP on TCP 5555. Inventory and original-state capture are read-only; device changes are only sent after reviewing the plan and pressing the final confirmation.");
             ui.separator();
 
             ui.heading("Status");
@@ -380,7 +808,8 @@ impl eframe::App for ControlCentre {
                 ui.label(&status);
             }
             ui.separator();
-            ui.small("Test build: source updater and read-only ADB preflight only. No debloat, package, settings, launcher or Keeper operations are exposed.");
+            ui.small("Test build: source updater, read-only preflight/snapshot and explicitly confirmed cleanup. Launcher, Keeper and restore execution are not yet exposed.");
+            });
         });
     }
 }

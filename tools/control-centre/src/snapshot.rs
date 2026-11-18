@@ -35,7 +35,12 @@ pub struct DeviceSnapshot {
     pub manufacturer: String,
     pub model: String,
     pub android_sdk: u32,
+    /// Exact source revision whose catalogues defined this baseline and plan.
+    pub source_commit: String,
     pub packages: BTreeMap<String, PackageState>,
+    /// User-installed packages are distinguished so restore never claims a
+    /// preinstalled system app needs an Appstore reinstall.
+    pub user_packages: BTreeSet<String>,
     /// None means the setting did not exist before the first change.
     pub secure_settings: BTreeMap<String, Option<String>>,
     pub global_settings: BTreeMap<String, Option<String>>,
@@ -56,9 +61,17 @@ impl DeviceSnapshot {
         if self.manufacturer.trim().is_empty() || self.android_sdk == 0 {
             return Err("snapshot is missing device identity or SDK".into());
         }
+        if self.source_commit.len() != 40 || !self.source_commit.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err("snapshot has an invalid pinned source revision".into());
+        }
         for package in self.packages.keys() {
             if !valid_package(package) {
                 return Err(format!("snapshot contains an invalid package identifier: {package}"));
+            }
+        }
+        for package in &self.user_packages {
+            if !valid_package(package) || !self.packages.contains_key(package) {
+                return Err(format!("snapshot contains an invalid or uninstalled user package: {package}"));
             }
         }
         for (key, value) in self.secure_settings.iter().chain(self.global_settings.iter()) {
@@ -77,6 +90,16 @@ impl DeviceSnapshot {
             }
         }
         Ok(())
+    }
+
+    /// Load and validate a previously captured original-state snapshot.
+    pub fn load(path: &Path) -> Result<Self, String> {
+        let bytes = std::fs::read(path)
+            .map_err(|error| format!("cannot read original snapshot: {error}"))?;
+        let snapshot: Self = serde_json::from_slice(&bytes)
+            .map_err(|error| format!("original snapshot is not valid JSON: {error}"))?;
+        snapshot.validate()?;
+        Ok(snapshot)
     }
 
     /// Persist once. A later run must never replace the pre-cleanup original state.
@@ -144,9 +167,8 @@ pub fn build_restore_plan(
     let mut actions = Vec::new();
 
     for (package, original_state) in &original.packages {
-        if let Some(current_state) = current.packages.get(package) {
-            if current_state != original_state {
-                // Never attempt to recreate a package that was absent at snapshot time.
+        match current.packages.get(package) {
+            Some(current_state) if current_state != original_state => {
                 if *original_state != PackageState::NotInstalled {
                     actions.push(RestoreAction::SetPackageState {
                         package: package.clone(),
@@ -154,6 +176,16 @@ pub fn build_restore_plan(
                     });
                 }
             }
+            None if *original_state != PackageState::NotInstalled && original.user_packages.contains(package) => {
+                // A user app removed for user 0 cannot be reconstructed from this tool.
+                actions.push(RestoreAction::ManualStoreReinstall(package.clone()));
+            }
+            None if *original_state != PackageState::NotInstalled => {
+                actions.push(RestoreAction::ManualStateUnavailable(
+                    "a preinstalled system package is missing; manual recovery is required",
+                ));
+            }
+            _ => {}
         }
     }
     for package in &original.user_apps_uninstalled_by_tool {
@@ -272,8 +304,10 @@ mod tests {
             manufacturer: "Amazon".into(),
             model: "AFTMM".into(),
             android_sdk: 25,
+            source_commit: "0123456789abcdef0123456789abcdef01234567".into(),
             packages: [("com.amazon.ads".into(), PackageState::Enabled)]
                 .into_iter().collect(),
+            user_packages: ["com.amazon.ads".into()].into_iter().collect(),
             secure_settings: [
                 ("advertising_id".into(), Some("1".into())),
                 ("previously_absent".into(), None),
@@ -328,6 +362,14 @@ mod tests {
         assert!(plan.actions.contains(&RestoreAction::AddMeteredBlacklistUid(10001)));
         assert!(plan.actions.contains(&RestoreAction::RemoveMeteredBlacklistUid(10002)));
         assert!(plan.actions.contains(&RestoreAction::ManualStoreReinstall("com.example.player".into())));
+    }
+
+    #[test]
+    fn restore_reports_originally_installed_but_now_missing_user_apps() {
+        let mut current = current();
+        current.packages.clear();
+        let plan = build_restore_plan(&snapshot(), &current).unwrap();
+        assert!(plan.actions.contains(&RestoreAction::ManualStoreReinstall("com.amazon.ads".into())));
     }
 
     #[test]
