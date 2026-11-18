@@ -590,6 +590,7 @@ impl ControlCentre {
             &journal_root,
             operation_journal::WorkflowKind::Cleanup,
             &profile.manufacturer,
+            &profile.serial_fingerprint,
             &profile.model,
             &profile.build_display_id,
             profile.sdk,
@@ -1309,6 +1310,7 @@ fn latest_cleanup_journal(
         .filter(|journal| {
             journal.workflow == operation_journal::WorkflowKind::Cleanup
                 && journal.manufacturer == profile.manufacturer
+                && journal.device_fingerprint == profile.serial_fingerprint
                 && journal.model == profile.model
                 && journal.build_display_id == profile.build_display_id
                 && journal.android_sdk == profile.sdk
