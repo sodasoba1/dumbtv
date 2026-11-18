@@ -1,10 +1,6 @@
 # Third-party notices
 
-This is a provisional direct-dependency inventory, not release approval. The
-complete resolved dependency graph has not yet been frozen, audited or
-generated into a final notice bundle. Licence identifiers below are the
-upstream package declarations; transitive dependencies and bundled assets
-still require exact-version verification against the eventual Cargo.lock.
+This is a provisional direct-dependency inventory, not release approval. Windows CI now resolves and RustSec-audits the locked dependency graph, then uses cargo-about to generate a complete Windows-target licence-text report. That report is included in the portable ZIP and uploaded as a separate artifact. The exact report and committed Cargo.lock must still be reviewed before release. Licence identifiers below are the upstream package declarations; the generated report is the authoritative per-version inventory.
 
 | Crate | Upstream-declared licence | Use |
 |---|---|---|
