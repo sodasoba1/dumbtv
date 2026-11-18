@@ -1,5 +1,6 @@
 mod catalogue;
 mod device_profile;
+mod package_plan;
 
 use eframe::egui;
 use atomicwrites::{AllowOverwrite, AtomicFile};
