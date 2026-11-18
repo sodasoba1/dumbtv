@@ -6,11 +6,14 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
+    fs,
+    io::Write,
     net::{IpAddr, SocketAddr},
     path::Path,
     time::Duration,
 };
 
+use atomicwrites::{AllowOverwrite, AtomicFile};
 use libadb::{Connection, ConnectionConfig, HostBanner, TokioTcp};
 use tokio::{net::TcpStream, time::timeout};
 
@@ -703,13 +706,68 @@ pub async fn undo_launcher(ip: IpAddr, expected: &DeviceProfile) -> Result<Strin
 /// Install the pinned SmartTube release. A dropped Wi-Fi ADB session after the
 /// APK transfer is not treated as failure: the package version is checked after
 /// reconnect, and one retry is allowed only if the required version is absent.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct SmartTubeBackup {
+    schema_version: u32,
+    manufacturer: String,
+    model: String,
+    build_display_id: String,
+    android_sdk: u32,
+    stock_youtube_installed: bool,
+    stock_youtube_was_disabled: bool,
+    home_conf: Option<Vec<u8>>,
+}
+
+/// Install the pinned SmartTube release and persist an exact pre-change backup
+/// before disabling stock YouTube or rewriting DumbTV's app order.
 pub async fn install_smarttube(
     ip: IpAddr,
     expected: &DeviceProfile,
     apk_bytes: &[u8],
+    backup_path: &Path,
 ) -> Result<String, String> {
     crate::apk_release::verify_sha256(apk_bytes, crate::apk_release::SMARTTUBE_SHA256)?;
+    if backup_path.exists() {
+        return Err("a SmartTube restore backup already exists for this operation; restore it or choose a new backup before running another replacement".into());
+    }
     let package = crate::apk_release::SMARTTUBE_PACKAGE;
+    let stock = crate::apk_release::STOCK_YOUTUBE_PACKAGE;
+    let home_package = crate::apk_release::LAUNCHER_PACKAGE;
+    let home_conf_path = "/sdcard/Android/data/tv.dumbtv.home/files/home.conf";
+
+    let mut before = connect(ip).await?;
+    let actual = read_profile(&mut before).await?;
+    if !same_device(&actual, expected) {
+        return Err("the device at the selected IP no longer matches the inspected Fire TV".into());
+    }
+    let packages = read_package_inventory(&mut before).await?;
+    let stock_installed = packages.installed.contains(stock);
+    let stock_was_disabled = packages.disabled.contains(stock);
+    let home_installed = packages.installed.contains(home_package);
+    let original_home_conf = if home_installed {
+        read_remote_small_file(&mut before, home_conf_path).await?
+    } else {
+        None
+    };
+    let backup = SmartTubeBackup {
+        schema_version: 1,
+        manufacturer: expected.manufacturer.clone(),
+        model: expected.model.clone(),
+        build_display_id: expected.build_display_id.clone(),
+        android_sdk: expected.sdk,
+        stock_youtube_installed: stock_installed,
+        stock_youtube_was_disabled: stock_was_disabled,
+        home_conf: original_home_conf,
+    };
+    let backup_bytes = serde_json::to_vec_pretty(&backup)
+        .map_err(|error| format!("cannot encode SmartTube restore backup: {error}"))?;
+    if let Some(parent) = backup_path.parent() {
+        fs::create_dir_all(parent).map_err(|error| format!("cannot create SmartTube backup folder: {error}"))?;
+    }
+    AtomicFile::new(backup_path, AllowOverwrite)
+        .write(|file| file.write_all(&backup_bytes))
+        .map_err(|error| format!("cannot persist SmartTube restore backup: {error}"))?;
+
     let remote = "/data/local/tmp/dumbtv-smarttube.apk";
     let mut installed_code = 0_u64;
     for attempt in 0..2 {
@@ -741,17 +799,144 @@ pub async fn install_smarttube(
     if !same_device(&actual, expected) {
         return Err("the device identity changed before YouTube replacement".into());
     }
-    let all = crate::package_inventory::parse_pm_list_output(&run_command(&mut connection, "pm list packages").await?)?;
-    let disabled = crate::package_inventory::parse_pm_list_output(&run_command(&mut connection, "pm list packages -d").await?)?;
-    let stock = crate::apk_release::STOCK_YOUTUBE_PACKAGE;
-    if all.contains(stock) && !disabled.contains(stock) {
+    if stock_installed && !stock_was_disabled {
         run_command(&mut connection, &format!("pm disable-user --user 0 {stock}")).await?;
         let after = crate::package_inventory::parse_pm_list_output(&run_command(&mut connection, "pm list packages -d").await?)?;
         if !after.contains(stock) {
-            return Err("SmartTube installed, but stock YouTube could not be disabled; it remains unchanged or requires manual review".into());
+            return Err("SmartTube installed, but stock YouTube could not be disabled; use the saved restore backup to return to the original state".into());
         }
     }
-    Ok(format!("SmartTube installed and verified (versionCode {installed_code}). Stock YouTube was disabled reversibly when it was installed and enabled."))
+
+    let mut home_config_updated = false;
+    if let Some(original) = backup.home_conf.as_deref() {
+        let replacement = crate::home_config::rewrite_apps_order(original)?;
+        if replacement != original {
+            push_remote_small_file(ip, expected, home_conf_path, &replacement).await?;
+            home_config_updated = true;
+        }
+    }
+    Ok(format!(
+        "SmartTube installed and verified (versionCode {installed_code}). Stock YouTube {}. DumbTV home.conf {}. Exact original state saved to {}. SmartTube remains installed if you later undo the replacement.",
+        if stock_installed && !stock_was_disabled { "was disabled reversibly" } else if stock_installed { "was already disabled and was left unchanged" } else { "was not installed" },
+        if home_config_updated { "was backed up and updated" } else { "was not changed (DumbTV HOME or home.conf was not present, or its order already matched)" },
+        backup_path.file_name().and_then(|name| name.to_str()).unwrap_or("SmartTube backup")
+    ))
+}
+
+/// Restore stock YouTube's exact previous enabled/disabled state and the exact
+/// original home.conf bytes. SmartTube itself remains installed to avoid
+/// deleting its user data.
+pub async fn undo_smarttube(
+    ip: IpAddr,
+    expected: &DeviceProfile,
+    backup_path: &Path,
+) -> Result<String, String> {
+    let bytes = fs::read(backup_path).map_err(|error| format!("cannot read SmartTube restore backup: {error}"))?;
+    if bytes.len() > 512 * 1024 {
+        return Err("SmartTube restore backup exceeds the 512 KiB safety limit".into());
+    }
+    let backup: SmartTubeBackup = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("SmartTube restore backup is invalid: {error}"))?;
+    if backup.schema_version != 1
+        || backup.manufacturer != expected.manufacturer
+        || backup.model != expected.model
+        || backup.build_display_id != expected.build_display_id
+        || backup.android_sdk != expected.sdk
+    {
+        return Err("SmartTube restore backup does not match this Fire TV identity".into());
+    }
+    let mut connection = connect(ip).await?;
+    let actual = read_profile(&mut connection).await?;
+    if !same_device(&actual, expected) {
+        return Err("the device at the selected IP no longer matches the inspected Fire TV".into());
+    }
+    let home_conf_path = "/sdcard/Android/data/tv.dumbtv.home/files/home.conf";
+    if let Some(original) = backup.home_conf.as_deref() {
+        push_remote_small_file(ip, expected, home_conf_path, original).await?;
+    }
+    if backup.stock_youtube_installed {
+        let stock = crate::apk_release::STOCK_YOUTUBE_PACKAGE;
+        let all = crate::package_inventory::parse_pm_list_output(&run_command(&mut connection, "pm list packages").await?)?;
+        if all.contains(stock) {
+            let command = if backup.stock_youtube_was_disabled {
+                format!("pm disable-user --user 0 {stock}")
+            } else {
+                format!("pm enable --user 0 {stock}")
+            };
+            run_command(&mut connection, &command).await?;
+            let disabled = crate::package_inventory::parse_pm_list_output(&run_command(&mut connection, "pm list packages -d").await?)?;
+            if disabled.contains(stock) != backup.stock_youtube_was_disabled {
+                return Err("stock YouTube did not return to its original enabled/disabled state".into());
+            }
+        }
+    }
+    Ok("Original YouTube enabled/disabled state and home.conf have been restored. SmartTube remains installed; remove it separately only if desired.".into())
+}
+
+async fn read_remote_small_file(
+    connection: &mut Connection<TokioTcp>,
+    remote_path: &str,
+) -> Result<Option<Vec<u8>>, String> {
+    if remote_path != "/sdcard/Android/data/tv.dumbtv.home/files/home.conf" {
+        return Err("remote file path is not an approved DumbTV configuration path".into());
+    }
+    let size_output = run_command(connection, &format!("wc -c < {remote_path}")).await?;
+    let size = size_output.trim().parse::<usize>()
+        .map_err(|_| "device returned an invalid home.conf size".to_owned())?;
+    if size == 0 {
+        return Ok(None);
+    }
+    if size > crate::home_config::MAX_HOME_CONFIG_BYTES {
+        return Err("DumbTV home.conf exceeds the 256 KiB safety limit".into());
+    }
+    let mut buffer = vec![0_u8; 65_544];
+    let mut sync = libadb::sync::open(connection, &mut buffer).await
+        .map_err(|error| format!("cannot open ADB sync to back up home.conf: {error}"))?;
+    let bytes = timeout(Duration::from_secs(30), sync.recv(remote_path)).await
+        .map_err(|_| "timed out backing up DumbTV home.conf".to_owned())?
+        .map_err(|error| format!("cannot read DumbTV home.conf: {error}"))?;
+    if bytes.len() != size {
+        return Err("home.conf size changed during backup; refusing to use an inconsistent backup".into());
+    }
+    timeout(COMMAND_TIMEOUT, sync.quit()).await
+        .map_err(|_| "timed out closing ADB sync".to_owned())?
+        .map_err(|error| format!("cannot close ADB sync: {error}"))?;
+    Ok(Some(bytes))
+}
+
+async fn push_remote_small_file(
+    ip: IpAddr,
+    expected: &DeviceProfile,
+    remote_path: &str,
+    bytes: &[u8],
+) -> Result<(), String> {
+    if remote_path != "/sdcard/Android/data/tv.dumbtv.home/files/home.conf"
+        || bytes.is_empty()
+        || bytes.len() > crate::home_config::MAX_HOME_CONFIG_BYTES
+    {
+        return Err("refusing to write an unapproved or oversized home.conf".into());
+    }
+    let mut connection = connect(ip).await?;
+    let actual = read_profile(&mut connection).await?;
+    if !same_device(&actual, expected) {
+        return Err("device identity changed before home.conf write".into());
+    }
+    let mut buffer = vec![0_u8; 65_544];
+    let mut sync = libadb::sync::open(&mut connection, &mut buffer).await
+        .map_err(|error| format!("cannot open ADB sync to update home.conf: {error}"))?;
+    timeout(Duration::from_secs(30), sync.send(remote_path, 0o100600, 0, bytes)).await
+        .map_err(|_| "timed out writing DumbTV home.conf".to_owned())?
+        .map_err(|error| format!("cannot write DumbTV home.conf: {error}"))?;
+    let check = timeout(Duration::from_secs(30), sync.recv(remote_path)).await
+        .map_err(|_| "timed out verifying DumbTV home.conf".to_owned())?
+        .map_err(|error| format!("cannot read back DumbTV home.conf: {error}"))?;
+    if check != bytes {
+        return Err("home.conf read-back did not match the exact bytes written".into());
+    }
+    timeout(COMMAND_TIMEOUT, sync.quit()).await
+        .map_err(|_| "timed out closing ADB sync".to_owned())?
+        .map_err(|error| format!("cannot close ADB sync: {error}"))?;
+    Ok(())
 }
 
 fn parse_installed_version_code(output: &str) -> Result<u64, String> {
