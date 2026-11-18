@@ -160,9 +160,13 @@ impl ControlCentre {
             let mut state = shared.lock().expect("state lock poisoned");
             match result {
                 Ok(inventory) => {
-                    state.status = "Connected. Device properties and package inventory read successfully; no package or settings changes were made.".into();
+                    state.status = if inventory.packages.is_some() {
+                        "Connected. Device properties and package inventory read successfully; no package or settings changes were made.".into()
+                    } else {
+                        "Connected. Device properties read; package inventory was skipped because this device is outside the validated cleanup support range.".into()
+                    };
                     state.device_profile = Some(inventory.profile);
-                    state.package_inventory = Some(inventory.packages);
+                    state.package_inventory = inventory.packages;
                 }
                 Err(error) => state.status = format!("ADB inspection failed: {error}"),
             }
