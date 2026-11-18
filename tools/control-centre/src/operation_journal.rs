@@ -40,6 +40,9 @@ pub struct JournalOperation {
     pub description: String,
     pub status: OperationStatus,
     pub detail: Option<String>,
+    /// Exact typed intent, never an arbitrary shell command. Older journals omit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command: Option<crate::device_command::DeviceCommand>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -97,9 +100,35 @@ impl OperationJournal {
                 description: description.clone(),
                 status: OperationStatus::Pending,
                 detail: None,
+                command: None,
             }).collect(),
             finished: false,
         };
+        journal.save(&path)?;
+        Ok(path)
+    }
+
+    /// Create a journal that also retains the reviewed typed command for each step.
+    /// This supports selective recovery without storing raw ADB shell strings.
+    pub fn create_with_commands(
+        root: &Path,
+        workflow: WorkflowKind,
+        manufacturer: &str,
+        model: &str,
+        build_display_id: &str,
+        android_sdk: u32,
+        source_commit: &str,
+        operations: &[(String, crate::device_command::DeviceCommand)],
+    ) -> Result<PathBuf, String> {
+        let descriptions: Vec<String> = operations.iter().map(|(description, _)| description.clone()).collect();
+        let path = Self::create(
+            root, workflow, manufacturer, model, build_display_id, android_sdk,
+            source_commit, &descriptions,
+        )?;
+        let mut journal = Self::load(&path)?;
+        for (item, (_, command)) in journal.operations.iter_mut().zip(operations) {
+            item.command = Some(command.clone());
+        }
         journal.save(&path)?;
         Ok(path)
     }
