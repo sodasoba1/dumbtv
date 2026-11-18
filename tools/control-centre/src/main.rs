@@ -191,20 +191,38 @@ impl ControlCentre {
 
 impl ControlCentre {
     #[cfg(windows)]
-    fn install_launcher_on_device(&self, ip: std::net::IpAddr, profile: device_profile::DeviceProfile) {
+    fn install_launcher_on_device(
+        &self,
+        ip: std::net::IpAddr,
+        profile: device_profile::DeviceProfile,
+    ) {
         self.start_task(move || {
             let (bytes, version_code) = verified_launcher_apk()?;
-            let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
                 .map_err(|error| format!("cannot start ADB runtime: {error}"))?;
             let backup = launcher_backup_path(&profile)?;
-            runtime.block_on(adb_transport::install_launcher(ip, &profile, &bytes, version_code, &backup))
+            runtime.block_on(adb_transport::install_launcher(
+                ip,
+                &profile,
+                &bytes,
+                version_code,
+                &backup,
+            ))
         });
     }
 
     #[cfg(windows)]
-    fn undo_launcher_on_device(&self, ip: std::net::IpAddr, profile: device_profile::DeviceProfile) {
+    fn undo_launcher_on_device(
+        &self,
+        ip: std::net::IpAddr,
+        profile: device_profile::DeviceProfile,
+    ) {
         self.start_task(move || {
-            let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
                 .map_err(|error| format!("cannot start ADB runtime: {error}"))?;
             let backup = launcher_backup_path(&profile)?;
             runtime.block_on(adb_transport::undo_launcher(ip, &profile, &backup))
@@ -212,21 +230,35 @@ impl ControlCentre {
     }
 
     #[cfg(windows)]
-    fn install_smarttube_on_device(&self, ip: std::net::IpAddr, profile: device_profile::DeviceProfile) {
+    fn install_smarttube_on_device(
+        &self,
+        ip: std::net::IpAddr,
+        profile: device_profile::DeviceProfile,
+    ) {
         self.start_task(move || {
             let bytes = verified_smarttube_apk()?;
             let backup = smarttube_backup_path(&profile)?;
-            let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
                 .map_err(|error| format!("cannot start ADB runtime: {error}"))?;
-            runtime.block_on(adb_transport::install_smarttube(ip, &profile, &bytes, &backup))
+            runtime.block_on(adb_transport::install_smarttube(
+                ip, &profile, &bytes, &backup,
+            ))
         });
     }
 
     #[cfg(windows)]
-    fn undo_smarttube_on_device(&self, ip: std::net::IpAddr, profile: device_profile::DeviceProfile) {
+    fn undo_smarttube_on_device(
+        &self,
+        ip: std::net::IpAddr,
+        profile: device_profile::DeviceProfile,
+    ) {
         self.start_task(move || {
             let backup = smarttube_backup_path(&profile)?;
-            let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
                 .map_err(|error| format!("cannot start ADB runtime: {error}"))?;
             runtime.block_on(adb_transport::undo_smarttube(ip, &profile, &backup))
         });
@@ -1474,21 +1506,32 @@ fn store_verified_apk(name: &str, bytes: &[u8], expected_sha256: &str) -> Result
 
 #[cfg(windows)]
 fn launcher_backup_path(profile: &device_profile::DeviceProfile) -> Result<PathBuf, String> {
-    let identity = format!("{}|{}|{}|{}", profile.manufacturer, profile.model, profile.build_display_id, profile.sdk);
+    let identity = format!(
+        "{}|{}|{}|{}",
+        profile.manufacturer, profile.model, profile.build_display_id, profile.sdk
+    );
     let key = apk_release::sha256_hex(identity.as_bytes());
-    Ok(app_root()?.join("backups").join(format!("launcher-{key}.json")))
+    Ok(app_root()?
+        .join("backups")
+        .join(format!("launcher-{key}.json")))
 }
 
 #[cfg(windows)]
 fn smarttube_backup_path(profile: &device_profile::DeviceProfile) -> Result<PathBuf, String> {
-    let identity = format!("{}|{}|{}|{}", profile.manufacturer, profile.model, profile.build_display_id, profile.sdk);
+    let identity = format!(
+        "{}|{}|{}|{}",
+        profile.manufacturer, profile.model, profile.build_display_id, profile.sdk
+    );
     let key = apk_release::sha256_hex(identity.as_bytes());
-    Ok(app_root()?.join("backups").join(format!("smarttube-{key}.json")))
+    Ok(app_root()?
+        .join("backups")
+        .join(format!("smarttube-{key}.json")))
 }
 
 #[cfg(windows)]
 fn verified_launcher_apk() -> Result<(Vec<u8>, u64), String> {
-    let manifest = load_active_source()?.ok_or("download the official source before installing DumbTV HOME")?;
+    let manifest = load_active_source()?
+        .ok_or("download the official source before installing DumbTV HOME")?;
     let source_root = app_root()?.join("source-versions").join(&manifest.commit);
     validate_source_tree(&source_root)?;
     let version_text = fs::read_to_string(source_root.join("launcher/version.env"))
@@ -1499,22 +1542,30 @@ fn verified_launcher_apk() -> Result<(Vec<u8>, u64), String> {
     if !path.is_file() {
         download_launcher_apk()?;
     }
-    let base = format!("https://github.com/{OWNER}/{REPOSITORY}/releases/download/launcher-v{}/dumbtv-home.apk", release.version);
+    let base = format!(
+        "https://github.com/{OWNER}/{REPOSITORY}/releases/download/launcher-v{}/dumbtv-home.apk",
+        release.version
+    );
     let sidecar = download_github_release_asset(&format!("{base}.sha256"), 4096)?;
-    let expected = String::from_utf8(sidecar).map_err(|_| "launcher checksum sidecar is not UTF-8")?;
+    let expected =
+        String::from_utf8(sidecar).map_err(|_| "launcher checksum sidecar is not UTF-8")?;
     let expected = expected.trim();
-    let bytes = fs::read(&path).map_err(|error| format!("cannot read verified launcher APK: {error}"))?;
+    let bytes =
+        fs::read(&path).map_err(|error| format!("cannot read verified launcher APK: {error}"))?;
     apk_release::verify_sha256(&bytes, expected)?;
     Ok((bytes, release.version_code))
 }
 
 #[cfg(windows)]
 fn verified_smarttube_apk() -> Result<Vec<u8>, String> {
-    let path = app_root()?.join("verified-apks").join("smarttube-32.56s.apk");
+    let path = app_root()?
+        .join("verified-apks")
+        .join("smarttube-32.56s.apk");
     if !path.is_file() {
         download_smarttube_apk()?;
     }
-    let bytes = fs::read(path).map_err(|error| format!("cannot read verified SmartTube APK: {error}"))?;
+    let bytes =
+        fs::read(path).map_err(|error| format!("cannot read verified SmartTube APK: {error}"))?;
     apk_release::verify_sha256(&bytes, apk_release::SMARTTUBE_SHA256)?;
     Ok(bytes)
 }

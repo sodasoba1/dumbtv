@@ -601,7 +601,9 @@ pub async fn install_launcher(
     backup_path: &Path,
 ) -> Result<String, String> {
     if expected.launcher_compatibility() != Compatibility::Supported {
-        return Err("DumbTV HOME installation is supported only on Amazon Fire OS 6 / API 25".into());
+        return Err(
+            "DumbTV HOME installation is supported only on Amazon Fire OS 6 / API 25".into(),
+        );
     }
     if expected_version_code == 0 {
         return Err("launcher release versionCode is invalid".into());
@@ -617,9 +619,15 @@ pub async fn install_launcher(
     }
     let inventory = read_package_inventory(&mut before).await?;
     let package_installed = inventory.installed.contains(package);
-    let usage_output = run_command(&mut before, &format!("appops get {package} GET_USAGE_STATS")).await?;
+    let usage_output = run_command(
+        &mut before,
+        &format!("appops get {package} GET_USAGE_STATS"),
+    )
+    .await?;
     let usage_stats_mode = parse_appop_mode(&usage_output, "GET_USAGE_STATS")?;
-    let auto_output = run_command(&mut before, &format!("appops get {package} AUTO_START")).await.unwrap_or_default();
+    let auto_output = run_command(&mut before, &format!("appops get {package} AUTO_START"))
+        .await
+        .unwrap_or_default();
     let auto_start_mode = if auto_output.contains("Unknown operation string: AUTO_START") {
         None
     } else {
@@ -656,46 +664,82 @@ pub async fn install_launcher(
     if !same_device(&actual, expected) || actual.sdk != 25 {
         return Err("device identity or API level changed before launcher installation".into());
     }
-    let installed = run_command(&mut connection, "pm install -r /data/local/tmp/dumbtv-home-release.apk").await?;
+    let installed = run_command(
+        &mut connection,
+        "pm install -r /data/local/tmp/dumbtv-home-release.apk",
+    )
+    .await?;
     if !installed.lines().any(|line| line.trim() == "Success") {
         if installed.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE") {
             return Err("signature mismatch: the existing DumbTV HOME was signed with a different key. It was left installed and untouched; uninstalling it would delete its settings.".into());
         }
-        return Err(format!("Android package installer did not report Success: {}", installed.trim()));
+        return Err(format!(
+            "Android package installer did not report Success: {}",
+            installed.trim()
+        ));
     }
 
     let backup_bytes = serde_json::to_vec_pretty(&backup)
         .map_err(|error| format!("cannot encode launcher restore backup: {error}"))?;
     if let Some(parent) = backup_path.parent() {
-        fs::create_dir_all(parent).map_err(|error| format!("cannot create launcher backup folder: {error}"))?;
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("cannot create launcher backup folder: {error}"))?;
     }
     AtomicFile::new(backup_path, AllowOverwrite)
         .write(|file| file.write_all(&backup_bytes))
         .map_err(|error| format!("cannot persist launcher restore backup: {error}"))?;
 
-    run_command(&mut connection, &format!("dumpsys deviceidle whitelist +{package}")).await?;
+    run_command(
+        &mut connection,
+        &format!("dumpsys deviceidle whitelist +{package}"),
+    )
+    .await?;
     let whitelist = run_command(&mut connection, "dumpsys deviceidle whitelist").await?;
     if !whitelist.contains(package) {
-        return Err("DumbTV HOME was installed, but its device-idle whitelist entry could not be verified".into());
+        return Err(
+            "DumbTV HOME was installed, but its device-idle whitelist entry could not be verified"
+                .into(),
+        );
     }
 
-    run_command(&mut connection, &format!("appops set {package} GET_USAGE_STATS allow")).await?;
-    let usage = run_command(&mut connection, &format!("appops get {package} GET_USAGE_STATS")).await?;
+    run_command(
+        &mut connection,
+        &format!("appops set {package} GET_USAGE_STATS allow"),
+    )
+    .await?;
+    let usage = run_command(
+        &mut connection,
+        &format!("appops get {package} GET_USAGE_STATS"),
+    )
+    .await?;
     if parse_appop_mode(&usage, "GET_USAGE_STATS")? != "allow" {
         return Err("Keeper UsageStats access was not granted and verified".into());
     }
 
-    let auto_probe = run_command(&mut connection, &format!("appops get {package} AUTO_START")).await.unwrap_or_default();
+    let auto_probe = run_command(&mut connection, &format!("appops get {package} AUTO_START"))
+        .await
+        .unwrap_or_default();
     if !auto_probe.contains("Unknown operation string: AUTO_START") {
-        run_command(&mut connection, &format!("appops set {package} AUTO_START allow")).await?;
+        run_command(
+            &mut connection,
+            &format!("appops set {package} AUTO_START allow"),
+        )
+        .await?;
         let _ = run_command(&mut connection, "appops write-settings").await;
-        let auto = run_command(&mut connection, &format!("appops get {package} AUTO_START")).await?;
+        let auto =
+            run_command(&mut connection, &format!("appops get {package} AUTO_START")).await?;
         if parse_appop_mode(&auto, "AUTO_START")? != "allow" {
-            return Err("Fire OS exposes AUTO_START but refused or failed to verify Keeper's grant".into());
+            return Err(
+                "Fire OS exposes AUTO_START but refused or failed to verify Keeper's grant".into(),
+            );
         }
     }
 
-    run_command(&mut connection, &format!("pm grant {package} android.permission.READ_LOGS")).await?;
+    run_command(
+        &mut connection,
+        &format!("pm grant {package} android.permission.READ_LOGS"),
+    )
+    .await?;
     let package_dump = run_command(&mut connection, &format!("dumpsys package {package}")).await?;
     if !package_dump.lines().any(|line| {
         let line = line.trim();
@@ -707,14 +751,23 @@ pub async fn install_launcher(
     let _ = run_command(&mut connection, "input keyevent KEYCODE_WAKEUP").await;
     let _ = run_command(&mut connection, &format!("am start -W -n {package}/.Home")).await;
     tokio::time::sleep(Duration::from_secs(3)).await;
-    let services = run_command(&mut connection, &format!("dumpsys activity services {package}")).await?;
+    let services = run_command(
+        &mut connection,
+        &format!("dumpsys activity services {package}"),
+    )
+    .await?;
     if !services.contains("isForeground=true") || !services.contains(".Keeper") {
-        return Err("DumbTV HOME installed, but its Keeper service was not verified as foreground".into());
+        return Err(
+            "DumbTV HOME installed, but its Keeper service was not verified as foreground".into(),
+        );
     }
     let mut foreground = false;
     for _ in 0..10 {
         let activities = run_command(&mut connection, "dumpsys activity activities").await?;
-        if activities.lines().any(|line| line.contains("ResumedActivity:") && line.contains(package)) {
+        if activities
+            .lines()
+            .any(|line| line.contains("ResumedActivity:") && line.contains(package))
+        {
             foreground = true;
             break;
         }
@@ -726,7 +779,11 @@ pub async fn install_launcher(
 
     let dump = run_command(&mut connection, &format!("dumpsys package {package}")).await?;
     let version_code = parse_installed_version_code(&dump)?;
-    let _ = run_command(&mut connection, "rm -f /data/local/tmp/dumbtv-home-release.apk").await;
+    let _ = run_command(
+        &mut connection,
+        "rm -f /data/local/tmp/dumbtv-home-release.apk",
+    )
+    .await;
     if version_code < expected_version_code {
         return Err(format!("installed DumbTV HOME versionCode {version_code} is older than the expected release {expected_version_code}"));
     }
@@ -741,7 +798,8 @@ pub async fn undo_launcher(
     backup_path: &Path,
 ) -> Result<String, String> {
     let backup = if backup_path.is_file() {
-        let bytes = fs::read(backup_path).map_err(|error| format!("cannot read launcher restore backup: {error}"))?;
+        let bytes = fs::read(backup_path)
+            .map_err(|error| format!("cannot read launcher restore backup: {error}"))?;
         if bytes.len() > 64 * 1024 {
             return Err("launcher restore backup exceeds the 64 KiB safety limit".into());
         }
@@ -766,48 +824,105 @@ pub async fn undo_launcher(
     }
     let package = crate::apk_release::LAUNCHER_PACKAGE;
     let _ = run_command(&mut connection, &format!("am force-stop {package}")).await;
-    let usage_mode = backup.as_ref().map(|value| value.usage_stats_mode.as_str()).unwrap_or("default");
+    let usage_mode = backup
+        .as_ref()
+        .map(|value| value.usage_stats_mode.as_str())
+        .unwrap_or("default");
     if !valid_appop_restore_mode(usage_mode)
-        || backup.as_ref().and_then(|value| value.auto_start_mode.as_deref()).is_some_and(|mode| !valid_appop_restore_mode(mode))
+        || backup
+            .as_ref()
+            .and_then(|value| value.auto_start_mode.as_deref())
+            .is_some_and(|mode| !valid_appop_restore_mode(mode))
     {
         return Err("launcher restore backup contains an invalid AppOps mode".into());
     }
-    run_command(&mut connection, &format!("appops set {package} GET_USAGE_STATS {usage_mode}")).await?;
-    if let Some(mode) = backup.as_ref().and_then(|value| value.auto_start_mode.as_deref()) {
-        run_command(&mut connection, &format!("appops set {package} AUTO_START {mode}")).await?;
-        let auto = run_command(&mut connection, &format!("appops get {package} AUTO_START")).await?;
+    run_command(
+        &mut connection,
+        &format!("appops set {package} GET_USAGE_STATS {usage_mode}"),
+    )
+    .await?;
+    if let Some(mode) = backup
+        .as_ref()
+        .and_then(|value| value.auto_start_mode.as_deref())
+    {
+        run_command(
+            &mut connection,
+            &format!("appops set {package} AUTO_START {mode}"),
+        )
+        .await?;
+        let auto =
+            run_command(&mut connection, &format!("appops get {package} AUTO_START")).await?;
         if parse_appop_mode(&auto, "AUTO_START")? != mode {
-            return Err("Keeper AUTO_START AppOp did not return to its captured pre-install state".into());
+            return Err(
+                "Keeper AUTO_START AppOp did not return to its captured pre-install state".into(),
+            );
         }
     } else {
-        let _ = run_command(&mut connection, &format!("appops set {package} AUTO_START default")).await;
+        let _ = run_command(
+            &mut connection,
+            &format!("appops set {package} AUTO_START default"),
+        )
+        .await;
     }
     let _ = run_command(&mut connection, "appops write-settings").await;
     let keep_read_logs = backup.as_ref().is_some_and(|value| value.read_logs_granted);
     if keep_read_logs {
-        run_command(&mut connection, &format!("pm grant {package} android.permission.READ_LOGS")).await?;
+        run_command(
+            &mut connection,
+            &format!("pm grant {package} android.permission.READ_LOGS"),
+        )
+        .await?;
     } else {
-        run_command(&mut connection, &format!("pm revoke {package} android.permission.READ_LOGS")).await?;
+        run_command(
+            &mut connection,
+            &format!("pm revoke {package} android.permission.READ_LOGS"),
+        )
+        .await?;
     }
     let keep_whitelisted = backup.as_ref().is_some_and(|value| value.idle_whitelisted);
     if keep_whitelisted {
-        run_command(&mut connection, &format!("dumpsys deviceidle whitelist +{package}")).await?;
+        run_command(
+            &mut connection,
+            &format!("dumpsys deviceidle whitelist +{package}"),
+        )
+        .await?;
     } else {
-        run_command(&mut connection, &format!("dumpsys deviceidle whitelist -{package}")).await?;
+        run_command(
+            &mut connection,
+            &format!("dumpsys deviceidle whitelist -{package}"),
+        )
+        .await?;
     }
-    run_command(&mut connection, "am start -a android.intent.action.MAIN -c android.intent.category.HOME").await?;
+    run_command(
+        &mut connection,
+        "am start -a android.intent.action.MAIN -c android.intent.category.HOME",
+    )
+    .await?;
     let home = run_command(&mut connection, "dumpsys activity activities").await?;
-    if home.lines().any(|line| line.contains("ResumedActivity:") && line.contains(package)) {
-        return Err("Amazon HOME launch was requested, but DumbTV HOME is still the resumed activity".into());
+    if home
+        .lines()
+        .any(|line| line.contains("ResumedActivity:") && line.contains(package))
+    {
+        return Err(
+            "Amazon HOME launch was requested, but DumbTV HOME is still the resumed activity"
+                .into(),
+        );
     }
 
-    let usage = run_command(&mut connection, &format!("appops get {package} GET_USAGE_STATS")).await?;
+    let usage = run_command(
+        &mut connection,
+        &format!("appops get {package} GET_USAGE_STATS"),
+    )
+    .await?;
     if parse_appop_mode(&usage, "GET_USAGE_STATS")? != usage_mode {
         return Err("UsageStats AppOp did not return to its captured pre-install state".into());
     }
     let whitelist = run_command(&mut connection, "dumpsys deviceidle whitelist").await?;
     if whitelist.contains(package) != keep_whitelisted {
-        return Err("DumbTV HOME device-idle whitelist did not return to its captured pre-install state".into());
+        return Err(
+            "DumbTV HOME device-idle whitelist did not return to its captured pre-install state"
+                .into(),
+        );
     }
     let permission = run_command(&mut connection, &format!("dumpsys package {package}")).await?;
     let granted = permission.lines().any(|line| {
@@ -815,7 +930,9 @@ pub async fn undo_launcher(
         line.starts_with("android.permission.READ_LOGS:") && line.contains("granted=true")
     });
     if granted != keep_read_logs {
-        return Err("Keeper READ_LOGS permission did not return to its captured pre-install state".into());
+        return Err(
+            "Keeper READ_LOGS permission did not return to its captured pre-install state".into(),
+        );
     }
     if backup.is_some() {
         fs::remove_file(backup_path)
@@ -886,7 +1003,8 @@ pub async fn install_smarttube(
     let backup_bytes = serde_json::to_vec_pretty(&backup)
         .map_err(|error| format!("cannot encode SmartTube restore backup: {error}"))?;
     if let Some(parent) = backup_path.parent() {
-        fs::create_dir_all(parent).map_err(|error| format!("cannot create SmartTube backup folder: {error}"))?;
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("cannot create SmartTube backup folder: {error}"))?;
     }
     AtomicFile::new(backup_path, AllowOverwrite)
         .write(|file| file.write_all(&backup_bytes))
@@ -898,12 +1016,16 @@ pub async fn install_smarttube(
         loop {
             if let Err(error) = push_staged_apk(ip, expected, remote, apk_bytes).await {
                 if attempt == 1 {
-                    return Err(format!("SmartTube APK staging failed after two attempts: {error}"));
+                    return Err(format!(
+                        "SmartTube APK staging failed after two attempts: {error}"
+                    ));
                 }
                 attempt += 1;
                 continue;
             }
-            if let Ok(mut connection) = connect_with_retry(ip, expected, Duration::from_secs(60)).await {
+            if let Ok(mut connection) =
+                connect_with_retry(ip, expected, Duration::from_secs(60)).await
+            {
                 // The install command may lose its Wi-Fi ADB response after the APK
                 // has been pushed. The installed version, not the final shell text,
                 // is the source of truth.
@@ -916,7 +1038,10 @@ pub async fn install_smarttube(
                 break code;
             }
             if attempt == 1 {
-                return Err(format!("SmartTube versionCode {code} is below the required {}", crate::apk_release::SMARTTUBE_VERSION_CODE));
+                return Err(format!(
+                    "SmartTube versionCode {code} is below the required {}",
+                    crate::apk_release::SMARTTUBE_VERSION_CODE
+                ));
             }
             attempt += 1;
         }
@@ -929,8 +1054,14 @@ pub async fn install_smarttube(
         return Err("the device identity changed before YouTube replacement".into());
     }
     if stock_installed && !stock_was_disabled {
-        run_command(&mut connection, &format!("pm disable-user --user 0 {stock}")).await?;
-        let after = crate::package_inventory::parse_pm_list_output(&run_command(&mut connection, "pm list packages -d").await?)?;
+        run_command(
+            &mut connection,
+            &format!("pm disable-user --user 0 {stock}"),
+        )
+        .await?;
+        let after = crate::package_inventory::parse_pm_list_output(
+            &run_command(&mut connection, "pm list packages -d").await?,
+        )?;
         if !after.contains(stock) {
             return Err("SmartTube installed, but stock YouTube could not be disabled; use the saved restore backup to return to the original state".into());
         }
@@ -959,9 +1090,16 @@ pub async fn install_smarttube(
             home_config_updated = true;
         }
     }
-    let launch = run_command(&mut connection, &format!("monkey -p {package} -c android.intent.category.LEANBACK_LAUNCHER 1")).await?;
+    let launch = run_command(
+        &mut connection,
+        &format!("monkey -p {package} -c android.intent.category.LEANBACK_LAUNCHER 1"),
+    )
+    .await?;
     if !launch.to_ascii_lowercase().contains("injected") {
-        return Err(format!("SmartTube is installed, but the launcher did not confirm a successful start: {}", launch.trim()));
+        return Err(format!(
+            "SmartTube is installed, but the launcher did not confirm a successful start: {}",
+            launch.trim()
+        ));
     }
     let _ = run_command(&mut connection, &format!("rm -f {remote}")).await;
     let final_dump = run_command(&mut connection, &format!("dumpsys package {package}")).await?;
@@ -971,7 +1109,7 @@ pub async fn install_smarttube(
     }
     if stock_installed {
         let disabled_after = crate::package_inventory::parse_pm_list_output(
-            &run_command(&mut connection, "pm list packages -d").await?
+            &run_command(&mut connection, "pm list packages -d").await?,
         )?;
         if !disabled_after.contains(stock) {
             return Err("SmartTube is installed, but stock YouTube is no longer disabled; the restore backup has been retained".into());
@@ -993,14 +1131,21 @@ pub async fn undo_smarttube(
     expected: &DeviceProfile,
     backup_path: &Path,
 ) -> Result<String, String> {
-    let bytes = fs::read(backup_path).map_err(|error| format!("cannot read SmartTube restore backup: {error}"))?;
+    let bytes = fs::read(backup_path)
+        .map_err(|error| format!("cannot read SmartTube restore backup: {error}"))?;
     if bytes.len() > 3 * 1024 * 1024 {
         return Err("SmartTube restore backup exceeds the 3 MiB safety limit".into());
     }
     let backup: SmartTubeBackup = serde_json::from_slice(&bytes)
         .map_err(|error| format!("SmartTube restore backup is invalid: {error}"))?;
-    if backup.home_conf.as_ref().is_some_and(|value| value.len() > crate::home_config::MAX_HOME_CONFIG_BYTES)
-        || backup.applied_home_conf.as_ref().is_some_and(|value| value.len() > crate::home_config::MAX_HOME_CONFIG_BYTES)
+    if backup
+        .home_conf
+        .as_ref()
+        .is_some_and(|value| value.len() > crate::home_config::MAX_HOME_CONFIG_BYTES)
+        || backup
+            .applied_home_conf
+            .as_ref()
+            .is_some_and(|value| value.len() > crate::home_config::MAX_HOME_CONFIG_BYTES)
     {
         return Err("SmartTube restore backup contains an oversized home.conf".into());
     }
@@ -1020,7 +1165,9 @@ pub async fn undo_smarttube(
     let home_conf_path = "/sdcard/Android/data/tv.dumbtv.home/files/home.conf";
     if let Some(applied) = backup.applied_home_conf.as_deref() {
         let current = read_remote_small_file(&mut connection, home_conf_path).await?;
-        let original = backup.home_conf.as_deref()
+        let original = backup
+            .home_conf
+            .as_deref()
             .ok_or("restore backup is missing the original home.conf bytes")?;
         if current.as_deref() == Some(applied) {
             push_remote_small_file(ip, expected, home_conf_path, original).await?;
@@ -1030,23 +1177,32 @@ pub async fn undo_smarttube(
     }
     if backup.stock_youtube_installed {
         let stock = crate::apk_release::STOCK_YOUTUBE_PACKAGE;
-        let all = crate::package_inventory::parse_pm_list_output(&run_command(&mut connection, "pm list packages").await?)?;
+        let all = crate::package_inventory::parse_pm_list_output(
+            &run_command(&mut connection, "pm list packages").await?,
+        )?;
         if all.contains(stock) {
-            let disabled = crate::package_inventory::parse_pm_list_output(&run_command(&mut connection, "pm list packages -d").await?)?;
+            let disabled = crate::package_inventory::parse_pm_list_output(
+                &run_command(&mut connection, "pm list packages -d").await?,
+            )?;
             if !disabled.contains(stock) {
                 return Err("stock YouTube was re-enabled after SmartTube installation; refusing to override that later user change. The restore backup has been retained.".into());
             }
             if !backup.stock_youtube_was_disabled {
                 run_command(&mut connection, &format!("pm enable --user 0 {stock}")).await?;
             }
-            let after = crate::package_inventory::parse_pm_list_output(&run_command(&mut connection, "pm list packages -d").await?)?;
+            let after = crate::package_inventory::parse_pm_list_output(
+                &run_command(&mut connection, "pm list packages -d").await?,
+            )?;
             if after.contains(stock) != backup.stock_youtube_was_disabled {
-                return Err("stock YouTube did not return to its original enabled/disabled state".into());
+                return Err(
+                    "stock YouTube did not return to its original enabled/disabled state".into(),
+                );
             }
         }
     }
-    fs::remove_file(backup_path)
-        .map_err(|error| format!("device state was restored, but the local backup could not be retired: {error}"))?;
+    fs::remove_file(backup_path).map_err(|error| {
+        format!("device state was restored, but the local backup could not be retired: {error}")
+    })?;
     Ok("Original YouTube enabled/disabled state and home.conf have been restored. SmartTube remains installed; remove it separately only if desired.".into())
 }
 
@@ -1062,7 +1218,9 @@ async fn read_remote_small_file(
         return Ok(None);
     }
     let size_output = run_command(connection, &format!("wc -c < {remote_path}")).await?;
-    let size = size_output.trim().parse::<usize>()
+    let size = size_output
+        .trim()
+        .parse::<usize>()
         .map_err(|_| "device returned an invalid home.conf size".to_owned())?;
     if size == 0 {
         return Ok(None);
@@ -1071,15 +1229,20 @@ async fn read_remote_small_file(
         return Err("DumbTV home.conf exceeds the 256 KiB safety limit".into());
     }
     let mut buffer = vec![0_u8; 65_544];
-    let mut sync = libadb::sync::open(connection, &mut buffer).await
+    let mut sync = libadb::sync::open(connection, &mut buffer)
+        .await
         .map_err(|error| format!("cannot open ADB sync to back up home.conf: {error}"))?;
-    let bytes = timeout(Duration::from_secs(30), sync.recv(remote_path)).await
+    let bytes = timeout(Duration::from_secs(30), sync.recv(remote_path))
+        .await
         .map_err(|_| "timed out backing up DumbTV home.conf".to_owned())?
         .map_err(|error| format!("cannot read DumbTV home.conf: {error}"))?;
     if bytes.len() != size {
-        return Err("home.conf size changed during backup; refusing to use an inconsistent backup".into());
+        return Err(
+            "home.conf size changed during backup; refusing to use an inconsistent backup".into(),
+        );
     }
-    timeout(COMMAND_TIMEOUT, sync.quit()).await
+    timeout(COMMAND_TIMEOUT, sync.quit())
+        .await
         .map_err(|_| "timed out closing ADB sync".to_owned())?
         .map_err(|error| format!("cannot close ADB sync: {error}"))?;
     Ok(Some(bytes))
@@ -1103,18 +1266,25 @@ async fn push_remote_small_file(
         return Err("device identity changed before home.conf write".into());
     }
     let mut buffer = vec![0_u8; 65_544];
-    let mut sync = libadb::sync::open(&mut connection, &mut buffer).await
+    let mut sync = libadb::sync::open(&mut connection, &mut buffer)
+        .await
         .map_err(|error| format!("cannot open ADB sync to update home.conf: {error}"))?;
-    timeout(Duration::from_secs(30), sync.send(remote_path, 0o100600, 0, bytes)).await
-        .map_err(|_| "timed out writing DumbTV home.conf".to_owned())?
-        .map_err(|error| format!("cannot write DumbTV home.conf: {error}"))?;
-    let check = timeout(Duration::from_secs(30), sync.recv(remote_path)).await
+    timeout(
+        Duration::from_secs(30),
+        sync.send(remote_path, 0o100600, 0, bytes),
+    )
+    .await
+    .map_err(|_| "timed out writing DumbTV home.conf".to_owned())?
+    .map_err(|error| format!("cannot write DumbTV home.conf: {error}"))?;
+    let check = timeout(Duration::from_secs(30), sync.recv(remote_path))
+        .await
         .map_err(|_| "timed out verifying DumbTV home.conf".to_owned())?
         .map_err(|error| format!("cannot read back DumbTV home.conf: {error}"))?;
     if check != bytes {
         return Err("home.conf read-back did not match the exact bytes written".into());
     }
-    timeout(COMMAND_TIMEOUT, sync.quit()).await
+    timeout(COMMAND_TIMEOUT, sync.quit())
+        .await
         .map_err(|_| "timed out closing ADB sync".to_owned())?
         .map_err(|error| format!("cannot close ADB sync: {error}"))?;
     Ok(())
@@ -1133,7 +1303,10 @@ async fn connect_with_retry(
             Ok(Ok(mut connection)) => {
                 match read_profile(&mut connection).await {
                     Ok(actual) if same_device(&actual, expected) => return Ok(connection),
-                    Ok(_) => return Err("a different device answered during ADB reconnect; identity check failed".into()),
+                    Ok(_) => return Err(
+                        "a different device answered during ADB reconnect; identity check failed"
+                            .into(),
+                    ),
                     Err(error) => last_error = error,
                 }
             }
@@ -1146,18 +1319,26 @@ async fn connect_with_retry(
         }
         tokio::time::sleep(remaining.min(Duration::from_secs(2))).await;
     }
-    Err(format!("Fire TV ADB did not reconnect within {} seconds: {last_error}", budget.as_secs()))
+    Err(format!(
+        "Fire TV ADB did not reconnect within {} seconds: {last_error}",
+        budget.as_secs()
+    ))
 }
 
 fn valid_appop_restore_mode(mode: &str) -> bool {
-    matches!(mode, "allow" | "ignore" | "deny" | "default" | "foreground" | "errored")
+    matches!(
+        mode,
+        "allow" | "ignore" | "deny" | "default" | "foreground" | "errored"
+    )
 }
 
 fn parse_installed_version_code(output: &str) -> Result<u64, String> {
     for token in output.split_whitespace() {
         if let Some(value) = token.strip_prefix("versionCode=") {
             let digits: String = value.chars().take_while(|c| c.is_ascii_digit()).collect();
-            return digits.parse::<u64>().map_err(|_| "installed package has an invalid versionCode".into());
+            return digits
+                .parse::<u64>()
+                .map_err(|_| "installed package has an invalid versionCode".into());
         }
     }
     Err("installed package did not report a versionCode".into())
@@ -1916,7 +2097,9 @@ mod tests {
 
     #[test]
     fn smarttube_backup_round_trips_exact_home_config_bytes() {
-        let original = b"apps.order=com.amazon.firetv.youtube,com.example.player\r\nlayout=compact\r\n".to_vec();
+        let original =
+            b"apps.order=com.amazon.firetv.youtube,com.example.player\r\nlayout=compact\r\n"
+                .to_vec();
         let applied = crate::home_config::rewrite_apps_order(&original).unwrap();
         let backup = SmartTubeBackup {
             schema_version: 1,
@@ -1937,7 +2120,14 @@ mod tests {
 
     #[test]
     fn launcher_restore_only_accepts_known_appops_modes() {
-        for mode in ["allow", "ignore", "deny", "default", "foreground", "errored"] {
+        for mode in [
+            "allow",
+            "ignore",
+            "deny",
+            "default",
+            "foreground",
+            "errored",
+        ] {
             assert!(valid_appop_restore_mode(mode));
         }
         for mode in ["unknown", "reboot", "allow; reboot", ""] {
@@ -1969,10 +2159,7 @@ mod tests {
             parse_installed_version_code("  versionCode=2446 minSdk=21 targetSdk=28"),
             Ok(2446)
         );
-        assert_eq!(
-            parse_installed_version_code("versionCode=3000"),
-            Ok(3000)
-        );
+        assert_eq!(parse_installed_version_code("versionCode=3000"), Ok(3000));
         assert!(parse_installed_version_code("Package [org.example] not found").is_err());
         assert!(parse_installed_version_code("versionCode=unknown").is_err());
     }
