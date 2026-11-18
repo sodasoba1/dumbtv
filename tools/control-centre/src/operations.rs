@@ -431,6 +431,51 @@ mod tests {
     }
 
     #[test]
+    fn restore_scope_only_reverts_verified_cleanup_commands() {
+        use crate::operation_journal::{OperationJournal, OperationStatus, WorkflowKind};
+        let dir = tempfile::tempdir().unwrap();
+        let commands = vec![
+            ("Disable com.amazon.ads".into(), DeviceCommand::DisablePackage("com.amazon.ads".into())),
+            ("Set privacy key".into(), DeviceCommand::PutSetting {
+                namespace: SettingsNamespace::Secure, key: "advertising_id".into(), value: "0".into(),
+            }),
+            ("Restrict AppOp".into(), DeviceCommand::SetAppOp {
+                package: "com.amazon.hedwig".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "ignore".into(),
+            }),
+            ("Enable Data Saver".into(), DeviceCommand::SetRestrictBackground(true)),
+            ("Blacklist UID".into(), DeviceCommand::AddMeteredBlacklistUid(10025)),
+        ];
+        let path = OperationJournal::create_with_commands(
+            dir.path(), WorkflowKind::Cleanup, "Amazon", "AFTMM", "FireOS-6.7.1.1", 25,
+            "0123456789abcdef0123456789abcdef01234567", &commands,
+        ).unwrap();
+        let mut journal = OperationJournal::load(&path).unwrap();
+        for index in 0..commands.len() {
+            journal.mark_running(&path, index).unwrap();
+            journal.mark_verified(&path, index).unwrap();
+        }
+        assert!(journal.operations.iter().all(|item| item.status == OperationStatus::Verified));
+
+        let plan = RestorePlan { actions: vec![
+            RestoreAction::SetPackageState { package: "com.amazon.ads".into(), state: PackageState::Enabled },
+            RestoreAction::SetPackageState { package: "com.amazon.other".into(), state: PackageState::Enabled },
+            RestoreAction::PutSetting { namespace: crate::snapshot::SettingNamespace::Secure, key: "advertising_id".into(), value: "1".into() },
+            RestoreAction::PutSetting { namespace: crate::snapshot::SettingNamespace::Secure, key: "manual_key".into(), value: "owner".into() },
+            RestoreAction::SetAppOp { package: "com.amazon.hedwig".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "allow".into() },
+            RestoreAction::SetAppOp { package: "com.amazon.other".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "allow".into() },
+            RestoreAction::SetRestrictBackground(false),
+            RestoreAction::RemoveMeteredBlacklistUid(10025),
+            RestoreAction::RemoveMeteredBlacklistUid(10026),
+        ]};
+        let (scoped, excluded) = scope_restore_to_verified_cleanup(&plan, &journal);
+        assert_eq!(excluded, 4);
+        assert_eq!(scoped.actions.len(), 6); // five verified changes plus the manual-review notice
+        assert!(scoped.actions.iter().any(|item| matches!(item, RestoreAction::SetPackageState { package, .. } if package == "com.amazon.ads")));
+        assert!(!scoped.actions.iter().any(|item| matches!(item, RestoreAction::SetPackageState { package, .. } if package == "com.amazon.other")));
+        assert!(!scoped.actions.iter().any(|item| matches!(item, RestoreAction::PutSetting { key, .. } if key == "manual_key")));
+    }
+
+    #[test]
     fn plan_skips_shared_system_uids_and_keeps_alexa_unmodified_by_default() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let choices = PackageChoices::default();
