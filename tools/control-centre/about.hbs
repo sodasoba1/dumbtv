@@ -1,0 +1,19 @@
+# DumbTV Control Centre — third-party licence texts
+
+Generated from the exact Cargo dependency graph used by the Windows build.
+This file includes the licence text selected for each dependency and the
+packages that use it. It is an inventory, not legal advice.
+
+{{#each licenses}}
+---
+
+## {{name}} ({{id}})
+
+Used by:
+{{#each used_by}}
+- {{crate.name}} {{crate.version}}
+{{/each}}
+
+{{text}}
+
+{{/each}}
