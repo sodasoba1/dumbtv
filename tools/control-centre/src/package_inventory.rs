@@ -27,14 +27,23 @@ impl PackageInventory {
         let disabled = parse_pm_list_output(disabled_output)?;
 
         if let Some(package) = system.difference(&installed).next() {
-            return Err(format!("system package inventory contains an uninstalled package: {package}"));
+            return Err(format!(
+                "system package inventory contains an uninstalled package: {package}"
+            ));
         }
         if let Some(package) = disabled.difference(&installed).next() {
-            return Err(format!("disabled package inventory contains an uninstalled package: {package}"));
+            return Err(format!(
+                "disabled package inventory contains an uninstalled package: {package}"
+            ));
         }
 
         let user = installed.difference(&system).cloned().collect();
-        Ok(Self { installed, system, user, disabled })
+        Ok(Self {
+            installed,
+            system,
+            user,
+            disabled,
+        })
     }
 }
 
@@ -49,7 +58,10 @@ pub fn parse_pm_list_output(output: &str) -> Result<BTreeSet<String>, String> {
             continue;
         }
         let package = line.strip_prefix("package:").ok_or_else(|| {
-            format!("unexpected package-manager output at line {}: {line}", line_number + 1)
+            format!(
+                "unexpected package-manager output at line {}: {line}",
+                line_number + 1
+            )
         })?;
         let package = package.trim();
         if !valid_inventory_package_name(package) {
@@ -120,10 +132,9 @@ mod tests {
 
     #[test]
     fn duplicate_package_lines_are_deduplicated() {
-        let packages = parse_pm_list_output(
-            "package:com.amazon.settings\npackage:com.amazon.settings\n",
-        )
-        .unwrap();
+        let packages =
+            parse_pm_list_output("package:com.amazon.settings\npackage:com.amazon.settings\n")
+                .unwrap();
         assert_eq!(packages.len(), 1);
     }
 }

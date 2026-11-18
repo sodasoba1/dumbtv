@@ -33,14 +33,20 @@ pub fn rewrite_apps_order(original: &[u8]) -> Result<Vec<u8>, String> {
                 if package.is_empty()
                     || package == crate::apk_release::SMARTTUBE_PACKAGE
                     || package == crate::apk_release::STOCK_YOUTUBE_PACKAGE
-                    || apps.iter().any(|existing: &String| existing.as_str() == package)
+                    || apps
+                        .iter()
+                        .any(|existing: &String| existing.as_str() == package)
                 {
                     continue;
                 }
                 if package.len() > 255
-                    || !package.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_'))
+                    || !package
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_'))
                 {
-                    return Err("DumbTV home.conf contains an invalid package entry in apps.order".into());
+                    return Err(
+                        "DumbTV home.conf contains an invalid package entry in apps.order".into(),
+                    );
                 }
                 apps.push(package.to_owned());
             }
@@ -73,7 +79,8 @@ mod tests {
     fn replaces_stock_youtube_and_keeps_other_home_order_entries() {
         let original = b"# user settings\napps.order=com.amazon.firetv.youtube,com.example.netflix,org.smarttube.stable,com.example.other\nlayout=compact\n";
         let updated = String::from_utf8(rewrite_apps_order(original).unwrap()).unwrap();
-        assert!(updated.contains("apps.order=org.smarttube.stable,com.example.netflix,com.example.other\n"));
+        assert!(updated
+            .contains("apps.order=org.smarttube.stable,com.example.netflix,com.example.other\n"));
         assert!(updated.contains("layout=compact\n"));
         assert!(updated.contains("# user settings\n"));
         assert!(!updated.contains("com.amazon.firetv.youtube"));
@@ -84,7 +91,10 @@ mod tests {
     fn adds_apps_order_when_missing_and_preserves_crlf() {
         let original = b"layout=compact\r\n";
         let updated = rewrite_apps_order(original).unwrap();
-        assert_eq!(updated, b"layout=compact\r\napps.order=org.smarttube.stable\n");
+        assert_eq!(
+            updated,
+            b"layout=compact\r\napps.order=org.smarttube.stable\n"
+        );
     }
 
     #[test]

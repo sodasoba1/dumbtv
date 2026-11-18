@@ -10,8 +10,8 @@ use std::ptr;
 
 use windows_sys::Win32::Security::Cryptography::{
     NCryptCreatePersistedKey, NCryptDeleteKey, NCryptExportKey, NCryptFinalizeKey,
-    NCryptFreeObject, NCryptOpenKey, NCryptOpenStorageProvider, NCryptSetProperty, NCryptSignHash, NCryptVerifySignature,
-    BCRYPT_PKCS1_PADDING_INFO,
+    NCryptFreeObject, NCryptOpenKey, NCryptOpenStorageProvider, NCryptSetProperty, NCryptSignHash,
+    NCryptVerifySignature, BCRYPT_PKCS1_PADDING_INFO,
 };
 
 use crate::adb_auth::AdbPublicKey;
@@ -54,20 +54,21 @@ impl WindowsCngAdbKey {
     /// Existing keys are never overwritten.
     pub fn open_or_create() -> Result<Self, String> {
         let mut provider = 0usize;
-        let status = unsafe {
-            NCryptOpenStorageProvider(&mut provider, PROVIDER.as_ptr(), 0)
-        };
+        let status = unsafe { NCryptOpenStorageProvider(&mut provider, PROVIDER.as_ptr(), 0) };
         check_status(status, "open Windows CNG key provider")?;
 
         let mut key = 0usize;
-        let open_status = unsafe {
-            NCryptOpenKey(provider, &mut key, KEY_NAME.as_ptr(), 0, 0)
-        };
+        let open_status = unsafe { NCryptOpenKey(provider, &mut key, KEY_NAME.as_ptr(), 0, 0) };
 
         if open_status != STATUS_SUCCESS {
             if open_status != NTE_BAD_KEYSET && open_status != NTE_NOT_FOUND {
-                unsafe { NCryptFreeObject(provider); }
-                return Err(format!("open existing ADB host key failed (0x{:08x})", open_status as u32));
+                unsafe {
+                    NCryptFreeObject(provider);
+                }
+                return Err(format!(
+                    "open existing ADB host key failed (0x{:08x})",
+                    open_status as u32
+                ));
             }
 
             let create_status = unsafe {
@@ -81,8 +82,13 @@ impl WindowsCngAdbKey {
                 )
             };
             if create_status != STATUS_SUCCESS {
-                unsafe { NCryptFreeObject(provider); }
-                return Err(format!("create ADB host key failed (0x{:08x})", create_status as u32));
+                unsafe {
+                    NCryptFreeObject(provider);
+                }
+                return Err(format!(
+                    "create ADB host key failed (0x{:08x})",
+                    create_status as u32
+                ));
             }
 
             let key_length = RSA_BITS.to_le_bytes();
@@ -102,7 +108,10 @@ impl WindowsCngAdbKey {
                     }
                     NCryptFreeObject(provider);
                 }
-                return Err(format!("set ADB host key length failed (0x{:08x})", set_status as u32));
+                return Err(format!(
+                    "set ADB host key length failed (0x{:08x})",
+                    set_status as u32
+                ));
             }
 
             let export_policy = 0u32.to_le_bytes();
@@ -122,7 +131,10 @@ impl WindowsCngAdbKey {
                     }
                     NCryptFreeObject(provider);
                 }
-                return Err(format!("make ADB host key non-exportable failed (0x{:08x})", policy_status as u32));
+                return Err(format!(
+                    "make ADB host key non-exportable failed (0x{:08x})",
+                    policy_status as u32
+                ));
             }
 
             let finalize_status = unsafe { NCryptFinalizeKey(key, 0) };
@@ -133,7 +145,10 @@ impl WindowsCngAdbKey {
                     }
                     NCryptFreeObject(provider);
                 }
-                return Err(format!("finalize ADB host key failed (0x{:08x})", finalize_status as u32));
+                return Err(format!(
+                    "finalize ADB host key failed (0x{:08x})",
+                    finalize_status as u32
+                ));
             }
         }
 
@@ -148,7 +163,11 @@ impl WindowsCngAdbKey {
             }
         };
 
-        Ok(Self { provider, key, public_key })
+        Ok(Self {
+            provider,
+            key,
+            public_key,
+        })
     }
 
     /// Generate an ephemeral key for tests. It is never persisted in the
@@ -156,9 +175,7 @@ impl WindowsCngAdbKey {
     #[cfg(test)]
     fn generate_ephemeral() -> Result<Self, String> {
         let mut provider = 0usize;
-        let status = unsafe {
-            NCryptOpenStorageProvider(&mut provider, PROVIDER.as_ptr(), 0)
-        };
+        let status = unsafe { NCryptOpenStorageProvider(&mut provider, PROVIDER.as_ptr(), 0) };
         check_status(status, "open Windows CNG key provider")?;
 
         let mut key = 0usize;
@@ -173,8 +190,13 @@ impl WindowsCngAdbKey {
             )
         };
         if create_status != STATUS_SUCCESS {
-            unsafe { NCryptFreeObject(provider); }
-            return Err(format!("create ephemeral ADB test key failed (0x{:08x})", create_status as u32));
+            unsafe {
+                NCryptFreeObject(provider);
+            }
+            return Err(format!(
+                "create ephemeral ADB test key failed (0x{:08x})",
+                create_status as u32
+            ));
         }
 
         let key_length = RSA_BITS.to_le_bytes();
@@ -192,7 +214,10 @@ impl WindowsCngAdbKey {
                 NCryptFreeObject(key);
                 NCryptFreeObject(provider);
             }
-            return Err(format!("set ephemeral ADB key length failed (0x{:08x})", set_status as u32));
+            return Err(format!(
+                "set ephemeral ADB key length failed (0x{:08x})",
+                set_status as u32
+            ));
         }
 
         let export_policy = 0u32.to_le_bytes();
@@ -210,7 +235,10 @@ impl WindowsCngAdbKey {
                 NCryptFreeObject(key);
                 NCryptFreeObject(provider);
             }
-            return Err(format!("make ephemeral ADB key non-exportable failed (0x{:08x})", policy_status as u32));
+            return Err(format!(
+                "make ephemeral ADB key non-exportable failed (0x{:08x})",
+                policy_status as u32
+            ));
         }
 
         let finalize_status = unsafe { NCryptFinalizeKey(key, 0) };
@@ -219,7 +247,10 @@ impl WindowsCngAdbKey {
                 NCryptFreeObject(key);
                 NCryptFreeObject(provider);
             }
-            return Err(format!("finalize ephemeral ADB key failed (0x{:08x})", finalize_status as u32));
+            return Err(format!(
+                "finalize ephemeral ADB key failed (0x{:08x})",
+                finalize_status as u32
+            ));
         }
 
         let public_key = match export_public_key(key) {
@@ -233,7 +264,11 @@ impl WindowsCngAdbKey {
             }
         };
 
-        Ok(Self { provider, key, public_key })
+        Ok(Self {
+            provider,
+            key,
+            public_key,
+        })
     }
 
     pub fn public_key_wire(&self) -> &[u8] {
@@ -251,7 +286,10 @@ impl WindowsCngAdbKey {
     /// Sign the device's 20-byte ADB AUTH token using Windows CNG.
     pub fn sign_token(&self, token: &[u8]) -> Result<Vec<u8>, String> {
         if token.len() != 20 {
-            return Err(format!("ADB AUTH token must be 20 bytes, received {}", token.len()));
+            return Err(format!(
+                "ADB AUTH token must be 20 bytes, received {}",
+                token.len()
+            ));
         }
 
         let digest = Sha1::digest(token);
@@ -274,7 +312,9 @@ impl WindowsCngAdbKey {
         };
         check_status(status, "sign ADB AUTH token")?;
         if written != 256 {
-            return Err(format!("CNG returned an unexpected RSA signature length: {written}"));
+            return Err(format!(
+                "CNG returned an unexpected RSA signature length: {written}"
+            ));
         }
         signature.truncate(written as usize);
         Ok(signature)
@@ -365,7 +405,9 @@ mod tests {
     #[test]
     fn cng_generates_key_exports_public_key_and_signs_adb_token() {
         let key = WindowsCngAdbKey::generate_ephemeral().unwrap();
-        assert!(key.public_key_wire().ends_with(b" dumbtv-control-centre@windows\0"));
+        assert!(key
+            .public_key_wire()
+            .ends_with(b" dumbtv-control-centre@windows\0"));
         assert_eq!(key.public_key_fingerprint_md5().len(), 47);
         assert_eq!(key.public_key_fingerprint_sha256().len(), 64);
 
@@ -387,7 +429,10 @@ mod tests {
                 0,
             )
         };
-        assert_ne!(private_export_status, STATUS_SUCCESS, "private host key must not be exportable");
+        assert_ne!(
+            private_export_status, STATUS_SUCCESS,
+            "private host key must not be exportable"
+        );
 
         let digest = Sha1::digest(token);
         let padding = BCRYPT_PKCS1_PADDING_INFO {
@@ -412,6 +457,9 @@ fn check_status(status: i32, operation: &str) -> Result<(), String> {
     if status == STATUS_SUCCESS {
         Ok(())
     } else {
-        Err(format!("{operation} failed (Windows status 0x{:08x})", status as u32))
+        Err(format!(
+            "{operation} failed (Windows status 0x{:08x})",
+            status as u32
+        ))
     }
 }

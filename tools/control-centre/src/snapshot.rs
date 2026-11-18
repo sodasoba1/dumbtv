@@ -62,25 +62,42 @@ impl DeviceSnapshot {
         if self.manufacturer.trim().is_empty() || self.android_sdk == 0 {
             return Err("snapshot is missing device identity or SDK".into());
         }
-        if self.build_display_id.len() > 256 || self.build_display_id.chars().any(char::is_control) {
+        if self.build_display_id.len() > 256 || self.build_display_id.chars().any(char::is_control)
+        {
             return Err("snapshot has an invalid build display identifier".into());
         }
-        if self.source_commit.len() != 40 || !self.source_commit.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        if self.source_commit.len() != 40
+            || !self
+                .source_commit
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit())
+        {
             return Err("snapshot has an invalid pinned source revision".into());
         }
         for package in self.packages.keys() {
             if !valid_package(package) {
-                return Err(format!("snapshot contains an invalid package identifier: {package}"));
+                return Err(format!(
+                    "snapshot contains an invalid package identifier: {package}"
+                ));
             }
         }
         for package in &self.user_packages {
             if !valid_package(package) || !self.packages.contains_key(package) {
-                return Err(format!("snapshot contains an invalid or uninstalled user package: {package}"));
+                return Err(format!(
+                    "snapshot contains an invalid or uninstalled user package: {package}"
+                ));
             }
         }
-        for (key, value) in self.secure_settings.iter().chain(self.global_settings.iter()) {
-            if !valid_setting_key(key) || value.as_deref().is_some_and(|v| !valid_setting_value(v)) {
-                return Err(format!("snapshot contains an invalid settings key/value: {key}"));
+        for (key, value) in self
+            .secure_settings
+            .iter()
+            .chain(self.global_settings.iter())
+        {
+            if !valid_setting_key(key) || value.as_deref().is_some_and(|v| !valid_setting_value(v))
+            {
+                return Err(format!(
+                    "snapshot contains an invalid settings key/value: {key}"
+                ));
             }
         }
         let mut app_ops_seen = BTreeSet::new();
@@ -119,12 +136,19 @@ impl DeviceSnapshot {
             .map_err(|error| format!("cannot encode original snapshot: {error}"))?;
         let mut staged = tempfile::NamedTempFile::new_in(parent)
             .map_err(|error| format!("cannot stage original snapshot: {error}"))?;
-        staged.write_all(&bytes)
+        staged
+            .write_all(&bytes)
             .map_err(|error| format!("cannot write staged original snapshot: {error}"))?;
-        staged.as_file().sync_all()
+        staged
+            .as_file()
+            .sync_all()
             .map_err(|error| format!("cannot flush staged original snapshot: {error}"))?;
-        staged.persist_noclobber(path)
-            .map_err(|error| format!("cannot atomically save original snapshot without overwrite: {}", error.error))?;
+        staged.persist_noclobber(path).map_err(|error| {
+            format!(
+                "cannot atomically save original snapshot without overwrite: {}",
+                error.error
+            )
+        })?;
         Ok(())
     }
 }
@@ -142,10 +166,24 @@ pub struct CurrentDeviceState {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RestoreAction {
-    SetPackageState { package: String, state: PackageState },
-    PutSetting { namespace: SettingNamespace, key: String, value: String },
-    DeleteSetting { namespace: SettingNamespace, key: String },
-    SetAppOp { package: String, operation: String, mode: String },
+    SetPackageState {
+        package: String,
+        state: PackageState,
+    },
+    PutSetting {
+        namespace: SettingNamespace,
+        key: String,
+        value: String,
+    },
+    DeleteSetting {
+        namespace: SettingNamespace,
+        key: String,
+    },
+    SetAppOp {
+        package: String,
+        operation: String,
+        mode: String,
+    },
     SetRestrictBackground(bool),
     AddMeteredBlacklistUid(u32),
     RemoveMeteredBlacklistUid(u32),
@@ -181,7 +219,9 @@ pub fn build_restore_plan(
                     });
                 }
             }
-            None if *original_state != PackageState::NotInstalled && original.user_packages.contains(package) => {
+            None if *original_state != PackageState::NotInstalled
+                && original.user_packages.contains(package) =>
+            {
                 // A user app removed for user 0 cannot be reconstructed from this tool.
                 actions.push(RestoreAction::ManualUserAppReinstall(package.clone()));
             }
@@ -210,11 +250,25 @@ pub fn build_restore_plan(
         &current.global_settings,
     );
 
-    let original_ops: BTreeMap<_, _> = original.app_ops.iter()
-        .map(|item| ((item.package.as_str(), item.operation.as_str()), item.mode.as_str()))
+    let original_ops: BTreeMap<_, _> = original
+        .app_ops
+        .iter()
+        .map(|item| {
+            (
+                (item.package.as_str(), item.operation.as_str()),
+                item.mode.as_str(),
+            )
+        })
         .collect();
-    let current_ops: BTreeMap<_, _> = current.app_ops.iter()
-        .map(|item| ((item.package.as_str(), item.operation.as_str()), item.mode.as_str()))
+    let current_ops: BTreeMap<_, _> = current
+        .app_ops
+        .iter()
+        .map(|item| {
+            (
+                (item.package.as_str(), item.operation.as_str()),
+                item.mode.as_str(),
+            )
+        })
         .collect();
     for ((package, operation), mode) in original_ops {
         if current_ops.get(&(package, operation)).copied() != Some(mode) {
@@ -236,7 +290,10 @@ pub fn build_restore_plan(
         _ => {}
     }
 
-    match (&original.metered_blacklist_uids, &current.metered_blacklist_uids) {
+    match (
+        &original.metered_blacklist_uids,
+        &current.metered_blacklist_uids,
+    ) {
         (Some(before), Some(now)) => {
             for uid in before.difference(now) {
                 actions.push(RestoreAction::AddMeteredBlacklistUid(*uid));
@@ -265,10 +322,13 @@ fn add_setting_restore_actions(
         }
         match before {
             Some(value) => actions.push(RestoreAction::PutSetting {
-                namespace, key: key.clone(), value: value.clone(),
+                namespace,
+                key: key.clone(),
+                value: value.clone(),
             }),
             None => actions.push(RestoreAction::DeleteSetting {
-                namespace, key: key.clone(),
+                namespace,
+                key: key.clone(),
             }),
         }
     }
@@ -284,10 +344,15 @@ fn valid_package(value: &str) -> bool {
 fn valid_segment(value: &str) -> bool {
     !value.is_empty()
         && value.as_bytes()[0].is_ascii_alphabetic()
-        && value.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_')
 }
 fn valid_setting_key(value: &str) -> bool {
-    !value.is_empty() && value.bytes().all(|b| b.is_ascii_alphanumeric() || b"_.:-".contains(&b))
+    !value.is_empty()
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"_.:-".contains(&b))
 }
 fn valid_setting_value(value: &str) -> bool {
     value.len() <= 4096 && !value.chars().any(char::is_control)
@@ -296,7 +361,10 @@ fn valid_operation(value: &str) -> bool {
     !value.is_empty() && value.bytes().all(|b| b.is_ascii_uppercase() || b == b'_')
 }
 fn valid_mode(value: &str) -> bool {
-    matches!(value, "allow" | "ignore" | "deny" | "default" | "foreground" | "errored")
+    matches!(
+        value,
+        "allow" | "ignore" | "deny" | "default" | "foreground" | "errored"
+    )
 }
 
 #[cfg(test)]
@@ -312,12 +380,15 @@ mod tests {
             android_sdk: 25,
             source_commit: "0123456789abcdef0123456789abcdef01234567".into(),
             packages: [("com.amazon.ads".into(), PackageState::Enabled)]
-                .into_iter().collect(),
+                .into_iter()
+                .collect(),
             user_packages: ["com.amazon.ads".into()].into_iter().collect(),
             secure_settings: [
                 ("advertising_id".into(), Some("1".into())),
                 ("previously_absent".into(), None),
-            ].into_iter().collect(),
+            ]
+            .into_iter()
+            .collect(),
             global_settings: BTreeMap::new(),
             app_ops: vec![AppOpState {
                 package: "com.amazon.ads".into(),
@@ -333,12 +404,15 @@ mod tests {
     fn current() -> CurrentDeviceState {
         CurrentDeviceState {
             packages: [("com.amazon.ads".into(), PackageState::Disabled)]
-                .into_iter().collect(),
+                .into_iter()
+                .collect(),
             user_packages: ["com.amazon.ads".into()].into_iter().collect(),
             secure_settings: [
                 ("advertising_id".into(), Some("0".into())),
                 ("previously_absent".into(), Some("x".into())),
-            ].into_iter().collect(),
+            ]
+            .into_iter()
+            .collect(),
             global_settings: BTreeMap::new(),
             app_ops: vec![AppOpState {
                 package: "com.amazon.ads".into(),
@@ -354,21 +428,37 @@ mod tests {
     fn restore_plan_returns_only_captured_values_and_deltas() {
         let plan = build_restore_plan(&snapshot(), &current()).unwrap();
         assert!(plan.actions.contains(&RestoreAction::SetPackageState {
-            package: "com.amazon.ads".into(), state: PackageState::Enabled,
+            package: "com.amazon.ads".into(),
+            state: PackageState::Enabled,
         }));
         assert!(plan.actions.contains(&RestoreAction::PutSetting {
-            namespace: SettingNamespace::Secure, key: "advertising_id".into(), value: "1".into(),
+            namespace: SettingNamespace::Secure,
+            key: "advertising_id".into(),
+            value: "1".into(),
         }));
         assert!(plan.actions.contains(&RestoreAction::DeleteSetting {
-            namespace: SettingNamespace::Secure, key: "previously_absent".into(),
+            namespace: SettingNamespace::Secure,
+            key: "previously_absent".into(),
         }));
         assert!(plan.actions.contains(&RestoreAction::SetAppOp {
-            package: "com.amazon.ads".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "allow".into(),
+            package: "com.amazon.ads".into(),
+            operation: "RUN_IN_BACKGROUND".into(),
+            mode: "allow".into(),
         }));
-        assert!(plan.actions.contains(&RestoreAction::SetRestrictBackground(false)));
-        assert!(plan.actions.contains(&RestoreAction::AddMeteredBlacklistUid(10001)));
-        assert!(plan.actions.contains(&RestoreAction::RemoveMeteredBlacklistUid(10002)));
-        assert!(plan.actions.contains(&RestoreAction::ManualUserAppReinstall("com.example.player".into())));
+        assert!(plan
+            .actions
+            .contains(&RestoreAction::SetRestrictBackground(false)));
+        assert!(plan
+            .actions
+            .contains(&RestoreAction::AddMeteredBlacklistUid(10001)));
+        assert!(plan
+            .actions
+            .contains(&RestoreAction::RemoveMeteredBlacklistUid(10002)));
+        assert!(plan
+            .actions
+            .contains(&RestoreAction::ManualUserAppReinstall(
+                "com.example.player".into()
+            )));
     }
 
     #[test]
@@ -376,7 +466,11 @@ mod tests {
         let mut current = current();
         current.packages.clear();
         let plan = build_restore_plan(&snapshot(), &current).unwrap();
-        assert!(plan.actions.contains(&RestoreAction::ManualUserAppReinstall("com.amazon.ads".into())));
+        assert!(plan
+            .actions
+            .contains(&RestoreAction::ManualUserAppReinstall(
+                "com.amazon.ads".into()
+            )));
     }
 
     #[test]
@@ -385,26 +479,35 @@ mod tests {
         original.restrict_background = None;
         original.metered_blacklist_uids = None;
         let plan = build_restore_plan(&original, &current()).unwrap();
-        assert!(plan.actions.iter().any(|action| matches!(
-            action, RestoreAction::ManualStateUnavailable(_)
-        )));
+        assert!(plan
+            .actions
+            .iter()
+            .any(|action| matches!(action, RestoreAction::ManualStateUnavailable(_))));
     }
 
     #[test]
     fn snapshot_validation_rejects_bad_packages_and_appops() {
         let mut original = snapshot();
-        original.packages.insert("../bad".into(), PackageState::Enabled);
+        original
+            .packages
+            .insert("../bad".into(), PackageState::Enabled);
         assert!(original.validate().is_err());
         let mut original = snapshot();
         original.app_ops[0].mode = "run shell".into();
         assert!(original.validate().is_err());
         let mut original = snapshot();
-        original.secure_settings.insert("safe_key".into(), Some("value with spaces".into()));
+        original
+            .secure_settings
+            .insert("safe_key".into(), Some("value with spaces".into()));
         assert!(original.validate().is_ok());
-        original.secure_settings.insert("unsafe_key".into(), Some("bad\nvalue".into()));
+        original
+            .secure_settings
+            .insert("unsafe_key".into(), Some("bad\nvalue".into()));
         assert!(original.validate().is_err());
         let mut original = snapshot();
-        original.packages.insert("notapackage".into(), PackageState::Enabled);
+        original
+            .packages
+            .insert("notapackage".into(), PackageState::Enabled);
         assert!(original.validate().is_err());
     }
 

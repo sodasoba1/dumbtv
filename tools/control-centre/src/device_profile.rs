@@ -66,7 +66,10 @@ impl DeviceProfile {
             android_release: optional("ro.build.version.release"),
             sdk,
             abi: optional("ro.product.cpu.abi"),
-            kernel: properties.get("kernel.release").cloned().unwrap_or_default(),
+            kernel: properties
+                .get("kernel.release")
+                .cloned()
+                .unwrap_or_default(),
             verified_boot_state: properties
                 .get("ro.boot.verifiedbootstate")
                 .cloned()
@@ -116,9 +119,9 @@ impl DeviceProfile {
             match self.fire_os_generation() {
                 FireOsGeneration::OlderThanSupported => Compatibility::AndroidTooOld,
                 FireOsGeneration::NewerThanValidated => Compatibility::NewerThanValidated,
-                FireOsGeneration::FireOs6 | FireOsGeneration::FireOs7 | FireOsGeneration::FireOs8 => {
-                    Compatibility::Supported
-                }
+                FireOsGeneration::FireOs6
+                | FireOsGeneration::FireOs7
+                | FireOsGeneration::FireOs8 => Compatibility::Supported,
             }
         }
     }
@@ -170,17 +173,26 @@ mod tests {
             let profile = DeviceProfile::from_properties(&properties("Amazon", sdk)).unwrap();
             assert_eq!(profile.fire_os_generation(), generation);
             assert_eq!(profile.cleanup_compatibility(), Compatibility::Supported);
-            assert_eq!(profile.launcher_compatibility(), Compatibility::LauncherRequiresApi25);
+            assert_eq!(
+                profile.launcher_compatibility(),
+                Compatibility::LauncherRequiresApi25
+            );
         }
     }
 
     #[test]
     fn refuses_non_amazon_devices_and_unvalidated_sdk_levels() {
         let other = DeviceProfile::from_properties(&properties("Google", "30")).unwrap();
-        assert_eq!(other.cleanup_compatibility(), Compatibility::UnsupportedManufacturer);
+        assert_eq!(
+            other.cleanup_compatibility(),
+            Compatibility::UnsupportedManufacturer
+        );
 
         let newer = DeviceProfile::from_properties(&properties("Amazon", "35")).unwrap();
-        assert_eq!(newer.cleanup_compatibility(), Compatibility::NewerThanValidated);
+        assert_eq!(
+            newer.cleanup_compatibility(),
+            Compatibility::NewerThanValidated
+        );
 
         let older = DeviceProfile::from_properties(&properties("Amazon", "24")).unwrap();
         assert_eq!(older.cleanup_compatibility(), Compatibility::AndroidTooOld);

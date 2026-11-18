@@ -33,7 +33,6 @@ impl FireOsCatalogue {
             never_disable: read_package_list(&never_disable_path)?,
         })
     }
-
 }
 
 /// Mirrors scripts/lib.sh: SDK 25–27 prefers fireos6/<name> when present;
@@ -152,10 +151,16 @@ mod tests {
         for sdk in [25, 28, 30] {
             let catalogue = FireOsCatalogue::load(&root, sdk).unwrap();
             assert!(!catalogue.packages.is_empty());
-            assert!(catalogue.never_disable.iter().any(|p| p == "com.amazon.vizzini"));
+            assert!(catalogue
+                .never_disable
+                .iter()
+                .any(|p| p == "com.amazon.vizzini"));
             assert!(!catalogue.packages.iter().any(|p| p == "com.amazon.vizzini"));
             assert!(catalogue.packages.iter().all(|p| valid_package_name(p)));
-            assert!(catalogue.never_disable.iter().all(|p| valid_package_name(p)));
+            assert!(catalogue
+                .never_disable
+                .iter()
+                .all(|p| valid_package_name(p)));
         }
     }
 
@@ -164,7 +169,13 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let fireos = dir.path().join("fireos");
         fs::create_dir_all(&fireos).unwrap();
-        for name in ["packages.txt", "protected.txt", "never-disable.txt", "alexa.txt", "user-apps.txt"] {
+        for name in [
+            "packages.txt",
+            "protected.txt",
+            "never-disable.txt",
+            "alexa.txt",
+            "user-apps.txt",
+        ] {
             fs::write(fireos.join(name), "com.amazon.shared\n").unwrap();
         }
         for sdk in [28, 30] {

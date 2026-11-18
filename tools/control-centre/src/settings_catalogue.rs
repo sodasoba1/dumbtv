@@ -5,7 +5,9 @@
 
 use std::{collections::BTreeSet, fs, path::Path};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum SettingsNamespace {
     Secure,
@@ -107,16 +109,16 @@ pub fn read_settings_file(path: &Path) -> Result<Vec<SettingChange>, String> {
 
 fn valid_setting_key(key: &str) -> bool {
     !key.is_empty()
-        && key.bytes().all(|byte| {
-            byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b':' | b'.' | b'-')
-        })
+        && key
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b':' | b'.' | b'-'))
 }
 
 fn valid_setting_value(value: &str) -> bool {
     !value.is_empty()
-        && value.bytes().all(|byte| {
-            byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b':' | b'.' | b'-')
-        })
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b':' | b'.' | b'-'))
 }
 
 #[cfg(test)]
@@ -129,18 +131,20 @@ mod tests {
         let catalogue = SettingsCatalogue::load(&root).unwrap();
 
         assert!(catalogue.privacy.iter().any(|setting| {
-            setting.key == "advertisingIdApp:interestBasedAds:value"
-                && setting.value == "0"
+            setting.key == "advertisingIdApp:interestBasedAds:value" && setting.value == "0"
         }));
-        assert!(catalogue.alexa_off.iter().any(|setting| {
-            setting.key == "alexa_wake_word_disabled" && setting.value == "1"
-        }));
-        assert!(catalogue.restore_defaults.iter().any(|setting| {
-            setting.key == "animator_duration_scale" && setting.value == "1.0"
-        }));
-        assert!(!catalogue.privacy.iter().any(|setting| {
-            setting.key == "animator_duration_scale"
-        }));
+        assert!(catalogue
+            .alexa_off
+            .iter()
+            .any(|setting| { setting.key == "alexa_wake_word_disabled" && setting.value == "1" }));
+        assert!(catalogue
+            .restore_defaults
+            .iter()
+            .any(|setting| { setting.key == "animator_duration_scale" && setting.value == "1.0" }));
+        assert!(!catalogue
+            .privacy
+            .iter()
+            .any(|setting| { setting.key == "animator_duration_scale" }));
     }
 
     #[test]

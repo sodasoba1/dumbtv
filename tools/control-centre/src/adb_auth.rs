@@ -45,7 +45,9 @@ impl AdbPublicKey {
             return Err("RSA public exponent must be odd and at least 3".into());
         }
         if key_name.is_empty()
-            || key_name.bytes().any(|byte| matches!(byte, 0 | b'\r' | b'\n'))
+            || key_name
+                .bytes()
+                .any(|byte| matches!(byte, 0 | b'\r' | b'\n'))
             || key_name.len() > 64
         {
             return Err("invalid ADB public-key name".into());
@@ -58,8 +60,7 @@ impl AdbPublicKey {
         let n0 = u32::from_le_bytes(modulus_le[..4].try_into().expect("four bytes"));
         let n0_inverse = negative_inverse_mod_2_32(n0);
 
-        let mut rr_le =
-            ((BigUint::from(1u32) << (MODULUS_BYTES * 16)) % &modulus).to_bytes_le();
+        let mut rr_le = ((BigUint::from(1u32) << (MODULUS_BYTES * 16)) % &modulus).to_bytes_le();
         rr_le.resize(MODULUS_BYTES, 0);
 
         let mut blob = Vec::with_capacity(STRUCT_BYTES);
@@ -77,7 +78,11 @@ impl AdbPublicKey {
         wire_payload.extend_from_slice(key_name.as_bytes());
         wire_payload.push(0);
 
-        Ok(Self { wire_payload, fingerprint_md5, fingerprint_sha256 })
+        Ok(Self {
+            wire_payload,
+            fingerprint_md5,
+            fingerprint_sha256,
+        })
     }
 
     pub fn as_wire_payload(&self) -> &[u8] {
@@ -97,12 +102,18 @@ impl AdbPublicKey {
 
     /// SHA-256 fingerprint of the raw mincrypt public-key structure.
     pub fn fingerprint_sha256(&self) -> String {
-        self.fingerprint_sha256.iter().map(|byte| format!("{byte:02x}")).collect()
+        self.fingerprint_sha256
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect()
     }
 }
 
 fn trim_leading_zeroes(value: &[u8]) -> &[u8] {
-    let first = value.iter().position(|byte| *byte != 0).unwrap_or(value.len());
+    let first = value
+        .iter()
+        .position(|byte| *byte != 0)
+        .unwrap_or(value.len());
     &value[first..]
 }
 
@@ -125,8 +136,7 @@ mod tests {
         // A fixed 2048-bit odd modulus is sufficient to verify the public
         // wire-format arithmetic; private-key operations are tested by CNG.
         let modulus = [0xffu8; MODULUS_BYTES];
-        let key = AdbPublicKey::from_rsa_components(&modulus, &[1, 0, 1], "dumbtv@test")
-            .unwrap();
+        let key = AdbPublicKey::from_rsa_components(&modulus, &[1, 0, 1], "dumbtv@test").unwrap();
         let payload = key.as_wire_payload();
         assert!(payload.ends_with(b" dumbtv@test\0"));
         assert_eq!(key.fingerprint_md5().len(), 47);
@@ -136,8 +146,14 @@ mod tests {
         let blob_text = encoded.split(' ').next().unwrap();
         let blob = STANDARD.decode(blob_text).unwrap();
         assert_eq!(blob.len(), STRUCT_BYTES);
-        assert_eq!(u32::from_le_bytes(blob[..4].try_into().unwrap()), MODULUS_WORDS);
-        assert_eq!(u32::from_le_bytes(blob[STRUCT_BYTES - 4..].try_into().unwrap()), 65537);
+        assert_eq!(
+            u32::from_le_bytes(blob[..4].try_into().unwrap()),
+            MODULUS_WORDS
+        );
+        assert_eq!(
+            u32::from_le_bytes(blob[STRUCT_BYTES - 4..].try_into().unwrap()),
+            65537
+        );
 
         let n0 = u32::from_le_bytes(blob[8..12].try_into().unwrap());
         let n0_inverse = u32::from_le_bytes(blob[4..8].try_into().unwrap());
@@ -146,10 +162,7 @@ mod tests {
         assert_eq!(rr, BigUint::from(1u32));
 
         for odd in [3u32, 5, 0x1234_5679, 0xffff_ffff] {
-            assert_eq!(
-                odd.wrapping_mul(negative_inverse_mod_2_32(odd)),
-                u32::MAX
-            );
+            assert_eq!(odd.wrapping_mul(negative_inverse_mod_2_32(odd)), u32::MAX);
         }
     }
 

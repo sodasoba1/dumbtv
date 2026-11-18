@@ -13,14 +13,32 @@ use crate::settings_catalogue::SettingsNamespace;
 pub enum DeviceCommand {
     DisablePackage(String),
     EnablePackage(String),
-    UninstallPackageForUser { package: String, owner_confirmed: bool },
+    UninstallPackageForUser {
+        package: String,
+        owner_confirmed: bool,
+    },
     ForceStopPackage(String),
     /// Match debloat.sh: only when a cleanup package survives disable, restrict
     /// background execution, block metered background data, then force-stop it.
-    ForceStopAndRestrictIfRunning { package: String, uid: Option<u32>, sdk: u32 },
-    PutSetting { namespace: SettingsNamespace, key: String, value: String },
-    DeleteSetting { namespace: SettingsNamespace, key: String },
-    SetAppOp { package: String, operation: String, mode: String },
+    ForceStopAndRestrictIfRunning {
+        package: String,
+        uid: Option<u32>,
+        sdk: u32,
+    },
+    PutSetting {
+        namespace: SettingsNamespace,
+        key: String,
+        value: String,
+    },
+    DeleteSetting {
+        namespace: SettingsNamespace,
+        key: String,
+    },
+    SetAppOp {
+        package: String,
+        operation: String,
+        mode: String,
+    },
     SetRestrictBackground(bool),
     AddMeteredBlacklistUid(u32),
     RemoveMeteredBlacklistUid(u32),
@@ -30,10 +48,7 @@ impl DeviceCommand {
     /// Build one reviewed Android shell-service command. The caller must still
     /// enforce a single selected device, timeout, read-back verification and
     /// original-state snapshot before sending any mutating command.
-    pub fn to_adb_shell(
-        &self,
-        never_disable: &BTreeSet<String>,
-    ) -> Result<String, String> {
+    pub fn to_adb_shell(&self, never_disable: &BTreeSet<String>) -> Result<String, String> {
         match self {
             Self::DisablePackage(package) => {
                 validate_protected_package(package, never_disable)?;
@@ -43,7 +58,10 @@ impl DeviceCommand {
                 validate_protected_package(package, never_disable)?;
                 Ok(format!("pm enable --user 0 {package}"))
             }
-            Self::UninstallPackageForUser { package, owner_confirmed } => {
+            Self::UninstallPackageForUser {
+                package,
+                owner_confirmed,
+            } => {
                 validate_protected_package(package, never_disable)?;
                 if !owner_confirmed {
                     return Err("uninstall requires explicit owner confirmation".into());
@@ -61,16 +79,28 @@ impl DeviceCommand {
                 }
                 Ok(format!("am force-stop {package}"))
             }
-            Self::PutSetting { namespace, key, value } => {
+            Self::PutSetting {
+                namespace,
+                key,
+                value,
+            } => {
                 validate_setting_key(key)?;
                 validate_setting_value(value)?;
-                Ok(format!("settings put {} {key} {}", namespace.as_str(), shell_quote(value)))
+                Ok(format!(
+                    "settings put {} {key} {}",
+                    namespace.as_str(),
+                    shell_quote(value)
+                ))
             }
             Self::DeleteSetting { namespace, key } => {
                 validate_setting_key(key)?;
                 Ok(format!("settings delete {} {key}", namespace.as_str()))
             }
-            Self::SetAppOp { package, operation, mode } => {
+            Self::SetAppOp {
+                package,
+                operation,
+                mode,
+            } => {
                 validate_package(package)?;
                 if !valid_operation(operation) || !valid_mode(mode) {
                     return Err("invalid AppOps operation or mode".into());
@@ -90,7 +120,9 @@ impl DeviceCommand {
                 } else {
                     "remove"
                 };
-                Ok(format!("cmd netpolicy {action} restrict-background-blacklist {uid}"))
+                Ok(format!(
+                    "cmd netpolicy {action} restrict-background-blacklist {uid}"
+                ))
             }
         }
     }
@@ -125,7 +157,9 @@ fn validate_package(value: &str) -> Result<(), String> {
 }
 fn validate_setting_key(value: &str) -> Result<(), String> {
     if value.is_empty()
-        || !value.bytes().all(|b| b.is_ascii_alphanumeric() || b"_.:-".contains(&b))
+        || !value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"_.:-".contains(&b))
     {
         return Err("invalid Android settings key".into());
     }
@@ -146,7 +180,10 @@ fn valid_operation(value: &str) -> bool {
     !value.is_empty() && value.bytes().all(|b| b.is_ascii_uppercase() || b == b'_')
 }
 fn valid_mode(value: &str) -> bool {
-    matches!(value, "allow" | "ignore" | "deny" | "default" | "foreground" | "errored")
+    matches!(
+        value,
+        "allow" | "ignore" | "deny" | "default" | "foreground" | "errored"
+    )
 }
 
 #[cfg(test)]
@@ -160,88 +197,137 @@ mod tests {
     #[test]
     fn builds_only_expected_package_commands() {
         assert_eq!(
-            DeviceCommand::DisablePackage("com.amazon.ads".into()).to_adb_shell(&policy()).unwrap(),
+            DeviceCommand::DisablePackage("com.amazon.ads".into())
+                .to_adb_shell(&policy())
+                .unwrap(),
             "pm disable-user --user 0 com.amazon.ads"
         );
         assert_eq!(
-            DeviceCommand::EnablePackage("com.amazon.ads".into()).to_adb_shell(&policy()).unwrap(),
+            DeviceCommand::EnablePackage("com.amazon.ads".into())
+                .to_adb_shell(&policy())
+                .unwrap(),
             "pm enable --user 0 com.amazon.ads"
         );
         assert_eq!(
-            DeviceCommand::ForceStopPackage("com.amazon.ads".into()).to_adb_shell(&policy()).unwrap(),
+            DeviceCommand::ForceStopPackage("com.amazon.ads".into())
+                .to_adb_shell(&policy())
+                .unwrap(),
             "am force-stop com.amazon.ads"
         );
     }
 
     #[test]
     fn never_disable_and_vizzini_are_blocked_at_command_boundary() {
-        assert!(DeviceCommand::DisablePackage("com.amazon.vizzini".into()).to_adb_shell(&policy()).is_err());
-        assert!(DeviceCommand::EnablePackage("com.amazon.vizzini".into()).to_adb_shell(&policy()).is_err());
+        assert!(DeviceCommand::DisablePackage("com.amazon.vizzini".into())
+            .to_adb_shell(&policy())
+            .is_err());
+        assert!(DeviceCommand::EnablePackage("com.amazon.vizzini".into())
+            .to_adb_shell(&policy())
+            .is_err());
         assert!(DeviceCommand::UninstallPackageForUser {
-            package: "com.amazon.settings".into(), owner_confirmed: true,
-        }.to_adb_shell(&policy()).is_err());
+            package: "com.amazon.settings".into(),
+            owner_confirmed: true,
+        }
+        .to_adb_shell(&policy())
+        .is_err());
     }
 
     #[test]
     fn user_app_uninstall_requires_explicit_confirmation() {
         let command = DeviceCommand::UninstallPackageForUser {
-            package: "com.example.player".into(), owner_confirmed: false,
+            package: "com.example.player".into(),
+            owner_confirmed: false,
         };
         assert!(command.to_adb_shell(&policy()).is_err());
         let confirmed = DeviceCommand::UninstallPackageForUser {
-            package: "com.example.player".into(), owner_confirmed: true,
+            package: "com.example.player".into(),
+            owner_confirmed: true,
         };
-        assert_eq!(confirmed.to_adb_shell(&policy()).unwrap(), "pm uninstall --user 0 com.example.player");
+        assert_eq!(
+            confirmed.to_adb_shell(&policy()).unwrap(),
+            "pm uninstall --user 0 com.example.player"
+        );
     }
 
     #[test]
     fn rejects_shell_injection_and_shared_system_uids() {
-        assert!(DeviceCommand::DisablePackage("com.example.app; reboot".into()).to_adb_shell(&policy()).is_err());
+        assert!(
+            DeviceCommand::DisablePackage("com.example.app; reboot".into())
+                .to_adb_shell(&policy())
+                .is_err()
+        );
         assert_eq!(
             DeviceCommand::PutSetting {
-                namespace: SettingsNamespace::Secure, key: "safe_key".into(), value: "$(id); reboot".into(),
-            }.to_adb_shell(&policy()).unwrap(),
+                namespace: SettingsNamespace::Secure,
+                key: "safe_key".into(),
+                value: "$(id); reboot".into(),
+            }
+            .to_adb_shell(&policy())
+            .unwrap(),
             "settings put secure safe_key '$(id); reboot'"
         );
-        assert!(DeviceCommand::AddMeteredBlacklistUid(1000).to_adb_shell(&policy()).is_err());
+        assert!(DeviceCommand::AddMeteredBlacklistUid(1000)
+            .to_adb_shell(&policy())
+            .is_err());
     }
 
     #[test]
     fn conditional_background_restriction_rejects_shared_uids_and_unsupported_sdk() {
         let shared = DeviceCommand::ForceStopAndRestrictIfRunning {
-            package: "com.amazon.ads".into(), uid: Some(1000), sdk: 25,
+            package: "com.amazon.ads".into(),
+            uid: Some(1000),
+            sdk: 25,
         };
         assert!(shared.to_adb_shell(&policy()).is_err());
         let unsupported = DeviceCommand::ForceStopAndRestrictIfRunning {
-            package: "com.amazon.ads".into(), uid: Some(10001), sdk: 31,
+            package: "com.amazon.ads".into(),
+            uid: Some(10001),
+            sdk: 31,
         };
         assert!(unsupported.to_adb_shell(&policy()).is_err());
         let valid = DeviceCommand::ForceStopAndRestrictIfRunning {
-            package: "com.amazon.ads".into(), uid: Some(10001), sdk: 25,
+            package: "com.amazon.ads".into(),
+            uid: Some(10001),
+            sdk: 25,
         };
-        assert_eq!(valid.to_adb_shell(&policy()).unwrap(), "am force-stop com.amazon.ads");
+        assert_eq!(
+            valid.to_adb_shell(&policy()).unwrap(),
+            "am force-stop com.amazon.ads"
+        );
     }
 
     #[test]
     fn creates_whitelisted_settings_appops_and_policy_commands() {
         assert_eq!(
             DeviceCommand::PutSetting {
-                namespace: SettingsNamespace::Secure, key: "advertising_id".into(), value: "0".into(),
-            }.to_adb_shell(&policy()).unwrap(),
+                namespace: SettingsNamespace::Secure,
+                key: "advertising_id".into(),
+                value: "0".into(),
+            }
+            .to_adb_shell(&policy())
+            .unwrap(),
             "settings put secure advertising_id '0'"
         );
         assert_eq!(
             DeviceCommand::SetAppOp {
-                package: "com.amazon.ads".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "ignore".into(),
-            }.to_adb_shell(&policy()).unwrap(),
+                package: "com.amazon.ads".into(),
+                operation: "RUN_IN_BACKGROUND".into(),
+                mode: "ignore".into(),
+            }
+            .to_adb_shell(&policy())
+            .unwrap(),
             "appops set com.amazon.ads RUN_IN_BACKGROUND ignore"
         );
         assert_eq!(
-            DeviceCommand::SetRestrictBackground(true).to_adb_shell(&policy()).unwrap(),
+            DeviceCommand::SetRestrictBackground(true)
+                .to_adb_shell(&policy())
+                .unwrap(),
             "cmd netpolicy set restrict-background true"
         );
         assert_eq!(
-            DeviceCommand::AddMeteredBlacklistUid(10001).to_adb_shell(&policy()).unwrap(),
+            DeviceCommand::AddMeteredBlacklistUid(10001)
+                .to_adb_shell(&policy())
+                .unwrap(),
             "cmd netpolicy add restrict-background-blacklist 10001"
         );
     }

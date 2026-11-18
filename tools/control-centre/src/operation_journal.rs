@@ -76,19 +76,31 @@ impl OperationJournal {
             return Err("cannot create an operation journal for an empty workflow".into());
         }
         if descriptions.len() > 10_000
-            || descriptions.iter().any(|item| item.is_empty() || item.len() > 1024 || item.chars().any(char::is_control))
+            || descriptions.iter().any(|item| {
+                item.is_empty() || item.len() > 1024 || item.chars().any(char::is_control)
+            })
         {
-            return Err("operation journal contains an invalid or excessive operation description".into());
+            return Err(
+                "operation journal contains an invalid or excessive operation description".into(),
+            );
         }
         if source_commit.len() != 40 || !source_commit.bytes().all(|b| b.is_ascii_hexdigit()) {
             return Err("operation journal requires a full source commit identifier".into());
         }
-        let created = SystemTime::now().duration_since(UNIX_EPOCH)
-            .map_err(|_| "system clock is before the Unix epoch")?.as_secs();
+        let created = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|_| "system clock is before the Unix epoch")?
+            .as_secs();
         fs::create_dir_all(root).map_err(|e| format!("cannot create journal folder: {e}"))?;
         let nonce = JOURNAL_COUNTER.fetch_add(1, Ordering::Relaxed);
-        let label = match workflow { WorkflowKind::Cleanup => "cleanup", WorkflowKind::Restore => "restore" };
-        let path = root.join(format!("{label}-{created}-{}-{nonce}.json", std::process::id()));
+        let label = match workflow {
+            WorkflowKind::Cleanup => "cleanup",
+            WorkflowKind::Restore => "restore",
+        };
+        let path = root.join(format!(
+            "{label}-{created}-{}-{nonce}.json",
+            std::process::id()
+        ));
         let journal = Self {
             schema_version: SCHEMA_VERSION,
             workflow,
@@ -98,12 +110,15 @@ impl OperationJournal {
             build_display_id: build_display_id.to_owned(),
             android_sdk,
             source_commit: source_commit.to_owned(),
-            operations: descriptions.iter().map(|description| JournalOperation {
-                description: description.clone(),
-                status: OperationStatus::Pending,
-                detail: None,
-                command: None,
-            }).collect(),
+            operations: descriptions
+                .iter()
+                .map(|description| JournalOperation {
+                    description: description.clone(),
+                    status: OperationStatus::Pending,
+                    detail: None,
+                    command: None,
+                })
+                .collect(),
             finished: false,
             workflow_error: None,
         };
@@ -123,10 +138,19 @@ impl OperationJournal {
         source_commit: &str,
         operations: &[(String, crate::device_command::DeviceCommand)],
     ) -> Result<PathBuf, String> {
-        let descriptions: Vec<String> = operations.iter().map(|(description, _)| description.clone()).collect();
+        let descriptions: Vec<String> = operations
+            .iter()
+            .map(|(description, _)| description.clone())
+            .collect();
         let path = Self::create(
-            root, workflow, manufacturer, model, build_display_id, android_sdk,
-            source_commit, &descriptions,
+            root,
+            workflow,
+            manufacturer,
+            model,
+            build_display_id,
+            android_sdk,
+            source_commit,
+            &descriptions,
         )?;
         let mut journal = Self::load(&path)?;
         for (item, (_, command)) in journal.operations.iter_mut().zip(operations) {
@@ -148,7 +172,10 @@ impl OperationJournal {
     }
 
     pub fn mark_running(&mut self, path: &Path, index: usize) -> Result<(), String> {
-        let operation = self.operations.get_mut(index).ok_or("journal operation index is out of range")?;
+        let operation = self
+            .operations
+            .get_mut(index)
+            .ok_or("journal operation index is out of range")?;
         if operation.status != OperationStatus::Pending {
             return Err("journal operation is not pending; refusing to execute it again".into());
         }
@@ -167,7 +194,10 @@ impl OperationJournal {
         index: usize,
         detail: Option<&str>,
     ) -> Result<(), String> {
-        let operation = self.operations.get_mut(index).ok_or("journal operation index is out of range")?;
+        let operation = self
+            .operations
+            .get_mut(index)
+            .ok_or("journal operation index is out of range")?;
         if operation.status != OperationStatus::Running {
             return Err("journal operation was not marked running".into());
         }
@@ -177,7 +207,10 @@ impl OperationJournal {
     }
 
     pub fn mark_failed(&mut self, path: &Path, index: usize, detail: &str) -> Result<(), String> {
-        let operation = self.operations.get_mut(index).ok_or("journal operation index is out of range")?;
+        let operation = self
+            .operations
+            .get_mut(index)
+            .ok_or("journal operation index is out of range")?;
         if operation.status != OperationStatus::Running {
             return Err("journal operation was not marked running".into());
         }
@@ -187,10 +220,19 @@ impl OperationJournal {
     }
 
     pub fn finish_failed(&mut self, path: &Path) -> Result<(), String> {
-        if !self.operations.iter().any(|item| item.status == OperationStatus::Failed)
-            || self.operations.iter().any(|item| item.status == OperationStatus::Running)
+        if !self
+            .operations
+            .iter()
+            .any(|item| item.status == OperationStatus::Failed)
+            || self
+                .operations
+                .iter()
+                .any(|item| item.status == OperationStatus::Running)
         {
-            return Err("cannot close a failed journal without a recorded failure and no running operation".into());
+            return Err(
+                "cannot close a failed journal without a recorded failure and no running operation"
+                    .into(),
+            );
         }
         for operation in &mut self.operations {
             if operation.status == OperationStatus::Pending {
@@ -203,7 +245,9 @@ impl OperationJournal {
 
     /// Close a fully executed journal while retaining a failed final audit.
     pub fn finish_with_error(&mut self, path: &Path, detail: &str) -> Result<(), String> {
-        if self.operations.iter().any(|item| item.status == OperationStatus::Running || item.status == OperationStatus::Pending) {
+        if self.operations.iter().any(|item| {
+            item.status == OperationStatus::Running || item.status == OperationStatus::Pending
+        }) {
             return Err("cannot close a journal with pending or running operations".into());
         }
         self.workflow_error = Some(detail.chars().take(512).collect());
@@ -212,7 +256,9 @@ impl OperationJournal {
     }
 
     pub fn finish(&mut self, path: &Path) -> Result<(), String> {
-        if self.operations.iter().any(|item| item.status == OperationStatus::Running || item.status == OperationStatus::Pending) {
+        if self.operations.iter().any(|item| {
+            item.status == OperationStatus::Running || item.status == OperationStatus::Pending
+        }) {
             return Err("cannot finish a journal with pending or running operations".into());
         }
         self.finished = true;
@@ -228,12 +274,25 @@ impl OperationJournal {
             || self.manufacturer.len() > 128
             || self.model.len() > 128
             || self.build_display_id.len() > 256
-            || self.operations.iter().any(|item| item.description.is_empty() || item.description.len() > 1024)
-            || self.workflow_error.as_deref().is_some_and(|value| value.len() > 512)
+            || self
+                .operations
+                .iter()
+                .any(|item| item.description.is_empty() || item.description.len() > 1024)
+            || self
+                .workflow_error
+                .as_deref()
+                .is_some_and(|value| value.len() > 512)
         {
             return Err("operation journal failed schema validation".into());
         }
-        if self.finished && self.operations.iter().any(|item| matches!(item.status, OperationStatus::Pending | OperationStatus::Running)) {
+        if self.finished
+            && self.operations.iter().any(|item| {
+                matches!(
+                    item.status,
+                    OperationStatus::Pending | OperationStatus::Running
+                )
+            })
+        {
             return Err("finished operation journal contains unfinished operations".into());
         }
         Ok(())
@@ -241,7 +300,8 @@ impl OperationJournal {
 
     fn save(&self, path: &Path) -> Result<(), String> {
         self.validate()?;
-        let bytes = serde_json::to_vec_pretty(self).map_err(|e| format!("cannot encode operation journal: {e}"))?;
+        let bytes = serde_json::to_vec_pretty(self)
+            .map_err(|e| format!("cannot encode operation journal: {e}"))?;
         let parent = path.parent().ok_or("invalid operation journal path")?;
         AtomicFile::new(path, AllowOverwrite)
             .write(|file| file.write_all(&bytes))
@@ -255,7 +315,12 @@ mod tests {
     use super::*;
 
     fn profile_values() -> (&'static str, &'static str, &'static str, &'static str) {
-        ("Amazon", "AFTMM", "FireOS-6.7.1.1", "0123456789abcdef0123456789abcdef01234567")
+        (
+            "Amazon",
+            "AFTMM",
+            "FireOS-6.7.1.1",
+            "0123456789abcdef0123456789abcdef01234567",
+        )
     }
 
     #[test]
@@ -263,9 +328,16 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let (manufacturer, model, build, commit) = profile_values();
         let path = OperationJournal::create(
-            dir.path(), WorkflowKind::Cleanup, manufacturer, model, build, 25, commit,
+            dir.path(),
+            WorkflowKind::Cleanup,
+            manufacturer,
+            model,
+            build,
+            25,
+            commit,
             &["Disable package".into(), "Set privacy setting".into()],
-        ).unwrap();
+        )
+        .unwrap();
         let mut journal = OperationJournal::load(&path).unwrap();
         journal.mark_running(&path, 0).unwrap();
         journal.mark_verified(&path, 0).unwrap();
@@ -283,12 +355,21 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let (manufacturer, model, build, commit) = profile_values();
         let path = OperationJournal::create(
-            dir.path(), WorkflowKind::Cleanup, manufacturer, model, build, 25, commit,
+            dir.path(),
+            WorkflowKind::Cleanup,
+            manufacturer,
+            model,
+            build,
+            25,
+            commit,
             &["First operation".into(), "Second operation".into()],
-        ).unwrap();
+        )
+        .unwrap();
         let mut journal = OperationJournal::load(&path).unwrap();
         journal.mark_running(&path, 0).unwrap();
-        journal.mark_failed(&path, 0, "verification failed").unwrap();
+        journal
+            .mark_failed(&path, 0, "verification failed")
+            .unwrap();
         journal.finish_failed(&path).unwrap();
         let loaded = OperationJournal::load(&path).unwrap();
         assert!(loaded.finished);
@@ -301,9 +382,16 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let (manufacturer, model, build, commit) = profile_values();
         let path = OperationJournal::create(
-            dir.path(), WorkflowKind::Restore, manufacturer, model, build, 25, commit,
+            dir.path(),
+            WorkflowKind::Restore,
+            manufacturer,
+            model,
+            build,
+            25,
+            commit,
             &["Restore setting".into()],
-        ).unwrap();
+        )
+        .unwrap();
         let mut journal = OperationJournal::load(&path).unwrap();
         assert!(journal.finish(&path).is_err());
         journal.mark_running(&path, 0).unwrap();
@@ -317,14 +405,27 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let (manufacturer, model, build, commit) = profile_values();
         let path = OperationJournal::create(
-            dir.path(), WorkflowKind::Cleanup, manufacturer, model, build, 25, commit,
+            dir.path(),
+            WorkflowKind::Cleanup,
+            manufacturer,
+            model,
+            build,
+            25,
+            commit,
             &["Conditional background restriction".into()],
-        ).unwrap();
+        )
+        .unwrap();
         let mut journal = OperationJournal::load(&path).unwrap();
         journal.mark_running(&path, 0).unwrap();
-        journal.mark_verified_with_detail(
-            &path, 0, Some("Restricted background execution and verified force-stop for com.amazon.hedwig")
-        ).unwrap();
+        journal
+            .mark_verified_with_detail(
+                &path,
+                0,
+                Some(
+                    "Restricted background execution and verified force-stop for com.amazon.hedwig",
+                ),
+            )
+            .unwrap();
         let loaded = OperationJournal::load(&path).unwrap();
         assert_eq!(
             loaded.operations[0].detail.as_deref(),
@@ -337,16 +438,28 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let (manufacturer, model, build, commit) = profile_values();
         let path = OperationJournal::create(
-            dir.path(), WorkflowKind::Cleanup, manufacturer, model, build, 25, commit,
+            dir.path(),
+            WorkflowKind::Cleanup,
+            manufacturer,
+            model,
+            build,
+            25,
+            commit,
             &["Disable package".into()],
-        ).unwrap();
+        )
+        .unwrap();
         let mut journal = OperationJournal::load(&path).unwrap();
         journal.mark_running(&path, 0).unwrap();
         journal.mark_verified(&path, 0).unwrap();
-        journal.finish_with_error(&path, "final package state changed").unwrap();
+        journal
+            .finish_with_error(&path, "final package state changed")
+            .unwrap();
         let loaded = OperationJournal::load(&path).unwrap();
         assert!(loaded.finished);
-        assert_eq!(loaded.workflow_error.as_deref(), Some("final package state changed"));
+        assert_eq!(
+            loaded.workflow_error.as_deref(),
+            Some("final package state changed")
+        );
         assert_eq!(loaded.operations[0].status, OperationStatus::Verified);
     }
 
@@ -355,9 +468,16 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let (manufacturer, model, build, commit) = profile_values();
         let path = OperationJournal::create(
-            dir.path(), WorkflowKind::Cleanup, manufacturer, model, build, 25, commit,
+            dir.path(),
+            WorkflowKind::Cleanup,
+            manufacturer,
+            model,
+            build,
+            25,
+            commit,
             &["Disable com.amazon.ads".into()],
-        ).unwrap();
+        )
+        .unwrap();
         let text = fs::read_to_string(path).unwrap();
         assert!(!text.contains("5555"));
         assert!(!text.contains("192.168."));

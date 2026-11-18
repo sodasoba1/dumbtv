@@ -49,7 +49,9 @@ pub fn build_cleanup_plan(
     let mut operations = Vec::new();
     let mut skipped = Vec::new();
     let mut planned_uids = BTreeSet::new();
-    let packages_to_disable: BTreeSet<String> = package_plan.actions.iter()
+    let packages_to_disable: BTreeSet<String> = package_plan
+        .actions
+        .iter()
         .filter(|action| action.kind == PackageActionKind::Disable)
         .map(|action| action.package.clone())
         .collect();
@@ -61,7 +63,10 @@ pub fn build_cleanup_plan(
                 command: DeviceCommand::DisablePackage(action.package),
             }),
             PackageActionKind::UninstallForUser => operations.push(PlannedOperation {
-                description: format!("Uninstall owner-named user app {} (requires explicit approval)", action.package),
+                description: format!(
+                    "Uninstall owner-named user app {} (requires explicit approval)",
+                    action.package
+                ),
                 command: DeviceCommand::UninstallPackageForUser {
                     package: action.package,
                     owner_confirmed: false,
@@ -91,7 +96,9 @@ pub fn build_cleanup_plan(
                     },
                 });
             } else {
-                skipped.push(format!("{package} — UID unavailable; conditional background/data restriction skipped"));
+                skipped.push(format!(
+                    "{package} — UID unavailable; conditional background/data restriction skipped"
+                ));
                 operations.push(PlannedOperation {
                     description: format!("Force-stop {package} only if it is still running (UID unavailable; no additional restrictions)"),
                     command: DeviceCommand::ForceStopPackage(package.clone()),
@@ -109,8 +116,12 @@ pub fn build_cleanup_plan(
         let key = setting.key;
         let value = setting.value;
         let original_value = match namespace {
-            crate::settings_catalogue::SettingsNamespace::Secure => original.secure_settings.get(&key),
-            crate::settings_catalogue::SettingsNamespace::Global => original.global_settings.get(&key),
+            crate::settings_catalogue::SettingsNamespace::Secure => {
+                original.secure_settings.get(&key)
+            }
+            crate::settings_catalogue::SettingsNamespace::Global => {
+                original.global_settings.get(&key)
+            }
         };
         if original_value.and_then(|value| value.as_deref()) == Some(value.as_str()) {
             skipped.push(format!("{key} — already has the requested value"));
@@ -118,14 +129,27 @@ pub fn build_cleanup_plan(
         }
         operations.push(PlannedOperation {
             description: format!("Set {} setting {} to {}", namespace.as_str(), key, value),
-            command: DeviceCommand::PutSetting { namespace, key, value },
+            command: DeviceCommand::PutSetting {
+                namespace,
+                key,
+                value,
+            },
         });
     }
 
     if let Some(Some(components)) = original.secure_settings.get("screensaver_components") {
-        let current_dream = components.split(',').next().unwrap_or("").split('/').next().unwrap_or("");
-        if packages_to_disable.contains(current_dream) || inventory.disabled.contains(current_dream) {
-            if inventory.installed.contains("com.android.dreams.basic") && !inventory.disabled.contains("com.android.dreams.basic") {
+        let current_dream = components
+            .split(',')
+            .next()
+            .unwrap_or("")
+            .split('/')
+            .next()
+            .unwrap_or("");
+        if packages_to_disable.contains(current_dream) || inventory.disabled.contains(current_dream)
+        {
+            if inventory.installed.contains("com.android.dreams.basic")
+                && !inventory.disabled.contains("com.android.dreams.basic")
+            {
                 operations.push(PlannedOperation {
                     description: format!("Switch the screensaver to Android's built-in dream because {current_dream} is being disabled"),
                     command: DeviceCommand::PutSetting {
@@ -142,7 +166,8 @@ pub fn build_cleanup_plan(
 
     if original.restrict_background != Some(true) {
         operations.push(PlannedOperation {
-            description: "Enable Android Data Saver (does not block normal Wi-Fi/Ethernet traffic)".into(),
+            description: "Enable Android Data Saver (does not block normal Wi-Fi/Ethernet traffic)"
+                .into(),
             command: DeviceCommand::SetRestrictBackground(true),
         });
     }
@@ -152,23 +177,35 @@ pub fn build_cleanup_plan(
             skipped.push(format!("{package} — protected package is not installed"));
             continue;
         }
-        if choices.keep.contains(package) || (choices.keep_alexa && catalogue.alexa.contains(package)) {
-            skipped.push(format!("{package} — explicitly kept; background restrictions skipped"));
+        if choices.keep.contains(package)
+            || (choices.keep_alexa && catalogue.alexa.contains(package))
+        {
+            skipped.push(format!(
+                "{package} — explicitly kept; background restrictions skipped"
+            ));
             continue;
         }
         let Some(uid) = protected_uids.get(package).copied() else {
-            skipped.push(format!("{package} — UID could not be read; background restrictions skipped"));
+            skipped.push(format!(
+                "{package} — UID could not be read; background restrictions skipped"
+            ));
             continue;
         };
         if uid < 10_000 {
-            skipped.push(format!("{package} — shared system UID {uid}; background restrictions skipped"));
+            skipped.push(format!(
+                "{package} — shared system UID {uid}; background restrictions skipped"
+            ));
             continue;
         }
         let mut ops = vec!["RUN_IN_BACKGROUND"];
-        if sdk >= 28 { ops.push("RUN_ANY_IN_BACKGROUND"); }
+        if sdk >= 28 {
+            ops.push("RUN_ANY_IN_BACKGROUND");
+        }
         for operation in ops {
             let already_ignored = original.app_ops.iter().any(|state| {
-                state.package.as_str() == package.as_str() && state.operation == operation && state.mode == "ignore"
+                state.package.as_str() == package.as_str()
+                    && state.operation == operation
+                    && state.mode == "ignore"
             });
             if already_ignored {
                 skipped.push(format!("{package} — {operation} was already ignored"));
@@ -185,27 +222,46 @@ pub fn build_cleanup_plan(
         }
         if !catalogue.never_disable.contains(package) && package != "com.amazon.vizzini" {
             operations.push(PlannedOperation {
-                description: format!("Force-stop protected package {package} only if it is still running"),
+                description: format!(
+                    "Force-stop protected package {package} only if it is still running"
+                ),
                 command: DeviceCommand::ForceStopPackage(package.clone()),
             });
         }
         match Some(uid) {
-            Some(uid) if uid >= 10_000 && original.metered_blacklist_uids.as_ref().is_some_and(|uids| uids.contains(&uid)) => {
-                skipped.push(format!("{package} — UID {uid} is already on the metered-data blacklist"));
+            Some(uid)
+                if uid >= 10_000
+                    && original
+                        .metered_blacklist_uids
+                        .as_ref()
+                        .is_some_and(|uids| uids.contains(&uid)) =>
+            {
+                skipped.push(format!(
+                    "{package} — UID {uid} is already on the metered-data blacklist"
+                ));
             }
             Some(uid) if uid >= 10_000 && !planned_uids.insert(uid) => {
-                skipped.push(format!("{package} — UID {uid} is already covered by another protected package"));
+                skipped.push(format!(
+                    "{package} — UID {uid} is already covered by another protected package"
+                ));
             }
             Some(uid) if uid >= 10_000 => operations.push(PlannedOperation {
                 description: format!("Block metered background data for {package} (UID {uid})"),
                 command: DeviceCommand::AddMeteredBlacklistUid(uid),
             }),
-            Some(uid) => skipped.push(format!("{package} — shared/system UID {uid}; not added to metered blacklist")),
-            None => skipped.push(format!("{package} — UID unavailable; metered blacklist entry skipped")),
+            Some(uid) => skipped.push(format!(
+                "{package} — shared/system UID {uid}; not added to metered blacklist"
+            )),
+            None => skipped.push(format!(
+                "{package} — UID unavailable; metered blacklist entry skipped"
+            )),
         }
     }
 
-    Ok(CleanupPlan { operations, skipped })
+    Ok(CleanupPlan {
+        operations,
+        skipped,
+    })
 }
 
 /// Limit restore to mutations that this Control Centre actually verified in
@@ -220,9 +276,16 @@ pub fn scope_restore_to_verified_cleanup(
     use crate::operation_journal::{OperationStatus, WorkflowKind};
 
     if journal.workflow != WorkflowKind::Cleanup {
-        return (RestorePlan { actions: Vec::new() }, plan.actions.len());
+        return (
+            RestorePlan {
+                actions: Vec::new(),
+            },
+            plan.actions.len(),
+        );
     }
-    let verified: Vec<&DeviceCommand> = journal.operations.iter()
+    let verified: Vec<&DeviceCommand> = journal
+        .operations
+        .iter()
         .filter(|item| item.status == OperationStatus::Verified)
         .filter_map(|item| item.command.as_ref())
         .collect();
@@ -281,7 +344,11 @@ pub fn scope_restore_to_verified_cleanup(
                         DeviceCommand::UninstallPackageForUser { package: target, .. } if target == package)),
             RestoreAction::ManualStateUnavailable(_) => true,
         };
-        if belongs_to_cleanup { retained.push(action.clone()); } else { excluded += 1; }
+        if belongs_to_cleanup {
+            retained.push(action.clone());
+        } else {
+            excluded += 1;
+        }
     }
     if excluded > 0 {
         retained.push(RestoreAction::ManualStateUnavailable(
@@ -298,53 +365,100 @@ pub fn build_restore_operations(plan: &RestorePlan) -> (Vec<PlannedOperation>, V
     let mut manual = Vec::new();
     for action in &plan.actions {
         let (description, command) = match action {
-            RestoreAction::SetPackageState { package, state: PackageState::Enabled } => (
-                format!("Re-enable {package}"), DeviceCommand::EnablePackage(package.clone())
+            RestoreAction::SetPackageState {
+                package,
+                state: PackageState::Enabled,
+            } => (
+                format!("Re-enable {package}"),
+                DeviceCommand::EnablePackage(package.clone()),
             ),
-            RestoreAction::SetPackageState { package, state: PackageState::Disabled } => (
-                format!("Restore disabled state for {package}"), DeviceCommand::DisablePackage(package.clone())
+            RestoreAction::SetPackageState {
+                package,
+                state: PackageState::Disabled,
+            } => (
+                format!("Restore disabled state for {package}"),
+                DeviceCommand::DisablePackage(package.clone()),
             ),
             RestoreAction::SetPackageState { package, .. } => {
-                manual.push(format!("{package} — original package state cannot be recreated safely"));
+                manual.push(format!(
+                    "{package} — original package state cannot be recreated safely"
+                ));
                 continue;
             }
-            RestoreAction::PutSetting { namespace, key, value } => (
+            RestoreAction::PutSetting {
+                namespace,
+                key,
+                value,
+            } => (
                 format!("Restore {} setting {key}", namespace_name(*namespace)),
-                DeviceCommand::PutSetting { namespace: match namespace {
-                    crate::snapshot::SettingNamespace::Secure => crate::settings_catalogue::SettingsNamespace::Secure,
-                    crate::snapshot::SettingNamespace::Global => crate::settings_catalogue::SettingsNamespace::Global,
-                }, key: key.clone(), value: value.clone() }
+                DeviceCommand::PutSetting {
+                    namespace: match namespace {
+                        crate::snapshot::SettingNamespace::Secure => {
+                            crate::settings_catalogue::SettingsNamespace::Secure
+                        }
+                        crate::snapshot::SettingNamespace::Global => {
+                            crate::settings_catalogue::SettingsNamespace::Global
+                        }
+                    },
+                    key: key.clone(),
+                    value: value.clone(),
+                },
             ),
             RestoreAction::DeleteSetting { namespace, key } => (
-                format!("Delete originally absent {} setting {key}", namespace_name(*namespace)),
-                DeviceCommand::DeleteSetting { namespace: match namespace {
-                    crate::snapshot::SettingNamespace::Secure => crate::settings_catalogue::SettingsNamespace::Secure,
-                    crate::snapshot::SettingNamespace::Global => crate::settings_catalogue::SettingsNamespace::Global,
-                }, key: key.clone() }
+                format!(
+                    "Delete originally absent {} setting {key}",
+                    namespace_name(*namespace)
+                ),
+                DeviceCommand::DeleteSetting {
+                    namespace: match namespace {
+                        crate::snapshot::SettingNamespace::Secure => {
+                            crate::settings_catalogue::SettingsNamespace::Secure
+                        }
+                        crate::snapshot::SettingNamespace::Global => {
+                            crate::settings_catalogue::SettingsNamespace::Global
+                        }
+                    },
+                    key: key.clone(),
+                },
             ),
-            RestoreAction::SetAppOp { package, operation, mode } => (
+            RestoreAction::SetAppOp {
+                package,
+                operation,
+                mode,
+            } => (
                 format!("Restore {operation}={mode} for {package}"),
-                DeviceCommand::SetAppOp { package: package.clone(), operation: operation.clone(), mode: mode.clone() }
+                DeviceCommand::SetAppOp {
+                    package: package.clone(),
+                    operation: operation.clone(),
+                    mode: mode.clone(),
+                },
             ),
             RestoreAction::SetRestrictBackground(enabled) => (
-                format!("Restore Data Saver to {}", if *enabled { "on" } else { "off" }),
-                DeviceCommand::SetRestrictBackground(*enabled)
+                format!(
+                    "Restore Data Saver to {}",
+                    if *enabled { "on" } else { "off" }
+                ),
+                DeviceCommand::SetRestrictBackground(*enabled),
             ),
             RestoreAction::AddMeteredBlacklistUid(uid) if *uid < 10_000 => {
-                manual.push(format!("UID {uid} — shared/system network policy requires manual recovery"));
+                manual.push(format!(
+                    "UID {uid} — shared/system network policy requires manual recovery"
+                ));
                 continue;
             }
             RestoreAction::RemoveMeteredBlacklistUid(uid) if *uid < 10_000 => {
-                manual.push(format!("UID {uid} — shared/system network policy requires manual recovery"));
+                manual.push(format!(
+                    "UID {uid} — shared/system network policy requires manual recovery"
+                ));
                 continue;
             }
             RestoreAction::AddMeteredBlacklistUid(uid) => (
                 format!("Restore metered-data blacklist UID {uid}"),
-                DeviceCommand::AddMeteredBlacklistUid(*uid)
+                DeviceCommand::AddMeteredBlacklistUid(*uid),
             ),
             RestoreAction::RemoveMeteredBlacklistUid(uid) => (
                 format!("Remove metered-data blacklist UID {uid}"),
-                DeviceCommand::RemoveMeteredBlacklistUid(*uid)
+                DeviceCommand::RemoveMeteredBlacklistUid(*uid),
             ),
             RestoreAction::ManualUserAppReinstall(package) => {
                 manual.push(format!("{package} — reinstall manually from its original source (Amazon Appstore or sideloaded APK)"));
@@ -355,7 +469,10 @@ pub fn build_restore_operations(plan: &RestorePlan) -> (Vec<PlannedOperation>, V
                 continue;
             }
         };
-        operations.push(PlannedOperation { description, command });
+        operations.push(PlannedOperation {
+            description,
+            command,
+        });
     }
     (operations, manual)
 }
@@ -401,18 +518,26 @@ mod tests {
 
     #[test]
     fn restore_conversion_keeps_user_app_reinstalls_manual_and_never_changes_system_uids() {
-        let plan = RestorePlan { actions: vec![
-            RestoreAction::PutSetting {
-                namespace: crate::snapshot::SettingNamespace::Secure,
-                key: "test_key".into(), value: "original".into(),
-            },
-            RestoreAction::ManualUserAppReinstall("com.example.player".into()),
-            RestoreAction::AddMeteredBlacklistUid(1000),
-        ]};
+        let plan = RestorePlan {
+            actions: vec![
+                RestoreAction::PutSetting {
+                    namespace: crate::snapshot::SettingNamespace::Secure,
+                    key: "test_key".into(),
+                    value: "original".into(),
+                },
+                RestoreAction::ManualUserAppReinstall("com.example.player".into()),
+                RestoreAction::AddMeteredBlacklistUid(1000),
+            ],
+        };
         let (operations, manual) = build_restore_operations(&plan);
         assert_eq!(operations.len(), 1);
-        assert!(matches!(&operations[0].command, DeviceCommand::PutSetting { .. }));
-        assert!(manual.iter().any(|item| item.contains("Amazon Appstore or sideloaded APK")));
+        assert!(matches!(
+            &operations[0].command,
+            DeviceCommand::PutSetting { .. }
+        ));
+        assert!(manual
+            .iter()
+            .any(|item| item.contains("Amazon Appstore or sideloaded APK")));
         assert!(manual.iter().any(|item| item.contains("shared/system")));
     }
 
@@ -420,8 +545,16 @@ mod tests {
     fn plan_keeps_alexa_by_default_and_only_uninstalls_named_user_apps() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let remove = ["com.example.player".to_owned()].into_iter().collect();
-        let choices = PackageChoices { remove, ..PackageChoices::default() };
-        let uids = [("com.amazon.client.metrics".to_owned(), 10025), ("com.amazon.hedwig".to_owned(), 10026)].into_iter().collect();
+        let choices = PackageChoices {
+            remove,
+            ..PackageChoices::default()
+        };
+        let uids = [
+            ("com.amazon.client.metrics".to_owned(), 10025),
+            ("com.amazon.hedwig".to_owned(), 10026),
+        ]
+        .into_iter()
+        .collect();
         let original = snapshot();
         let plan = build_cleanup_plan(&root, 25, &inventory(), &choices, &uids, &original).unwrap();
         assert!(plan.operations.iter().any(|item| matches!(
@@ -432,9 +565,10 @@ mod tests {
             &item.command, DeviceCommand::UninstallPackageForUser { package, .. }
                 if package == "com.amazon.hedwig"
         )));
-        assert!(plan.operations.iter().any(|item| matches!(
-            &item.command, DeviceCommand::AddMeteredBlacklistUid(10025)
-        )));
+        assert!(plan
+            .operations
+            .iter()
+            .any(|item| matches!(&item.command, DeviceCommand::AddMeteredBlacklistUid(10025))));
         assert!(plan.operations.iter().any(|item| matches!(
             &item.command, DeviceCommand::ForceStopPackage(package)
                 if package == "com.amazon.client.metrics"
@@ -444,7 +578,11 @@ mod tests {
                 if package == "com.amazon.hedwig"
         )));
         assert!(plan.operations.iter().any(|item| matches!(
-            &item.command, DeviceCommand::PutSetting { namespace: SettingsNamespace::Secure, .. }
+            &item.command,
+            DeviceCommand::PutSetting {
+                namespace: SettingsNamespace::Secure,
+                ..
+            }
         )));
     }
 
@@ -453,63 +591,137 @@ mod tests {
         use crate::operation_journal::{OperationJournal, OperationStatus, WorkflowKind};
         let dir = tempfile::tempdir().unwrap();
         let commands = vec![
-            ("Disable com.amazon.ads".into(), DeviceCommand::DisablePackage("com.amazon.ads".into())),
-            ("Disable second package".into(), DeviceCommand::DisablePackage("com.amazon.other".into())),
-            ("Set privacy key".into(), DeviceCommand::PutSetting {
-                namespace: SettingsNamespace::Secure, key: "advertising_id".into(), value: "0".into(),
-            }),
-            ("Set second privacy key".into(), DeviceCommand::PutSetting {
-                namespace: SettingsNamespace::Secure, key: "manual_key".into(), value: "0".into(),
-            }),
-            ("Restrict AppOp".into(), DeviceCommand::SetAppOp {
-                package: "com.amazon.hedwig".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "ignore".into(),
-            }),
-            ("Restrict second AppOp".into(), DeviceCommand::SetAppOp {
-                package: "com.amazon.other".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "ignore".into(),
-            }),
-            ("Enable Data Saver".into(), DeviceCommand::SetRestrictBackground(true)),
-            ("Blacklist UID".into(), DeviceCommand::AddMeteredBlacklistUid(10025)),
+            (
+                "Disable com.amazon.ads".into(),
+                DeviceCommand::DisablePackage("com.amazon.ads".into()),
+            ),
+            (
+                "Disable second package".into(),
+                DeviceCommand::DisablePackage("com.amazon.other".into()),
+            ),
+            (
+                "Set privacy key".into(),
+                DeviceCommand::PutSetting {
+                    namespace: SettingsNamespace::Secure,
+                    key: "advertising_id".into(),
+                    value: "0".into(),
+                },
+            ),
+            (
+                "Set second privacy key".into(),
+                DeviceCommand::PutSetting {
+                    namespace: SettingsNamespace::Secure,
+                    key: "manual_key".into(),
+                    value: "0".into(),
+                },
+            ),
+            (
+                "Restrict AppOp".into(),
+                DeviceCommand::SetAppOp {
+                    package: "com.amazon.hedwig".into(),
+                    operation: "RUN_IN_BACKGROUND".into(),
+                    mode: "ignore".into(),
+                },
+            ),
+            (
+                "Restrict second AppOp".into(),
+                DeviceCommand::SetAppOp {
+                    package: "com.amazon.other".into(),
+                    operation: "RUN_IN_BACKGROUND".into(),
+                    mode: "ignore".into(),
+                },
+            ),
+            (
+                "Enable Data Saver".into(),
+                DeviceCommand::SetRestrictBackground(true),
+            ),
+            (
+                "Blacklist UID".into(),
+                DeviceCommand::AddMeteredBlacklistUid(10025),
+            ),
         ];
         let path = OperationJournal::create_with_commands(
-            dir.path(), WorkflowKind::Cleanup, "Amazon", "AFTMM", "FireOS-6.7.1.1", 25,
-            "0123456789abcdef0123456789abcdef01234567", &commands,
-        ).unwrap();
+            dir.path(),
+            WorkflowKind::Cleanup,
+            "Amazon",
+            "AFTMM",
+            "FireOS-6.7.1.1",
+            25,
+            "0123456789abcdef0123456789abcdef01234567",
+            &commands,
+        )
+        .unwrap();
         let mut journal = OperationJournal::load(&path).unwrap();
         for index in 0..commands.len() {
             journal.mark_running(&path, index).unwrap();
             journal.mark_verified(&path, index).unwrap();
         }
-        assert!(journal.operations.iter().all(|item| item.status == OperationStatus::Verified));
+        assert!(journal
+            .operations
+            .iter()
+            .all(|item| item.status == OperationStatus::Verified));
 
-        let plan = RestorePlan { actions: vec![
-            RestoreAction::SetPackageState { package: "com.amazon.ads".into(), state: PackageState::Enabled },
-            RestoreAction::SetPackageState { package: "com.amazon.other".into(), state: PackageState::Enabled },
-            RestoreAction::PutSetting { namespace: crate::snapshot::SettingNamespace::Secure, key: "advertising_id".into(), value: "1".into() },
-            RestoreAction::PutSetting { namespace: crate::snapshot::SettingNamespace::Secure, key: "manual_key".into(), value: "owner".into() },
-            RestoreAction::SetAppOp { package: "com.amazon.hedwig".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "allow".into() },
-            RestoreAction::SetAppOp { package: "com.amazon.other".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "allow".into() },
-            RestoreAction::SetRestrictBackground(false),
-            RestoreAction::RemoveMeteredBlacklistUid(10025),
-            RestoreAction::RemoveMeteredBlacklistUid(10026),
-        ]};
+        let plan = RestorePlan {
+            actions: vec![
+                RestoreAction::SetPackageState {
+                    package: "com.amazon.ads".into(),
+                    state: PackageState::Enabled,
+                },
+                RestoreAction::SetPackageState {
+                    package: "com.amazon.other".into(),
+                    state: PackageState::Enabled,
+                },
+                RestoreAction::PutSetting {
+                    namespace: crate::snapshot::SettingNamespace::Secure,
+                    key: "advertising_id".into(),
+                    value: "1".into(),
+                },
+                RestoreAction::PutSetting {
+                    namespace: crate::snapshot::SettingNamespace::Secure,
+                    key: "manual_key".into(),
+                    value: "owner".into(),
+                },
+                RestoreAction::SetAppOp {
+                    package: "com.amazon.hedwig".into(),
+                    operation: "RUN_IN_BACKGROUND".into(),
+                    mode: "allow".into(),
+                },
+                RestoreAction::SetAppOp {
+                    package: "com.amazon.other".into(),
+                    operation: "RUN_IN_BACKGROUND".into(),
+                    mode: "allow".into(),
+                },
+                RestoreAction::SetRestrictBackground(false),
+                RestoreAction::RemoveMeteredBlacklistUid(10025),
+                RestoreAction::RemoveMeteredBlacklistUid(10026),
+            ],
+        };
         let current = crate::snapshot::CurrentDeviceState {
             packages: [
                 ("com.amazon.ads".into(), PackageState::Disabled),
                 ("com.amazon.other".into(), PackageState::Enabled),
-            ].into_iter().collect(),
+            ]
+            .into_iter()
+            .collect(),
             user_packages: BTreeSet::new(),
             secure_settings: [
                 ("advertising_id".into(), Some("0".into())),
                 ("manual_key".into(), Some("owner".into())),
-            ].into_iter().collect(),
+            ]
+            .into_iter()
+            .collect(),
             global_settings: BTreeMap::new(),
             app_ops: vec![
                 crate::snapshot::AppOpState {
-                    package: "com.amazon.hedwig".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "ignore".into(),
+                    package: "com.amazon.hedwig".into(),
+                    operation: "RUN_IN_BACKGROUND".into(),
+                    mode: "ignore".into(),
                 },
                 // A later manual change no longer matches the cleanup target.
                 crate::snapshot::AppOpState {
-                    package: "com.amazon.other".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "deny".into(),
+                    package: "com.amazon.other".into(),
+                    operation: "RUN_IN_BACKGROUND".into(),
+                    mode: "deny".into(),
                 },
             ],
             restrict_background: Some(true),
@@ -520,28 +732,37 @@ mod tests {
         assert_eq!(scoped.actions.len(), 6); // five verified changes plus the manual-review notice
         assert!(scoped.actions.iter().any(|item| matches!(item, RestoreAction::SetPackageState { package, .. } if package == "com.amazon.ads")));
         assert!(!scoped.actions.iter().any(|item| matches!(item, RestoreAction::SetPackageState { package, .. } if package == "com.amazon.other")));
-        assert!(!scoped.actions.iter().any(|item| matches!(item, RestoreAction::PutSetting { key, .. } if key == "manual_key")));
+        assert!(!scoped.actions.iter().any(
+            |item| matches!(item, RestoreAction::PutSetting { key, .. } if key == "manual_key")
+        ));
     }
 
     #[test]
     fn plan_skips_shared_system_uids_and_keeps_alexa_unmodified_by_default() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let choices = PackageChoices::default();
-        let uids = [("com.amazon.client.metrics".to_owned(), 1000)].into_iter().collect();
+        let uids = [("com.amazon.client.metrics".to_owned(), 1000)]
+            .into_iter()
+            .collect();
         let mut original = snapshot();
         original.restrict_background = Some(true);
         let plan = build_cleanup_plan(&root, 25, &inventory(), &choices, &uids, &original).unwrap();
-        assert!(!plan.operations.iter().any(|item| matches!(
-            &item.command, DeviceCommand::SetRestrictBackground(_)
-        )));
-        assert!(!plan.operations.iter().any(|item| matches!(
-            &item.command, DeviceCommand::AddMeteredBlacklistUid(_)
-        )));
+        assert!(!plan
+            .operations
+            .iter()
+            .any(|item| matches!(&item.command, DeviceCommand::SetRestrictBackground(_))));
+        assert!(!plan
+            .operations
+            .iter()
+            .any(|item| matches!(&item.command, DeviceCommand::AddMeteredBlacklistUid(_))));
         assert!(!plan.operations.iter().any(|item| matches!(
             &item.command, DeviceCommand::ForceStopPackage(package)
                 if package == "com.amazon.client.metrics"
         )));
-        assert!(plan.skipped.iter().any(|item| item.contains("shared system UID")));
+        assert!(plan
+            .skipped
+            .iter()
+            .any(|item| item.contains("shared system UID")));
         assert!(!plan.operations.iter().any(|item| matches!(
             &item.command, DeviceCommand::DisablePackage(package) if package == "com.amazon.alexa"
         )));

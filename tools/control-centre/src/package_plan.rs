@@ -246,7 +246,10 @@ mod tests {
         let installed = ["com.amazon.alexa".into()].into_iter().collect();
         let plan = build_package_plan(
             &catalogue(),
-            &PackageChoices { keep_alexa: false, ..Default::default() },
+            &PackageChoices {
+                keep_alexa: false,
+                ..Default::default()
+            },
             &installed,
             &BTreeSet::new(),
             &BTreeSet::new(),
@@ -263,7 +266,11 @@ mod tests {
         let remove = ["com.example.streaming".into()].into_iter().collect();
         let plan = build_package_plan(
             &catalogue(),
-            &PackageChoices { keep_alexa: true, remove, ..Default::default() },
+            &PackageChoices {
+                keep_alexa: true,
+                remove,
+                ..Default::default()
+            },
             &installed,
             &BTreeSet::new(),
             &BTreeSet::new(),
@@ -282,7 +289,11 @@ mod tests {
         let remove = ["com.example.streaming".into()].into_iter().collect();
         let plan = build_package_plan(
             &catalogue(),
-            &PackageChoices { keep_alexa: true, remove, ..Default::default() },
+            &PackageChoices {
+                keep_alexa: true,
+                remove,
+                ..Default::default()
+            },
             &installed,
             &system,
             &BTreeSet::new(),
@@ -299,7 +310,11 @@ mod tests {
         let protected_remove = ["com.amazon.vizzini".into()].into_iter().collect();
         assert!(build_package_plan(
             &catalogue(),
-            &PackageChoices { keep_alexa: true, remove: protected_remove, ..Default::default() },
+            &PackageChoices {
+                keep_alexa: true,
+                remove: protected_remove,
+                ..Default::default()
+            },
             &installed,
             &BTreeSet::new(),
             &BTreeSet::new(),
@@ -309,7 +324,11 @@ mod tests {
         let same: BTreeSet<String> = ["com.amazon.ads".into()].into_iter().collect();
         assert!(build_package_plan(
             &catalogue(),
-            &PackageChoices { keep_alexa: true, keep: same.clone(), remove: same, },
+            &PackageChoices {
+                keep_alexa: true,
+                keep: same.clone(),
+                remove: same,
+            },
             &installed,
             &BTreeSet::new(),
             &BTreeSet::new(),
