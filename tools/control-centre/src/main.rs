@@ -11,6 +11,7 @@ mod settings_catalogue;
 mod snapshot;
 mod device_command;
 mod operations;
+mod operation_journal;
 
 use eframe::egui;
 use atomicwrites::{AllowOverwrite, AtomicFile};
@@ -435,6 +436,20 @@ impl ControlCentre {
         self.plan_data_root = None;
         self.plan_snapshot_path = None;
         self.confirm_apply = false;
+        let journal_root = match app_root() {
+            Ok(root) => root.join("journals"),
+            Err(error) => { self.shared.lock().expect("state lock poisoned").status = error; return; }
+        };
+        let descriptions: Vec<String> = plan.operations.iter().map(|item| item.description.clone()).collect();
+        let journal_path = match operation_journal::OperationJournal::create(
+            &journal_root, operation_journal::WorkflowKind::Cleanup,
+            &profile.manufacturer, &profile.model, &profile.build_display_id, profile.sdk,
+            &original.source_commit, &descriptions,
+        ) {
+            Ok(path) => path,
+            Err(error) => { self.shared.lock().expect("state lock poisoned").status = format!("Cannot start cleanup safely: {error}"); return; }
+        };
+        let journal_name = journal_path.file_name().and_then(|name| name.to_str()).unwrap_or("cleanup journal").to_owned();
         let shared = Arc::clone(&self.shared);
         {
             let mut state = shared.lock().expect("state lock poisoned");
@@ -446,15 +461,15 @@ impl ControlCentre {
             let result = (|| -> Result<adb_transport::ExecutionReport, String> {
                 let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
                     .map_err(|error| format!("cannot start the ADB runtime: {error}"))?;
-                runtime.block_on(adb_transport::execute_plan(ip, &profile, &original, &plan.operations, &never_disable))
+                runtime.block_on(adb_transport::execute_plan(ip, &profile, &original, &plan.operations, &never_disable, &journal_path))
             })();
             let mut state = shared.lock().expect("state lock poisoned");
             state.status = match result {
                 Ok(report) => match report.failure {
-                    Some(failure) => format!("Stopped after {} verified operations. {failure}. The original snapshot remains available for restore.", report.completed.len()),
-                    None => format!("All {} reviewed operations completed and passed read-back verification. The original snapshot has been retained. Reboot and run a fresh preflight before relying on the new state.", report.completed.len()),
+                    Some(failure) => format!("Stopped after {} verified operations. {failure}. Journal: {journal_name}. The original snapshot remains available for restore.", report.completed.len()),
+                    None => format!("All {} reviewed operations completed and passed read-back verification. Journal: {journal_name}. The original snapshot has been retained. Reboot and run a fresh preflight before relying on the new state.", report.completed.len()),
                 },
-                Err(error) => format!("Cleanup did not start or could not complete: {error}. The original snapshot has been retained."),
+                Err(error) => format!("Cleanup did not start or could not complete: {error}. Journal: {journal_name}. The original snapshot has been retained."),
             };
             state.busy = false;
             state.connected_ip = None;
@@ -559,6 +574,20 @@ impl ControlCentre {
             state.status = format!("No automatic restore operations are available. Manual actions: {}", manual.join("; "));
             return;
         }
+        let journal_root = match app_root() {
+            Ok(root) => root.join("journals"),
+            Err(error) => { self.shared.lock().expect("state lock poisoned").status = error; return; }
+        };
+        let descriptions: Vec<String> = operations.iter().map(|item| item.description.clone()).collect();
+        let journal_path = match operation_journal::OperationJournal::create(
+            &journal_root, operation_journal::WorkflowKind::Restore,
+            &profile.manufacturer, &profile.model, &profile.build_display_id, profile.sdk,
+            &original.source_commit, &descriptions,
+        ) {
+            Ok(path) => path,
+            Err(error) => { self.shared.lock().expect("state lock poisoned").status = format!("Cannot start restore safely: {error}"); return; }
+        };
+        let journal_name = journal_path.file_name().and_then(|name| name.to_str()).unwrap_or("restore journal").to_owned();
         let shared = Arc::clone(&self.shared);
         {
             let mut state = shared.lock().expect("state lock poisoned");
@@ -570,18 +599,18 @@ impl ControlCentre {
             let result = (|| -> Result<adb_transport::ExecutionReport, String> {
                 let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
                     .map_err(|error| format!("cannot start the ADB runtime: {error}"))?;
-                runtime.block_on(adb_transport::execute_restore_plan(ip, &profile, &original, &reviewed_current, &operations, &never_disable))
+                runtime.block_on(adb_transport::execute_restore_plan(ip, &profile, &original, &reviewed_current, &operations, &never_disable, &journal_path))
             })();
             let mut state = shared.lock().expect("state lock poisoned");
             state.status = match result {
                 Ok(report) => {
                     let manual_text = if manual.is_empty() { String::new() } else { format!(" Manual actions still required: {}.", manual.join("; ")) };
                     match report.failure {
-                        Some(failure) => format!("Restore stopped after {} verified operations. {failure}.{manual_text}", report.completed.len()),
-                        None => format!("{} restore operations completed and passed read-back verification.{manual_text} Reconnect and review the device state again.", report.completed.len()),
+                        Some(failure) => format!("Restore stopped after {} verified operations. {failure}.{manual_text} Journal: {journal_name}.", report.completed.len()),
+                        None => format!("{} restore operations completed and passed read-back verification.{manual_text} Journal: {journal_name}. Reconnect and review the device state again.", report.completed.len()),
                     }
                 }
-                Err(error) => format!("Restore aborted before or during execution: {error}"),
+                Err(error) => format!("Restore aborted before or during execution: {error}. Journal: {journal_name}."),
             };
             state.busy = false;
             state.connected_ip = None;
