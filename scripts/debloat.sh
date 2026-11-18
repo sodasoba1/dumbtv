@@ -44,7 +44,11 @@ if [[ $DRY_RUN == 1 ]]; then
 fi
 
 mkdir -p "$REPORT"
-snapshot_package_states
+if [[ -f $REPORT/debloat.txt && ! -f $REPORT/packages-before.txt ]]; then
+  note "legacy cleanup report found without an original package snapshot; keeping legacy restore behaviour"
+else
+  snapshot_package_states
+fi
 log="$REPORT/debloat.txt"
 : > "$log"
 
