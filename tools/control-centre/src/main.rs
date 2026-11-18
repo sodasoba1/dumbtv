@@ -904,12 +904,17 @@ fn load_unfinished_journals() -> Vec<String> {
         Ok(entries) => entries,
         Err(_) => return Vec::new(),
     };
+    // Journal filenames begin with workflow and Unix time. Sort before limiting
+    // so a large history cannot hide the most recent recovery items.
+    let mut paths: Vec<PathBuf> = entries.flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().and_then(|value| value.to_str()) == Some("json"))
+        .collect();
+    paths.sort_by(|left, right| right.file_name().cmp(&left.file_name()));
+    paths.truncate(256);
+
     let mut summaries = Vec::new();
-    for entry in entries.flatten().take(256) {
-        let path = entry.path();
-        if path.extension().and_then(|value| value.to_str()) != Some("json") {
-            continue;
-        }
+    for path in paths {
         let Ok(journal) = operation_journal::OperationJournal::load(&path) else {
             continue;
         };
@@ -922,13 +927,22 @@ fn load_unfinished_journals() -> Vec<String> {
         if journal.finished && failed == 0 {
             continue;
         }
+        let attention: Vec<String> = journal.operations.iter().filter_map(|item| {
+            let detail = item.detail.as_deref().unwrap_or("no recorded error detail");
+            let detail: String = detail.chars().take(240).collect();
+            match item.status {
+                operation_journal::OperationStatus::Running => Some(format!("interrupted during: {}", item.description)),
+                operation_journal::OperationStatus::Failed => Some(format!("failed: {} ({detail})", item.description)),
+                _ => None,
+            }
+        }).take(2).collect();
+        let attention = if attention.is_empty() { String::new() } else { format!(" Review: {}.", attention.join("; ")) };
         let name = path.file_name().and_then(|value| value.to_str()).unwrap_or("operation journal");
         summaries.push(format!(
-            "{name}: {verified} verified, {running} marked running at last save, {failed} failed, {pending} not attempted. Device recorded: {} {} · {}",
+            "{name}: {verified} verified, {running} running at last save, {failed} failed, {pending} pending. Device recorded: {} {} · {}.{attention}",
             journal.manufacturer, journal.model, journal.build_display_id
         ));
     }
-    summaries.sort();
     summaries
 }
 
