@@ -28,7 +28,6 @@ const KEY_NAME: [u16; 33] = wide("DumbTV-ControlCentre-ADB-HostKey");
 const LENGTH_PROPERTY: [u16; 7] = wide("Length");
 const EXPORT_POLICY_PROPERTY: [u16; 14] = wide("Export Policy");
 const RSA_PUBLIC_BLOB: [u16; 14] = wide("RSAPUBLICBLOB");
-const RSA_FULL_PRIVATE_BLOB: [u16; 19] = wide("RSAFULLPRIVATEBLOB");
 const SHA1_ALGORITHM: [u16; 5] = wide("SHA1");
 const PUBLIC_KEY_NAME: &str = "dumbtv-control-centre@windows";
 
@@ -398,9 +397,22 @@ fn export_public_key(key: usize) -> Result<AdbPublicKey, String> {
     AdbPublicKey::from_rsa_components(modulus, exponent, PUBLIC_KEY_NAME)
 }
 
+fn check_status(status: i32, operation: &str) -> Result<(), String> {
+    if status == STATUS_SUCCESS {
+        Ok(())
+    } else {
+        Err(format!(
+            "{operation} failed (Windows status 0x{:08x})",
+            status as u32
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const RSA_FULL_PRIVATE_BLOB: [u16; 19] = wide("RSAFULLPRIVATEBLOB");
     use windows_sys::Win32::Security::Cryptography::NCryptVerifySignature;
 
     #[test]
@@ -454,13 +466,3 @@ mod tests {
     }
 }
 
-fn check_status(status: i32, operation: &str) -> Result<(), String> {
-    if status == STATUS_SUCCESS {
-        Ok(())
-    } else {
-        Err(format!(
-            "{operation} failed (Windows status 0x{:08x})",
-            status as u32
-        ))
-    }
-}
