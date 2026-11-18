@@ -64,8 +64,12 @@ workflow also checks that the optional `keys` and `host-keys` features are
 not activated. This removes the previously identified `rsa 0.9` advisory
 from the active lock graph, but the full dependency audit remains outstanding.
 
-Therefore this is a **candidate, not an approved dependency**. Before any
-device-changing operation is enabled, test the actual AFTMM for:
+The Control Centre now uses this as its active Rust ADB transport for read-only
+capture, typed cleanup execution and delta restore. Treat the transport as
+working; there is no observed protocol failure. The Android 9+ published
+support range versus the AFTMM's API 25 remains a documented compatibility
+caveat, not proof of incompatibility. Physical AFTMM testing is still required
+before public release for:
 
 - TCP connection to legacy ADB port 5555;
 - initial CNXN/AUTH handshake and RSA authorisation prompt;
@@ -73,9 +77,7 @@ device-changing operation is enabled, test the actual AFTMM for:
 - shell v1 fallback and getprop inventory;
 - bounded read/write behaviour when the TV reboots or drops Wi-Fi.
 
-If the library cannot interoperate with API 25, use its protocol code only
-after review or implement the required legacy protocol path in Rust. Do not
-fall back to a bundled Google ADB executable or a shell runtime.
+Do not fall back to a bundled Google ADB executable or a shell runtime.
 
 ## Rejected for now: rsadb 0.1.1
 

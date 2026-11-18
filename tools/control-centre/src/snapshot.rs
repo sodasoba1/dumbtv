@@ -128,6 +128,7 @@ impl DeviceSnapshot {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CurrentDeviceState {
     pub packages: BTreeMap<String, PackageState>,
+    pub user_packages: BTreeSet<String>,
     pub secure_settings: BTreeMap<String, Option<String>>,
     pub global_settings: BTreeMap<String, Option<String>>,
     pub app_ops: Vec<AppOpState>,
@@ -144,7 +145,7 @@ pub enum RestoreAction {
     SetRestrictBackground(bool),
     AddMeteredBlacklistUid(u32),
     RemoveMeteredBlacklistUid(u32),
-    ManualStoreReinstall(String),
+    ManualUserAppReinstall(String),
     ManualStateUnavailable(&'static str),
 }
 
@@ -178,7 +179,7 @@ pub fn build_restore_plan(
             }
             None if *original_state != PackageState::NotInstalled && original.user_packages.contains(package) => {
                 // A user app removed for user 0 cannot be reconstructed from this tool.
-                actions.push(RestoreAction::ManualStoreReinstall(package.clone()));
+                actions.push(RestoreAction::ManualUserAppReinstall(package.clone()));
             }
             None if *original_state != PackageState::NotInstalled => {
                 actions.push(RestoreAction::ManualStateUnavailable(
@@ -189,7 +190,7 @@ pub fn build_restore_plan(
         }
     }
     for package in &original.user_apps_uninstalled_by_tool {
-        actions.push(RestoreAction::ManualStoreReinstall(package.clone()));
+        actions.push(RestoreAction::ManualUserAppReinstall(package.clone()));
     }
 
     add_setting_restore_actions(
@@ -328,6 +329,7 @@ mod tests {
         CurrentDeviceState {
             packages: [("com.amazon.ads".into(), PackageState::Disabled)]
                 .into_iter().collect(),
+            user_packages: ["com.amazon.ads".into()].into_iter().collect(),
             secure_settings: [
                 ("advertising_id".into(), Some("0".into())),
                 ("previously_absent".into(), Some("x".into())),
@@ -361,7 +363,7 @@ mod tests {
         assert!(plan.actions.contains(&RestoreAction::SetRestrictBackground(false)));
         assert!(plan.actions.contains(&RestoreAction::AddMeteredBlacklistUid(10001)));
         assert!(plan.actions.contains(&RestoreAction::RemoveMeteredBlacklistUid(10002)));
-        assert!(plan.actions.contains(&RestoreAction::ManualStoreReinstall("com.example.player".into())));
+        assert!(plan.actions.contains(&RestoreAction::ManualUserAppReinstall("com.example.player".into())));
     }
 
     #[test]
@@ -369,7 +371,7 @@ mod tests {
         let mut current = current();
         current.packages.clear();
         let plan = build_restore_plan(&snapshot(), &current).unwrap();
-        assert!(plan.actions.contains(&RestoreAction::ManualStoreReinstall("com.amazon.ads".into())));
+        assert!(plan.actions.contains(&RestoreAction::ManualUserAppReinstall("com.amazon.ads".into())));
     }
 
     #[test]

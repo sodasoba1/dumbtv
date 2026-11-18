@@ -271,16 +271,18 @@ impl ControlCentre {
     #[cfg(windows)]
     fn capture_original_state(&self, ip: std::net::IpAddr) {
         let shared = Arc::clone(&self.shared);
-        {
+        let expected_profile = {
             let mut state = shared.lock().expect("state lock poisoned");
-            if state.busy || state.connected_ip != Some(ip) || state.device_profile.is_none() || state.package_inventory.is_none() {
+            if state.busy || state.connected_ip != Some(ip) || state.package_inventory.is_none() {
                 return;
             }
+            let Some(profile) = state.device_profile.clone() else { return; };
             state.busy = true;
             state.status = "Capturing original packages, settings, AppOps and network policy. No device changes will be made…".into();
-        }
+            profile
+        };
         thread::spawn(move || {
-            let result = (|| -> Result<PathBuf, String> {
+            let result = (|| -> Result<(PathBuf, Option<adb_transport::DeviceInventory>, Option<String>), String> {
                 let manifest = load_active_source()?.ok_or("download the official source before capturing a snapshot")?;
                 let data_root = app_root()?.join("source-versions").join(&manifest.commit).join("data");
                 let snapshots = app_root()?.join("snapshots");
@@ -288,14 +290,40 @@ impl ControlCentre {
                 let path = snapshots.join("original-state.json");
                 let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
                     .map_err(|error| format!("cannot start the ADB runtime: {error}"))?;
-                runtime.block_on(adb_transport::capture_original_snapshot(ip, &data_root, &manifest.commit, &path))?;
-                Ok(path)
+                runtime.block_on(adb_transport::capture_original_snapshot(ip, &expected_profile, &data_root, &manifest.commit, &path))?;
+                let inventory_result = runtime.block_on(adb_transport::inspect_device(ip, &data_root));
+                match inventory_result {
+                    Ok(inventory)
+                        if inventory.profile.manufacturer == expected_profile.manufacturer
+                            && inventory.profile.model == expected_profile.model
+                            && inventory.profile.sdk == expected_profile.sdk
+                            && inventory.profile.build_display_id == expected_profile.build_display_id =>
+                    {
+                        Ok((path, Some(inventory), None))
+                    }
+                    Ok(_) => Ok((path, None, Some("device changed during snapshot capture; reconnect before continuing".to_owned()))),
+                    Err(error) => Ok((path, None, Some(format!("snapshot saved, but inventory refresh failed: {error}")))),
+                }
             })();
             let mut state = shared.lock().expect("state lock poisoned");
             match result {
-                Ok(path) => {
+                Ok((path, Some(inventory), None)) => {
                     state.status = format!("Original state captured and saved locally as {}. No TV settings or packages were changed.", path.file_name().and_then(|name| name.to_str()).unwrap_or("snapshot.json"));
                     state.snapshot_path = Some(path);
+                    state.package_inventory = inventory.packages;
+                    state.protected_uids = inventory.protected_uids;
+                }
+                Ok((path, None, Some(reason))) => {
+                    state.snapshot_path = Some(path);
+                    state.connected_ip = None;
+                    state.device_profile = None;
+                    state.package_inventory = None;
+                    state.protected_uids.clear();
+                    state.status = format!("Original snapshot was saved, but the device preflight must be repeated: {reason}");
+                }
+                Ok((path, None, None)) => {
+                    state.snapshot_path = Some(path);
+                    state.status = "Original snapshot was saved; reconnect before planning cleanup.".into();
                 }
                 Err(error) => state.status = format!("Original-state capture failed; no device changes were made: {error}"),
             }
@@ -781,7 +809,7 @@ impl eframe::App for ControlCentre {
                 let mut cancel_restore = false;
                 egui::Window::new("Confirm restore").collapsible(false).resizable(false).show(ctx, |ui| {
                     ui.label("Restore the captured package, settings, AppOps and network-policy state on this Fire TV?");
-                    ui.label("User apps removed for user 0 cannot be reconstructed by this app and must be reinstalled manually from the Appstore.");
+                    ui.label("User apps removed for user 0 are not backed up; reinstall them manually from their original source (Amazon Appstore or sideloaded APK).");
                     ui.horizontal(|ui| {
                         if ui.button("Restore captured state").clicked() { restore_clicked = true; }
                         if ui.button("Cancel").clicked() { cancel_restore = true; }

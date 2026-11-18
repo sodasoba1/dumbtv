@@ -61,12 +61,16 @@ pub async fn inspect_device(ip: IpAddr, data_root: &Path) -> Result<DeviceInvent
 /// writes a partial snapshot that could later be mistaken for a complete backup.
 pub async fn capture_original_snapshot(
     ip: IpAddr,
+    expected: &DeviceProfile,
     data_root: &Path,
     source_commit: &str,
     snapshot_path: &Path,
 ) -> Result<(), String> {
     let mut connection = connect(ip).await?;
     let profile = read_profile(&mut connection).await?;
+    if !same_device(&profile, expected) {
+        return Err("the device at the selected IP changed after inspection; snapshot capture aborted".into());
+    }
     if profile.cleanup_compatibility() != Compatibility::Supported {
         return Err("original-state capture is available only for validated Amazon Fire OS SDK 25–30 devices".into());
     }
@@ -274,6 +278,7 @@ async fn read_current_state_on_connection(
     )?);
     Ok(crate::snapshot::CurrentDeviceState {
         packages: package_states,
+        user_packages: packages.user,
         secure_settings,
         global_settings,
         app_ops,
@@ -552,7 +557,7 @@ fn parse_restrict_background(output: &str) -> Result<bool, String> {
 fn parse_uid_blacklist(output: &str) -> Result<BTreeSet<u32>, String> {
     let trimmed = output.trim();
     let lower = trimmed.to_ascii_lowercase();
-    if lower.contains("none") || lower.contains("empty") || trimmed.ends_with("[]") {
+    if lower.contains("none") || lower.contains("empty") || lower.contains("no uids") || lower.contains("no uid entries") || trimmed.ends_with("[]") {
         return Ok(BTreeSet::new());
     }
     let values = if let (Some(start), Some(end)) = (trimmed.find('['), trimmed.find(']')) {

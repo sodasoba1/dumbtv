@@ -95,7 +95,7 @@ pub fn build_cleanup_plan(
 
     if let Some(Some(components)) = original.secure_settings.get("screensaver_components") {
         let current_dream = components.split(',').next().unwrap_or("").split('/').next().unwrap_or("");
-        if packages_to_disable.contains(current_dream) {
+        if packages_to_disable.contains(current_dream) || inventory.disabled.contains(current_dream) {
             if inventory.installed.contains("com.android.dreams.basic") {
                 operations.push(PlannedOperation {
                     description: format!("Switch the screensaver to Android's built-in dream because {current_dream} is being disabled"),
@@ -109,6 +109,13 @@ pub fn build_cleanup_plan(
                 skipped.push(format!("{current_dream} — screensaver package will be disabled and no Android fallback is installed"));
             }
         }
+    }
+
+    if original.restrict_background != Some(true) {
+        operations.push(PlannedOperation {
+            description: "Enable Android Data Saver (does not block normal Wi-Fi/Ethernet traffic)".into(),
+            command: DeviceCommand::SetRestrictBackground(true),
+        });
     }
 
     for package in &catalogue.protected {
@@ -155,13 +162,6 @@ pub fn build_cleanup_plan(
         }
     }
 
-    if original.restrict_background != Some(true) {
-        operations.push(PlannedOperation {
-            description: "Enable Android Data Saver (does not block normal Wi-Fi/Ethernet traffic)".into(),
-            command: DeviceCommand::SetRestrictBackground(true),
-        });
-    }
-
     Ok(CleanupPlan { operations, skipped })
 }
 
@@ -204,6 +204,14 @@ pub fn build_restore_operations(plan: &RestorePlan) -> (Vec<PlannedOperation>, V
                 format!("Restore Data Saver to {}", if *enabled { "on" } else { "off" }),
                 DeviceCommand::SetRestrictBackground(*enabled)
             ),
+            RestoreAction::AddMeteredBlacklistUid(uid) if *uid < 10_000 => {
+                manual.push(format!("UID {uid} — shared/system network policy requires manual recovery"));
+                continue;
+            }
+            RestoreAction::RemoveMeteredBlacklistUid(uid) if *uid < 10_000 => {
+                manual.push(format!("UID {uid} — shared/system network policy requires manual recovery"));
+                continue;
+            }
             RestoreAction::AddMeteredBlacklistUid(uid) => (
                 format!("Restore metered-data blacklist UID {uid}"),
                 DeviceCommand::AddMeteredBlacklistUid(*uid)
@@ -212,8 +220,8 @@ pub fn build_restore_operations(plan: &RestorePlan) -> (Vec<PlannedOperation>, V
                 format!("Remove metered-data blacklist UID {uid}"),
                 DeviceCommand::RemoveMeteredBlacklistUid(*uid)
             ),
-            RestoreAction::ManualStoreReinstall(package) => {
-                manual.push(format!("{package} — reinstall manually from the Amazon Appstore"));
+            RestoreAction::ManualUserAppReinstall(package) => {
+                manual.push(format!("{package} — reinstall manually from its original source (Amazon Appstore or sideloaded APK)"));
                 continue;
             }
             RestoreAction::ManualStateUnavailable(reason) => {
@@ -262,6 +270,23 @@ mod tests {
             "package:com.amazon.ads\npackage:com.amazon.client.metrics\n",
             "",
         ).unwrap()
+    }
+
+    #[test]
+    fn restore_conversion_keeps_user_app_reinstalls_manual_and_never_changes_system_uids() {
+        let plan = RestorePlan { actions: vec![
+            RestoreAction::PutSetting {
+                namespace: crate::snapshot::SettingNamespace::Secure,
+                key: "test_key".into(), value: "original".into(),
+            },
+            RestoreAction::ManualUserAppReinstall("com.example.player".into()),
+            RestoreAction::AddMeteredBlacklistUid(1000),
+        ]};
+        let (operations, manual) = build_restore_operations(&plan);
+        assert_eq!(operations.len(), 1);
+        assert!(matches!(&operations[0].command, DeviceCommand::PutSetting { .. }));
+        assert!(manual.iter().any(|item| item.contains("Amazon Appstore or sideloaded APK")));
+        assert!(manual.iter().any(|item| item.contains("shared/system")));
     }
 
     #[test]
