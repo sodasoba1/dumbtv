@@ -62,6 +62,9 @@ impl DeviceSnapshot {
         if self.manufacturer.trim().is_empty() || self.android_sdk == 0 {
             return Err("snapshot is missing device identity or SDK".into());
         }
+        if self.build_display_id.len() > 256 || self.build_display_id.chars().any(char::is_control) {
+            return Err("snapshot has an invalid build display identifier".into());
+        }
         if self.source_commit.len() != 40 || !self.source_commit.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             return Err("snapshot has an invalid pinned source revision".into());
         }

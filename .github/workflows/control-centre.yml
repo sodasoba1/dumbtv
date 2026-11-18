@@ -69,6 +69,8 @@ jobs:
           Copy-Item "target/release/dumbtv-control-centre.exe" $package
           Copy-Item "README.md" $package
           Copy-Item "THIRD-PARTY-NOTICES.md" $package
+          Copy-Item "../../LICENSE" $package
+          Copy-Item "Cargo.lock" $package
           Compress-Archive -Path (Join-Path $package "*") -DestinationPath (Join-Path $env:RUNNER_TEMP "DumbTV-Control-Centre-test-windows-x64.zip") -Force
 
       - name: Upload resolved Cargo lockfile for dependency audit

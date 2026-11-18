@@ -113,7 +113,7 @@ pub fn build_cleanup_plan(
     if let Some(Some(components)) = original.secure_settings.get("screensaver_components") {
         let current_dream = components.split(',').next().unwrap_or("").split('/').next().unwrap_or("");
         if packages_to_disable.contains(current_dream) || inventory.disabled.contains(current_dream) {
-            if inventory.installed.contains("com.android.dreams.basic") {
+            if inventory.installed.contains("com.android.dreams.basic") && !inventory.disabled.contains("com.android.dreams.basic") {
                 operations.push(PlannedOperation {
                     description: format!("Switch the screensaver to Android's built-in dream because {current_dream} is being disabled"),
                     command: DeviceCommand::PutSetting {
@@ -140,7 +140,7 @@ pub fn build_cleanup_plan(
             skipped.push(format!("{package} — protected package is not installed"));
             continue;
         }
-        if choices.keep.contains(package) {
+        if choices.keep.contains(package) || (choices.keep_alexa && catalogue.alexa.contains(package)) {
             skipped.push(format!("{package} — explicitly kept; background restrictions skipped"));
             continue;
         }
@@ -341,6 +341,10 @@ mod tests {
             &item.command, DeviceCommand::AddMeteredBlacklistUid(10025)
         )));
         assert!(plan.operations.iter().any(|item| matches!(
+            &item.command, DeviceCommand::ForceStopPackage(package)
+                if package == "com.amazon.client.metrics"
+        )));
+        assert!(plan.operations.iter().any(|item| matches!(
             &item.command, DeviceCommand::PutSetting { namespace: SettingsNamespace::Secure, .. }
         )));
     }
@@ -359,7 +363,11 @@ mod tests {
         assert!(!plan.operations.iter().any(|item| matches!(
             &item.command, DeviceCommand::AddMeteredBlacklistUid(_)
         )));
-        assert!(plan.skipped.iter().any(|item| item.contains("shared/system UID")));
+        assert!(!plan.operations.iter().any(|item| matches!(
+            &item.command, DeviceCommand::ForceStopPackage(package)
+                if package == "com.amazon.client.metrics"
+        )));
+        assert!(plan.skipped.iter().any(|item| item.contains("shared system UID")));
         assert!(!plan.operations.iter().any(|item| matches!(
             &item.command, DeviceCommand::DisablePackage(package) if package == "com.amazon.alexa"
         )));

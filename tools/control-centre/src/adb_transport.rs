@@ -458,8 +458,20 @@ fn parse_running_names(output: &str, full_ps_columns: bool) -> Result<BTreeSet<S
     if output.to_ascii_lowercase().contains("bad pid") {
         return Err("Fire OS did not return a usable process list; force-stop was not attempted".into());
     }
+    let mut lines = output.lines();
+    let header = lines.next().ok_or("Fire OS returned an empty process list; force-stop was not attempted")?;
+    let valid_header = if full_ps_columns {
+        header.split_whitespace().any(|column| column == "USER")
+            && header.split_whitespace().any(|column| column == "PID")
+            && header.split_whitespace().count() >= 2
+    } else {
+        header.trim() == "NAME"
+    };
+    if !valid_header {
+        return Err("Fire OS returned an unrecognised process-list format; force-stop was not attempted".into());
+    }
     let mut names = BTreeSet::new();
-    for line in output.lines().skip(1) {
+    for line in lines {
         let name = if full_ps_columns { line.split_whitespace().last() } else { line.split_whitespace().next() };
         if let Some(name) = name.filter(|name| !name.is_empty()) { names.insert(name.to_owned()); }
     }
@@ -633,19 +645,20 @@ mod tests {
 
     #[test]
     fn parses_running_process_names_with_api25_fallback_columns() {
-        let modern = "NAME\\ncom.amazon.foo\\ncom.amazon.bar\\n";
+        let modern = "NAME\ncom.amazon.foo\ncom.amazon.bar\n";
         assert_eq!(parse_running_names(modern, false).unwrap(), [
             "com.amazon.bar".to_owned(), "com.amazon.foo".to_owned()
         ].into_iter().collect());
-        let legacy = "USER PID PPID VSIZE RSS WCHAN PC NAME\\nsystem 1 0 0 0 0 0 init\\nu0_a12 42 1 0 0 0 0 com.amazon.foo\\n";
+        let legacy = "USER PID PPID VSIZE RSS WCHAN PC NAME\nsystem 1 0 0 0 0 0 init\nu0_a12 42 1 0 0 0 0 com.amazon.foo\n";
         assert!(parse_running_names(legacy, true).unwrap().contains("com.amazon.foo"));
         assert!(parse_running_names("bad pid", false).is_err());
+        assert!(parse_running_names("usage: ps", false).is_err());
     }
 
     #[test]
     fn extracts_package_uid_from_legacy_and_modern_dumpsys_fields() {
-        assert_eq!(parse_package_uid("  userId=10042\\n"), Some(10042));
-        assert_eq!(parse_package_uid("  appId=10043\\n"), Some(10043));
+        assert_eq!(parse_package_uid("  userId=10042\n"), Some(10042));
+        assert_eq!(parse_package_uid("  appId=10043\n"), Some(10043));
         assert_eq!(parse_package_uid("no uid reported"), None);
     }
 
