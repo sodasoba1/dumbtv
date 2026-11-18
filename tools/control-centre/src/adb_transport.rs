@@ -204,8 +204,8 @@ pub async fn execute_plan(
     for (index, operation) in operations.iter().enumerate() {
         journal.mark_running(journal_path, index)?;
         match execute_one(&mut connection, &operation.command, never_disable).await {
-            Ok(_) => {
-                journal.mark_verified(journal_path, index)?;
+            Ok(detail) => {
+                journal.mark_verified_with_detail(journal_path, index, Some(&detail))?;
                 report.completed.push(operation.description.clone());
             }
             Err(error) => {
@@ -487,8 +487,8 @@ pub async fn execute_restore_plan(
     for (index, operation) in operations.iter().enumerate() {
         journal.mark_running(journal_path, index)?;
         match execute_one(&mut connection, &operation.command, never_disable).await {
-            Ok(_) => {
-                journal.mark_verified(journal_path, index)?;
+            Ok(detail) => {
+                journal.mark_verified_with_detail(journal_path, index, Some(&detail))?;
                 report.completed.push(operation.description.clone());
             }
             Err(error) => {
