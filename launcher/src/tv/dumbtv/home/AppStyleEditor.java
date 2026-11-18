@@ -121,13 +121,8 @@ final class AppStyleEditor {
                 .setTitle("Save changes?")
                 .setMessage("Apply the name, banner and background changes to " + item.label + "?")
                 .setPositiveButton(R.string.save, (d, which) -> {
-                    if (state.resetCustomisation) {
-                        config.removePrefix("appstyle." + item.id + ".");
-                    }
-                    config.set("name." + item.id,
-                            state.name.equals(item.label.toString()) ? null : state.name);
-                    config.set(AppStyle.key(item, "banner"), state.banner);
-                    config.set(AppStyle.key(item, "background"), state.background);
+                    AppStyle.save(config, item, state.name, item.label.toString(),
+                            state.banner, state.background, state.resetCustomisation);
                     changed.run();
                 })
                 .setNegativeButton(R.string.cancel, (d, which) ->
