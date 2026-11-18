@@ -313,6 +313,26 @@ mod tests {
     }
 
     #[test]
+    fn verified_outcome_detail_is_durable() {
+        let dir = tempfile::tempdir().unwrap();
+        let (manufacturer, model, build, commit) = profile_values();
+        let path = OperationJournal::create(
+            dir.path(), WorkflowKind::Cleanup, manufacturer, model, build, 25, commit,
+            &["Conditional background restriction".into()],
+        ).unwrap();
+        let mut journal = OperationJournal::load(&path).unwrap();
+        journal.mark_running(&path, 0).unwrap();
+        journal.mark_verified_with_detail(
+            &path, 0, Some("Restricted background execution and verified force-stop for com.amazon.hedwig")
+        ).unwrap();
+        let loaded = OperationJournal::load(&path).unwrap();
+        assert_eq!(
+            loaded.operations[0].detail.as_deref(),
+            Some("Restricted background execution and verified force-stop for com.amazon.hedwig")
+        );
+    }
+
+    #[test]
     fn final_verification_error_is_durable_and_keeps_journal_reviewable() {
         let dir = tempfile::tempdir().unwrap();
         let (manufacturer, model, build, commit) = profile_values();
