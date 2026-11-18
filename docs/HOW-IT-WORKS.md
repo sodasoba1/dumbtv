@@ -94,8 +94,9 @@ one recovery service, Keeper:
 - A boot receiver starts Keeper after the user is unlocked. Keeper runs as a
   foreground service.
 - UsageStats foreground events are polled every 250 ms. The installer grants
-  GET_USAGE_STATS and Fire OS AUTO_START through AppOps, verifies the standby
-  setting, and adds the app to the Doze whitelist.
+  GET_USAGE_STATS, enables the vendor-specific AUTO_START AppOp when the firmware
+  exposes it, and adds the app to the Doze whitelist. Unsupported AUTO_START
+  operations are detected and skipped; they are not treated as a failed grant.
 - The installer grants READ_LOGS through ADB and verifies it in the installed
   package. Installation fails if the grant or verification fails. Keeper reads
   ActivityManager logcat for the exact Amazon Home activity becoming displayed or
