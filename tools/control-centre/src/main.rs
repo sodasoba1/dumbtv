@@ -369,7 +369,7 @@ fn download_latest_source() -> Result<String, String> {
     }
 
     let url = format!("https://github.com/{OWNER}/{REPOSITORY}/archive/{latest}.zip");
-    let mut response = http_client()?
+    let response = http_client()?
         .get(url)
         .send()
         .map_err(|e| format!("source download failed: {e}"))?
