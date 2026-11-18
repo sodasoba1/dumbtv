@@ -8,3 +8,6 @@ launcher/*.keystore
 video/
 __pycache__/
 *.pyc
+
+# Rust Control Centre build output
+tools/control-centre/target/
