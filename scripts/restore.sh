@@ -6,6 +6,7 @@ set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 parse_flags "$@"
 need_device
+need_supported_fireos
 load_conf
 
 # Everything debloat.sh or youtube.sh may have switched off, under any answers.
