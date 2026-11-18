@@ -338,7 +338,7 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let remove = ["com.example.player".to_owned()].into_iter().collect();
         let choices = PackageChoices { remove, ..PackageChoices::default() };
-        let uids = [("com.amazon.client.metrics".to_owned(), 10025)].into_iter().collect();
+        let uids = [("com.amazon.client.metrics".to_owned(), 10025), ("com.amazon.ads".to_owned(), 10026)].into_iter().collect();
         let original = snapshot();
         let plan = build_cleanup_plan(&root, 25, &inventory(), &choices, &uids, &original).unwrap();
         assert!(plan.operations.iter().any(|item| matches!(
@@ -355,6 +355,10 @@ mod tests {
         assert!(plan.operations.iter().any(|item| matches!(
             &item.command, DeviceCommand::ForceStopPackage(package)
                 if package == "com.amazon.client.metrics"
+        )));
+        assert!(plan.operations.iter().any(|item| matches!(
+            &item.command, DeviceCommand::ForceStopAndRestrictIfRunning { package, uid: Some(10026), sdk: 25 }
+                if package == "com.amazon.ads"
         )));
         assert!(plan.operations.iter().any(|item| matches!(
             &item.command, DeviceCommand::PutSetting { namespace: SettingsNamespace::Secure, .. }
