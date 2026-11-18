@@ -15,7 +15,8 @@ public final class WidgetLayoutTest {
         check(!grid.add("overlap", "text", 1, 0, 2, 1), "reject overlap");
         check(!grid.add("outside", "text", 5, 3, 2, 1), "reject horizontal overflow");
         check(!grid.add("bad", "unknown", 0, 2, 1, 1), "reject unknown widget type");
-        check(grid.add("single-row", "text", 0, 3, 1, 1), "accept a single row widget");
+        WidgetLayout rowFixture = new WidgetLayout();
+        check(rowFixture.add("single-row", "text", 0, 3, 1, 1), "accept a single row widget");
         check(!grid.add("recent", "recent", 0, 2, 1, 2),
                 "Recently Opened is no longer an available widget");
         WidgetLayout newWidgets = new WidgetLayout();
