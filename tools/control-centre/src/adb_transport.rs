@@ -888,18 +888,13 @@ pub async fn install_smarttube(
     let mut installed_code = 0_u64;
     for attempt in 0..2 {
         push_staged_apk(ip, expected, remote, apk_bytes).await?;
-        if let Ok(mut connection) = connect(ip).await {
-            let actual = read_profile(&mut connection).await?;
-            if !same_device(&actual, expected) {
-                return Err("the device at the selected IP no longer matches the inspected Fire TV".into());
-            }
+        if let Ok(mut connection) = connect_with_retry(ip, expected, Duration::from_secs(60)).await {
+            // The install command may lose its Wi-Fi ADB response after the APK
+            // has been pushed. The installed version, not the final shell text,
+            // is the source of truth.
             let _ = run_command(&mut connection, &format!("pm install -r {remote}")).await;
         }
-        let mut verify = connect(ip).await?;
-        let actual = read_profile(&mut verify).await?;
-        if !same_device(&actual, expected) {
-            return Err("the device identity changed while installing SmartTube".into());
-        }
+        let mut verify = connect_with_retry(ip, expected, Duration::from_secs(60)).await?;
         let dump = run_command(&mut verify, &format!("dumpsys package {package}")).await?;
         installed_code = parse_installed_version_code(&dump).unwrap_or(0);
         if installed_code >= crate::apk_release::SMARTTUBE_VERSION_CODE {
@@ -1087,6 +1082,35 @@ async fn push_remote_small_file(
         .map_err(|_| "timed out closing ADB sync".to_owned())?
         .map_err(|error| format!("cannot close ADB sync: {error}"))?;
     Ok(())
+}
+
+async fn connect_with_retry(
+    ip: IpAddr,
+    expected: &DeviceProfile,
+    budget: Duration,
+) -> Result<Connection<TokioTcp>, String> {
+    let deadline = tokio::time::Instant::now() + budget;
+    let mut last_error = String::from("ADB did not reconnect");
+    while tokio::time::Instant::now() < deadline {
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        match timeout(remaining.min(Duration::from_secs(8)), connect(ip)).await {
+            Ok(Ok(mut connection)) => {
+                match read_profile(&mut connection).await {
+                    Ok(actual) if same_device(&actual, expected) => return Ok(connection),
+                    Ok(_) => return Err("a different device answered during ADB reconnect; identity check failed".into()),
+                    Err(error) => last_error = error,
+                }
+            }
+            Ok(Err(error)) => last_error = error,
+            Err(_) => last_error = "ADB reconnect attempt timed out".into(),
+        }
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        tokio::time::sleep(remaining.min(Duration::from_secs(2))).await;
+    }
+    Err(format!("Fire TV ADB did not reconnect within {} seconds: {last_error}", budget.as_secs()))
 }
 
 fn valid_appop_restore_mode(mode: &str) -> bool {
