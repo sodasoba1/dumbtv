@@ -275,7 +275,7 @@ impl eframe::App for ControlCentre {
                 ui.label(&status);
             }
             ui.separator();
-            ui.small("Test build: update download only. No debloat, package, settings, launcher or Keeper operations are exposed.");
+            ui.small("Test build: source updater and read-only ADB preflight only. No debloat, package, settings, launcher or Keeper operations are exposed.");
         });
     }
 }
