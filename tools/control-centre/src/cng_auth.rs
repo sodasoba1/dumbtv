@@ -11,7 +11,7 @@ use std::ptr;
 use windows_sys::Win32::Security::Cryptography::{
     NCryptCreatePersistedKey, NCryptDeleteKey, NCryptExportKey, NCryptFinalizeKey,
     NCryptFreeObject, NCryptOpenKey, NCryptOpenStorageProvider, NCryptSetProperty, NCryptSignHash,
-    NCryptVerifySignature, BCRYPT_PKCS1_PADDING_INFO,
+    BCRYPT_PKCS1_PADDING_INFO,
 };
 
 use crate::adb_auth::AdbPublicKey;
@@ -401,6 +401,7 @@ fn export_public_key(key: usize) -> Result<AdbPublicKey, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use windows_sys::Win32::Security::Cryptography::NCryptVerifySignature;
 
     #[test]
     fn cng_generates_key_exports_public_key_and_signs_adb_token() {
