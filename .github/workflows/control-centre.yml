@@ -71,6 +71,21 @@ jobs:
           cargo audit
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Install cargo-about licence inventory tool
+        uses: taiki-e/install-action@v2.90.3
+        with:
+          tool: cargo-about@0.9.3
+          fallback: none
+
+      - name: Generate complete locked dependency licence texts
+        working-directory: tools/control-centre
+        run: |
+          cargo about generate -o THIRD-PARTY-LICENSES.md about.hbs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path "THIRD-PARTY-LICENSES.md") -or (Get-Item "THIRD-PARTY-LICENSES.md").Length -lt 1000) {
+            throw "cargo-about did not produce a complete third-party licence inventory."
+          }
+
       - name: Compile and run unit tests
         working-directory: tools/control-centre
         run: |
@@ -92,6 +107,7 @@ jobs:
           Copy-Item "target/release/dumbtv-control-centre.exe" $package
           Copy-Item "README.md" $package
           Copy-Item "THIRD-PARTY-NOTICES.md" $package
+          Copy-Item "THIRD-PARTY-LICENSES.md" $package
           Copy-Item "../../LICENSE" $package
           Copy-Item "Cargo.lock" $package
           Compress-Archive -Path (Join-Path $package "*") -DestinationPath (Join-Path $env:RUNNER_TEMP "DumbTV-Control-Centre-test-windows-x64.zip") -Force
@@ -102,6 +118,14 @@ jobs:
         with:
           name: control-centre-cargo-lock
           path: tools/control-centre/Cargo.lock
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload generated third-party licence inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: control-centre-third-party-licences
+          path: tools/control-centre/THIRD-PARTY-LICENSES.md
           if-no-files-found: error
           retention-days: 14
 
