@@ -62,9 +62,9 @@ impl DeviceSnapshot {
                 return Err(format!("snapshot contains an invalid package identifier: {package}"));
             }
         }
-        for key in self.secure_settings.keys().chain(self.global_settings.keys()) {
-            if !valid_setting_key(key) {
-                return Err(format!("snapshot contains an invalid settings key: {key}"));
+        for (key, value) in self.secure_settings.iter().chain(self.global_settings.iter()) {
+            if !valid_setting_key(key) || value.as_deref().is_some_and(|v| !valid_setting_value(v)) {
+                return Err(format!("snapshot contains an invalid settings key/value: {key}"));
             }
         }
         let mut app_ops_seen = BTreeSet::new();
@@ -240,8 +240,11 @@ fn add_setting_restore_actions(
 }
 
 fn valid_package(value: &str) -> bool {
-    let mut parts = value.split('.');
-    parts.next().is_some_and(valid_segment) && parts.all(valid_segment)
+    if value == "android" {
+        return true;
+    }
+    let parts: Vec<&str> = value.split('.').collect();
+    parts.len() >= 2 && parts.iter().all(|part| valid_segment(part))
 }
 fn valid_segment(value: &str) -> bool {
     !value.is_empty()
@@ -250,6 +253,10 @@ fn valid_segment(value: &str) -> bool {
 }
 fn valid_setting_key(value: &str) -> bool {
     !value.is_empty() && value.bytes().all(|b| b.is_ascii_alphanumeric() || b"_.:-".contains(&b))
+}
+fn valid_setting_value(value: &str) -> bool {
+    !value.is_empty()
+        && value.bytes().all(|b| b.is_ascii_alphanumeric() || b"_.:-".contains(&b))
 }
 fn valid_operation(value: &str) -> bool {
     !value.is_empty() && value.bytes().all(|b| b.is_ascii_uppercase() || b == b'_')
@@ -344,6 +351,12 @@ mod tests {
         assert!(original.validate().is_err());
         let mut original = snapshot();
         original.app_ops[0].mode = "run shell".into();
+        assert!(original.validate().is_err());
+        let mut original = snapshot();
+        original.secure_settings.insert("safe_key".into(), Some("$(id)".into()));
+        assert!(original.validate().is_err());
+        let mut original = snapshot();
+        original.packages.insert("notapackage".into(), PackageState::Enabled);
         assert!(original.validate().is_err());
     }
 
