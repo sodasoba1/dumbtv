@@ -870,6 +870,8 @@ pub async fn undo_smarttube(
             }
         }
     }
+    fs::remove_file(backup_path)
+        .map_err(|error| format!("device state was restored, but the local backup could not be retired: {error}"))?;
     Ok("Original YouTube enabled/disabled state and home.conf have been restored. SmartTube remains installed; remove it separately only if desired.".into())
 }
 
