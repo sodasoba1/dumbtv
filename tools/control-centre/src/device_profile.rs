@@ -1,8 +1,9 @@
 //! Device identity and compatibility gates shared by ADB preflight and the UI.
 //!
-//! The checks intentionally mirror the maintained scripts: cleanup supports
-//! Amazon Fire OS SDK 25 through 30; the launcher is restricted to API 25.
-//! A newer SDK is reported as unvalidated rather than guessed to be compatible.
+//! The validated Control Centre matrix is Amazon Fire OS SDK 25 through 30 for
+//! cleanup and API 25 only for the launcher. This is deliberately stricter than
+//! the current shell helper, which accepts any SDK >=25 but labels newer Fire OS
+//! releases untested. Rust fails closed above SDK 30 until those versions are tested.
 
 use std::collections::BTreeMap;
 
