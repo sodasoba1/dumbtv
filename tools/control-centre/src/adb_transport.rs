@@ -824,6 +824,8 @@ struct SmartTubeBackup {
     stock_youtube_installed: bool,
     stock_youtube_was_disabled: bool,
     home_conf: Option<Vec<u8>>,
+    #[serde(default)]
+    applied_home_conf: Option<Vec<u8>>,
 }
 
 /// Install the pinned SmartTube release and persist an exact pre-change backup
@@ -866,6 +868,7 @@ pub async fn install_smarttube(
         stock_youtube_installed: stock_installed,
         stock_youtube_was_disabled: stock_was_disabled,
         home_conf: original_home_conf,
+        applied_home_conf: None,
     };
     let backup_bytes = serde_json::to_vec_pretty(&backup)
         .map_err(|error| format!("cannot encode SmartTube restore backup: {error}"))?;
@@ -917,8 +920,23 @@ pub async fn install_smarttube(
 
     let mut home_config_updated = false;
     if let Some(original) = backup.home_conf.as_deref() {
+        let mut current_connection = connect(ip).await?;
+        let actual = read_profile(&mut current_connection).await?;
+        if !same_device(&actual, expected) {
+            return Err("device identity changed before home.conf update".into());
+        }
+        let current = read_remote_small_file(&mut current_connection, home_conf_path).await?;
+        if current.as_deref() != Some(original) {
+            return Err("DumbTV home.conf changed after its backup was captured; refusing to overwrite newer user settings".into());
+        }
         let replacement = crate::home_config::rewrite_apps_order(original)?;
         if replacement != original {
+            backup.applied_home_conf = Some(replacement.clone());
+            let updated_backup = serde_json::to_vec_pretty(&backup)
+                .map_err(|error| format!("cannot update SmartTube restore backup: {error}"))?;
+            AtomicFile::new(backup_path, AllowOverwrite)
+                .write(|file| file.write_all(&updated_backup))
+                .map_err(|error| format!("cannot persist the applied home.conf backup: {error}"))?;
             push_remote_small_file(ip, expected, home_conf_path, &replacement).await?;
             home_config_updated = true;
         }
@@ -959,21 +977,28 @@ pub async fn undo_smarttube(
         return Err("the device at the selected IP no longer matches the inspected Fire TV".into());
     }
     let home_conf_path = "/sdcard/Android/data/tv.dumbtv.home/files/home.conf";
-    if let Some(original) = backup.home_conf.as_deref() {
+    if let Some(applied) = backup.applied_home_conf.as_deref() {
+        let current = read_remote_small_file(&mut connection, home_conf_path).await?;
+        if current.as_deref() != Some(applied) {
+            return Err("DumbTV home.conf has been edited since SmartTube replacement; refusing to overwrite the newer user settings. The restore backup has been retained.".into());
+        }
+        let original = backup.home_conf.as_deref()
+            .ok_or("restore backup is missing the original home.conf bytes")?;
         push_remote_small_file(ip, expected, home_conf_path, original).await?;
     }
     if backup.stock_youtube_installed {
         let stock = crate::apk_release::STOCK_YOUTUBE_PACKAGE;
         let all = crate::package_inventory::parse_pm_list_output(&run_command(&mut connection, "pm list packages").await?)?;
         if all.contains(stock) {
-            let command = if backup.stock_youtube_was_disabled {
-                format!("pm disable-user --user 0 {stock}")
-            } else {
-                format!("pm enable --user 0 {stock}")
-            };
-            run_command(&mut connection, &command).await?;
             let disabled = crate::package_inventory::parse_pm_list_output(&run_command(&mut connection, "pm list packages -d").await?)?;
-            if disabled.contains(stock) != backup.stock_youtube_was_disabled {
+            if !disabled.contains(stock) {
+                return Err("stock YouTube was re-enabled after SmartTube installation; refusing to override that later user change. The restore backup has been retained.".into());
+            }
+            if !backup.stock_youtube_was_disabled {
+                run_command(&mut connection, &format!("pm enable --user 0 {stock}")).await?;
+            }
+            let after = crate::package_inventory::parse_pm_list_output(&run_command(&mut connection, "pm list packages -d").await?)?;
+            if after.contains(stock) != backup.stock_youtube_was_disabled {
                 return Err("stock YouTube did not return to its original enabled/disabled state".into());
             }
         }
