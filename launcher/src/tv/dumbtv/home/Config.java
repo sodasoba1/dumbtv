@@ -383,7 +383,8 @@ final class Config {
     }
 
     void setText(String key, String value) {
-        set(key, encodeText(value == null ? "" : value));
+        if (value == null || value.isEmpty()) set(key, null);
+        else set(key, encodeText(value));
     }
 
     static String encodeText(String value) {
