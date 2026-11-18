@@ -1,3 +1,4 @@
+mod catalogue;
 mod device_profile;
 
 use eframe::egui;
