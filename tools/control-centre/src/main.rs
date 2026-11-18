@@ -1117,10 +1117,14 @@ impl eframe::App for ControlCentre {
                 ui.checkbox(&mut self.replace_youtube, "I explicitly want to install SmartTube and disable stock YouTube (reversible)");
                 ui.label("SmartTube is opt-in. Stock YouTube is disabled, never uninstalled, by this workflow. The original YouTube state and exact home.conf bytes are backed up for undo.");
                 ui.small("After installation, use the TV remote once: SmartTube Settings > General > Hide content > Hide shorts everywhere; Player > Video presets > 1080p 60fps VP9 (not AV1).");
-                if ui.add_enabled(!busy && self.replace_youtube, egui::Button::new("Install SmartTube (downloads if needed)")).clicked() {
-                    self.install_smarttube_on_device(ip, profile.clone());
-                }
                 let backup_exists = smarttube_backup_path(profile).is_ok_and(|path| path.is_file());
+                if !backup_exists {
+                    if ui.add_enabled(!busy && self.replace_youtube, egui::Button::new("Install SmartTube (downloads if needed)")).clicked() {
+                        self.install_smarttube_on_device(ip, profile.clone());
+                    }
+                } else {
+                    ui.small("A SmartTube restore backup already exists. Undo the current replacement before starting a fresh SmartTube operation.");
+                }
                 if ui.add_enabled(!busy && backup_exists, egui::Button::new("Undo SmartTube replacement")).clicked() {
                     self.undo_smarttube_on_device(ip, profile.clone());
                 }
