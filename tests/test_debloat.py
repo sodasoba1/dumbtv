@@ -32,7 +32,7 @@ STORE_APPS = ["com.netflix.ninja", "com.amazon.firetv.youtube", "org.videolan.vl
 class DebloatTest(unittest.TestCase):
     AMAZON_DREAM = "com.amazon.ftv.screensaver/.app.services.ScreensaverService"
 
-    def run_debloat(self, conf="", *flags, basic_dream=True, pre_disabled=()):
+    def run_debloat(self, conf="", *flags, basic_dream=True, pre_disabled=(), legacy_report=False):
         packages = {p: {"system": True, "enabled": True} for p in CLEANUP + ALEXA + USER_APPS}
         if basic_dream:
             packages["com.android.dreams.basic"] = {"system": True, "enabled": True}
@@ -49,6 +49,10 @@ class DebloatTest(unittest.TestCase):
                 "secure/screensaver_components": self.AMAZON_DREAM}}))
             log = tmp / "commands.log"
             log.touch()
+            if legacy_report:
+                report_dir = tmp / "report"
+                report_dir.mkdir()
+                (report_dir / "debloat.txt").write_text("com.amazon.hedwig\\tdisabled\\n")
             (tmp / "dumbtv.conf").write_text(conf)
             env = dict(os.environ, ADB=str(ROOT / "tests" / "fake_tv.py"), ADB_SERIAL="test-tv",
                        FAKE_TV_STATE=str(state), FAKE_TV_LOG=str(log), CONF=str(tmp / "dumbtv.conf"),
@@ -80,8 +84,13 @@ class DebloatTest(unittest.TestCase):
     def test_original_package_enabled_state_is_snapshotted(self):
         self.run_debloat(pre_disabled=["com.amazon.tv.acr"])
         self.assertIsNotNone(self.package_snapshot)
-        self.assertIn("com.amazon.tv.acr\\tdisabled", self.package_snapshot)
-        self.assertIn("com.amazon.hedwig\\tenabled", self.package_snapshot)
+        self.assertIn("com.amazon.tv.acr\tdisabled", self.package_snapshot)
+        self.assertIn("com.amazon.hedwig\tenabled", self.package_snapshot)
+
+    def test_legacy_report_does_not_snapshot_already_debloated_state(self):
+        self.run_debloat(legacy_report=True)
+        self.assertIsNone(self.package_snapshot,
+                          "legacy installations without a baseline must keep legacy restore behaviour")
 
     def test_default_touches_no_app(self):
         disabled, uninstalled, _ = self.run_debloat()
