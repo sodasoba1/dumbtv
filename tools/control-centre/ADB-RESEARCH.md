@@ -3,10 +3,12 @@
 ## Preferred candidate for a Windows-only Control Centre
 
 The Rust ADB AUTH public-key encoder is implemented and unit-tested in
-`src/adb_auth.rs`. The Windows CNG adapter in `src/cng_auth.rs` now creates a
+`src/adb_auth.rs`. The Windows CNG adapter in `src/cng_auth.rs` creates a
 dedicated current-user key in the Microsoft Software Key Storage Provider,
-exports only its public key and signs ADB tokens through CNG. It has not yet
-been wired into a live ADB connection or tested on an AFTMM.
+exports only its public key and signs ADB tokens through CNG. It also computes
+the MD5 fingerprint displayed by Android 7-era authorisation dialogs and a
+separate SHA-256 fingerprint for the app's own display. Neither the key adapter
+nor the transport has been physically tested on an AFTMM.
 
 **Candidate: `libadb` 0.9.x with its built-in `keys` and `host-keys` features disabled.**
 
@@ -20,7 +22,9 @@ The proposed Windows authentication design is:
 1. Use Windows CNG to create and retain a dedicated 2048-bit RSA host key.
 2. Use CNG for PKCS#1 v1.5 / SHA-1 token signing, as required by legacy ADB.
 3. Export only the public modulus and exponent to construct Android's
-   mincrypt `adbkey.pub` payload.
+   mincrypt `adbkey.pub` payload. Display the MD5 key fingerprint expected by
+   the Android 7 authorization dialog; do not treat MD5 as an authentication
+   primitive.
 4. Implement `libadb::auth::Authenticator` in Rust and use the dedicated
    non-exportable CNG key. Do not reuse or overwrite another application's ADB key.
 5. Connect directly to the TV's TCP ADB endpoint; no ADB server or
@@ -30,6 +34,16 @@ This keeps protocol handling and all application orchestration in Rust while
 delegating the legacy RSA primitive to Windows' maintained cryptographic
 provider. It also avoids carrying the affected RustCrypto `rsa 0.9` signing
 implementation into the executable.
+
+## Read-only transport milestone
+
+`src/adb_transport.rs` now contains a Rust TCP connection path using
+`libadb` and the Windows CNG authenticator. It connects only to the
+owner-supplied IP on port 5555, uses bounded ADB packet/channel buffers, and
+runs only the constant `getprop` command. It performs no package or settings
+writes. On a first connection the TV may add this host key to its ADB trust
+store, but only after the owner approves the on-TV prompt. The UI does not yet
+expose this function and no physical device test has been performed.
 
 ## Compatibility caveat
 
