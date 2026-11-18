@@ -358,6 +358,39 @@ pub async fn reboot_and_reconnect(
     Err("the Fire TV did not complete ADB reconnect within 120 seconds".into())
 }
 
+/// Read-only verification of every cleanup mutation marked verified in a
+/// matching journal. This can be run again after reboot or a later firmware change.
+pub async fn verify_cleanup_journal(
+    ip: IpAddr,
+    expected: &DeviceProfile,
+    journal: &OperationJournal,
+) -> Result<usize, String> {
+    if journal.workflow != WorkflowKind::Cleanup
+        || journal.manufacturer != expected.manufacturer
+        || journal.model != expected.model
+        || journal.build_display_id != expected.build_display_id
+        || journal.android_sdk != expected.sdk
+    {
+        return Err("cleanup journal identity does not match the connected device".into());
+    }
+    let operations: Vec<crate::operations::PlannedOperation> = journal.operations.iter()
+        .filter(|item| item.status == crate::operation_journal::OperationStatus::Verified)
+        .filter_map(|item| item.command.clone().map(|command| crate::operations::PlannedOperation {
+            description: item.description.clone(), command,
+        }))
+        .collect();
+    if operations.is_empty() {
+        return Err("matching cleanup journal contains no verified typed operations to check".into());
+    }
+    let mut connection = connect(ip).await?;
+    let actual = read_profile(&mut connection).await?;
+    if !same_device(&actual, expected) {
+        return Err("the device at the selected IP no longer matches the inspected Fire TV".into());
+    }
+    verify_cleanup_operations(&mut connection, &operations).await?;
+    Ok(operations.len())
+}
+
 pub async fn read_current_device_state(
     ip: IpAddr,
     expected: &DeviceProfile,
