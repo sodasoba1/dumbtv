@@ -498,7 +498,7 @@ impl ControlCentre {
             state.status = "Reading current device state and calculating the restore delta…".into();
         }
         thread::spawn(move || {
-            let result = (|| -> Result<(snapshot::RestorePlan, snapshot::CurrentDeviceState), String> {
+            let result = (|| -> Result<(snapshot::RestorePlan, snapshot::CurrentDeviceState, usize), String> {
                 let original = snapshot::DeviceSnapshot::load(&snapshot_path)?;
                 if original.manufacturer != profile.manufacturer || original.model != profile.model || original.build_display_id != profile.build_display_id || original.android_sdk != profile.sdk {
                     return Err("the saved original snapshot belongs to a different device".into());
@@ -506,14 +506,26 @@ impl ControlCentre {
                 let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
                     .map_err(|error| format!("cannot start the ADB runtime: {error}"))?;
                 let current = runtime.block_on(adb_transport::read_current_device_state(ip, &profile, &original))?;
-                let plan = snapshot::build_restore_plan(&original, &current)?;
-                Ok((plan, current))
+                let full_plan = snapshot::build_restore_plan(&original, &current)?;
+                let journal = latest_cleanup_journal()?.ok_or(
+                    "no cleanup journal is available; refusing to restore arbitrary differences from the original snapshot"
+                )?;
+                if journal.manufacturer != profile.manufacturer
+                    || journal.model != profile.model
+                    || journal.build_display_id != profile.build_display_id
+                    || journal.android_sdk != profile.sdk
+                    || journal.source_commit != original.source_commit
+                {
+                    return Err("the latest cleanup journal does not match this device and original snapshot".into());
+                }
+                let (plan, excluded) = operations::scope_restore_to_verified_cleanup(&full_plan, &journal);
+                Ok((plan, current, excluded))
             })();
             let mut state = shared.lock().expect("state lock poisoned");
             match result {
-                Ok((plan, current)) => {
+                Ok((plan, current, excluded)) => {
                     let (commands, manual) = operations::build_restore_operations(&plan);
-                    state.status = format!("Restore plan ready: {} automatic operations and {} manual items. Nothing has been changed.", commands.len(), manual.len());
+                    state.status = format!("Selective restore plan ready: {} automatic operations and {} manual items. {excluded} baseline differences were not attributed to verified DumbTV changes and will be left untouched. Nothing has been changed.", commands.len(), manual.len());
                     state.restore_plan = Some(plan);
                     state.restore_current = Some(current);
                 }
@@ -895,6 +907,23 @@ impl eframe::App for ControlCentre {
 
 fn short_sha(sha: &str) -> &str {
     sha.get(..7).unwrap_or(sha)
+}
+
+fn latest_cleanup_journal() -> Result<Option<operation_journal::OperationJournal>, String> {
+    let root = app_root()?.join("journals");
+    let entries = match fs::read_dir(root) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(format!("cannot read operation journals: {error}")),
+    };
+    let mut journals: Vec<operation_journal::OperationJournal> = entries.flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().and_then(|value| value.to_str()) == Some("json"))
+        .filter_map(|path| operation_journal::OperationJournal::load(&path).ok())
+        .filter(|journal| journal.workflow == operation_journal::WorkflowKind::Cleanup)
+        .collect();
+    journals.sort_by(|left, right| right.created_unix_seconds.cmp(&left.created_unix_seconds));
+    Ok(journals.into_iter().next())
 }
 
 fn load_unfinished_journals() -> Vec<String> {
