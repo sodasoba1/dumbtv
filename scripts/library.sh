@@ -59,8 +59,9 @@ sdk=$(adb_ shell getprop ro.build.version.sdk | tr -d '\r')
 
 # The launcher is API 25 only; getExternalFilesDir(null) resolves here on AFTMM.
 DEST=/sdcard/Android/data/tv.dumbtv.home/files/library
-STAGE="$DEST.staging.$"
-BACKUP="$DEST.backup.$"
+suffix="${RANDOM}_$(date +%s)"
+STAGE="$DEST.staging.$suffix"
+BACKUP="$DEST.backup.$suffix"
 
 # Upload into a sibling directory first. A failed push must leave the current
 # Library untouched; only swap directories after every file has arrived.
