@@ -454,8 +454,12 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let commands = vec![
             ("Disable com.amazon.ads".into(), DeviceCommand::DisablePackage("com.amazon.ads".into())),
+            ("Disable second package".into(), DeviceCommand::DisablePackage("com.amazon.other".into())),
             ("Set privacy key".into(), DeviceCommand::PutSetting {
                 namespace: SettingsNamespace::Secure, key: "advertising_id".into(), value: "0".into(),
+            }),
+            ("Set second privacy key".into(), DeviceCommand::PutSetting {
+                namespace: SettingsNamespace::Secure, key: "manual_key".into(), value: "0".into(),
             }),
             ("Restrict AppOp".into(), DeviceCommand::SetAppOp {
                 package: "com.amazon.hedwig".into(), operation: "RUN_IN_BACKGROUND".into(), mode: "ignore".into(),
