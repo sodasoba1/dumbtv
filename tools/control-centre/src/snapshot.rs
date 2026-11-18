@@ -253,8 +253,7 @@ fn valid_setting_key(value: &str) -> bool {
     !value.is_empty() && value.bytes().all(|b| b.is_ascii_alphanumeric() || b"_.:-".contains(&b))
 }
 fn valid_setting_value(value: &str) -> bool {
-    !value.is_empty()
-        && value.bytes().all(|b| b.is_ascii_alphanumeric() || b"_.:-".contains(&b))
+    value.len() <= 4096 && !value.chars().any(char::is_control)
 }
 fn valid_operation(value: &str) -> bool {
     !value.is_empty() && value.bytes().all(|b| b.is_ascii_uppercase() || b == b'_')
@@ -351,7 +350,9 @@ mod tests {
         original.app_ops[0].mode = "run shell".into();
         assert!(original.validate().is_err());
         let mut original = snapshot();
-        original.secure_settings.insert("safe_key".into(), Some("$(id)".into()));
+        original.secure_settings.insert("safe_key".into(), Some("value with spaces".into()));
+        assert!(original.validate().is_ok());
+        original.secure_settings.insert("unsafe_key".into(), Some("bad\\nvalue".into()));
         assert!(original.validate().is_err());
         let mut original = snapshot();
         original.packages.insert("notapackage".into(), PackageState::Enabled);
