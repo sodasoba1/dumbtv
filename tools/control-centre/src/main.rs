@@ -1025,7 +1025,7 @@ impl eframe::App for ControlCentre {
                 if profile.launcher_compatibility() == device_profile::Compatibility::Supported {
                     ui.label("API 25 only. Installs the checksum-verified published APK; it never uninstalls an existing signed package to work around a signature mismatch.");
                     ui.horizontal(|ui| {
-                        if ui.add_enabled(!busy, egui::Button::new("Install / update DumbTV HOME")).clicked() {
+                        if ui.add_enabled(!busy, egui::Button::new("Install / update DumbTV HOME (downloads if needed)")).clicked() {
                             self.install_launcher_on_device(ip, profile.clone());
                         }
                         if ui.add_enabled(!busy, egui::Button::new("Undo HOME takeover")).clicked() {
@@ -1042,7 +1042,8 @@ impl eframe::App for ControlCentre {
                 ui.heading("Optional SmartTube replacement");
                 ui.checkbox(&mut self.replace_youtube, "I explicitly want to install SmartTube and disable stock YouTube (reversible)");
                 ui.label("SmartTube is opt-in. Stock YouTube is disabled, never uninstalled, by this workflow. The original YouTube state and exact home.conf bytes are backed up for undo.");
-                if ui.add_enabled(!busy && self.replace_youtube, egui::Button::new("Install SmartTube")).clicked() {
+                ui.small("After installation, use the TV remote once: SmartTube Settings > General > Hide content > Hide shorts everywhere; Player > Video presets > 1080p 60fps VP9 (not AV1).");
+                if ui.add_enabled(!busy && self.replace_youtube, egui::Button::new("Install SmartTube (downloads if needed)")).clicked() {
                     self.install_smarttube_on_device(ip, profile.clone());
                 }
                 let backup_exists = smarttube_backup_path(profile).is_ok_and(|path| path.is_file());
