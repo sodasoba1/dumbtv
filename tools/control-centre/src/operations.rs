@@ -358,7 +358,7 @@ mod tests {
         )));
         assert!(plan.operations.iter().any(|item| matches!(
             &item.command, DeviceCommand::ForceStopAndRestrictIfRunning { package, uid: Some(10026), sdk: 25 }
-                if package == "com.amazon.ads"
+                if package == "com.amazon.hedwig"
         )));
         assert!(plan.operations.iter().any(|item| matches!(
             &item.command, DeviceCommand::PutSetting { namespace: SettingsNamespace::Secure, .. }
