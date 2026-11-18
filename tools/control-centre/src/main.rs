@@ -1143,14 +1143,14 @@ fn download_launcher_apk() -> Result<String, String> {
     let actual = apk_release::sha256_hex(&bytes);
     apk_release::verify_sha256(&bytes, expected)?;
     let path = store_verified_apk(&format!("dumbtv-home-{}.apk", release.version), &bytes, expected)?;
-    Ok(format!("Launcher {} (versionCode {}) downloaded and checksum-verified. SHA-256 {}. Stored as {}. It has not been installed.", release.version, release.version_code, actual, path.file_name().and_then(|value| value.to_str()).unwrap_or("launcher APK")))
+    Ok(format!("{} {} (versionCode {}) downloaded and checksum-verified. SHA-256 {}. Stored as {}. It has not been installed.", apk_release::LAUNCHER_PACKAGE, release.version, release.version_code, actual, path.file_name().and_then(|value| value.to_str()).unwrap_or("launcher APK")) )
 }
 
 fn download_smarttube_apk() -> Result<String, String> {
     let bytes = download_github_release_asset(apk_release::SMARTTUBE_URL, 128 * 1024 * 1024)?;
     apk_release::verify_sha256(&bytes, apk_release::SMARTTUBE_SHA256)?;
     let path = store_verified_apk("smarttube-32.56s.apk", &bytes, apk_release::SMARTTUBE_SHA256)?;
-    Ok(format!("SmartTube versionCode {} downloaded and checksum-verified. It has not been installed and stock YouTube has not been changed. Stored as {}.", apk_release::SMARTTUBE_VERSION_CODE, path.file_name().and_then(|value| value.to_str()).unwrap_or("SmartTube APK")))
+    Ok(format!("{} versionCode {} downloaded and checksum-verified. {} has not been disabled or removed. Stored as {}.", apk_release::SMARTTUBE_PACKAGE, apk_release::SMARTTUBE_VERSION_CODE, apk_release::STOCK_YOUTUBE_PACKAGE, path.file_name().and_then(|value| value.to_str()).unwrap_or("SmartTube APK")))
 }
 
 fn valid_sha(sha: &str) -> bool {
