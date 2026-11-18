@@ -21,6 +21,7 @@ use crate::{
     package_inventory::PackageInventory,
     settings_catalogue::SettingsCatalogue,
     snapshot::{AppOpState, DeviceSnapshot, PackageState},
+    operation_journal::{OperationJournal, WorkflowKind},
 };
 
 const ADB_PORT: u16 = 5555;
@@ -185,7 +186,12 @@ pub async fn execute_plan(
     original: &DeviceSnapshot,
     operations: &[crate::operations::PlannedOperation],
     never_disable: &BTreeSet<String>,
+    journal_path: &Path,
 ) -> Result<ExecutionReport, String> {
+    let mut journal = OperationJournal::load(journal_path)?;
+    if journal.workflow != WorkflowKind::Cleanup || journal.operations.iter().map(|item| &item.description).ne(operations.iter().map(|item| &item.description)) {
+        return Err("cleanup journal does not match the reviewed operation plan".into());
+    }
     let mut connection = connect(ip).await?;
     let actual = read_profile(&mut connection).await?;
     if !same_device(&actual, expected) {
@@ -193,15 +199,21 @@ pub async fn execute_plan(
     }
     validate_original_snapshot_state(&mut connection, original).await?;
     let mut report = ExecutionReport { completed: Vec::new(), failure: None };
-    for operation in operations {
+    for (index, operation) in operations.iter().enumerate() {
+        journal.mark_running(journal_path, index)?;
         match execute_one(&mut connection, &operation.command, never_disable).await {
-            Ok(_) => report.completed.push(operation.description.clone()),
+            Ok(_) => {
+                journal.mark_verified(journal_path, index)?;
+                report.completed.push(operation.description.clone());
+            }
             Err(error) => {
+                journal.mark_failed(journal_path, index, &error)?;
                 report.failure = Some(format!("{}: {error}", operation.description));
                 break;
             }
         }
     }
+    if report.failure.is_none() { journal.finish(journal_path)?; }
     Ok(report)
 }
 
@@ -225,7 +237,12 @@ pub async fn execute_restore_plan(
     reviewed_current: &crate::snapshot::CurrentDeviceState,
     operations: &[crate::operations::PlannedOperation],
     never_disable: &BTreeSet<String>,
+    journal_path: &Path,
 ) -> Result<ExecutionReport, String> {
+    let mut journal = OperationJournal::load(journal_path)?;
+    if journal.workflow != WorkflowKind::Restore || journal.operations.iter().map(|item| &item.description).ne(operations.iter().map(|item| &item.description)) {
+        return Err("restore journal does not match the reviewed restore plan".into());
+    }
     let mut connection = connect(ip).await?;
     let actual = read_profile(&mut connection).await?;
     if !same_device(&actual, expected) {
@@ -236,15 +253,21 @@ pub async fn execute_restore_plan(
         return Err("device state changed after the restore plan was reviewed; no restore command was sent".into());
     }
     let mut report = ExecutionReport { completed: Vec::new(), failure: None };
-    for operation in operations {
+    for (index, operation) in operations.iter().enumerate() {
+        journal.mark_running(journal_path, index)?;
         match execute_one(&mut connection, &operation.command, never_disable).await {
-            Ok(_) => report.completed.push(operation.description.clone()),
+            Ok(_) => {
+                journal.mark_verified(journal_path, index)?;
+                report.completed.push(operation.description.clone());
+            }
             Err(error) => {
+                journal.mark_failed(journal_path, index, &error)?;
                 report.failure = Some(format!("{}: {error}", operation.description));
                 break;
             }
         }
     }
+    if report.failure.is_none() { journal.finish(journal_path)?; }
     Ok(report)
 }
 
