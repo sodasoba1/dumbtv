@@ -114,6 +114,10 @@ final class Tile extends View {
         invalidate();
     }
 
+    int totalHeight() {
+        return cardH + labelH;
+    }
+
     @Override
     protected void onMeasure(int widthSpec, int heightSpec) {
         setMeasuredDimension(cardW, cardH + labelH);
@@ -164,11 +168,17 @@ final class Tile extends View {
         } else if (banner != null) {
             int sourceWidth = Math.max(1, banner.getIntrinsicWidth());
             int sourceHeight = Math.max(1, banner.getIntrinsicHeight());
-            float scale = Math.min(cardW / (float) sourceWidth, cardH / (float) sourceHeight);
+            boolean customBackground = Config.get(getContext())
+                    .get(AppStyle.key(item, "background"), null) != null;
+            int inset = customBackground ? Ui.dp(getContext(), 8) : 0;
+            int availableWidth = Math.max(1, cardW - inset * 2);
+            int availableHeight = Math.max(1, cardH - inset * 2);
+            float scale = Math.min(availableWidth / (float) sourceWidth,
+                    availableHeight / (float) sourceHeight);
             int drawWidth = Math.max(1, Math.round(sourceWidth * scale));
             int drawHeight = Math.max(1, Math.round(sourceHeight * scale));
-            int left = (cardW - drawWidth) / 2;
-            int top = (cardH - drawHeight) / 2;
+            int left = inset + (availableWidth - drawWidth) / 2;
+            int top = inset + (availableHeight - drawHeight) / 2;
             banner.setBounds(left, top, left + drawWidth, top + drawHeight);
             banner.draw(canvas);
         } else if (icon != null) {

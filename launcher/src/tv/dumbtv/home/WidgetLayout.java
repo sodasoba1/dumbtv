@@ -39,7 +39,7 @@ final class WidgetLayout {
 
     static WidgetLayout defaults() {
         WidgetLayout result = new WidgetLayout();
-        result.add("clock", "clock", 0, 0, 1, 2);
+        result.add("clock", "clock", 0, 0, 2, 1);
         return result;
     }
 
@@ -111,9 +111,9 @@ final class WidgetLayout {
                 || "diagnostics".equals(type) || "device".equals(type);
     }
 
-    /** Widgets start narrow and vertical; users can widen or lengthen them when needed. */
+    /** Width is columns across; height is rows down. Every in-bounds rectangle is valid. */
     private static boolean validSize(int width, int height) {
-        return width >= 1 && width <= COLUMNS && height >= 2 && height <= ROWS;
+        return width >= 1 && width <= COLUMNS && height >= 1 && height <= ROWS;
     }
 
     /** Stable compact format: id,type,x,y,width,height;... */
@@ -126,6 +126,44 @@ final class WidgetLayout {
                     .append(widget.width).append(',').append(widget.height);
         }
         return out.toString();
+    }
+
+    /**
+     * Migrates v1.14 saved sizes, whose UI described columns x rows, to the corrected
+     * rows x columns presentation. Existing coordinates are retained where possible;
+     * if a transposed rectangle no longer fits, find the nearest free placement.
+     */
+    static WidgetLayout decodeLegacy(String encoded) {
+        WidgetLayout result = new WidgetLayout();
+        if (encoded == null || encoded.trim().isEmpty()) return result;
+        for (String record : encoded.split(";")) {
+            String[] fields = record.split(",", -1);
+            if (fields.length != 6) continue;
+            try {
+                int x = Integer.parseInt(fields[2]);
+                int y = Integer.parseInt(fields[3]);
+                int oldWidth = Integer.parseInt(fields[4]);
+                int oldHeight = Integer.parseInt(fields[5]);
+                int width = oldHeight;
+                int height = oldWidth;
+                if (result.add(fields[0], fields[1], x, y, width, height)) continue;
+                boolean placed = false;
+                for (int row = 0; row + height <= ROWS && !placed; row++) {
+                    for (int column = 0; column + width <= COLUMNS; column++) {
+                        if (result.add(fields[0], fields[1], column, row, width, height)) {
+                            placed = true;
+                            break;
+                        }
+                    }
+                }
+                // Retain the old valid rectangle rather than discard a widget if no
+                // transposed location is available.
+                if (!placed) result.add(fields[0], fields[1], x, y, oldWidth, oldHeight);
+            } catch (NumberFormatException ignored) {
+                // Ignore corrupt records; retain every other valid placement.
+            }
+        }
+        return result;
     }
 
     static WidgetLayout decode(String encoded) {

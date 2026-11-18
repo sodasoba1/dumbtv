@@ -113,25 +113,6 @@ public final class ConfigTest {
         }
     }
 
-    private static void favouritesAlignmentDefaultsAndPersists() throws Exception {
-        try (Fixture f = new Fixture()) {
-            Config cfg = f.open();
-            check(java.util.Arrays.asList(Config.CHOICES).contains(Config.FAVOURITES_ALIGN),
-                    "favourites alignment is registered with the settings choices");
-            check("center".equals(cfg.get(Config.FAVOURITES_ALIGN)),
-                    "favourites alignment defaults to centre");
-            cfg.set(Config.FAVOURITES_ALIGN.key, "left");
-            check("left".equals(f.open().get(Config.FAVOURITES_ALIGN)),
-                    "left favourites alignment persists");
-            cfg.set(Config.FAVOURITES_ALIGN.key, "right");
-            check("right".equals(f.open().get(Config.FAVOURITES_ALIGN)),
-                    "right favourites alignment persists");
-            cfg.set(Config.FAVOURITES_ALIGN.key, "invalid");
-            check("center".equals(f.open().get(Config.FAVOURITES_ALIGN)),
-                    "invalid favourites alignment falls back to centre");
-        }
-    }
-
     private static void toolbarAutoHideDefaultsAndPersists() throws Exception {
         try (Fixture f = new Fixture()) {
             Config cfg = f.open();
@@ -232,7 +213,6 @@ public final class ConfigTest {
         customColoursIndependent();
         legacyValuesRemainReadable();
         themeAndTileSizePresets();
-        favouritesAlignmentDefaultsAndPersists();
         toolbarAutoHideDefaultsAndPersists();
         customTextRoundTrips();
         concurrentSettingsAccess();

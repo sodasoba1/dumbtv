@@ -94,7 +94,6 @@ public final class Home extends Activity {
     private int libraryGeneration;
     private Map<String, Long> recent = new HashMap<>();
     private Tile moving;
-    private TextView allAppsButton;
     private String wallKey;
     private String backgroundMode;
     private ValueAnimator colorAnimation;
@@ -406,9 +405,11 @@ public final class Home extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         if (moving == null) {
+            View focused = getCurrentFocus();
             if (e.getAction() == KeyEvent.ACTION_DOWN
                     && e.getKeyCode() == KeyEvent.KEYCODE_DPAD_DOWN
-                    && getCurrentFocus() == allAppsButton) {
+                    && focused instanceof Tile
+                    && Catalog.APPS.equals(((Tile) focused).kind)) {
                 openAllApps();
                 return true;
             }
@@ -728,6 +729,11 @@ public final class Home extends Activity {
             widgetLayout = WidgetLayout.defaults();
             cfg.set(WidgetLayout.CONFIG_KEY, widgetLayout.encode());
             cfg.set("widgets.initialized", "1");
+            cfg.set("widgets.layout.version", "2");
+        } else if (!"2".equals(cfg.get("widgets.layout.version", ""))) {
+            widgetLayout = WidgetLayout.decodeLegacy(cfg.get(WidgetLayout.CONFIG_KEY, ""));
+            cfg.set(WidgetLayout.CONFIG_KEY, widgetLayout.encode());
+            cfg.set("widgets.layout.version", "2");
         } else {
             widgetLayout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         }
@@ -834,18 +840,20 @@ public final class Home extends Activity {
      * it takes the last tile of the line below, the nearest one in that line.
      */
     private int favoriteBottomReserve() {
-        return apps == null || favoritesPanel.getVisibility() != View.VISIBLE
-                ? dp(16) : favoriteCardSize()[1] + dp(68);
+        if (apps == null || favoritesPanel.getVisibility() != View.VISIBLE) return dp(16);
+        int height = 0;
+        for (int i = 0; i < apps.tiles().getChildCount(); i++) {
+            View child = apps.tiles().getChildAt(i);
+            if (child instanceof Tile) height = Math.max(height, ((Tile) child).totalHeight());
+        }
+        return height == 0 ? dp(16) : height + dp(68);
     }
 
-    private int[] favoriteCardSize() {
+    private int[] favoriteCardSize(Item item) {
         int[] base = cardSize();
-        String spacing = cfg.get(Config.TILE_SPACING);
-        int gap = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
-        int available = getResources().getDisplayMetrics().widthPixels - dp(24);
-        int widthForSix = Math.max(dp(112), (available - gap * 5) / 6);
-        int width = Math.min(base[0], widthForSix);
-        return new int[] {width, Math.round(width * 9f / 16f)};
+        String size = AppStyle.get(cfg, item, "size", "normal");
+        float scale = "compact".equals(size) ? 0.82f : "large".equals(size) ? 1.18f : 1f;
+        return new int[] {Math.round(base[0] * scale), Math.round(base[1] * scale)};
     }
 
     private void toolbarFocusChanged(boolean focused) {
@@ -1026,7 +1034,6 @@ public final class Home extends Activity {
     /** Navigation chip that opens the full installed-app catalogue. */
     private TextView allAppsChip() {
         TextView v = Ui.text(this, 14, Ui.TEXT, Ui.MEDIUM);
-        allAppsButton = v;
         v.setText(R.string.all_apps);
         v.setContentDescription(getString(R.string.all_apps));
         v.setGravity(Gravity.CENTER);
@@ -1292,24 +1299,27 @@ public final class Home extends Activity {
         List<Item> shown = enabled ? Catalog.visible(cfg, row.kind,
                 row == allApps ? apps.all : row.all, recentFor(row.kind))
                 : new ArrayList<>();
-        int[] size = row == apps ? favoriteCardSize() : cardSize();
-        int w = size[0], h = Catalog.isApp(row.kind) ? size[1] : Math.round(size[1] * 0.56f);
+        int[] size = row == apps ? null : cardSize();
         String labels = cfg.get(Config.LABELS);
         int accent = cfg.accent();
-        boolean loopingFavourites = row == apps && shown.size() > 6;
-        int copies = loopingFavourites ? 3 : 1;
-        row.initialFocusIndex = loopingFavourites ? shown.size() : 0;
         String spacing = cfg.get(Config.TILE_SPACING);
         int tileGap = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
+        int availableWidth = getResources().getDisplayMetrics().widthPixels - dp(48);
+        int contentWidth = 0;
         if (row == apps) {
-            int alignment = "left".equals(cfg.get(Config.FAVOURITES_ALIGN)) ? Gravity.LEFT
-                    : "right".equals(cfg.get(Config.FAVOURITES_ALIGN)) ? Gravity.RIGHT
-                    : Gravity.CENTER_HORIZONTAL;
-            row.strip.setGravity(Gravity.CENTER_VERTICAL | (loopingFavourites ? Gravity.LEFT : alignment));
-            int availableWidth = getResources().getDisplayMetrics().widthPixels - dp(48);
-            int contentWidth = shown.size() * w + Math.max(0, shown.size() - 1) * tileGap;
+            for (Item item : shown) contentWidth += favoriteCardSize(item)[0];
+        } else if (size != null) {
+            contentWidth = shown.size() * size[0];
+        }
+        contentWidth += Math.max(0, shown.size() - 1) * tileGap;
+        boolean loopingFavourites = row == apps
+                && (shown.size() > 5 || contentWidth > availableWidth);
+        int copies = loopingFavourites ? 3 : 1;
+        row.initialFocusIndex = loopingFavourites ? shown.size() : 0;
+        if (row == apps) {
+            row.strip.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
             row.strip.setLayoutParams(new FrameLayout.LayoutParams(
-                    loopingFavourites || contentWidth > availableWidth ? WRAP : MATCH, WRAP));
+                    loopingFavourites ? WRAP : MATCH, WRAP));
         }
         int index = 0, restore = -1;
         for (int copy = 0; copy < copies; copy++) {
@@ -1317,6 +1327,9 @@ public final class Home extends Activity {
                 final int copyIndex = copy;
                 final int itemPosition = itemIndex;
                 Item it = shown.get(itemIndex);
+                int[] itemSize = row == apps ? favoriteCardSize(it) : size;
+                int w = itemSize[0];
+                int h = Catalog.isApp(row.kind) ? itemSize[1] : Math.round(itemSize[1] * 0.56f);
                 Tile t = new Tile(this, it, row.kind, Catalog.label(cfg, it), w, h, labels, accent);
                 t.setOnClickListener(v -> open((Tile) v));
                 t.setOnFocusChangeListener((v, has) -> {

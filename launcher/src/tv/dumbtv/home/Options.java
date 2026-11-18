@@ -84,8 +84,7 @@ public final class Options extends Activity {
         }));
 
         heading(list, R.string.options_topbar_favourites);
-        addChoices(list, Config.TOOLBAR_ALIGN, Config.TOOLBAR_AUTO_HIDE,
-                Config.FAVOURITES_ALIGN, Config.CHIPS);
+        addChoices(list, Config.TOOLBAR_ALIGN, Config.TOOLBAR_AUTO_HIDE, Config.CHIPS);
 
         heading(list, R.string.options_focus_navigation);
         addChoices(list, Config.FOCUS_SCALE, Config.FOCUS_INDICATOR, Config.FOCUS_ANIMATION);

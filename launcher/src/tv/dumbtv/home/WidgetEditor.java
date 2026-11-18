@@ -42,7 +42,13 @@ public final class WidgetEditor extends Activity {
         super.onCreate(state);
         cfg = Config.get(this);
         cfg.refresh();
-        layout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
+        if (!"2".equals(cfg.get("widgets.layout.version", ""))) {
+            layout = WidgetLayout.decodeLegacy(cfg.get(WidgetLayout.CONFIG_KEY, ""));
+            cfg.set(WidgetLayout.CONFIG_KEY, layout.encode());
+            cfg.set("widgets.layout.version", "2");
+        } else {
+            layout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
+        }
         pendingText = cfg.getText("widgets.text", "Custom text");
         for (WidgetLayout.Widget widget : layout.items()) {
             int fallback = "clock".equals(widget.type) ? 32
@@ -197,7 +203,7 @@ public final class WidgetEditor extends Activity {
             return;
         }
         selectionInfo.setText(widget.type.toUpperCase(java.util.Locale.ROOT)
-                + "  ·  " + widget.width + " × " + widget.height
+                + "  ·  " + widget.height + " row(s) × " + widget.width + " column(s)"
                 + "  ·  Column " + (widget.x + 1) + ", row " + (widget.y + 1));
     }
 
@@ -224,8 +230,8 @@ public final class WidgetEditor extends Activity {
         if (pendingAddType != null) {
             String type = pendingAddType;
             pendingAddType = null;
-            int width = 1;
-            int height = 2;
+            int width = 2;
+            int height = 1;
             if (layout.add(type, type, x, y, width, height)) {
                 selectedId = type;
                 int defaultFont = "clock".equals(type) ? 32
@@ -300,9 +306,9 @@ public final class WidgetEditor extends Activity {
         }
         List<String> sizeLabels = new ArrayList<>();
         List<int[]> dimensions = new ArrayList<>();
-        for (int height = 2; height <= WidgetLayout.ROWS; height++) {
+        for (int height = 1; height <= WidgetLayout.ROWS; height++) {
             for (int width = 1; width <= WidgetLayout.COLUMNS; width++) {
-                sizeLabels.add(width + " × " + height);
+                sizeLabels.add(height + " row(s) × " + width + " column(s)");
                 dimensions.add(new int[] {width, height});
             }
         }
@@ -403,6 +409,7 @@ public final class WidgetEditor extends Activity {
 
     private void save() {
         cfg.set(WidgetLayout.CONFIG_KEY, layout.encode());
+        cfg.set("widgets.layout.version", "2");
         cfg.setText("widgets.text", pendingText);
         for (WidgetLayout.Widget widget : layout.items()) {
             Integer size = fontSizes.get(widget.id);

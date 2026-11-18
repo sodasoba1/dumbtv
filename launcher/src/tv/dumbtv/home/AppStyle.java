@@ -37,11 +37,12 @@ final class AppStyle {
      * the user explicitly chose Reset customisation in the same staged edit.
      */
     static void save(Config config, Item item, String name, String originalName,
-                     String banner, String background, boolean resetCustomisation) {
+                     String banner, String background, String size, boolean resetCustomisation) {
         if (resetCustomisation) config.removePrefix("appstyle." + item.id + ".");
         config.set("name." + item.id, name.equals(originalName) ? null : name);
         config.set(key(item, "banner"), banner);
         config.set(key(item, "background"), background);
+        config.set(key(item, "size"), "normal".equals(size) ? null : size);
     }
 
     static String[] properties() {
