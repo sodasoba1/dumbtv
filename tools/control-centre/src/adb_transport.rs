@@ -963,11 +963,16 @@ pub async fn undo_smarttube(
     backup_path: &Path,
 ) -> Result<String, String> {
     let bytes = fs::read(backup_path).map_err(|error| format!("cannot read SmartTube restore backup: {error}"))?;
-    if bytes.len() > 512 * 1024 {
-        return Err("SmartTube restore backup exceeds the 512 KiB safety limit".into());
+    if bytes.len() > 3 * 1024 * 1024 {
+        return Err("SmartTube restore backup exceeds the 3 MiB safety limit".into());
     }
     let backup: SmartTubeBackup = serde_json::from_slice(&bytes)
         .map_err(|error| format!("SmartTube restore backup is invalid: {error}"))?;
+    if backup.home_conf.as_ref().is_some_and(|value| value.len() > crate::home_config::MAX_HOME_CONFIG_BYTES)
+        || backup.applied_home_conf.as_ref().is_some_and(|value| value.len() > crate::home_config::MAX_HOME_CONFIG_BYTES)
+    {
+        return Err("SmartTube restore backup contains an oversized home.conf".into());
+    }
     if backup.schema_version != 1
         || backup.manufacturer != expected.manufacturer
         || backup.model != expected.model
