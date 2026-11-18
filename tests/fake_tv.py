@@ -139,6 +139,8 @@ elif command == 'cmd package help':
 elif words[:2] == ['pm', 'path']:
     if words[2] in apps:
         print(f'package:/system/app/{words[2]}.apk')
+elif command == 'pm list packages':
+    print('\n'.join(f'package:{p}' for p in apps))
 elif command == 'pm list packages -s':
     print('\n'.join(f'package:{p}' for p, a in apps.items() if a['system']))
 elif command == 'pm list packages -d':
