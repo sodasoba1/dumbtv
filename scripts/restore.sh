@@ -173,5 +173,10 @@ fi
 
 [[ $DRY_RUN == 1 ]] && { note "[dry-run] done"; exit 0; }
 reboot_wait
+# A completed restore ends this cleanup cycle. Remove only the original-state
+# snapshots so a later run records the device's new baseline instead of reusing
+# stale values from this one.
+rm -f "$REPORT/packages-before.txt" "$REPORT/settings-before-secure.txt" \
+  "$REPORT/settings-before-global.txt"
 note "restored. dumbtv home and SmartTube (if added) remain installed; remove them in"
 note "Settings > Applications if you want them gone too."
