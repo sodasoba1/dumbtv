@@ -887,7 +887,7 @@ impl eframe::App for ControlCentre {
         ctx.request_repaint_after(Duration::from_millis(250));
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
-            ui.heading("DumbTV Control Centre");
+            ui.heading("DumbTV Windows Installer");
             ui.label("Portable Windows frontend · AFTMM / Fire OS 6 project");
             if !self.recovery_journals.is_empty() {
                 ui.separator();
@@ -1041,7 +1041,7 @@ impl eframe::App for ControlCentre {
                 ui.separator();
                 ui.heading("Optional SmartTube replacement");
                 ui.checkbox(&mut self.replace_youtube, "I explicitly want to install SmartTube and disable stock YouTube (reversible)");
-                ui.label("SmartTube is opt-in. Stock YouTube is disabled, never uninstalled, by this workflow.");
+                ui.label("SmartTube is opt-in. Stock YouTube is disabled, never uninstalled, by this workflow. The original YouTube state and exact home.conf bytes are backed up for undo.");
                 if ui.add_enabled(!busy && self.replace_youtube, egui::Button::new("Install SmartTube")).clicked() {
                     self.install_smarttube_on_device(ip, profile.clone());
                 }
@@ -1820,7 +1820,7 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
     eframe::run_native(
-        "DumbTV Control Centre",
+        "DumbTV Windows Installer",
         options,
         Box::new(|_creation_context| Ok(Box::new(ControlCentre::default()))),
     )
