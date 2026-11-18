@@ -249,8 +249,8 @@ public final class WidgetEditor extends Activity {
     private void add() {
         pendingMove = null;
         pendingAddType = null;
-        String[] types = {"clock", "memory", "recent", "network", "storage", "text", "diagnostics", "device"};
-        String[] labels = {"Clock", "Memory", "Recently opened apps", "Network", "Storage", "Custom text", "DumbTV diagnostics", "Device information"};
+        String[] types = {"clock", "memory", "network", "storage", "text", "diagnostics", "device"};
+        String[] labels = {"Clock", "Memory", "Network", "Storage", "Custom text", "DumbTV diagnostics", "Device information"};
         List<String> available = new ArrayList<>();
         List<String> names = new ArrayList<>();
         for (int i = 0; i < types.length; i++) {
