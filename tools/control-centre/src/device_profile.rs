@@ -46,6 +46,12 @@ impl DeviceProfile {
                 .filter(|value| !value.is_empty())
                 .ok_or_else(|| format!("device did not report required property {key}"))
         };
+        let optional = |key: &str| {
+            properties
+                .get(key)
+                .map(|value| value.trim().to_owned())
+                .unwrap_or_default()
+        };
 
         let sdk_text = required("ro.build.version.sdk")?;
         let sdk = sdk_text
@@ -54,11 +60,11 @@ impl DeviceProfile {
 
         Ok(Self {
             manufacturer: required("ro.product.manufacturer")?,
-            model: required("ro.product.model")?,
-            build_display_id: required("ro.build.display.id")?,
-            android_release: required("ro.build.version.release")?,
+            model: optional("ro.product.model"),
+            build_display_id: optional("ro.build.display.id"),
+            android_release: optional("ro.build.version.release"),
             sdk,
-            abi: required("ro.product.cpu.abi")?,
+            abi: optional("ro.product.cpu.abi"),
             kernel: properties.get("kernel.release").cloned().unwrap_or_default(),
             verified_boot_state: properties
                 .get("ro.boot.verifiedbootstate")
