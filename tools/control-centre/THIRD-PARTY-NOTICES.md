@@ -14,7 +14,7 @@ still require exact-version verification against the eventual Cargo.lock.
 | atomicwrites | MIT | Atomic active-source manifest replacement |
 | dirs | MIT OR Apache-2.0 | Windows Local AppData path |
 | tempfile | MIT OR Apache-2.0 | Safe staging directory |
-| zip | MIT | ZIP archive reading |
+| zip 9.0.5 | MIT | ZIP archive reading and verified staged extraction |
 | libadb | MIT | Rust ADB wire protocol and TCP transport |
 | tokio | MIT | Async TCP and bounded operation timeouts |
 | windows-sys | MIT OR Apache-2.0 | Windows CNG key storage and RSA signing API |
@@ -43,3 +43,19 @@ Before publishing a user-facing release:
   documented security decision.
 - Review all upstream licence texts and the repository MIT licence separately
   from the catalogue's CC BY-SA 4.0 terms.
+
+
+## Dependency audit status (2026-11-18)
+
+The first complete Cargo.lock audit found six RustSec vulnerabilities in
+`zip 2.6.1` (RUSTSEC-2026-0367, -0368, -0369, -0429, -0545 and -0548).
+The ZIP parser has been pinned to `9.0.5`, the first version identified by
+those advisories as patched. CI now denies all vulnerability findings; the
+updated lock graph must pass before this PR can be considered build-verified.
+
+The same audit reported two unmaintained transitive crates with no fixed
+upgrade available: `paste 1.0.15` (pulled by the macOS-only `metal` target
+of the GUI dependency graph) and `ttf-parser 0.25.1` (through
+`owned_ttf_parser` for GUI font handling). These are warnings, not known
+security vulnerabilities. They are not silently ignored: the audit output is
+retained in CI, and their upstream dependency paths remain recorded here.
