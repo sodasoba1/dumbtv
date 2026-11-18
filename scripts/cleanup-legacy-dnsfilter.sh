@@ -6,6 +6,7 @@ set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 parse_flags "$@"
 need_device
+need_supported_fireos
 
 legacy_vpn=$(dev1 settings get secure always_on_vpn_app | tr -d '\r')
 
