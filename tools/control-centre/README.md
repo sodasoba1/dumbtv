@@ -64,6 +64,12 @@ The repository's MIT licence applies to this Control Centre source. Third-party 
 8. On a physical AFTMM, connect to its local IP, compare the TV's RSA prompt fingerprint, and approve only if it matches.
 9. Confirm the app reports the expected AFTMM / API 25 properties and package counts, and does not change packages or settings.
 
+## Verified APK assets
+
+The GUI can download and SHA-256 verify the pinned API 25 DumbTV HOME release (version metadata from the active source) and the optional SmartTube 32.56s release (pinned versionCode and checksum from the maintained YouTube script). Assets are stored under `%LOCALAPPDATA%\\DumbTV-ControlCentre\\verified-apks` without overwriting an existing file. The SmartTube download is an explicit owner action.
+
+This is currently an asset-preparation milestone only. It does not install either APK, modify Keeper or permissions, disable stock YouTube, or edit DumbTV HOME configuration. Those operations remain gated until their device-state snapshot, rollback and verification paths are complete. The Rust ADB sync staging primitive is implemented with a fixed `/data/local/tmp/dumbtv-*.apk` path allowlist, transfer bounds and remote size verification, but the launcher/YouTube installation workflow is not yet wired to it.
+
 ## Snapshot, cleanup and restore
 
 The GUI now captures a complete pre-change baseline and refuses to overwrite it. Cleanup and restore each write a durable operation journal under `%LOCALAPPDATA%\\DumbTV-ControlCentre\\journals`; each operation is marked running before the ADB write and verified only after read-back succeeds. A separate read-only verification button can recheck all verified cleanup mutations later, including after reboot. Journals omit device IPs, ADB serials, host keys and raw command output. An interrupted operation is not automatically replayed: reconnect and inspect the live device before choosing restore. Interrupted and failed journals are listed when the frontend starts, newest first, with verified, failed, running-at-last-save and pending counts plus the affected step summary. A controlled failure closes its journal and records later steps as not attempted; a crash or power loss leaves the in-flight journal visibly unfinished. Before cleanup begins, it reconnects and compares the live package states, captured settings, AppOps and network-policy values against that baseline. If anything changed after capture, it sends no cleanup commands.
