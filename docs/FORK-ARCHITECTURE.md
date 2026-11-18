@@ -148,13 +148,12 @@ The launcher reference documents the controls and the current glass theme/widget
 
 ## 8. Widgets
 
-The home screen uses a fixed 6-column by 4-row placement grid. Widget placements are stored in `home.conf`; the layout model rejects placements outside the grid, overlaps and sizes below 2 × 2 cells.
+The home screen uses a fixed 6-column by 4-row placement grid. Widget placements are stored in `home.conf`; the layout model rejects placements outside the grid, overlaps and sizes below 1 × 2 cells.
 
 The available widget types are:
 
 - Clock
 - Memory
-- Recently opened apps
 - Network connection state
 - Storage
 - Custom text
