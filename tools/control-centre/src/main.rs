@@ -75,6 +75,7 @@ struct ControlCentre {
     plan_snapshot_path: Option<PathBuf>,
     confirm_apply: bool,
     confirm_restore: bool,
+    replace_youtube: bool,
 }
 
 impl Default for ControlCentre {
@@ -108,6 +109,7 @@ impl Default for ControlCentre {
             plan_snapshot_path: None,
             confirm_apply: false,
             confirm_restore: false,
+            replace_youtube: false,
         };
         app.start_initial_update_check();
         app
@@ -186,6 +188,35 @@ impl ControlCentre {
 }
 
 impl ControlCentre {
+    #[cfg(windows)]
+    fn install_launcher_on_device(&self, ip: std::net::IpAddr, profile: device_profile::DeviceProfile) {
+        self.start_task(move || {
+            let (bytes, version_code) = verified_launcher_apk()?;
+            let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
+                .map_err(|error| format!("cannot start ADB runtime: {error}"))?;
+            runtime.block_on(adb_transport::install_launcher(ip, &profile, &bytes, version_code))
+        });
+    }
+
+    #[cfg(windows)]
+    fn undo_launcher_on_device(&self, ip: std::net::IpAddr, profile: device_profile::DeviceProfile) {
+        self.start_task(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
+                .map_err(|error| format!("cannot start ADB runtime: {error}"))?;
+            runtime.block_on(adb_transport::undo_launcher(ip, &profile))
+        });
+    }
+
+    #[cfg(windows)]
+    fn install_smarttube_on_device(&self, ip: std::net::IpAddr, profile: device_profile::DeviceProfile) {
+        self.start_task(move || {
+            let bytes = verified_smarttube_apk()?;
+            let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
+                .map_err(|error| format!("cannot start ADB runtime: {error}"))?;
+            runtime.block_on(adb_transport::install_smarttube(ip, &profile, &bytes))
+        });
+    }
+
     #[cfg(windows)]
     fn prepare_adb_key(&self) {
         let shared = Arc::clone(&self.shared);
@@ -904,7 +935,7 @@ impl eframe::App for ControlCentre {
             ui.separator();
 
             ui.heading("Verified APK assets");
-            ui.label("These buttons only download and verify the pinned APKs. They do not install apps, disable stock YouTube or change the home screen.");
+            ui.label("Download and verify the existing published APK releases. Installation is a separate, explicit device action.");
             ui.horizontal(|ui| {
                 if ui.add_enabled(!busy && active.is_some(), egui::Button::new("Prepare API 25 DumbTV HOME APK")).clicked() {
                     self.start_task(download_launcher_apk);
@@ -973,6 +1004,33 @@ impl eframe::App for ControlCentre {
                 }
                 if let Some(path) = snapshot_path.as_ref() {
                     ui.label(format!("Original-state snapshot: {}", path.file_name().and_then(|name| name.to_str()).unwrap_or("saved")));
+                }
+            }
+            if let (Some(ip), Some(profile)) = (connected_ip, device_profile.as_ref()) {
+                ui.separator();
+                ui.heading("DumbTV HOME installation");
+                if profile.launcher_compatibility() == device_profile::Compatibility::Supported {
+                    ui.label("API 25 only. Installs the checksum-verified published APK; it never uninstalls an existing signed package to work around a signature mismatch.");
+                    ui.horizontal(|ui| {
+                        if ui.add_enabled(!busy, egui::Button::new("Install / update DumbTV HOME")).clicked() {
+                            self.install_launcher_on_device(ip, profile.clone());
+                        }
+                        if ui.add_enabled(!busy, egui::Button::new("Undo HOME takeover")).clicked() {
+                            self.undo_launcher_on_device(ip, profile.clone());
+                        }
+                    });
+                } else {
+                    ui.label("Launcher installation is unavailable: this device is not the supported Amazon API 25 target. The undo action remains available if an older installation exists.");
+                    if ui.add_enabled(!busy, egui::Button::new("Undo HOME takeover")).clicked() {
+                        self.undo_launcher_on_device(ip, profile.clone());
+                    }
+                }
+                ui.separator();
+                ui.heading("Optional SmartTube replacement");
+                ui.checkbox(&mut self.replace_youtube, "I explicitly want to install SmartTube and disable stock YouTube (reversible)");
+                ui.label("SmartTube is opt-in. Stock YouTube is disabled, never uninstalled, by this workflow.");
+                if ui.add_enabled(!busy && self.replace_youtube, egui::Button::new("Install SmartTube")).clicked() {
+                    self.install_smarttube_on_device(ip, profile.clone());
                 }
             }
             if connected_ip.is_some() && package_inventory.is_some() && device_profile.is_some() {
@@ -1343,6 +1401,39 @@ fn store_verified_apk(name: &str, bytes: &[u8], expected_sha256: &str) -> Result
         )
     })?;
     Ok(path)
+}
+
+#[cfg(windows)]
+fn verified_launcher_apk() -> Result<(Vec<u8>, u64), String> {
+    let manifest = load_active_source()?.ok_or("download the official source before installing DumbTV HOME")?;
+    let source_root = app_root()?.join("source-versions").join(&manifest.commit);
+    validate_source_tree(&source_root)?;
+    let version_text = fs::read_to_string(source_root.join("launcher/version.env"))
+        .map_err(|error| format!("cannot read launcher version manifest: {error}"))?;
+    let release = apk_release::parse_launcher_version_env(&version_text)?;
+    let filename = format!("dumbtv-home-{}.apk", release.version);
+    let path = app_root()?.join("verified-apks").join(filename);
+    if !path.is_file() {
+        download_launcher_apk()?;
+    }
+    let base = format!("https://github.com/{OWNER}/{REPOSITORY}/releases/download/launcher-v{}/dumbtv-home.apk", release.version);
+    let sidecar = download_github_release_asset(&format!("{base}.sha256"), 4096)?;
+    let expected = String::from_utf8(sidecar).map_err(|_| "launcher checksum sidecar is not UTF-8")?;
+    let expected = expected.trim();
+    let bytes = fs::read(&path).map_err(|error| format!("cannot read verified launcher APK: {error}"))?;
+    apk_release::verify_sha256(&bytes, expected)?;
+    Ok((bytes, release.version_code))
+}
+
+#[cfg(windows)]
+fn verified_smarttube_apk() -> Result<Vec<u8>, String> {
+    let path = app_root()?.join("verified-apks").join("smarttube-32.56s.apk");
+    if !path.is_file() {
+        download_smarttube_apk()?;
+    }
+    let bytes = fs::read(path).map_err(|error| format!("cannot read verified SmartTube APK: {error}"))?;
+    apk_release::verify_sha256(&bytes, apk_release::SMARTTUBE_SHA256)?;
+    Ok(bytes)
 }
 
 fn download_launcher_apk() -> Result<String, String> {
