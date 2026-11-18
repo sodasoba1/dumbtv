@@ -1174,7 +1174,7 @@ impl eframe::App for ControlCentre {
                 }
                 if plan.operations.is_empty() {
                     ui.label("No changes are needed for the selected options.");
-                } else if ui.add_enabled(!busy, egui::Button::new(if self.install_launcher_after_cleanup || self.replace_youtube { "Confirm, apply and install selected apps" } else { "Confirm and apply reviewed changes" })).clicked() {
+                } else if ui.add_enabled(!busy, egui::Button::new(if (self.install_launcher_after_cleanup && device_profile.as_ref().is_some_and(|profile| profile.launcher_compatibility() == device_profile::Compatibility::Supported)) || self.replace_youtube { "Confirm, apply and install selected apps" } else { "Confirm and apply reviewed changes" })).clicked() {
                     self.confirm_apply = true;
                 }
             }
@@ -1190,7 +1190,7 @@ impl eframe::App for ControlCentre {
                         ui.label("This includes uninstalling the user apps you explicitly named. Reinstalling them may require the Amazon Appstore.");
                     }
                     ui.label("The app will stop at the first failed operation or failed read-back. The original snapshot will be retained.");
-                    if self.install_launcher_after_cleanup {
+                    if self.install_launcher_after_cleanup && device_profile.as_ref().is_some_and(|profile| profile.launcher_compatibility() == device_profile::Compatibility::Supported) {
                         ui.label("After successful cleanup (and optional reboot verification), the app will download/verify and install the published DumbTV HOME APK.");
                     }
                     if self.replace_youtube {
@@ -1206,7 +1206,7 @@ impl eframe::App for ControlCentre {
                     self.confirm_apply = false;
                     if let (Some(ip), Some(profile)) = (connected_ip, device_profile.clone()) {
                         let reboot_after_cleanup = self.reboot_after_cleanup;
-                        let install_launcher = self.install_launcher_after_cleanup;
+                        let install_launcher = self.install_launcher_after_cleanup && profile.launcher_compatibility() == device_profile::Compatibility::Supported;
                         let install_smarttube = self.replace_youtube;
                         self.apply_cleanup_plan(ip, profile, reboot_after_cleanup, install_launcher, install_smarttube);
                     }
