@@ -10,7 +10,7 @@ use std::ptr;
 
 use windows_sys::Win32::Security::Cryptography::{
     NCryptCreatePersistedKey, NCryptDeleteKey, NCryptExportKey, NCryptFinalizeKey,
-    NCryptFreeObject, NCryptOpenKey, NCryptOpenStorageProvider, NCryptSetProperty, NCryptSignHash,
+    NCryptFreeObject, NCryptOpenKey, NCryptOpenStorageProvider, NCryptSetProperty, NCryptSignHash, NCryptVerifySignature,
     BCRYPT_PKCS1_PADDING_INFO,
 };
 
@@ -129,6 +129,73 @@ impl WindowsCngAdbKey {
         Ok(Self { provider, key, public_key })
     }
 
+    /// Generate an ephemeral key for tests. It is never persisted in the
+    /// user's Windows key store.
+    #[cfg(test)]
+    fn generate_ephemeral() -> Result<Self, String> {
+        let mut provider = 0isize;
+        let status = unsafe {
+            NCryptOpenStorageProvider(&mut provider, PROVIDER.as_ptr(), 0)
+        };
+        check_status(status, "open Windows CNG key provider")?;
+
+        let mut key = 0isize;
+        let create_status = unsafe {
+            NCryptCreatePersistedKey(
+                provider,
+                &mut key,
+                RSA_ALGORITHM.as_ptr(),
+                ptr::null(),
+                0,
+                0,
+            )
+        };
+        if create_status != STATUS_SUCCESS {
+            unsafe { NCryptFreeObject(provider); }
+            return Err(format!("create ephemeral ADB test key failed (0x{:08x})", create_status as u32));
+        }
+
+        let key_length = RSA_BITS.to_le_bytes();
+        let set_status = unsafe {
+            NCryptSetProperty(
+                key,
+                LENGTH_PROPERTY.as_ptr(),
+                key_length.as_ptr(),
+                key_length.len() as u32,
+                0,
+            )
+        };
+        if set_status != STATUS_SUCCESS {
+            unsafe {
+                NCryptFreeObject(key);
+                NCryptFreeObject(provider);
+            }
+            return Err(format!("set ephemeral ADB key length failed (0x{:08x})", set_status as u32));
+        }
+
+        let finalize_status = unsafe { NCryptFinalizeKey(key, 0) };
+        if finalize_status != STATUS_SUCCESS {
+            unsafe {
+                NCryptFreeObject(key);
+                NCryptFreeObject(provider);
+            }
+            return Err(format!("finalize ephemeral ADB key failed (0x{:08x})", finalize_status as u32));
+        }
+
+        let public_key = match export_public_key(key) {
+            Ok(value) => value,
+            Err(error) => {
+                unsafe {
+                    NCryptFreeObject(key);
+                    NCryptFreeObject(provider);
+                }
+                return Err(error);
+            }
+        };
+
+        Ok(Self { provider, key, public_key })
+    }
+
     pub fn public_key_wire(&self) -> &[u8] {
         self.public_key.as_wire_payload()
     }
@@ -226,6 +293,38 @@ fn export_public_key(key: isize) -> Result<AdbPublicKey, String> {
     let exponent = &blob[24..24 + exponent_len];
     let modulus = &blob[24 + exponent_len..total];
     AdbPublicKey::from_rsa_components(modulus, exponent, PUBLIC_KEY_NAME)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cng_generates_key_exports_public_key_and_signs_adb_token() {
+        let key = WindowsCngAdbKey::generate_ephemeral().unwrap();
+        assert!(key.public_key_wire().ends_with(b" dumbtv-control-centre@windows\\0"));
+
+        let token = [0x5au8; 20];
+        let signature = key.sign_token(&token).unwrap();
+        assert_eq!(signature.len(), 256);
+
+        let digest = Sha1::digest(token);
+        let padding = BCRYPT_PKCS1_PADDING_INFO {
+            pszAlgId: SHA1_ALGORITHM.as_ptr(),
+        };
+        let status = unsafe {
+            NCryptVerifySignature(
+                key.key,
+                &padding as *const BCRYPT_PKCS1_PADDING_INFO as *const _,
+                digest.as_ptr(),
+                digest.len() as u32,
+                signature.as_ptr(),
+                signature.len() as u32,
+                NCRYPT_PAD_PKCS1_FLAG,
+            )
+        };
+        assert_eq!(status, STATUS_SUCCESS);
+    }
 }
 
 fn check_status(status: i32, operation: &str) -> Result<(), String> {
