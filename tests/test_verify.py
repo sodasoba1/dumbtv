@@ -15,12 +15,12 @@ class VerifyTests(unittest.TestCase):
     def run_verify(self, *, sdk="25", keeper=True, usage="allow", auto_start="allow",
                    read_logs=True, launcher="1", launcher_package=None, extra=None,
                    changed_settings=None, disabled="", installed="", data_saver="enabled",
-                   screensaver="null"):
+                   screensaver="null", home="tv.dumbtv.home/.Home"):
         version = RELEASE if launcher_package is None else launcher_package
         package_dump = f"    versionName={version}\n"
         if read_logs:
             package_dump += "    android.permission.READ_LOGS: granted=true\n"
-        resumed = "  mResumedActivity: ActivityRecord{1 u0 tv.dumbtv.home/.Home t1}"
+        resumed = f"  mResumedActivity: ActivityRecord{{1 u0 {home} t1}}"
         replies = {
             "getprop ro.build.version.sdk": {"out": sdk},
             "cmd package help": {"out": "Package manager commands: path [--user USER_ID] PACKAGE"},
@@ -73,6 +73,12 @@ class VerifyTests(unittest.TestCase):
         result, _ = self.run_verify(keeper=False)
         self.assertEqual(result.returncode, 1)
         self.assertIn("Keeper not running", result.stdout)
+
+    def test_running_keeper_does_not_pass_when_amazon_home_is_foreground(self):
+        result, _ = self.run_verify(home="com.amazon.tv.launcher/.ui.HomeActivity_vNext")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("FAIL", result.stdout)
+        self.assertIn("foreground is com.amazon.tv.launcher", result.stdout)
 
     def test_missing_usage_stats_is_a_failure(self):
         result, _ = self.run_verify(usage="default")
