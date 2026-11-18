@@ -154,6 +154,19 @@ mod tests {
     }
 
     #[test]
+    fn maintained_repository_catalogues_are_valid_and_keep_vizzini_protected() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        for sdk in [25, 28, 30] {
+            let catalogue = FireOsCatalogue::load(&root, sdk).unwrap();
+            assert!(!catalogue.packages.is_empty());
+            assert!(catalogue.never_disable.iter().any(|p| p == "com.amazon.vizzini"));
+            assert!(!catalogue.packages.iter().any(|p| p == "com.amazon.vizzini"));
+            assert!(catalogue.packages.iter().all(|p| valid_package_name(p)));
+            assert!(catalogue.never_disable.iter().all(|p| valid_package_name(p)));
+        }
+    }
+
+    #[test]
     fn fire_os_7_and_8_use_shared_fireos_lists() {
         let dir = tempfile::tempdir().unwrap();
         let fireos = dir.path().join("fireos");
