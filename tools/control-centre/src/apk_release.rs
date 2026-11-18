@@ -54,6 +54,7 @@ pub fn parse_launcher_version_env(contents: &str) -> Result<LauncherRelease, Str
 }
 
 fn valid_dotted_version(value: &str) -> bool {
+    if value.len() > 24 { return false; }
     let mut parts = value.split('.');
     let first = parts.next();
     first.is_some_and(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
