@@ -211,9 +211,20 @@ impl ControlCentre {
     fn install_smarttube_on_device(&self, ip: std::net::IpAddr, profile: device_profile::DeviceProfile) {
         self.start_task(move || {
             let bytes = verified_smarttube_apk()?;
+            let backup = smarttube_backup_path(&profile)?;
             let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
                 .map_err(|error| format!("cannot start ADB runtime: {error}"))?;
-            runtime.block_on(adb_transport::install_smarttube(ip, &profile, &bytes))
+            runtime.block_on(adb_transport::install_smarttube(ip, &profile, &bytes, &backup))
+        });
+    }
+
+    #[cfg(windows)]
+    fn undo_smarttube_on_device(&self, ip: std::net::IpAddr, profile: device_profile::DeviceProfile) {
+        self.start_task(move || {
+            let backup = smarttube_backup_path(&profile)?;
+            let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
+                .map_err(|error| format!("cannot start ADB runtime: {error}"))?;
+            runtime.block_on(adb_transport::undo_smarttube(ip, &profile, &backup))
         });
     }
 
@@ -1032,6 +1043,10 @@ impl eframe::App for ControlCentre {
                 if ui.add_enabled(!busy && self.replace_youtube, egui::Button::new("Install SmartTube")).clicked() {
                     self.install_smarttube_on_device(ip, profile.clone());
                 }
+                let backup_exists = smarttube_backup_path(profile).is_ok_and(|path| path.is_file());
+                if ui.add_enabled(!busy && backup_exists, egui::Button::new("Undo SmartTube replacement")).clicked() {
+                    self.undo_smarttube_on_device(ip, profile.clone());
+                }
             }
             if connected_ip.is_some() && package_inventory.is_some() && device_profile.is_some() {
                 ui.separator();
@@ -1401,6 +1416,13 @@ fn store_verified_apk(name: &str, bytes: &[u8], expected_sha256: &str) -> Result
         )
     })?;
     Ok(path)
+}
+
+#[cfg(windows)]
+fn smarttube_backup_path(profile: &device_profile::DeviceProfile) -> Result<PathBuf, String> {
+    let identity = format!("{}|{}|{}|{}", profile.manufacturer, profile.model, profile.build_display_id, profile.sdk);
+    let key = apk_release::sha256_hex(identity.as_bytes());
+    Ok(app_root()?.join("backups").join(format!("smarttube-{key}.json")))
 }
 
 #[cfg(windows)]
