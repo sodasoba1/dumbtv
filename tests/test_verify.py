@@ -85,6 +85,12 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("standby-start", result.stdout)
         self.assertIn("AUTO_START", result.stdout)
 
+    def test_unsupported_auto_start_is_not_a_failure(self):
+        result, _ = self.run_verify(auto_start="Unknown operation string: AUTO_START")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("skip", result.stdout)
+        self.assertIn("AUTO_START unsupported", result.stdout)
+
     def test_missing_read_logs_is_a_failure_even_when_usage_stats_are_enabled(self):
         result, _ = self.run_verify(read_logs=False)
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
