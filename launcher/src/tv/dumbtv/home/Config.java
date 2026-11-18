@@ -495,7 +495,7 @@ final class Config {
         }
     }
 
-    File wallpaper() {
+    synchronized File wallpaper() {
         List<File> pool = wallpapers();
         if (!pool.isEmpty()) {
             long now = System.currentTimeMillis();
