@@ -259,7 +259,7 @@ mod tests {
 
     #[test]
     fn only_owner_named_user_apps_are_uninstalled() {
-        let installed = ["com.example.streaming".into()].into_iter().collect();
+        let installed: BTreeSet<String> = ["com.example.streaming".into()].into_iter().collect();
         let remove = ["com.example.streaming".into()].into_iter().collect();
         let plan = build_package_plan(
             &catalogue(),
@@ -306,7 +306,7 @@ mod tests {
         )
         .is_err());
 
-        let same = ["com.amazon.ads".into()].into_iter().collect();
+        let same: BTreeSet<String> = ["com.amazon.ads".into()].into_iter().collect();
         assert!(build_package_plan(
             &catalogue(),
             &PackageChoices { keep_alexa: true, keep: same.clone(), remove: same, },
