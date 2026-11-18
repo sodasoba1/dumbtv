@@ -43,7 +43,7 @@ public final class WidgetEditor extends Activity {
         cfg = Config.get(this);
         cfg.refresh();
         layout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
-        pendingText = cfg.get("widgets.text", "Custom text");
+        pendingText = cfg.getText("widgets.text", "Custom text");
         for (WidgetLayout.Widget widget : layout.items()) {
             int fallback = "clock".equals(widget.type) ? 32
                     : "diagnostics".equals(widget.type) ? 11
@@ -403,7 +403,7 @@ public final class WidgetEditor extends Activity {
 
     private void save() {
         cfg.set(WidgetLayout.CONFIG_KEY, layout.encode());
-        cfg.set("widgets.text", pendingText);
+        cfg.setText("widgets.text", pendingText);
         for (WidgetLayout.Widget widget : layout.items()) {
             Integer size = fontSizes.get(widget.id);
             if (size != null) cfg.set("widgets.font." + widget.id, String.valueOf(size));
