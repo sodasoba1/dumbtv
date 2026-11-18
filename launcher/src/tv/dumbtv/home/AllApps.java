@@ -177,6 +177,7 @@ public final class AllApps extends Activity {
     private void launch(Item item) {
         try {
             startActivity(new Intent(item.intent));
+            Recent.opened(this, item.id);
         } catch (ActivityNotFoundException | SecurityException e) {
             Toast.makeText(this, R.string.could_not_open, Toast.LENGTH_SHORT).show();
         }
