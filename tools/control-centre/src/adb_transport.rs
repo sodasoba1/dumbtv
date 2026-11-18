@@ -217,7 +217,7 @@ pub async fn execute_plan(
         }
     }
     if report.failure.is_none() {
-        if let Err(error) = verify_cleanup_operations(&mut connection, operations).await {
+        if let Err(error) = verify_cleanup_operations(&mut connection, operations, Some(&journal)).await {
             let detail = format!("final post-change verification failed: {error}");
             journal.finish_with_error(journal_path, &detail)?;
             report.failure = Some(detail);
@@ -233,6 +233,7 @@ pub async fn execute_plan(
 async fn verify_cleanup_operations(
     connection: &mut Connection<TokioTcp>,
     operations: &[crate::operations::PlannedOperation],
+    journal: Option<&OperationJournal>,
 ) -> Result<(), String> {
     use crate::device_command::DeviceCommand;
     let mut package_inventory: Option<PackageInventory> = None;
@@ -292,11 +293,38 @@ async fn verify_cleanup_operations(
                 )?;
                 if !actual.contains(uid) { return Err(format!("metered-data UID {uid} is no longer blacklisted")); }
             }
-            DeviceCommand::ForceStopPackage(package)
-            | DeviceCommand::ForceStopAndRestrictIfRunning { package, .. } => {
+            DeviceCommand::ForceStopPackage(package) => {
                 if running.is_none() { running = Some(read_running_names(connection).await?); }
                 if running.as_ref().is_some_and(|names| names.contains(package)) {
                     return Err(format!("{package} is running again after cleanup"));
+                }
+            }
+            DeviceCommand::ForceStopAndRestrictIfRunning { package, uid, sdk } => {
+                if running.is_none() { running = Some(read_running_names(connection).await?); }
+                if running.as_ref().is_some_and(|names| names.contains(package)) {
+                    return Err(format!("{package} is running again after cleanup"));
+                }
+                let restrictions_applied = journal
+                    .and_then(|journal| journal.operations.iter().find(|item| item.description == operation.description))
+                    .and_then(|item| item.detail.as_deref())
+                    .is_some_and(|detail| detail.starts_with("Restricted background execution"));
+                if restrictions_applied {
+                    let mut appops = vec!["RUN_IN_BACKGROUND"];
+                    if *sdk >= 28 { appops.push("RUN_ANY_IN_BACKGROUND"); }
+                    for appop in appops {
+                        let output = run_command(connection, &format!("appops get {package} {appop}")).await?;
+                        if parse_appop_mode(&output, appop)? != "ignore" {
+                            return Err(format!("background AppOp {appop} for {package} no longer matches cleanup"));
+                        }
+                    }
+                    if let Some(uid) = uid {
+                        let blacklist = parse_uid_blacklist(
+                            &run_command(connection, "cmd netpolicy list restrict-background-blacklist").await?,
+                        )?;
+                        if !blacklist.contains(uid) {
+                            return Err(format!("metered-data UID {uid} for {package} is no longer blacklisted"));
+                        }
+                    }
                 }
             }
             DeviceCommand::EnablePackage(_)
@@ -315,6 +343,7 @@ pub async fn reboot_and_reconnect(
     ip: IpAddr,
     expected: &DeviceProfile,
     operations: &[crate::operations::PlannedOperation],
+    journal: &OperationJournal,
 ) -> Result<DeviceProfile, String> {
     let mut connection = connect(ip).await?;
     let before = read_profile(&mut connection).await?;
@@ -347,7 +376,7 @@ pub async fn reboot_and_reconnect(
             if let Ok(Ok(mut connection)) = timeout(remaining.min(Duration::from_secs(12)), connect(ip)).await {
                 if let Ok(profile) = read_profile(&mut connection).await {
                     if same_device(&profile, expected) {
-                        verify_cleanup_operations(&mut connection, operations).await?;
+                        verify_cleanup_operations(&mut connection, operations, Some(journal)).await?;
                         return Ok(profile);
                     }
                     return Err("a different device answered after reboot; identity check failed".into());
