@@ -767,6 +767,11 @@ pub async fn undo_launcher(
     let package = crate::apk_release::LAUNCHER_PACKAGE;
     let _ = run_command(&mut connection, &format!("am force-stop {package}")).await;
     let usage_mode = backup.as_ref().map(|value| value.usage_stats_mode.as_str()).unwrap_or("default");
+    if !valid_appop_restore_mode(usage_mode)
+        || backup.as_ref().and_then(|value| value.auto_start_mode.as_deref()).is_some_and(|mode| !valid_appop_restore_mode(mode))
+    {
+        return Err("launcher restore backup contains an invalid AppOps mode".into());
+    }
     run_command(&mut connection, &format!("appops set {package} GET_USAGE_STATS {usage_mode}")).await?;
     if let Some(mode) = backup.as_ref().and_then(|value| value.auto_start_mode.as_deref()) {
         run_command(&mut connection, &format!("appops set {package} AUTO_START {mode}")).await?;
@@ -1077,6 +1082,10 @@ async fn push_remote_small_file(
         .map_err(|_| "timed out closing ADB sync".to_owned())?
         .map_err(|error| format!("cannot close ADB sync: {error}"))?;
     Ok(())
+}
+
+fn valid_appop_restore_mode(mode: &str) -> bool {
+    matches!(mode, "allow" | "ignore" | "deny" | "default" | "foreground" | "errored")
 }
 
 fn parse_installed_version_code(output: &str) -> Result<u64, String> {
