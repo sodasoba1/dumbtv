@@ -240,6 +240,9 @@ async fn verify_cleanup_operations(
     let mut global: Option<BTreeMap<String, String>> = None;
     let mut running: Option<BTreeSet<String>> = None;
     for operation in operations {
+        // Journals are local files and may be edited. Re-validate every typed
+        // argument before using it to construct even a read-only shell query.
+        operation.command.to_adb_shell(&BTreeSet::new())?;
         match &operation.command {
             DeviceCommand::DisablePackage(package) => {
                 let disabled = crate::package_inventory::parse_pm_list_output(
