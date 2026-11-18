@@ -882,6 +882,10 @@ async fn read_remote_small_file(
     if remote_path != "/sdcard/Android/data/tv.dumbtv.home/files/home.conf" {
         return Err("remote file path is not an approved DumbTV configuration path".into());
     }
+    let listing = run_command(connection, &format!("ls -l {remote_path}")).await?;
+    if listing.contains("No such file or directory") || listing.contains("cannot access") {
+        return Ok(None);
+    }
     let size_output = run_command(connection, &format!("wc -c < {remote_path}")).await?;
     let size = size_output.trim().parse::<usize>()
         .map_err(|_| "device returned an invalid home.conf size".to_owned())?;
@@ -1718,6 +1722,20 @@ mod tests {
         assert!(!valid_apk_staging_path(
             "/data/local/tmp/dumbtv-foo.apk; reboot"
         ));
+    }
+
+    #[test]
+    fn parses_installed_package_version_codes_without_accepting_missing_or_invalid_values() {
+        assert_eq!(
+            parse_installed_version_code("  versionCode=2446 minSdk=21 targetSdk=28"),
+            Ok(2446)
+        );
+        assert_eq!(
+            parse_installed_version_code("versionCode=3000"),
+            Ok(3000)
+        );
+        assert!(parse_installed_version_code("Package [org.example] not found").is_err());
+        assert!(parse_installed_version_code("versionCode=unknown").is_err());
     }
 
     #[test]
