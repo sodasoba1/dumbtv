@@ -32,7 +32,7 @@ STORE_APPS = ["com.netflix.ninja", "com.amazon.firetv.youtube", "org.videolan.vl
 class DebloatTest(unittest.TestCase):
     AMAZON_DREAM = "com.amazon.ftv.screensaver/.app.services.ScreensaverService"
 
-    def run_debloat(self, conf="", *flags, basic_dream=True):
+    def run_debloat(self, conf="", *flags, basic_dream=True, pre_disabled=()):
         packages = {p: {"system": True, "enabled": True} for p in CLEANUP + ALEXA + USER_APPS}
         if basic_dream:
             packages["com.android.dreams.basic"] = {"system": True, "enabled": True}
@@ -40,6 +40,8 @@ class DebloatTest(unittest.TestCase):
             packages[p] = {"system": False, "enabled": True}
         packages["com.amazon.tv.launcher"] = {"system": True, "enabled": True}
         packages["com.amazon.device.metrics"] = {"system": True, "enabled": True, "protected": True}
+        for package in pre_disabled:
+            packages[package]["enabled"] = False
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
             state = tmp / "state.json"
@@ -62,6 +64,8 @@ class DebloatTest(unittest.TestCase):
             commands = log.read_text().splitlines()
             report = tmp / "report" / "debloat.txt"
             self.report = report.read_text().splitlines() if report.exists() else None
+            snapshot = tmp / "report" / "packages-before.txt"
+            self.package_snapshot = snapshot.read_text() if snapshot.exists() else None
         disabled = {c.split()[-1] for c in commands if c.startswith("pm disable-user")}
         uninstalled = {c.split()[-1] for c in commands if c.startswith("pm uninstall")}
         settings = [c for c in commands if c.startswith("settings put")]
@@ -72,6 +76,12 @@ class DebloatTest(unittest.TestCase):
         self.run_debloat()
         self.assertIsNotNone(self.report, "debloat.txt was not written to REPORT")
         self.assertTrue(any(line.endswith("\tdisabled") for line in self.report))
+
+    def test_original_package_enabled_state_is_snapshotted(self):
+        self.run_debloat(pre_disabled=["com.amazon.tv.acr"])
+        self.assertIsNotNone(self.package_snapshot)
+        self.assertIn("com.amazon.tv.acr\\tdisabled", self.package_snapshot)
+        self.assertIn("com.amazon.hedwig\\tenabled", self.package_snapshot)
 
     def test_default_touches_no_app(self):
         disabled, uninstalled, _ = self.run_debloat()
