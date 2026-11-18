@@ -319,7 +319,6 @@ impl OperationJournal {
         self.validate()?;
         let bytes = serde_json::to_vec_pretty(self)
             .map_err(|e| format!("cannot encode operation journal: {e}"))?;
-        let parent = path.parent().ok_or("invalid operation journal path")?;
         AtomicFile::new(path, AllowOverwrite)
             .write(|file| file.write_all(&bytes))
             .map_err(|e| format!("cannot persist operation journal: {e}"))?;
