@@ -56,8 +56,6 @@ final class WidgetPreview extends WidgetGridView {
                 Gravity.CENTER));
         addWidgetView("memory", memory);
 
-        addWidgetView("recent", widgetText(context, Recent.preview(context), backgrounds, surface));
-
         ConnectivityManager connectivity = (ConnectivityManager)
                 context.getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo network = connectivity == null ? null : connectivity.getActiveNetworkInfo();
