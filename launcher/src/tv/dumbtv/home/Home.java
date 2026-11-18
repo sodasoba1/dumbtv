@@ -771,7 +771,7 @@ public final class Home extends Activity {
         storageMeter.setAccent(cfg.accent());
         storageWidget = storageFrame;
         storageFrame.addView(storageMeter, new FrameLayout.LayoutParams(MATCH, WRAP, Gravity.CENTER));
-        textWidget = widgetText(cfg.get("widgets.text", "Custom text"));
+        textWidget = widgetText(cfg.getText("widgets.text", "Custom text"));
         diagnosticsWidget = widgetText("DumbTV diagnostics\nCollecting process information…");
         diagnosticsWidget.setMaxLines(4);
         diagnosticsWidget.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
@@ -1188,7 +1188,7 @@ public final class Home extends Activity {
         FrameLayout.LayoutParams scrollParams = (FrameLayout.LayoutParams) homeScroll.getLayoutParams();
         scrollParams.bottomMargin = favoriteBottomReserve();
         homeScroll.setLayoutParams(scrollParams);
-        textWidget.setText(cfg.get("widgets.text", "Custom text"));
+        textWidget.setText(cfg.getText("widgets.text", "Custom text"));
         applyWidgetFontSizes();
         updateRecentWidget();
         updateSystemWidgets();
