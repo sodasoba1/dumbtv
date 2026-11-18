@@ -540,6 +540,7 @@ impl ControlCentre {
             }
         };
         if original.manufacturer != profile.manufacturer
+            || original.device_fingerprint != profile.serial_fingerprint
             || original.model != profile.model
             || original.build_display_id != profile.build_display_id
             || original.android_sdk != profile.sdk
