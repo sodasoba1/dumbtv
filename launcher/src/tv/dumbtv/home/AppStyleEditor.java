@@ -21,6 +21,7 @@ final class AppStyleEditor {
         String name;
         String banner;
         String background;
+        boolean resetCustomisation;
         State(Config config, Item item) {
             name = Catalog.label(config, item).toString();
             banner = config.get(AppStyle.key(item, "banner"), null);
@@ -42,6 +43,7 @@ final class AppStyleEditor {
                         state.name = item.label.toString();
                         state.banner = null;
                         state.background = null;
+                        state.resetCustomisation = true;
                         showMenu(activity, config, item, state, changed);
                     } else save(activity, config, item, state, changed);
                 })
@@ -119,7 +121,9 @@ final class AppStyleEditor {
                 .setTitle("Save changes?")
                 .setMessage("Apply the name, banner and background changes to " + item.label + "?")
                 .setPositiveButton(R.string.save, (d, which) -> {
-                    config.removePrefix("appstyle." + item.id + ".");
+                    if (state.resetCustomisation) {
+                        config.removePrefix("appstyle." + item.id + ".");
+                    }
                     config.set("name." + item.id,
                             state.name.equals(item.label.toString()) ? null : state.name);
                     config.set(AppStyle.key(item, "banner"), state.banner);
