@@ -5,10 +5,10 @@ This is a separate Windows desktop utility for the AFTMM DumbTV fork. It does no
 ## What this test build does
 
 - Checks the official `sodasoba1/dumbtv` `main` branch through the GitHub HTTPS API.
-- Downloads the source archive for the exact returned 40-character commit.
-- Extracts into a versioned folder under the current user's Local AppData.
+- Downloads the official source archive for the exact returned 40-character commit, then retains only the maintained `data/` catalogues and `launcher/version.env` needed by the Windows controller.
+- Does not extract Android source, Gradle projects, APK build inputs or shell scripts into the managed cache. The existing scripts remain behavioural references and are never executed.
 - Rejects unsafe paths and symbolic links, and enforces archive/file-count/extracted-size limits.
-- Writes an active-source manifest only after extraction and expected-file checks succeed.
+- Validates all supported package catalogues, the protected `com.amazon.vizzini` invariant, privacy settings and launcher version metadata before writing the active-source manifest.
 - Never overwrites a pre-existing repository folder and never executes downloaded scripts.
 
 Managed files are stored under:
@@ -33,7 +33,7 @@ On a first connection, the Fire TV may ask to authorise this PC's ADB public key
 
 **ADB compatibility note:** libadb's published support range lists Android 9+, while the target AFTMM runs Android 7.1.2 / API 25. Its protocol implementation includes legacy ADB negotiation and shell v1, and the Windows build/tests pass. I am treating the transport as working as requested; there is no observed protocol failure, but a physical AFTMM connection remains the final compatibility check.
 
-The GUI does not yet install or replace DumbTV HOME, modify Keeper, install YouTube/SmartTube, configure DNS/VPN or execute downloaded shell scripts. Cleanup performs a second complete read-back pass after all operations. An optional, separately selected reboot waits for an observed ADB disconnect, reconnects within a strict 120-second deadline, rechecks device identity and repeats the cleanup verification. For cleanup packages that remain running after disable, the app applies the matching background AppOps restrictions, adds an app-specific UID to the metered-data blacklist where safe, then force-stops and verifies the process has exited. Protected packages receive their separate lockdown policy. Process detection uses the API 25 fallback from the existing scripts. Never-disable packages are excluded. The app does not bundle Google's platform-tools, Python, Bash, Git or any ADB executable.
+The GUI does not yet install or replace DumbTV HOME, modify Keeper, install YouTube/SmartTube, configure DNS/VPN or execute downloaded shell scripts. Launcher installation must use the existing published API 25 APK release and its SHA-256 sidecar; SmartTube remains an explicit opt-in using its pinned release and checksum. No Android source or APK is rebuilt or modified. Cleanup performs a second complete read-back pass after all operations. An optional, separately selected reboot waits for an observed ADB disconnect, reconnects within a strict 120-second deadline, rechecks device identity and repeats the cleanup verification. For cleanup packages that remain running after disable, the app applies the matching background AppOps restrictions, adds an app-specific UID to the metered-data blacklist where safe, then force-stops and verifies the process has exited. Protected packages receive their separate lockdown policy. Process detection uses the API 25 fallback from the existing scripts. Never-disable packages are excluded. The app does not bundle Google's platform-tools, Python, Bash, Git or any ADB executable.
 
 ## Build on Windows
 
