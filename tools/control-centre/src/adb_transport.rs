@@ -216,8 +216,136 @@ pub async fn execute_plan(
             }
         }
     }
+    if report.failure.is_none() {
+        if let Err(error) = verify_cleanup_operations(&mut connection, operations).await {
+            report.failure = Some(format!("final post-change verification failed: {error}"));
+        }
+    }
     if report.failure.is_none() { journal.finish(journal_path)?; }
     Ok(report)
+}
+
+/// Re-read every persistent cleanup result after the complete sequence. The
+/// individual writes already have read-back checks; this second pass catches
+/// later steps that unexpectedly changed an earlier setting or policy.
+async fn verify_cleanup_operations(
+    connection: &mut Connection<TokioTcp>,
+    operations: &[crate::operations::PlannedOperation],
+) -> Result<(), String> {
+    use crate::device_command::DeviceCommand;
+    let mut package_inventory: Option<PackageInventory> = None;
+    let mut secure: Option<BTreeMap<String, String>> = None;
+    let mut global: Option<BTreeMap<String, String>> = None;
+    let mut running: Option<BTreeSet<String>> = None;
+    for operation in operations {
+        match &operation.command {
+            DeviceCommand::DisablePackage(package) => {
+                let disabled = crate::package_inventory::parse_pm_list_output(
+                    &run_command(connection, "pm list packages -d").await?,
+                )?;
+                if !disabled.contains(package) { return Err(format!("{package} is no longer disabled")); }
+            }
+            DeviceCommand::UninstallPackageForUser { package, .. } => {
+                if package_inventory.is_none() {
+                    package_inventory = Some(read_package_inventory(connection).await?);
+                }
+                if package_inventory.as_ref().is_some_and(|items| items.installed.contains(package)) {
+                    return Err(format!("owner-selected user app {package} is still installed for user 0"));
+                }
+            }
+            DeviceCommand::PutSetting { namespace, key, value } => {
+                let cache = match namespace {
+                    crate::settings_catalogue::SettingsNamespace::Secure => &mut secure,
+                    crate::settings_catalogue::SettingsNamespace::Global => &mut global,
+                };
+                if cache.is_none() {
+                    let command = match namespace {
+                        crate::settings_catalogue::SettingsNamespace::Secure => "settings list secure",
+                        crate::settings_catalogue::SettingsNamespace::Global => "settings list global",
+                    };
+                    *cache = Some(parse_settings_list(&run_command(connection, command).await?)?);
+                }
+                if cache.as_ref().and_then(|values| values.get(key)) != Some(value) {
+                    return Err(format!("setting {key} no longer has the reviewed value"));
+                }
+            }
+            DeviceCommand::SetAppOp { package, operation: appop, mode } => {
+                let output = run_command(connection, &format!("appops get {package} {appop}")).await?;
+                if parse_appop_mode(&output, appop)? != *mode {
+                    return Err(format!("AppOp {appop} for {package} no longer has mode {mode}"));
+                }
+            }
+            DeviceCommand::SetRestrictBackground(enabled) => {
+                let actual = parse_restrict_background(
+                    &run_command(connection, "cmd netpolicy get restrict-background").await?,
+                )?;
+                if actual != *enabled { return Err("Data Saver no longer has the reviewed state".into()); }
+            }
+            DeviceCommand::AddMeteredBlacklistUid(uid) => {
+                let actual = parse_uid_blacklist(
+                    &run_command(connection, "cmd netpolicy list restrict-background-blacklist").await?,
+                )?;
+                if !actual.contains(uid) { return Err(format!("metered-data UID {uid} is no longer blacklisted")); }
+            }
+            DeviceCommand::ForceStopPackage(package)
+            | DeviceCommand::ForceStopAndRestrictIfRunning { package, .. } => {
+                if running.is_none() { running = Some(read_running_names(connection).await?); }
+                if running.as_ref().is_some_and(|names| names.contains(package)) {
+                    return Err(format!("{package} is running again after cleanup"));
+                }
+            }
+            DeviceCommand::EnablePackage(_)
+            | DeviceCommand::DeleteSetting { .. }
+            | DeviceCommand::RemoveMeteredBlacklistUid(_) => {
+                return Err("unexpected command type in cleanup verification plan".into());
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Reboot only after the owner has explicitly enabled the option. Require an
+/// observed ADB disconnect before accepting a reconnect, then re-check identity.
+pub async fn reboot_and_reconnect(
+    ip: IpAddr,
+    expected: &DeviceProfile,
+) -> Result<DeviceProfile, String> {
+    let mut connection = connect(ip).await?;
+    let before = read_profile(&mut connection).await?;
+    if !same_device(&before, expected) {
+        return Err("the device identity changed before reboot; reboot was not sent".into());
+    }
+    let _ = run_command(&mut connection, "reboot").await;
+    drop(connection);
+
+    let address = SocketAddr::new(ip, ADB_PORT);
+    let mut observed_disconnect = false;
+    for _ in 0..15 {
+        match timeout(Duration::from_secs(2), TcpStream::connect(address)).await {
+            Ok(Err(_)) | Err(_) => { observed_disconnect = true; break; }
+            Ok(Ok(stream)) => drop(stream),
+        }
+        tokio::time::sleep(Duration::from_secs(2)).await;
+    }
+    if !observed_disconnect {
+        return Err("the ADB port did not disconnect; reboot could not be confirmed".into());
+    }
+
+    for _ in 0..60 {
+        if let Ok(Ok(stream)) = timeout(Duration::from_secs(2), TcpStream::connect(address)).await {
+            drop(stream);
+            if let Ok(Ok(mut connection)) = timeout(Duration::from_secs(12), connect(ip)).await {
+                if let Ok(profile) = read_profile(&mut connection).await {
+                    if same_device(&profile, expected) {
+                        return Ok(profile);
+                    }
+                    return Err("a different device answered after reboot; identity check failed".into());
+                }
+            }
+        }
+        tokio::time::sleep(Duration::from_secs(2)).await;
+    }
+    Err("the Fire TV did not complete ADB reconnect within 120 seconds".into())
 }
 
 pub async fn read_current_device_state(
