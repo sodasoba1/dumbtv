@@ -33,7 +33,24 @@ On a first connection, the Fire TV may ask to authorise this PC's ADB public key
 
 **ADB compatibility note:** libadb's published support range lists Android 9+, while the target AFTMM runs Android 7.1.2 / API 25. Its protocol implementation includes legacy ADB negotiation and shell v1, and the Windows build/tests pass. I am treating the transport as working as requested; there is no observed protocol failure, but a physical AFTMM connection remains the final compatibility check.
 
-The GUI does not yet install or replace DumbTV HOME, modify Keeper, install YouTube/SmartTube, configure DNS/VPN or execute downloaded shell scripts. Launcher installation must use the existing published API 25 APK release and its SHA-256 sidecar; SmartTube remains an explicit opt-in using its pinned release and checksum. No Android source or APK is rebuilt or modified. Cleanup performs a second complete read-back pass after all operations. An optional, separately selected reboot waits for an observed ADB disconnect, reconnects within a strict 120-second deadline, rechecks device identity and repeats the cleanup verification. For cleanup packages that remain running after disable, the app applies the matching background AppOps restrictions, adds an app-specific UID to the metered-data blacklist where safe, then force-stops and verifies the process has exited. Protected packages receive their separate lockdown policy. Process detection uses the API 25 fallback from the existing scripts. Never-disable packages are excluded. The app does not bundle Google's platform-tools, Python, Bash, Git or any ADB executable.
+### DumbTV HOME and Keeper
+
+- Install/update the existing published launcher APK for Amazon API 25 only. The installer reads `launcher/version.env`, downloads the release asset and SHA-256 sidecar, and re-verifies the bytes immediately before staging.
+- A signature mismatch fails without uninstalling the existing package or deleting its settings.
+- The installer grants and verifies the device-idle whitelist, UsageStats AppOp, optional vendor AUTO_START AppOp, and Keeper READ_LOGS permission.
+- It starts `tv.dumbtv.home/.Home`, verifies `tv.dumbtv.home/.Keeper` is foreground, and checks that DumbTV HOME is the resumed activity. A parental-control PIN prompt is reported as a possible reason the foreground check cannot complete.
+- Before changing runtime grants it stores the prior AppOps, READ_LOGS and idle-whitelist state locally. Undo hands HOME back to Amazon and restores those captured values. The launcher APK remains installed.
+
+### Optional SmartTube replacement
+
+- SmartTube is disabled by default in the UI and requires an explicit opt-in before installation.
+- Downloads the pinned SmartTube 32.56s release and verifies its SHA-256. After installation it reconnects to ADB and checks the installed versionCode (2446 or newer), retrying once if the package is not present at the required version.
+- Stock YouTube is disabled reversibly only if it was installed and enabled. It is never uninstalled.
+- If DumbTV HOME and a non-empty `home.conf` exist, the installer backs up the exact original bytes, changes only `apps.order`, places SmartTube first and removes stock YouTube from that order. It checks the live file has not changed since backup and verifies the bytes written.
+- Undo restores the original YouTube enabled/disabled state and exact `home.conf` bytes. If the user has edited the configuration since installation, undo refuses to overwrite those later changes. SmartTube itself remains installed to preserve its user data.
+- One-time SmartTube UI choices still require the remote: enable “Hide shorts everywhere” and select the 1080p 60fps VP9 preset (not AV1).
+
+The installer does not modify or rebuild Android source or the published launcher APK. Existing shell scripts remain behavioural references and are never executed. It does not install/configure DNS or VPN filtering. Cleanup performs a second complete read-back pass after all operations. An optional, separately selected reboot waits for an observed ADB disconnect, reconnects within a strict 120-second deadline, rechecks device identity and repeats the cleanup verification. For cleanup packages that remain running after disable, the app applies the matching background AppOps restrictions, adds an app-specific UID to the metered-data blacklist where safe, then force-stops and verifies the process has exited. Protected packages receive their separate lockdown policy. Process detection uses the API 25 fallback from the existing scripts. Never-disable packages are excluded. The app does not bundle Google's platform-tools, Python, Bash, Git or any ADB executable.
 
 ## Build on Windows
 
