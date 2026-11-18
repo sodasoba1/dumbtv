@@ -13,7 +13,6 @@ final class WidgetVisibility {
     static final List<Definition> ALL = Arrays.asList(
             new Definition("clock", "Clock"),
             new Definition("memory", "Memory"),
-            new Definition("recent", "Recently opened apps"),
             new Definition("network", "Network"),
             new Definition("storage", "Storage"),
             new Definition("text", "Custom text"),
