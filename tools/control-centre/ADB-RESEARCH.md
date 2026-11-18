@@ -56,6 +56,13 @@ wire protocol implementation negotiates older ADB protocol versions and
 includes shell v1, but that is not evidence that its complete connection
 handshake works with the AFTMM firmware.
 
+The first Windows CI-generated Cargo.lock confirms that the selected
+`libadb 0.9.0` feature set resolves without the `rsa` crate at all; its
+resolved direct dependencies are the Tokio transport/support crates. The
+workflow also checks that the optional `keys` and `host-keys` features are
+not activated. This removes the previously identified `rsa 0.9` advisory
+from the active lock graph, but the full dependency audit remains outstanding.
+
 Therefore this is a **candidate, not an approved dependency**. Before any
 device-changing operation is enabled, test the actual AFTMM for:
 
