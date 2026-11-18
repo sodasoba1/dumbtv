@@ -1,3 +1,4 @@
+mod adb_auth;
 mod catalogue;
 mod device_profile;
 mod package_plan;
