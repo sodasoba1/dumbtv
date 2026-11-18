@@ -5,7 +5,8 @@
 
 use std::{collections::BTreeSet, fs, path::Path};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SettingsNamespace {
     Secure,
     Global,
