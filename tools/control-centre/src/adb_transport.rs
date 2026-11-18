@@ -1915,7 +1915,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn SmartTube_backup_round_trips_exact_home_config_bytes() {
+    fn smarttube_backup_round_trips_exact_home_config_bytes() {
         let original = b"apps.order=com.amazon.firetv.youtube,com.example.player\\r\\nlayout=compact\\r\\n".to_vec();
         let applied = crate::home_config::rewrite_apps_order(&original).unwrap();
         let backup = SmartTubeBackup {
