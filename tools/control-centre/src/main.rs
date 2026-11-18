@@ -1100,7 +1100,6 @@ impl eframe::App for ControlCentre {
                     if profile.launcher_compatibility() == device_profile::Compatibility::Supported {
                         ui.checkbox(&mut self.install_launcher_after_cleanup, "After cleanup, install / update DumbTV HOME (recommended)");
                     } else {
-                        self.install_launcher_after_cleanup = false;
                         ui.label("DumbTV HOME installation is not supported on this API level; cleanup can still run.");
                     }
                 }
@@ -1175,7 +1174,7 @@ impl eframe::App for ControlCentre {
                 }
                 if plan.operations.is_empty() {
                     ui.label("No changes are needed for the selected options.");
-                } else if ui.add_enabled(!busy, egui::Button::new("Confirm and apply reviewed changes")).clicked() {
+                } else if ui.add_enabled(!busy, egui::Button::new(if self.install_launcher_after_cleanup || self.replace_youtube { "Confirm, apply and install selected apps" } else { "Confirm and apply reviewed changes" })).clicked() {
                     self.confirm_apply = true;
                 }
             }
@@ -1246,7 +1245,7 @@ impl eframe::App for ControlCentre {
                 ui.label(&status);
             }
             ui.separator();
-            ui.small("Portable Windows frontend: source updater, ADB connection, read-only preflight and snapshot, reviewed cleanup and reviewed restore. DumbTV HOME/Keeper installation, optional YouTube replacement and automatic reboot/reconnect are still under development.");
+            ui.small("Portable Windows installer: source updater, native Rust ADB, read-only preflight, reviewed cleanup/restore, published DumbTV HOME installation and undo, and optional SmartTube replacement and undo. No Android source or APK is rebuilt.");
             });
         });
     }
