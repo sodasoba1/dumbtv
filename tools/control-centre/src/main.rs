@@ -506,7 +506,9 @@ fn extract_verified_archive(bytes: &[u8], destination: &Path, expected_sha: &str
 
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index).map_err(|e| format!("cannot read ZIP entry: {e}"))?;
-        let name = entry.name().to_owned();
+        let name = entry.name()
+            .map_err(|error| format!("archive entry has invalid path encoding: {error}"))?
+            .into_owned();
         let path = Path::new(&name);
 
         if entry.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000) {
