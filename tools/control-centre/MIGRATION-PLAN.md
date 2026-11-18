@@ -44,6 +44,11 @@ by this migration.
 - `snapshot.rs` and `operations.rs`: read current state, build a delta-only
   restore plan, separate automatic operations from manual Store/system recovery,
   and execute restore actions with the same per-operation verification.
+- `operation_journal.rs`: atomically persist cleanup/restore operation descriptions
+  and pending/running/verified/failed states before and after each device operation.
+  Journals contain device model/build identity but no IP, ADB serial, host key or
+  raw command output. An interrupted journal is evidence for manual recovery; it
+  does not authorise blind replay.
 - Unit tests cover API 25/28/30, unsupported manufacturers, older/newer SDKs,
   getprop parsing, catalogue parsing, actual repository catalogues, duplicate
   entries, generation fallback and cleanup-plan safety rules.
@@ -84,8 +89,10 @@ by this migration.
    typed restore commands and per-operation verification. User-app reinstall
    and missing system-package recovery remain manual and are explicitly shown.
 6. **Remaining parity:** automatic reboot/reconnect, complete post-change
-   verification and a more detailed failure journal. Force-stop now uses the
-   API 25 process-list fallback and read-back verification.
+   verification and UI discovery/reconciliation of interrupted journals. Durable
+   per-operation journals are now written for cleanup and restore; automatic
+   replay/resume remains deliberately disabled until live device state is re-read.
+   Force-stop uses the API 25 process-list fallback and read-back verification.
 7. **Launcher:** still gated separately; API 25 only, with APK signing, grants,
    Keeper lifecycle, reboot/reconnect and undo to validate.
 8. **Optional YouTube replacement:** last, with explicit opt-in and pinned
