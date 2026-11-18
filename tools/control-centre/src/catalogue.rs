@@ -6,7 +6,7 @@
 use std::{
     collections::HashSet,
     fs,
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
