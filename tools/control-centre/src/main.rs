@@ -1066,6 +1066,81 @@ fn load_active_source() -> Result<Option<ActiveSource>, String> {
     Ok(Some(manifest))
 }
 
+fn download_github_release_asset(url: &str, max_bytes: usize) -> Result<Vec<u8>, String> {
+    let parsed = reqwest::Url::parse(url).map_err(|_| "invalid release asset URL")?;
+    if parsed.scheme() != "https" || parsed.host_str() != Some("github.com") {
+        return Err("release asset URL must originate from official GitHub HTTPS".into());
+    }
+    let response = http_client()?.get(parsed).send()
+        .map_err(|error| format!("GitHub release download failed: {error}"))?
+        .error_for_status()
+        .map_err(|error| format!("GitHub release asset was rejected: {error}"))?;
+    if response.url().scheme() != "https"
+        || !matches!(response.url().host_str(), Some("github.com" | "release-assets.githubusercontent.com" | "objects.githubusercontent.com"))
+    {
+        return Err("release asset redirected outside the approved GitHub download hosts".into());
+    }
+    if response.content_length().is_some_and(|size| size > max_bytes as u64) {
+        return Err("release asset exceeds the configured size limit".into());
+    }
+    let mut bytes = Vec::new();
+    response.take(max_bytes as u64 + 1).read_to_end(&mut bytes)
+        .map_err(|error| format!("could not read release asset: {error}"))?;
+    if bytes.len() > max_bytes {
+        return Err("release asset exceeds the configured size limit".into());
+    }
+    Ok(bytes)
+}
+
+fn store_verified_apk(name: &str, bytes: &[u8], expected_sha256: &str) -> Result<PathBuf, String> {
+    apk_release::verify_sha256(bytes, expected_sha256)?;
+    let root = app_root()?.join("verified-apks");
+    fs::create_dir_all(&root).map_err(|error| format!("cannot create verified APK folder: {error}"))?;
+    let path = root.join(name);
+    if path.exists() {
+        let existing = fs::read(&path).map_err(|error| format!("cannot read existing verified APK: {error}"))?;
+        apk_release::verify_sha256(&existing, expected_sha256)
+            .map_err(|_| "an existing APK at the expected path failed checksum validation; it was left untouched".to_owned())?;
+        return Ok(path);
+    }
+    let parent = path.parent().ok_or("invalid verified APK path")?;
+    let mut staged = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|error| format!("cannot stage verified APK: {error}"))?;
+    staged.write_all(bytes).map_err(|error| format!("cannot write verified APK: {error}"))?;
+    staged.as_file().sync_all().map_err(|error| format!("cannot flush verified APK: {error}"))?;
+    staged.persist_noclobber(&path)
+        .map_err(|error| format!("cannot save verified APK without overwriting an existing file: {}", error.error))?;
+    Ok(path)
+}
+
+fn download_launcher_apk() -> Result<String, String> {
+    let manifest = load_active_source()?.ok_or("download the official source before preparing the launcher APK")?;
+    let source_root = app_root()?.join("source-versions").join(&manifest.commit);
+    validate_source_tree(&source_root)?;
+    let version_text = fs::read_to_string(source_root.join("launcher/version.env"))
+        .map_err(|error| format!("cannot read launcher version manifest: {error}"))?;
+    let release = apk_release::parse_launcher_version_env(&version_text)?;
+    let base = format!("https://github.com/{OWNER}/{REPOSITORY}/releases/download/launcher-v{}/dumbtv-home.apk", release.version);
+    let sidecar = download_github_release_asset(&format!("{base}.sha256"), 4096)?;
+    let expected = String::from_utf8(sidecar).map_err(|_| "launcher checksum sidecar is not UTF-8")?;
+    let expected = expected.trim();
+    if expected.len() != 64 || !expected.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("launcher release checksum sidecar is not a 64-character SHA-256 value".into());
+    }
+    let bytes = download_github_release_asset(&base, 128 * 1024 * 1024)?;
+    let actual = apk_release::sha256_hex(&bytes);
+    apk_release::verify_sha256(&bytes, expected)?;
+    let path = store_verified_apk(&format!("dumbtv-home-{}.apk", release.version), &bytes, expected)?;
+    Ok(format!("Launcher {} (versionCode {}) downloaded and checksum-verified. SHA-256 {}. Stored as {}. It has not been installed.", release.version, release.version_code, actual, path.file_name().and_then(|value| value.to_str()).unwrap_or("launcher APK")))
+}
+
+fn download_smarttube_apk() -> Result<String, String> {
+    let bytes = download_github_release_asset(apk_release::SMARTTUBE_URL, 128 * 1024 * 1024)?;
+    apk_release::verify_sha256(&bytes, apk_release::SMARTTUBE_SHA256)?;
+    let path = store_verified_apk("smarttube-32.56s.apk", &bytes, apk_release::SMARTTUBE_SHA256)?;
+    Ok(format!("SmartTube versionCode {} downloaded and checksum-verified. It has not been installed and stock YouTube has not been changed. Stored as {}.", apk_release::SMARTTUBE_VERSION_CODE, path.file_name().and_then(|value| value.to_str()).unwrap_or("SmartTube APK")))
+}
+
 fn valid_sha(sha: &str) -> bool {
     sha.len() == 40 && sha.bytes().all(|b| b.is_ascii_hexdigit())
 }
