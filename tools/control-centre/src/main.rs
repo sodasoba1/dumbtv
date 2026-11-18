@@ -881,6 +881,7 @@ impl ControlCentre {
             &journal_root,
             operation_journal::WorkflowKind::Restore,
             &profile.manufacturer,
+            &profile.serial_fingerprint,
             &profile.model,
             &profile.build_display_id,
             profile.sdk,
@@ -1525,8 +1526,8 @@ fn launcher_backup_path(profile: &device_profile::DeviceProfile) -> Result<PathB
 #[cfg(windows)]
 fn smarttube_backup_path(profile: &device_profile::DeviceProfile) -> Result<PathBuf, String> {
     let identity = format!(
-        "{}|{}|{}|{}",
-        profile.manufacturer, profile.model, profile.build_display_id, profile.sdk
+        "{}|{}|{}|{}|{}",
+        profile.manufacturer, profile.model, profile.build_display_id, profile.sdk, profile.serial_fingerprint
     );
     let key = apk_release::sha256_hex(identity.as_bytes());
     Ok(app_root()?
