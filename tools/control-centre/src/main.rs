@@ -698,7 +698,10 @@ impl eframe::App for ControlCentre {
             if !self.recovery_journals.is_empty() {
                 ui.separator();
                 ui.heading("Operation journals requiring review");
-                ui.label("These records indicate an interrupted or failed workflow. Reconnect to the recorded Fire TV, inspect its current state and review restore. The app will never replay an interrupted operation automatically.");
+                ui.label("Running/pending steps may have been interrupted; failed steps may have partially changed the TV. Reconnect to the recorded device and inspect live state. Only verified steps whose live values still match the recorded cleanup target can be restored automatically. No step is replayed.");
+                if ui.button("Refresh recovery records").clicked() {
+                    self.recovery_journals = load_unfinished_journals();
+                }
                 for summary in &self.recovery_journals { ui.small(summary); }
             }
             ui.separator();
