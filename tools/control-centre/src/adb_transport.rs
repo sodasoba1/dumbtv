@@ -727,6 +727,7 @@ pub async fn install_launcher(
 
     let dump = run_command(&mut connection, &format!("dumpsys package {package}")).await?;
     let version_code = parse_installed_version_code(&dump)?;
+    let _ = run_command(&mut connection, "rm -f /data/local/tmp/dumbtv-home-release.apk").await;
     if version_code < expected_version_code {
         return Err(format!("installed DumbTV HOME versionCode {version_code} is older than the expected release {expected_version_code}"));
     }
@@ -887,7 +888,12 @@ pub async fn install_smarttube(
     let remote = "/data/local/tmp/dumbtv-smarttube.apk";
     let mut installed_code = 0_u64;
     for attempt in 0..2 {
-        push_staged_apk(ip, expected, remote, apk_bytes).await?;
+        if let Err(error) = push_staged_apk(ip, expected, remote, apk_bytes).await {
+            if attempt == 1 {
+                return Err(format!("SmartTube APK staging failed after two attempts: {error}"));
+            }
+            continue;
+        }
         if let Ok(mut connection) = connect_with_retry(ip, expected, Duration::from_secs(60)).await {
             // The install command may lose its Wi-Fi ADB response after the APK
             // has been pushed. The installed version, not the final shell text,
@@ -905,7 +911,8 @@ pub async fn install_smarttube(
         }
     }
 
-    let mut connection = connect(ip).await?;
+    let mut connection = connect_with_retry(ip, expected, Duration::from_secs(60)).await?;
+    let _ = run_command(&mut connection, &format!("rm -f {remote}")).await;
     let actual = read_profile(&mut connection).await?;
     if !same_device(&actual, expected) {
         return Err("the device identity changed before YouTube replacement".into());
