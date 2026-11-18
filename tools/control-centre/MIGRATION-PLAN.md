@@ -32,6 +32,10 @@ by this migration.
 - `adb_transport.rs`: connects to one owner-entered private/local IP on TCP
   5555, uses bounded ADB buffers, reads device properties, and queries package
   inventories only after the Amazon Fire OS SDK 25–30 compatibility gate.
+- `adb_transport.rs` also captures a complete pre-change snapshot of package
+  states, whitelisted secure/global settings, protected-package AppOps, Data
+  Saver and the metered-data UID blacklist. It fails closed on unknown output
+  and persists the fixed original snapshot path without overwrite.
 - Unit tests cover API 25/28/30, unsupported manufacturers, older/newer SDKs,
   getprop parsing, catalogue parsing, actual repository catalogues, duplicate
   entries, generation fallback and cleanup-plan safety rules.
@@ -59,9 +63,10 @@ by this migration.
    Windows CNG signing implementation; validate legacy TCP ADB and RSA trust on
    the AFTMM. Until physical validation, the GUI exposes guarded read-only
    inspection only; no device-changing controls are available.
-2. **Read-only inventory:** connect to one explicitly selected device, collect
-   the minimum required properties, package states, settings and capabilities,
-   and build a report. No device writes.
+2. **Read-only inventory and snapshot:** connect to one explicitly selected
+   device, collect properties, package states, settings, protected-package
+   AppOps and network-policy state. Save the complete original snapshot once
+   before any device write. No device writes.
 3. **Configuration and plan:** load the source catalogue, validate owner
    choices, calculate the exact proposed operations, and display them without
    executing them.

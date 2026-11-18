@@ -23,6 +23,7 @@ The active source manifest is stored separately in `active-source.json`. Existin
 - Display the Android 7-era MD5 fingerprint (for comparison with the Fire TV's authorisation prompt) and a separate SHA-256 fingerprint.
 - Connect to one owner-entered private/local IP address on TCP 5555 using Rust `libadb` and the Windows CNG authenticator.
 - Read the device's `getprop` output first; only if it identifies a supported Amazon Fire OS SDK 25–30 device, read package-manager inventories with bounded response buffers. Show model, build, Android version, SDK, ABI, cleanup/launcher compatibility and installed/system/user/disabled package counts.
+- Capture the original package states, relevant secure/global settings, protected-package AppOps, Data Saver state and metered-data UID blacklist. Capture fails closed if a required value cannot be read or parsed. The original snapshot is stored once at `%LOCALAPPDATA%\\DumbTV-ControlCentre\\snapshots\\original-state.json`; it is never overwritten by a later capture.
 - Restrict the connection target to private, loopback or link-local addresses.
 
 On a first connection, the Fire TV may ask to authorise this PC's ADB public key. Compare the MD5 fingerprint shown in the app with the TV prompt before allowing it. The TV adds the key to its trusted ADB host list only if you approve. Selecting "Always allow" on the TV saves that authorisation for later connections.
@@ -64,18 +65,9 @@ The repository's MIT licence applies to this Control Centre source. Third-party 
 
 ## Snapshot and restore model (not yet connected to the device)
 
-The current source also contains an offline-tested snapshot schema and restore
-planner in `src/snapshot.rs`. It models the original package enabled/disabled
-states, secure/global settings (including settings that were originally absent),
-AppOps modes, Data Saver and the metered-data UID blacklist. Snapshots are
-validated and created once; a second save refuses to overwrite the original.
-The restore planner computes only the delta back to captured values and reports
-unknown original policy state rather than substituting defaults. User apps
-uninstalled for user 0 are explicitly reported for manual Store reinstall.
+The snapshot schema and restore planner in `src/snapshot.rs` are now connected to a read-only ADB capture path. The GUI can save original package enabled/disabled states, relevant secure/global settings (including settings that were originally absent), protected-package AppOps modes, Data Saver and the complete metered-data UID blacklist. Capture fails closed if a required state cannot be read or parsed. The fixed original snapshot path refuses overwrite, so a second capture cannot silently replace the pre-change baseline.
 
-This is a data model and planner only. The app does not yet collect these values
-from ADB, persist a device snapshot, execute restore actions or enable any
-cleanup operation. Do not use this prototype to modify a Fire TV.
+The restore planner still computes only the delta back to captured values and reports unknown original policy state rather than substituting defaults. User apps uninstalled for user 0 are explicitly reported for manual Store reinstall. Restore execution and all cleanup operations remain disabled; the connected snapshot feature is read-only.
 
 The offline command boundary in `src/device_command.rs` is also implemented:
 it accepts only typed package, setting, AppOps and network-policy operations,

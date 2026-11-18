@@ -241,9 +241,7 @@ impl ControlCentre {
                 let data_root = app_root()?.join("source-versions").join(&manifest.commit).join("data");
                 let snapshots = app_root()?.join("snapshots");
                 fs::create_dir_all(&snapshots).map_err(|error| format!("cannot create snapshot folder: {error}"))?;
-                let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
-                    .map_err(|_| "system clock is earlier than the Unix epoch")?.as_nanos();
-                let path = snapshots.join(format!("original-{stamp}.json"));
+                let path = snapshots.join("original-state.json");
                 let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
                     .map_err(|error| format!("cannot start the ADB runtime: {error}"))?;
                 runtime.block_on(adb_transport::capture_original_snapshot(ip, &data_root, &path))?;
