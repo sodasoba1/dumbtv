@@ -14,6 +14,9 @@ pub enum DeviceCommand {
     EnablePackage(String),
     UninstallPackageForUser { package: String, owner_confirmed: bool },
     ForceStopPackage(String),
+    /// Match debloat.sh: only when a cleanup package survives disable, restrict
+    /// background execution, block metered background data, then force-stop it.
+    ForceStopAndRestrictIfRunning { package: String, uid: Option<u32>, sdk: u32 },
     PutSetting { namespace: SettingsNamespace, key: String, value: String },
     DeleteSetting { namespace: SettingsNamespace, key: String },
     SetAppOp { package: String, operation: String, mode: String },
@@ -48,6 +51,13 @@ impl DeviceCommand {
             }
             Self::ForceStopPackage(package) => {
                 validate_protected_package(package, never_disable)?;
+                Ok(format!("am force-stop {package}"))
+            }
+            Self::ForceStopAndRestrictIfRunning { package, uid, sdk } => {
+                validate_protected_package(package, never_disable)?;
+                if uid.is_some_and(|value| value < 10_000) || !(25..=30).contains(sdk) {
+                    return Err("invalid UID or SDK for conditional background restriction".into());
+                }
                 Ok(format!("am force-stop {package}"))
             }
             Self::PutSetting { namespace, key, value } => {
