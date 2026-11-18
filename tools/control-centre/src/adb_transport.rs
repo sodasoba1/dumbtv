@@ -959,6 +959,16 @@ pub async fn install_smarttube(
             home_config_updated = true;
         }
     }
+    let launch = run_command(&mut connection, &format!("monkey -p {package} -c android.intent.category.LEANBACK_LAUNCHER 1")).await?;
+    if !launch.to_ascii_lowercase().contains("injected") {
+        return Err(format!("SmartTube is installed, but the launcher did not confirm a successful start: {}", launch.trim()));
+    }
+    let _ = run_command(&mut connection, &format!("rm -f {remote}")).await;
+    let final_dump = run_command(&mut connection, &format!("dumpsys package {package}")).await?;
+    let final_code = parse_installed_version_code(&final_dump)?;
+    if final_code < crate::apk_release::SMARTTUBE_VERSION_CODE {
+        return Err("SmartTube version verification changed after launch".into());
+    }
     Ok(format!(
         "SmartTube installed and verified (versionCode {installed_code}). Stock YouTube {}. DumbTV home.conf {}. Exact original state saved to {}. SmartTube remains installed if you later undo the replacement.",
         if stock_installed && !stock_was_disabled { "was disabled reversibly" } else if stock_installed { "was already disabled and was left unchanged" } else { "was not installed" },
