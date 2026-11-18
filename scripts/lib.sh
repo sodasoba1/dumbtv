@@ -288,6 +288,28 @@ adb_reconnect() {
   die "lost adb to $SERIAL; check the TV is on, then run this again"
 }
 
+# Preserve the device's original package enabled/disabled state before the first cleanup.
+# restore.sh uses this to avoid enabling apps the owner had already disabled.
+snapshot_package_states() {
+  local file="$REPORT/packages-before.txt" installed disabled pkg
+  [[ -f $file ]] && return 0
+  mkdir -p "$REPORT"
+  installed=$(dev 'pm list packages' | sed 's/^package://' | tr -d '\r')
+  disabled=$(dev 'pm list packages -d' | sed 's/^package://' | tr -d '\r')
+  [[ -n $installed ]] || die "could not snapshot installed packages; refusing to change package state"
+  local tmp="$file.tmp"
+  : > "$tmp"
+  while IFS= read -r pkg; do
+    [[ -z $pkg ]] && continue
+    if grep -qxF "$pkg" <<<"$disabled"; then
+      printf '%s\tdisabled\n' "$pkg" >> "$tmp"
+    else
+      printf '%s\tenabled\n' "$pkg" >> "$tmp"
+    fi
+  done <<< "$installed"
+  mv "$tmp" "$file"
+}
+
 list_of() { sed 's/#.*//; s/[[:space:]]*$//' "$1" | awk 'NF'; }
 
 # Downloads $2 to $1. GitHub's release CDN sometimes resets the first connection
