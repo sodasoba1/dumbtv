@@ -239,6 +239,13 @@ pub async fn execute_plan(
 ) -> Result<ExecutionReport, String> {
     let mut journal = OperationJournal::load(journal_path)?;
     if journal.workflow != WorkflowKind::Cleanup
+        || journal.manufacturer != expected.manufacturer
+        || journal.device_fingerprint != expected.serial_fingerprint
+        || journal.model != expected.model
+        || journal.build_display_id != expected.build_display_id
+        || journal.android_sdk != expected.sdk
+        || journal.source_commit != original.source_commit
+        || original.device_fingerprint != expected.serial_fingerprint
         || journal
             .operations
             .iter()
@@ -554,7 +561,7 @@ pub async fn push_staged_apk(
         .map_err(|error| format!("could not open ADB file-sync channel: {error}"))?;
     timeout(
         Duration::from_secs(180),
-        sync.send(remote_path, 0o100600, 0, apk_bytes),
+        sync.send(remote_path, libadb::sync::FileMode(0o100600), 0, apk_bytes),
     )
     .await
     .map_err(|_| "timed out transferring the APK over ADB sync".to_owned())?
@@ -1024,7 +1031,7 @@ pub async fn install_smarttube(
     } else {
         None
     };
-    let backup = SmartTubeBackup {
+    let mut backup = SmartTubeBackup {
         schema_version: 1,
         manufacturer: expected.manufacturer.clone(),
         device_fingerprint: expected.serial_fingerprint.clone(),
@@ -1311,7 +1318,7 @@ async fn push_remote_small_file(
         .map_err(|error| format!("cannot open ADB sync to update home.conf: {error}"))?;
     timeout(
         Duration::from_secs(30),
-        sync.send(remote_path, 0o100600, 0, bytes),
+        sync.send(remote_path, libadb::sync::FileMode(0o100600), 0, bytes),
     )
     .await
     .map_err(|_| "timed out writing DumbTV home.conf".to_owned())?
@@ -1462,6 +1469,13 @@ pub async fn execute_restore_plan(
 ) -> Result<ExecutionReport, String> {
     let mut journal = OperationJournal::load(journal_path)?;
     if journal.workflow != WorkflowKind::Restore
+        || journal.manufacturer != expected.manufacturer
+        || journal.device_fingerprint != expected.serial_fingerprint
+        || journal.model != expected.model
+        || journal.build_display_id != expected.build_display_id
+        || journal.android_sdk != expected.sdk
+        || journal.source_commit != original.source_commit
+        || original.device_fingerprint != expected.serial_fingerprint
         || journal
             .operations
             .iter()
