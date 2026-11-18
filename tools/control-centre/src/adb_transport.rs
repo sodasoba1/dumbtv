@@ -386,15 +386,21 @@ pub async fn push_staged_apk(
         .await
         .map_err(|_| "timed out transferring the APK over ADB sync".to_owned())?
         .map_err(|error| format!("ADB sync rejected the APK transfer: {error}"))?;
+    // Read the staged bytes back through the same sync protocol and compare
+    // their SHA-256, not merely their file size, before any future installer
+    // is allowed to consume the path.
+    let remote_bytes = timeout(Duration::from_secs(180), sync.recv(remote_path))
+        .await
+        .map_err(|_| "timed out reading the staged APK back from the Fire TV".to_owned())?
+        .map_err(|error| format!("could not read the staged APK back: {error}"))?;
+    let local_hash = crate::apk_release::sha256_hex(apk_bytes);
+    let remote_hash = crate::apk_release::sha256_hex(&remote_bytes);
+    if remote_bytes.len() != apk_bytes.len() || remote_hash != local_hash {
+        return Err("staged APK read-back did not match the verified local bytes".into());
+    }
     timeout(COMMAND_TIMEOUT, sync.quit()).await
         .map_err(|_| "timed out closing the ADB sync channel".to_owned())?
         .map_err(|error| format!("could not close the ADB sync channel: {error}"))?;
-    let size_output = run_command(&mut connection, &format!("wc -c < {remote_path}")).await?;
-    let remote_size: usize = size_output.trim().parse()
-        .map_err(|_| "Fire TV returned an unreadable staged APK size".to_owned())?;
-    if remote_size != apk_bytes.len() {
-        return Err(format!("staged APK size mismatch: sent {} bytes, device reports {remote_size}", apk_bytes.len()));
-    }
     Ok(())
 }
 
