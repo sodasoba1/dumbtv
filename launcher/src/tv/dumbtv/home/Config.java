@@ -391,7 +391,6 @@ final class Config {
         // Keep ordinary settings human-readable; encode only text that would break line parsing.
         if (value.indexOf('\n') < 0 && value.indexOf('\r') < 0
                 && !value.startsWith(TEXT_PREFIX)) return value;
-                && !value.startsWith(TEXT_PREFIX)) return value;
         byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
         char[] hex = new char[bytes.length * 2];
         final char[] digits = "0123456789abcdef".toCharArray();
