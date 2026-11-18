@@ -8,7 +8,8 @@ use std::collections::BTreeSet;
 
 use crate::settings_catalogue::SettingsNamespace;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", content = "arguments", rename_all = "snake_case")]
 pub enum DeviceCommand {
     DisablePackage(String),
     EnablePackage(String),
