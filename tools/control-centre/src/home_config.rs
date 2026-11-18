@@ -33,7 +33,7 @@ pub fn rewrite_apps_order(original: &[u8]) -> Result<Vec<u8>, String> {
                 if package.is_empty()
                     || package == crate::apk_release::SMARTTUBE_PACKAGE
                     || package == crate::apk_release::STOCK_YOUTUBE_PACKAGE
-                    || apps.iter().any(|existing| existing == package)
+                    || apps.iter().any(|existing: &String| existing.as_str() == package)
                 {
                     continue;
                 }
