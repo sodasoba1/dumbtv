@@ -210,6 +210,7 @@ pub async fn execute_plan(
             }
             Err(error) => {
                 journal.mark_failed(journal_path, index, &error)?;
+                journal.finish_failed(journal_path)?;
                 report.failure = Some(format!("{}: {error}", operation.description));
                 break;
             }
@@ -264,6 +265,7 @@ pub async fn execute_restore_plan(
             }
             Err(error) => {
                 journal.mark_failed(journal_path, index, &error)?;
+                journal.finish_failed(journal_path)?;
                 report.failure = Some(format!("{}: {error}", operation.description));
                 break;
             }
