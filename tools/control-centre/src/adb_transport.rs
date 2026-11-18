@@ -47,7 +47,8 @@ pub async fn inspect_device(ip: IpAddr, data_root: &Path) -> Result<DeviceInvent
     let packages = read_package_inventory(&mut connection).await?;
     let catalogue = FireOsCatalogue::load(data_root, profile.sdk)?;
     let mut protected_uids = BTreeMap::new();
-    for package in &catalogue.protected {
+    let uid_targets: BTreeSet<String> = catalogue.packages.iter().chain(catalogue.protected.iter()).cloned().collect();
+    for package in &uid_targets {
         if !packages.installed.contains(package) { continue; }
         let output = run_command(&mut connection, &format!("dumpsys package {package}")).await?;
         if let Some(uid) = parse_package_uid(&output) {
@@ -117,7 +118,8 @@ pub async fn capture_original_snapshot(
     if profile.sdk >= 28 {
         operations.push("RUN_ANY_IN_BACKGROUND");
     }
-    for package in &catalogue.protected {
+    let appop_targets: BTreeSet<String> = catalogue.packages.iter().chain(catalogue.protected.iter()).cloned().collect();
+    for package in &appop_targets {
         if !packages.installed.contains(package) {
             continue;
         }
@@ -387,6 +389,42 @@ async fn execute_one(
 ) -> Result<String, String> {
     use crate::device_command::DeviceCommand;
 
+    if let DeviceCommand::ForceStopAndRestrictIfRunning { package, uid, sdk } = command {
+        let shell_command = command.to_adb_shell(never_disable)?;
+        let before = read_running_names(connection).await?;
+        if !before.contains(package) {
+            return Ok(format!("{package} was not running after disable; no additional restrictions were needed"));
+        }
+        let mut appop_names = vec!["RUN_IN_BACKGROUND"];
+        if *sdk >= 28 { appop_names.push("RUN_ANY_IN_BACKGROUND"); }
+        for operation in &appop_names {
+            run_command(connection, &format!("appops set {package} {operation} ignore")).await?;
+            let actual = run_command(connection, &format!("appops get {package} {operation}")).await?;
+            if parse_appop_mode(&actual, operation)? != "ignore" {
+                return Err(format!("verification failed: {operation} was not ignored for {package}"));
+            }
+        }
+        if let Some(uid) = uid {
+            let current = parse_uid_blacklist(
+                &run_command(connection, "cmd netpolicy list restrict-background-blacklist").await?,
+            )?;
+            if !current.contains(uid) {
+                run_command(connection, &format!("cmd netpolicy add restrict-background-blacklist {uid}")).await?;
+            }
+            let verified = parse_uid_blacklist(
+                &run_command(connection, "cmd netpolicy list restrict-background-blacklist").await?,
+            )?;
+            if !verified.contains(uid) {
+                return Err(format!("verification failed: metered-data UID {uid} was not blacklisted"));
+            }
+        }
+        run_command(connection, &shell_command).await?;
+        let after = read_running_names(connection).await?;
+        if after.contains(package) {
+            return Err(format!("verification failed: {package} still has a running process after force-stop"));
+        }
+        return Ok(format!("Restricted background execution and verified force-stop for {package}"));
+    }
     if let DeviceCommand::ForceStopPackage(package) = command {
         let shell_command = command.to_adb_shell(never_disable)?;
         let before = read_running_names(connection).await?;
@@ -463,7 +501,7 @@ async fn execute_one(
             if actual.contains(uid) != should_exist { return Err(format!("verification failed for metered-data UID policy {uid}")); }
             Ok(format!("Metered-data blacklist UID {uid} verified {}", if should_exist { "present" } else { "absent" }))
         }
-        DeviceCommand::ForceStopPackage(_) => unreachable!(),
+        DeviceCommand::ForceStopPackage(_) | DeviceCommand::ForceStopAndRestrictIfRunning { .. } => unreachable!(),
     }
 }
 
