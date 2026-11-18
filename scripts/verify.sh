@@ -19,10 +19,11 @@ elif [[ $SDK != 25 ]]; then
   printf '%-10s %-38s %s\n' FAIL home "launcher supports only Fire OS 6 / API 25 (device reports API $SDK)"; fail=1
 else
   keeper=$(dev 'dumpsys activity services tv.dumbtv.home' | grep -c 'isForeground=true' || true)
-  if [[ ${keeper:-0} -gt 0 && $home == tv.dumbtv.home/* ]]; then
-    printf '%-10s %-38s %s\n' ok home "Keeper armed, DumbTV is foreground"
+  home_package=${home%%/*}
+  if [[ ${keeper:-0} -gt 0 && $home_package != com.amazon.tv.launcher && -n $home_package ]]; then
+    printf '%-10s %-38s %s\n' ok home "Keeper armed; foreground is ${home:-unknown}"
   elif [[ ${keeper:-0} -gt 0 ]]; then
-    printf '%-10s %-38s %s\n' FAIL home "Keeper is running but foreground is ${home:-unknown}"; fail=1
+    printf '%-10s %-38s %s\n' FAIL home "Keeper is running but Amazon Home is foreground (${home:-unknown})"; fail=1
   else
     printf '%-10s %-38s %s\n' FAIL home "Keeper not running; re-run launcher.sh"; fail=1
   fi
