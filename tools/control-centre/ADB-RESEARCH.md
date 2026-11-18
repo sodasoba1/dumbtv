@@ -7,7 +7,8 @@ The Rust ADB AUTH public-key encoder is implemented and unit-tested in
 dedicated current-user key in the Microsoft Software Key Storage Provider,
 exports only its public key and signs ADB tokens through CNG. It also computes
 the MD5 fingerprint displayed by Android 7-era authorisation dialogs and a
-separate SHA-256 fingerprint for the app's own display. Neither the key adapter
+separate SHA-256 fingerprint for the app's own display. The Windows CI test now exercises CNG key generation, non-exportability,
+public-key export, signing and signature verification. Neither the key adapter
 nor the transport has been physically tested on an AFTMM.
 
 **Candidate: `libadb` 0.9.x with its built-in `keys` and `host-keys` features disabled.**
