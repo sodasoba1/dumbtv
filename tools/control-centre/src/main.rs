@@ -296,12 +296,10 @@ fn extract_verified_archive(bytes: &[u8], destination: &Path, expected_sha: &str
         if !seen_paths.insert(collision_key) {
             return Err(format!("archive contains a duplicate or case-colliding path: {name}"));
         }
-        let mut components = path.components();
-        match components.next() {
-            Some(Component::Normal(root)) if root == expected_root.as_str() => {}
-            _ => return Err("archive contains an unexpected top-level directory".into()),
-        }
-        let relative: PathBuf = components.collect();
+        let relative = path
+            .strip_prefix(&expected_root)
+            .map_err(|_| "archive contains an unexpected top-level directory")?
+            .to_path_buf();
         if relative.as_os_str().is_empty() {
             continue;
         }
