@@ -820,6 +820,7 @@ impl eframe::App for ControlCentre {
                 egui::Window::new("Confirm restore").collapsible(false).resizable(false).show(ctx, |ui| {
                     ui.label("Restore the captured package, settings, AppOps and network-policy state on this Fire TV?");
                     ui.label("User apps removed for user 0 are not backed up; reinstall them manually from their original source (Amazon Appstore or sideloaded APK).");
+                    ui.label("Restore returns captured fields to their original snapshot values. Any later manual changes to those same package, settings, AppOps or network-policy fields will also be reverted.");
                     ui.horizontal(|ui| {
                         if ui.button("Restore captured state").clicked() { restore_clicked = true; }
                         if ui.button("Cancel").clicked() { cancel_restore = true; }
@@ -846,7 +847,7 @@ impl eframe::App for ControlCentre {
                 ui.label(&status);
             }
             ui.separator();
-            ui.small("Test build: source updater, read-only preflight/snapshot and explicitly confirmed cleanup. Launcher, Keeper and restore execution are not yet exposed.");
+            ui.small("Portable Windows frontend: source updater, ADB connection, read-only preflight and snapshot, reviewed cleanup and reviewed restore. DumbTV HOME/Keeper installation, optional YouTube replacement and automatic reboot/reconnect are still under development.");
             });
         });
     }
