@@ -608,9 +608,6 @@ pub async fn install_launcher(
     if expected_version_code == 0 {
         return Err("launcher release versionCode is invalid".into());
     }
-    if backup_path.exists() {
-        return Err("a launcher restore backup already exists; undo the previous installation before starting another".into());
-    }
     let package = crate::apk_release::LAUNCHER_PACKAGE;
     let mut before = connect(ip).await?;
     let actual = read_profile(&mut before).await?;
@@ -643,7 +640,7 @@ pub async fn install_launcher(
         line.starts_with("android.permission.READ_LOGS:") && line.contains("granted=true")
     });
     let whitelist_before = run_command(&mut before, "dumpsys deviceidle whitelist").await?;
-    let backup = LauncherBackup {
+    let captured_backup = LauncherBackup {
         schema_version: 1,
         manufacturer: expected.manufacturer.clone(),
         model: expected.model.clone(),
@@ -656,15 +653,29 @@ pub async fn install_launcher(
     };
     drop(before);
 
-    let backup_bytes = serde_json::to_vec_pretty(&backup)
-        .map_err(|error| format!("cannot encode launcher restore backup: {error}"))?;
-    if let Some(parent) = backup_path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|error| format!("cannot create launcher backup folder: {error}"))?;
-    }
-    AtomicFile::new(backup_path, AllowOverwrite)
-        .write(|file| file.write_all(&backup_bytes))
-        .map_err(|error| format!("cannot persist launcher restore backup: {error}"))?;
+    // Preserve the original pre-takeover state across subsequent launcher
+    // updates; otherwise the installer's own grants would become the baseline.
+    let had_backup = backup_path.is_file();
+    let backup = if had_backup {
+        let bytes = fs::read(backup_path)
+            .map_err(|error| format!("cannot read existing launcher restore backup: {error}"))?;
+        if bytes.len() > 64 * 1024 {
+            return Err("existing launcher restore backup exceeds the 64 KiB safety limit".into());
+        }
+        let saved: LauncherBackup = serde_json::from_slice(&bytes)
+            .map_err(|error| format!("existing launcher restore backup is invalid: {error}"))?;
+        if saved.schema_version != 1
+            || saved.manufacturer != expected.manufacturer
+            || saved.model != expected.model
+            || saved.build_display_id != expected.build_display_id
+            || saved.android_sdk != expected.sdk
+        {
+            return Err("existing launcher restore backup belongs to a different Fire TV; refusing to overwrite it".into());
+        }
+        saved
+    } else {
+        captured_backup
+    };
 
     let remote = "/data/local/tmp/dumbtv-home-release.apk";
     push_staged_apk(ip, expected, remote, apk_bytes).await?;
@@ -673,6 +684,17 @@ pub async fn install_launcher(
     let actual = read_profile(&mut connection).await?;
     if !same_device(&actual, expected) || actual.sdk != 25 {
         return Err("device identity or API level changed before launcher installation".into());
+    }
+    if !had_backup {
+        let backup_bytes = serde_json::to_vec_pretty(&backup)
+            .map_err(|error| format!("cannot encode launcher restore backup: {error}"))?;
+        if let Some(parent) = backup_path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|error| format!("cannot create launcher backup folder: {error}"))?;
+        }
+        AtomicFile::new(backup_path, AllowOverwrite)
+            .write(|file| file.write_all(&backup_bytes))
+            .map_err(|error| format!("cannot persist launcher restore backup: {error}"))?;
     }
     let installed = run_command(
         &mut connection,
@@ -688,9 +710,11 @@ pub async fn install_launcher(
                 installed.trim()
             )
         };
-        fs::remove_file(backup_path).map_err(|error| {
-            format!("{reason} The pre-install backup could not be retired: {error}")
-        })?;
+        if !had_backup {
+            fs::remove_file(backup_path).map_err(|error| {
+                format!("{reason} The pre-install backup could not be retired: {error}")
+            })?;
+        }
         return Err(reason);
     }
 
@@ -1264,7 +1288,6 @@ async fn push_remote_small_file(
     bytes: &[u8],
 ) -> Result<(), String> {
     if remote_path != "/sdcard/Android/data/tv.dumbtv.home/files/home.conf"
-        || bytes.is_empty()
         || bytes.len() > crate::home_config::MAX_HOME_CONFIG_BYTES
     {
         return Err("refusing to write an unapproved or oversized home.conf".into());
