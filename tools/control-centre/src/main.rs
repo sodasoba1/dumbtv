@@ -116,6 +116,13 @@ impl eframe::App for ControlCentre {
                     self.start_task(|| download_latest_source());
                 }
             });
+            let update_state = match (active.as_deref(), latest.as_deref()) {
+                (Some(local), Some(remote)) if local == remote => "Up to date",
+                (Some(_), Some(_)) => "Update available",
+                (None, Some(_)) => "No managed source downloaded yet",
+                (_, None) => "Check for updates to compare revisions",
+            };
+            ui.label(format!("Source status: {update_state}"));
             ui.label(format!("Downloaded source: {}", active.as_deref().map(short_sha).unwrap_or("Not downloaded")));
             ui.label(format!("Latest checked commit: {}", latest.as_deref().map(short_sha).unwrap_or("Not checked")));
             ui.label("Source updates are extracted into a versioned managed folder. Existing folders are never overwritten, and downloaded scripts are not run.");
