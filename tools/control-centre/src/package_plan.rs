@@ -302,6 +302,7 @@ mod tests {
             &PackageChoices { keep_alexa: true, remove: protected_remove, ..Default::default() },
             &installed,
             &BTreeSet::new(),
+            &BTreeSet::new(),
         )
         .is_err());
 
@@ -311,7 +312,26 @@ mod tests {
             &PackageChoices { keep_alexa: true, keep: same.clone(), remove: same, },
             &installed,
             &BTreeSet::new(),
+            &BTreeSet::new(),
         )
         .is_err());
+    }
+
+    #[test]
+    fn already_disabled_catalogue_packages_are_not_scheduled_again() {
+        let installed = ["com.amazon.ads".into()].into_iter().collect();
+        let disabled = installed.clone();
+        let plan = build_package_plan(
+            &catalogue(),
+            &PackageChoices::default(),
+            &installed,
+            &BTreeSet::new(),
+            &disabled,
+        )
+        .unwrap();
+        assert!(plan.actions.iter().any(|action| {
+            action.package == "com.amazon.ads"
+                && action.kind == PackageActionKind::SkipAlreadyDisabled
+        }));
     }
 }
