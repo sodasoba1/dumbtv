@@ -1,0 +1,56 @@
+name: Control Centre test build
+
+on:
+  pull_request:
+    paths:
+      - "tools/control-centre/**"
+      - ".github/workflows/control-centre.yml"
+  push:
+    branches: [main]
+    paths:
+      - "tools/control-centre/**"
+      - ".github/workflows/control-centre.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-test-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Compile and run unit tests
+        working-directory: tools/control-centre
+        run: |
+          cargo test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build portable Windows executable
+        working-directory: tools/control-centre
+        run: |
+          cargo build --release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Package portable test build
+        working-directory: tools/control-centre
+        shell: pwsh
+        run: |
+          $package = Join-Path $env:RUNNER_TEMP "DumbTV-Control-Centre-test"
+          New-Item -ItemType Directory -Force -Path $package | Out-Null
+          Copy-Item "target/release/dumbtv-control-centre.exe" $package
+          Copy-Item "README.md" $package
+          Copy-Item "THIRD-PARTY-NOTICES.md" $package
+          Compress-Archive -Path (Join-Path $package "*") -DestinationPath (Join-Path $env:RUNNER_TEMP "DumbTV-Control-Centre-test-windows-x64.zip") -Force
+
+      - name: Upload portable test build
+        uses: actions/upload-artifact@v4
+        with:
+          name: DumbTV-Control-Centre-test-windows-x64
+          path: ${{ runner.temp }}/DumbTV-Control-Centre-test-windows-x64.zip
+          if-no-files-found: error
+          retention-days: 14
