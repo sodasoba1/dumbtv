@@ -57,6 +57,8 @@ pub struct OperationJournal {
     pub source_commit: String,
     pub operations: Vec<JournalOperation>,
     pub finished: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_error: Option<String>,
 }
 
 impl OperationJournal {
@@ -103,6 +105,7 @@ impl OperationJournal {
                 command: None,
             }).collect(),
             finished: false,
+            workflow_error: None,
         };
         journal.save(&path)?;
         Ok(path)
@@ -189,6 +192,16 @@ impl OperationJournal {
         self.save(path)
     }
 
+    /// Close a fully executed journal while retaining a failed final audit.
+    pub fn finish_with_error(&mut self, path: &Path, detail: &str) -> Result<(), String> {
+        if self.operations.iter().any(|item| item.status == OperationStatus::Running || item.status == OperationStatus::Pending) {
+            return Err("cannot close a journal with pending or running operations".into());
+        }
+        self.workflow_error = Some(detail.chars().take(512).collect());
+        self.finished = true;
+        self.save(path)
+    }
+
     pub fn finish(&mut self, path: &Path) -> Result<(), String> {
         if self.operations.iter().any(|item| item.status == OperationStatus::Running || item.status == OperationStatus::Pending) {
             return Err("cannot finish a journal with pending or running operations".into());
@@ -207,6 +220,7 @@ impl OperationJournal {
             || self.model.len() > 128
             || self.build_display_id.len() > 256
             || self.operations.iter().any(|item| item.description.is_empty() || item.description.len() > 1024)
+            || self.workflow_error.as_deref().is_some_and(|value| value.len() > 512)
         {
             return Err("operation journal failed schema validation".into());
         }
