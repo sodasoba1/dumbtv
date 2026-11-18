@@ -8,7 +8,7 @@ use std::{
     time::Duration,
 };
 
-use libadb::{Connection, ConnectionConfig, Feature, HostBanner, TokioTcp};
+use libadb::{Connection, ConnectionConfig, HostBanner, TokioTcp};
 use tokio::{net::TcpStream, time::timeout};
 
 use crate::{cng_auth::WindowsCngAdbKey, device_profile::DeviceProfile};
@@ -41,7 +41,7 @@ pub async fn inspect_device(ip: IpAddr) -> Result<DeviceProfile, String> {
         Connection::connect(
             transport,
             key,
-            HostBanner::Features(&[Feature::ShellV2]),
+            HostBanner::Features(&[]),
             ConnectionConfig::new()
                 .with_max_payload(64 * 1024)
                 .with_max_rx_per_channel(64 * 1024)
