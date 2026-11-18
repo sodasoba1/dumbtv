@@ -34,7 +34,7 @@ binary or third-party script is bundled by this prototype. Windows CNG is an
 operating-system API, not a redistributed binary.
 
 Before publishing a user-facing release:
-- Generate and commit a Cargo.lock file from a clean, reproducible Windows build.
+- Commit the Cargo.lock produced by the clean Windows CI build.
 - Audit every direct and transitive dependency's exact licence and advisory status.
 - Verify that the optional `rsa 0.9` feature of libadb is not enabled or pulled
   into the resolved build graph; do not suppress RUSTSEC-2023-0071.
