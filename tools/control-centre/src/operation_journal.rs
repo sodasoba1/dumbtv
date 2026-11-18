@@ -158,12 +158,21 @@ impl OperationJournal {
     }
 
     pub fn mark_verified(&mut self, path: &Path, index: usize) -> Result<(), String> {
+        self.mark_verified_with_detail(path, index, None)
+    }
+
+    pub fn mark_verified_with_detail(
+        &mut self,
+        path: &Path,
+        index: usize,
+        detail: Option<&str>,
+    ) -> Result<(), String> {
         let operation = self.operations.get_mut(index).ok_or("journal operation index is out of range")?;
         if operation.status != OperationStatus::Running {
             return Err("journal operation was not marked running".into());
         }
         operation.status = OperationStatus::Verified;
-        operation.detail = None;
+        operation.detail = detail.map(|value| value.chars().take(512).collect());
         self.save(path)
     }
 
