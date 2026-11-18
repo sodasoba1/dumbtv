@@ -18,10 +18,10 @@ by this migration.
   installed, system, user and disabled sets; accepts the special `android`
   framework package and rejects inconsistent inventories.
 - `package_plan.rs`: builds an offline, read-only cleanup plan from the
-  catalogue, installed/system package inventories and explicit owner choices.
-  Defaults keep Alexa; named system apps are disabled; named user apps are
-  uninstalled; never-disable entries are rejected; contradictory keep/remove
-  choices fail closed.
+  catalogue, installed/system package inventories and explicit owner choices and original enabled/disabled state.
+  Defaults keep Alexa; already-disabled packages are skipped; named system apps
+  are disabled; named user apps are uninstalled; never-disable entries are
+  rejected; contradictory keep/remove choices fail closed.
 - Unit tests cover API 25/28/30, unsupported manufacturers, older/newer SDKs,
   getprop parsing, catalogue parsing, actual repository catalogues, duplicate
   entries, generation fallback and cleanup-plan safety rules.
