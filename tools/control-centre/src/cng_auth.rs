@@ -302,7 +302,7 @@ mod tests {
     #[test]
     fn cng_generates_key_exports_public_key_and_signs_adb_token() {
         let key = WindowsCngAdbKey::generate_ephemeral().unwrap();
-        assert!(key.public_key_wire().ends_with(b" dumbtv-control-centre@windows\\0"));
+        assert!(key.public_key_wire().ends_with(b" dumbtv-control-centre@windows\0"));
 
         let token = [0x5au8; 20];
         let signature = key.sign_token(&token).unwrap();
