@@ -21,13 +21,13 @@ pub fn rewrite_apps_order(original: &[u8]) -> Result<Vec<u8>, String> {
         } else {
             (line, "")
         };
-        if body.starts_with("apps.order=") {
+        if let Some(apps_order) = body.strip_prefix("apps.order=") {
             if found {
                 return Err("DumbTV home.conf contains duplicate apps.order keys".into());
             }
             found = true;
             let mut apps = Vec::new();
-            for item in body["apps.order=".len()..].split(',') {
+            for item in apps_order.split(',') {
                 let package = item.trim();
                 if package.is_empty()
                     || package == crate::apk_release::SMARTTUBE_PACKAGE
