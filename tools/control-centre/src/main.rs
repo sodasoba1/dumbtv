@@ -635,8 +635,8 @@ impl eframe::App for ControlCentre {
             ui.label("Portable Windows frontend · AFTMM / Fire OS 6 project");
             if !self.recovery_journals.is_empty() {
                 ui.separator();
-                ui.heading("Unfinished operation journals");
-                ui.label("These records indicate work that did not reach a clean completion. Reconnect to the same Fire TV, inspect its current state and review restore. The app will never replay an interrupted operation automatically.");
+                ui.heading("Operation journals requiring review");
+                ui.label("These records indicate an interrupted or failed workflow. Reconnect to the recorded Fire TV, inspect its current state and review restore. The app will never replay an interrupted operation automatically.");
                 for summary in &self.recovery_journals { ui.small(summary); }
             }
             ui.separator();
@@ -913,13 +913,15 @@ fn load_unfinished_journals() -> Vec<String> {
         let Ok(journal) = operation_journal::OperationJournal::load(&path) else {
             continue;
         };
-        if journal.finished {
-            continue;
-        }
         let verified = journal.operations.iter().filter(|item| item.status == operation_journal::OperationStatus::Verified).count();
         let running = journal.operations.iter().filter(|item| item.status == operation_journal::OperationStatus::Running).count();
         let failed = journal.operations.iter().filter(|item| item.status == operation_journal::OperationStatus::Failed).count();
         let pending = journal.operations.iter().filter(|item| item.status == operation_journal::OperationStatus::Pending).count();
+        // Failed workflows are marked finished to prevent accidental replay,
+        // but they still require owner review and must remain visible on restart.
+        if journal.finished && failed == 0 {
+            continue;
+        }
         let name = path.file_name().and_then(|value| value.to_str()).unwrap_or("operation journal");
         summaries.push(format!(
             "{name}: {verified} verified, {running} marked running at last save, {failed} failed, {pending} not attempted. Device recorded: {} {} · {}",
