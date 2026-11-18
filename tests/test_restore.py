@@ -43,6 +43,7 @@ class RestoreTest(unittest.TestCase):
                        PM_WRITE_SECONDS="0")
             result = subprocess.run(["bash", str(ROOT / "scripts" / "restore.sh"), "-y"],
                                     env=env, capture_output=True, text=True, timeout=120)
+            self.package_snapshot_exists_after = (report / "packages-before.txt").exists()
             return result, log.read_text().splitlines(), json.loads(state.read_text())
 
     def test_every_change_reaches_the_tv_before_the_reboot(self):
@@ -65,6 +66,8 @@ class RestoreTest(unittest.TestCase):
         self.assertFalse(state["packages"]["com.amazon.tv.acr"]["enabled"])
         self.assertNotIn("pm enable --user 0 com.amazon.tv.acr", commands)
         self.assertIn("left disabled (was not enabled in the original snapshot)", result.stdout)
+        self.assertFalse(self.package_snapshot_exists_after,
+                         "successful restore clears snapshots for the next cleanup cycle")
 
     def test_amazons_screensaver_comes_back(self):
         amazon = "com.amazon.ftv.screensaver/.app.services.ScreensaverService"
