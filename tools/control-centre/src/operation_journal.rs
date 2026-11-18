@@ -65,6 +65,9 @@ pub struct OperationJournal {
 }
 
 impl OperationJournal {
+    // The journal identity is deliberately explicit: each field is persisted and
+    // validated independently so recovery cannot silently bind to another device.
+    #[allow(clippy::too_many_arguments)]
     pub fn create(
         root: &Path,
         workflow: WorkflowKind,
@@ -138,6 +141,8 @@ impl OperationJournal {
 
     /// Create a journal that also retains the reviewed typed command for each step.
     /// This supports selective recovery without storing raw ADB shell strings.
+    // Keep the same explicit identity fields as create() for auditability.
+    #[allow(clippy::too_many_arguments)]
     pub fn create_with_commands(
         root: &Path,
         workflow: WorkflowKind,
@@ -194,10 +199,6 @@ impl OperationJournal {
         operation.status = OperationStatus::Running;
         operation.detail = None;
         self.save(path)
-    }
-
-    pub fn mark_verified(&mut self, path: &Path, index: usize) -> Result<(), String> {
-        self.mark_verified_with_detail(path, index, None)
     }
 
     pub fn mark_verified_with_detail(
