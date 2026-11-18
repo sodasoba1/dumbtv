@@ -244,7 +244,7 @@ pub fn scope_restore_to_verified_cleanup(
                 verified.iter().any(|command| matches!(command,
                     DeviceCommand::PutSetting { namespace: target, key: target_key, value }
                     if target_key == key
-                        && current_value == Some(&Some(value.clone()))
+                        && current_value.and_then(|value| value.as_deref()) == Some(value.as_str())
                         && match namespace {
                             crate::snapshot::SettingNamespace::Secure => *target == crate::settings_catalogue::SettingsNamespace::Secure,
                             crate::snapshot::SettingNamespace::Global => *target == crate::settings_catalogue::SettingsNamespace::Global,
