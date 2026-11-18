@@ -309,6 +309,7 @@ async fn verify_cleanup_operations(
 pub async fn reboot_and_reconnect(
     ip: IpAddr,
     expected: &DeviceProfile,
+    operations: &[crate::operations::PlannedOperation],
 ) -> Result<DeviceProfile, String> {
     let mut connection = connect(ip).await?;
     let before = read_profile(&mut connection).await?;
@@ -337,6 +338,7 @@ pub async fn reboot_and_reconnect(
             if let Ok(Ok(mut connection)) = timeout(Duration::from_secs(12), connect(ip)).await {
                 if let Ok(profile) = read_profile(&mut connection).await {
                     if same_device(&profile, expected) {
+                        verify_cleanup_operations(&mut connection, operations).await?;
                         return Ok(profile);
                     }
                     return Err("a different device answered after reboot; identity check failed".into());
