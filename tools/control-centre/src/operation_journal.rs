@@ -201,6 +201,7 @@ impl OperationJournal {
         self.save(path)
     }
 
+    #[cfg(test)]
     pub fn mark_verified(&mut self, path: &Path, index: usize) -> Result<(), String> {
         self.mark_verified_with_detail(path, index, None)
     }
