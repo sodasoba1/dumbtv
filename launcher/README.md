@@ -119,7 +119,7 @@ display-only. New widgets start at 1 × 2 cells and can be widened or made talle
 (up to 6 × 4). The editor supports per-widget font sizing, including the clock, and
 shows a live preview. Options can show or hide individual widgets and turn their
 backgrounds on; backgrounds are off by default. The first-run layout contains only
-the clock. Available widgets are clock, memory, recent apps, network, storage,
+the clock. Available widgets are clock, memory, network, storage,
 custom text, DumbTV diagnostics and device information.
 
 **Per-app appearance** is available from Customize on a home tile or from the full
@@ -148,7 +148,7 @@ The **Theme** option includes Classic, Glass, Midnight and Slate. Glass applies 
 
 The top bar buttons use consistent dimensions and can be aligned left, centre or right. **Auto-hide top bar** is off by default; when enabled, the bar fades/slides away without reclaiming its layout space or shifting the widget grid, scrolling content or bottom favourites panel. The **Widgets** shortcut opens the layout editor directly. Widgets themselves are never focusable or clickable; their placement is changed only in this editor.
 
-The home uses a 6-column by 4-row widget area. The available widgets are Clock, Memory, Recently opened apps, Network, Storage, Custom text, DumbTV diagnostics and Device information. A fresh layout starts with the Clock placed at 1 × 2 cells. Newly added widgets also start at 1 × 2; they can be widened or made taller in the editor, up to 6 × 4. Placements cannot overlap or extend beyond the grid. The editor supports Add, Move, Resize, Remove, custom text and per-widget font sizing (including the clock). A live preview uses the same widget views and placement engine as the home screen. Changes are staged until **Save**; **Cancel** discards them.
+The home uses a 6-column by 4-row widget area. The available widgets are Clock, Memory, Network, Storage, Custom text, DumbTV diagnostics and Device information. A fresh layout starts with the Clock placed at 1 × 2 cells. Newly added widgets also start at 1 × 2; they can be widened or made taller in the editor, up to 6 × 4. Placements cannot overlap or extend beyond the grid. The editor supports Add, Move, Resize, Remove, custom text and per-widget font sizing (including the clock). A live preview uses the same widget views and placement engine as the home screen. Changes are staged until **Save**; **Cancel** discards them.
 
 Widget visibility and placement are separate. Turning a widget off hides it but preserves its position. A widget that is enabled but has no saved position is shown as **On · not added** in Widget Settings. Widget backgrounds are off by default and can be enabled separately. The Network widget reads Android's active connection state; it does not make network requests and does not require the INTERNET permission.
 
