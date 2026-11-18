@@ -209,7 +209,7 @@ final class Config {
     private final Map<String, String> values = new LinkedHashMap<>();
     private long signature = Long.MIN_VALUE;
     private int version;
-    private long visits;
+    private volatile long visits;
 
     static synchronized Config get(Context c) {
         if (instance == null) instance = new Config(c.getApplicationContext());
@@ -414,7 +414,7 @@ final class Config {
     }
 
     /** Counts returns to the home screen, for the "visit" rotation. */
-    synchronized void visited() {
+    void visited() {
         visits++;
     }
 
@@ -496,7 +496,7 @@ final class Config {
         }
     }
 
-    synchronized File wallpaper() {
+    File wallpaper() {
         List<File> pool = wallpapers();
         if (!pool.isEmpty()) {
             long now = System.currentTimeMillis();
