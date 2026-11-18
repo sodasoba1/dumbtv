@@ -683,10 +683,14 @@ pub async fn install_launcher(
         let reason = if installed.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE") {
             "signature mismatch: the existing DumbTV HOME was signed with a different key. It was left installed and untouched; uninstalling it would delete its settings.".to_owned()
         } else {
-            format!("Android package installer did not report Success: {}", installed.trim())
+            format!(
+                "Android package installer did not report Success: {}",
+                installed.trim()
+            )
         };
-        fs::remove_file(backup_path)
-            .map_err(|error| format!("{reason} The pre-install backup could not be retired: {error}"))?;
+        fs::remove_file(backup_path).map_err(|error| {
+            format!("{reason} The pre-install backup could not be retired: {error}")
+        })?;
         return Err(reason);
     }
 
