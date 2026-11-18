@@ -91,9 +91,10 @@ by this migration.
    typed restore commands and per-operation verification. User-app reinstall
    and missing system-package recovery remain manual and are explicitly shown.
 6. **Remaining parity:** automatic reboot/reconnect, complete post-change
-   verification and UI discovery/reconciliation of interrupted journals. Durable
-   per-operation journals are now written for cleanup and restore; automatic
-   replay/resume remains deliberately disabled until live device state is re-read.
+   verification and reconciliation of interrupted journals. Durable per-operation journals
+   are now written for cleanup and restore, and unfinished journals are listed
+   at frontend startup. Automatic replay/resume remains deliberately disabled
+   until live device state is re-read.
    Force-stop uses the API 25 process-list fallback and read-back verification.
 7. **Launcher:** still gated separately; API 25 only, with APK signing, grants,
    Keeper lifecycle, reboot/reconnect and undo to validate.
