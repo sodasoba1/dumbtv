@@ -22,11 +22,11 @@ const NTE_NOT_FOUND: i32 = 0x8009_0011u32 as i32;
 const NCRYPT_PAD_PKCS1_FLAG: u32 = 0x0000_0002;
 const RSA_BITS: u32 = 2048;
 
-const PROVIDER: [u16; 39] = wide("Microsoft Software Key Storage Provider");
+const PROVIDER: [u16; 40] = wide("Microsoft Software Key Storage Provider");
 const RSA_ALGORITHM: [u16; 4] = wide("RSA");
-const KEY_NAME: [u16; 34] = wide("DumbTV-ControlCentre-ADB-HostKey");
+const KEY_NAME: [u16; 33] = wide("DumbTV-ControlCentre-ADB-HostKey");
 const LENGTH_PROPERTY: [u16; 7] = wide("Length");
-const RSA_PUBLIC_BLOB: [u16; 15] = wide("RSAPUBLICBLOB");
+const RSA_PUBLIC_BLOB: [u16; 14] = wide("RSAPUBLICBLOB");
 const SHA1_ALGORITHM: [u16; 5] = wide("SHA1");
 const PUBLIC_KEY_NAME: &str = "dumbtv-control-centre@windows";
 
