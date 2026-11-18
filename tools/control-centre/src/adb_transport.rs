@@ -358,6 +358,52 @@ pub async fn reboot_and_reconnect(
     Err("the Fire TV did not complete ADB reconnect within 120 seconds".into())
 }
 
+/// Push a verified APK into the app-private staging area using ADB sync.
+/// The caller must verify the APK checksum before calling this function.
+pub async fn push_staged_apk(
+    ip: IpAddr,
+    expected: &DeviceProfile,
+    remote_path: &str,
+    apk_bytes: &[u8],
+) -> Result<(), String> {
+    if !valid_apk_staging_path(remote_path) {
+        return Err("APK staging path must be a single named file under /data/local/tmp/dumbtv-".into());
+    }
+    if apk_bytes.is_empty() || apk_bytes.len() > 128 * 1024 * 1024 {
+        return Err("APK is empty or exceeds the 128 MiB transfer limit".into());
+    }
+    let mut connection = connect(ip).await?;
+    let actual = read_profile(&mut connection).await?;
+    if !same_device(&actual, expected) {
+        return Err("the device at the selected IP no longer matches the inspected Fire TV".into());
+    }
+    let mut receive_buffer = vec![0_u8; 65_544];
+    let mut sync = libadb::sync::open(&mut connection, &mut receive_buffer).await
+        .map_err(|error| format!("could not open ADB file-sync channel: {error}"))?;
+    timeout(Duration::from_secs(180), sync.send(remote_path, 0o100600, 0, apk_bytes))
+        .await
+        .map_err(|_| "timed out transferring the APK over ADB sync".to_owned())?
+        .map_err(|error| format!("ADB sync rejected the APK transfer: {error}"))?;
+    timeout(COMMAND_TIMEOUT, sync.quit()).await
+        .map_err(|_| "timed out closing the ADB sync channel".to_owned())?
+        .map_err(|error| format!("could not close the ADB sync channel: {error}"))?;
+    let size_output = run_command(&mut connection, &format!("wc -c < {remote_path}")).await?;
+    let remote_size: usize = size_output.trim().parse()
+        .map_err(|_| "Fire TV returned an unreadable staged APK size".to_owned())?;
+    if remote_size != apk_bytes.len() {
+        return Err(format!("staged APK size mismatch: sent {} bytes, device reports {remote_size}", apk_bytes.len()));
+    }
+    Ok(())
+}
+
+fn valid_apk_staging_path(path: &str) -> bool {
+    let Some(name) = path.strip_prefix("/data/local/tmp/dumbtv-") else { return false; };
+    name.ends_with(".apk")
+        && name.len() <= 96
+        && name.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+        && !name.contains("..")
+}
+
 /// Read-only verification of every cleanup mutation marked verified in a
 /// matching journal. This can be run again after reboot or a later firmware change.
 pub async fn verify_cleanup_journal(
@@ -870,6 +916,16 @@ fn is_local_target(ip: IpAddr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn staged_apk_path_is_confined_to_the_control_centre_temp_prefix() {
+        assert!(valid_apk_staging_path("/data/local/tmp/dumbtv-launcher-1.13.apk"));
+        assert!(valid_apk_staging_path("/data/local/tmp/dumbtv-smarttube-32.56s.apk"));
+        assert!(!valid_apk_staging_path("/sdcard/Download/payload.apk"));
+        assert!(!valid_apk_staging_path("/data/local/tmp/dumbtv-../payload.apk"));
+        assert!(!valid_apk_staging_path("/data/local/tmp/dumbtv-run.sh"));
+        assert!(!valid_apk_staging_path("/data/local/tmp/dumbtv-foo.apk; reboot"));
+    }
 
     #[test]
     fn only_private_or_link_local_addresses_are_allowed() {
