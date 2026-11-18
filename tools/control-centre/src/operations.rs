@@ -214,6 +214,7 @@ pub fn build_cleanup_plan(
 pub fn scope_restore_to_verified_cleanup(
     plan: &RestorePlan,
     journal: &crate::operation_journal::OperationJournal,
+    current: &crate::snapshot::CurrentDeviceState,
 ) -> (RestorePlan, usize) {
     use crate::device_command::DeviceCommand;
     use crate::operation_journal::{OperationStatus, WorkflowKind};
@@ -231,36 +232,53 @@ pub fn scope_restore_to_verified_cleanup(
     for action in &plan.actions {
         let belongs_to_cleanup = match action {
             RestoreAction::SetPackageState { package, .. } =>
-                verified.iter().any(|command| matches!(command,
-                    DeviceCommand::DisablePackage(name) if name == package)),
+                current.packages.get(package) == Some(&PackageState::Disabled)
+                    && verified.iter().any(|command| matches!(command,
+                        DeviceCommand::DisablePackage(name) if name == package)),
             RestoreAction::PutSetting { namespace, key, .. }
-            | RestoreAction::DeleteSetting { namespace, key } =>
+            | RestoreAction::DeleteSetting { namespace, key } => {
+                let current_value = match namespace {
+                    crate::snapshot::SettingNamespace::Secure => current.secure_settings.get(key),
+                    crate::snapshot::SettingNamespace::Global => current.global_settings.get(key),
+                };
                 verified.iter().any(|command| matches!(command,
-                    DeviceCommand::PutSetting { namespace: target, key: target_key, .. }
-                    if target_key == key && match namespace {
-                        crate::snapshot::SettingNamespace::Secure => *target == crate::settings_catalogue::SettingsNamespace::Secure,
-                        crate::snapshot::SettingNamespace::Global => *target == crate::settings_catalogue::SettingsNamespace::Global,
-                    })),
-            RestoreAction::SetAppOp { package, operation, .. } =>
+                    DeviceCommand::PutSetting { namespace: target, key: target_key, value }
+                    if target_key == key
+                        && current_value == Some(&Some(value.clone()))
+                        && match namespace {
+                            crate::snapshot::SettingNamespace::Secure => *target == crate::settings_catalogue::SettingsNamespace::Secure,
+                            crate::snapshot::SettingNamespace::Global => *target == crate::settings_catalogue::SettingsNamespace::Global,
+                        }))
+            },
+            RestoreAction::SetAppOp { package, operation, .. } => {
+                let current_mode = current.app_ops.iter()
+                    .find(|item| item.package == *package && item.operation == *operation)
+                    .map(|item| item.mode.as_str());
                 verified.iter().any(|command| match command {
-                    DeviceCommand::SetAppOp { package: target, operation: target_op, .. } =>
-                        target == package && target_op == operation,
+                    DeviceCommand::SetAppOp { package: target, operation: target_op, mode } =>
+                        target == package && target_op == operation && current_mode == Some(mode.as_str()),
                     DeviceCommand::ForceStopAndRestrictIfRunning { package: target, .. } =>
-                        target == package && matches!(operation.as_str(), "RUN_IN_BACKGROUND" | "RUN_ANY_IN_BACKGROUND"),
+                        target == package
+                            && matches!(operation.as_str(), "RUN_IN_BACKGROUND" | "RUN_ANY_IN_BACKGROUND")
+                            && current_mode == Some("ignore"),
                     _ => false,
-                }),
+                })
+            },
             RestoreAction::SetRestrictBackground(_) =>
-                verified.iter().any(|command| matches!(command, DeviceCommand::SetRestrictBackground(true))),
+                current.restrict_background == Some(true)
+                    && verified.iter().any(|command| matches!(command, DeviceCommand::SetRestrictBackground(true))),
             RestoreAction::AddMeteredBlacklistUid(uid)
             | RestoreAction::RemoveMeteredBlacklistUid(uid) =>
-                verified.iter().any(|command| match command {
-                    DeviceCommand::AddMeteredBlacklistUid(target) => target == uid,
-                    DeviceCommand::ForceStopAndRestrictIfRunning { uid: Some(target), .. } => target == uid,
-                    _ => false,
-                }),
+                current.metered_blacklist_uids.as_ref().is_some_and(|uids| uids.contains(uid))
+                    && verified.iter().any(|command| match command {
+                        DeviceCommand::AddMeteredBlacklistUid(target) => target == uid,
+                        DeviceCommand::ForceStopAndRestrictIfRunning { uid: Some(target), .. } => target == uid,
+                        _ => false,
+                    }),
             RestoreAction::ManualUserAppReinstall(package) =>
-                verified.iter().any(|command| matches!(command,
-                    DeviceCommand::UninstallPackageForUser { package: target, .. } if target == package)),
+                !current.packages.contains_key(package)
+                    && verified.iter().any(|command| matches!(command,
+                        DeviceCommand::UninstallPackageForUser { package: target, .. } if target == package)),
             RestoreAction::ManualStateUnavailable(_) => true,
         };
         if belongs_to_cleanup { retained.push(action.clone()); } else { excluded += 1; }
