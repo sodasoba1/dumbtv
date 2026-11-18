@@ -1,4 +1,6 @@
 mod adb_auth;
+#[cfg(windows)]
+mod cng_auth;
 mod catalogue;
 mod device_profile;
 mod package_plan;
