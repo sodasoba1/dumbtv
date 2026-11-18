@@ -236,7 +236,7 @@ impl eframe::App for ControlCentre {
                 if let Some(sha256) = host_key_sha256.as_deref() {
                     ui.small(format!("SHA-256 app fingerprint: {sha256}"));
                 }
-                ui.label("On first connection, compare the TV's fingerprint with the MD5 value above before approving. The TV stores this host key only if you approve; selecting 'Always allow' avoids repeated prompts.");
+                ui.label("On first connection, compare the TV's fingerprint with the MD5 value above before approving. The TV accepts this host key only if you approve; selecting 'Always allow' saves it for later connections.");
             } else {
                 ui.small("Prepare the host key first. Its private key remains in the Windows user key store.");
             }
