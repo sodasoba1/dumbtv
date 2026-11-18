@@ -32,7 +32,7 @@ cargo build --release
 .\target\release\dumbtv-control-centre.exe
 ```
 
-The resulting executable is self-contained with respect to the Rust runtime; Windows system libraries remain OS dependencies. A portable test ZIP can contain the EXE and this README. No installer or admin rights are required for this stage.
+The resulting executable is self-contained with respect to the Rust runtime; Windows system libraries remain OS dependencies. The PR's Windows Actions workflow packages the EXE, this README and the third-party notices into a portable ZIP artifact. Extract it and run the EXE; no installer, admin rights or runtime installation are required. This test executable is not code-signed, so Windows may display its normal publisher warning. Only run a build downloaded from this repository's own Actions run.
 
 ## Dependencies and licensing
 
