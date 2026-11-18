@@ -1007,7 +1007,7 @@ impl eframe::App for ControlCentre {
                     });
                 }
                 if ui.add_enabled(!busy, egui::Button::new("Download latest source")).clicked() {
-                    self.start_task(|| download_latest_source());
+                    self.start_task(download_latest_source);
                 }
             });
             let update_state = match (active.as_deref(), latest.as_deref()) {
@@ -1085,10 +1085,11 @@ impl eframe::App for ControlCentre {
                 ui.label(format!("Package inventory: {installed} installed · {system} system · {user} user-installed · {disabled} disabled"));
             }
             if let Some(ip) = connected_ip {
-                if snapshot_path.is_none() && package_counts.is_some() {
-                    if ui.add_enabled(!busy, egui::Button::new("Capture original state (read-only)")).clicked() {
-                        self.capture_original_state(ip);
-                    }
+                if snapshot_path.is_none()
+                    && package_counts.is_some()
+                    && ui.add_enabled(!busy, egui::Button::new("Capture original state (read-only)")).clicked()
+                {
+                    self.capture_original_state(ip);
                 }
                 if let Some(path) = snapshot_path.as_ref() {
                     ui.label(format!("Original-state snapshot: {}", path.file_name().and_then(|name| name.to_str()).unwrap_or("saved")));
@@ -1158,20 +1159,22 @@ impl eframe::App for ControlCentre {
                         review_clicked = true;
                     }
                     if review_clicked {
-                        match (device_profile.as_ref(), package_inventory.as_ref(), connected_ip, snapshot_path.as_ref()) {
-                            (Some(profile), Some(inventory), Some(_ip), Some(path)) => {
-                                match self.prepare_cleanup_plan(profile, inventory, &protected_uids, path) {
-                                    Ok(()) => {
-                                        let mut state = self.shared.lock().expect("state lock poisoned");
-                                        state.status = "Cleanup plan prepared. Review every operation below; nothing has been changed.".into();
-                                    }
-                                    Err(error) => {
-                                        let mut state = self.shared.lock().expect("state lock poisoned");
-                                        state.status = format!("Cannot prepare cleanup plan: {error}");
-                                    }
+                        if let (Some(profile), Some(inventory), Some(_ip), Some(path)) = (
+                            device_profile.as_ref(),
+                            package_inventory.as_ref(),
+                            connected_ip,
+                            snapshot_path.as_ref(),
+                        ) {
+                            match self.prepare_cleanup_plan(profile, inventory, &protected_uids, path) {
+                                Ok(()) => {
+                                    let mut state = self.shared.lock().expect("state lock poisoned");
+                                    state.status = "Cleanup plan prepared. Review every operation below; nothing has been changed.".into();
+                                }
+                                Err(error) => {
+                                    let mut state = self.shared.lock().expect("state lock poisoned");
+                                    state.status = format!("Cannot prepare cleanup plan: {error}");
                                 }
                             }
-                            _ => {}
                         }
                     }
                 }
@@ -1323,7 +1326,7 @@ fn latest_cleanup_journal(
                 && journal.source_commit == source_commit
         })
         .collect();
-    journals.sort_by(|left, right| right.created_unix_seconds.cmp(&left.created_unix_seconds));
+    journals.sort_by_key(|journal| std::cmp::Reverse(journal.created_unix_seconds));
     Ok(journals.into_iter().next())
 }
 
@@ -1347,7 +1350,7 @@ fn load_unfinished_journals() -> Vec<String> {
         })
         .collect();
     // Keep the newest recovery records, regardless of cleanup/restore filename prefix.
-    journals.sort_by(|left, right| right.0.cmp(&left.0));
+    journals.sort_by_key(|journal| std::cmp::Reverse(journal.0));
     journals.truncate(256);
 
     let mut summaries = Vec::new();
@@ -1739,12 +1742,11 @@ fn validate_source_tree(root: &Path) -> Result<(), String> {
     // The Windows controller consumes maintained catalogues and release
     // metadata only. Shell scripts and Android source are behavioural
     // references in the repository, not runtime inputs to this application.
-    for required in ["launcher/version.env"] {
-        if !root.join(required).is_file() {
-            return Err(format!(
-                "source archive is missing required file: {required}"
-            ));
-        }
+    let required = "launcher/version.env";
+    if !root.join(required).is_file() {
+        return Err(format!(
+            "source archive is missing required file: {required}"
+        ));
     }
 
     let version_text = fs::read_to_string(root.join("launcher/version.env"))
