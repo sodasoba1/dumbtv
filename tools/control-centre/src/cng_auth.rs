@@ -9,8 +9,8 @@ use sha1::{Digest, Sha1};
 use std::ptr;
 
 use windows_sys::Win32::Security::Cryptography::{
-    NCryptCreatePersistedKey, NCryptExportKey, NCryptFinalizeKey, NCryptFreeObject,
-    NCryptOpenKey, NCryptOpenStorageProvider, NCryptSetProperty, NCryptSignHash,
+    NCryptCreatePersistedKey, NCryptDeleteKey, NCryptExportKey, NCryptFinalizeKey,
+    NCryptFreeObject, NCryptOpenKey, NCryptOpenStorageProvider, NCryptSetProperty, NCryptSignHash,
     BCRYPT_PKCS1_PADDING_INFO,
 };
 
@@ -95,7 +95,9 @@ impl WindowsCngAdbKey {
             };
             if set_status != STATUS_SUCCESS {
                 unsafe {
-                    NCryptFreeObject(key);
+                    if NCryptDeleteKey(key, 0) != STATUS_SUCCESS {
+                        NCryptFreeObject(key);
+                    }
                     NCryptFreeObject(provider);
                 }
                 return Err(format!("set ADB host key length failed (0x{:08x})", set_status as u32));
@@ -104,7 +106,9 @@ impl WindowsCngAdbKey {
             let finalize_status = unsafe { NCryptFinalizeKey(key, 0) };
             if finalize_status != STATUS_SUCCESS {
                 unsafe {
-                    NCryptFreeObject(key);
+                    if NCryptDeleteKey(key, 0) != STATUS_SUCCESS {
+                        NCryptFreeObject(key);
+                    }
                     NCryptFreeObject(provider);
                 }
                 return Err(format!("finalize ADB host key failed (0x{:08x})", finalize_status as u32));
