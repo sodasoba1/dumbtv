@@ -32,6 +32,18 @@ final class AppStyle {
         config.set(key(item, property), value);
     }
 
+    /**
+     * Saves the fields exposed by the current editor. Other per-app overrides survive unless
+     * the user explicitly chose Reset customisation in the same staged edit.
+     */
+    static void save(Config config, Item item, String name, String originalName,
+                     String banner, String background, boolean resetCustomisation) {
+        if (resetCustomisation) config.removePrefix("appstyle." + item.id + ".");
+        config.set("name." + item.id, name.equals(originalName) ? null : name);
+        config.set(key(item, "banner"), banner);
+        config.set(key(item, "background"), background);
+    }
+
     static String[] properties() {
         return new String[] {"Focus scale", "Border", "Shadow / glow", "App name", "Tile size", "Background colour", "Banner image"};
     }
