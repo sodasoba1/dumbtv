@@ -566,7 +566,7 @@ impl ControlCentre {
                 {
                     return Err("the latest cleanup journal does not match this device and original snapshot".into());
                 }
-                let (plan, excluded) = operations::scope_restore_to_verified_cleanup(&full_plan, &journal);
+                let (plan, excluded) = operations::scope_restore_to_verified_cleanup(&full_plan, &journal, &current);
                 Ok((plan, current, excluded))
             })();
             let mut state = shared.lock().expect("state lock poisoned");
