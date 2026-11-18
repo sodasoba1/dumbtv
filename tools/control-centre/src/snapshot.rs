@@ -66,7 +66,10 @@ impl DeviceSnapshot {
             return Err("snapshot is missing device identity or SDK".into());
         }
         if self.device_fingerprint.len() != 64
-            || !self.device_fingerprint.bytes().all(|byte| byte.is_ascii_hexdigit())
+            || !self
+                .device_fingerprint
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit())
         {
             return Err("snapshot is missing a valid unique device fingerprint; capture a new original-state snapshot".into());
         }

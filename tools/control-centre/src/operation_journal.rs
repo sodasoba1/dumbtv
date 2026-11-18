@@ -88,7 +88,9 @@ impl OperationJournal {
                 "operation journal contains an invalid or excessive operation description".into(),
             );
         }
-        if device_fingerprint.len() != 64 || !device_fingerprint.bytes().all(|b| b.is_ascii_hexdigit()) {
+        if device_fingerprint.len() != 64
+            || !device_fingerprint.bytes().all(|b| b.is_ascii_hexdigit())
+        {
             return Err("operation journal requires a valid unique device fingerprint".into());
         }
         if source_commit.len() != 40 || !source_commit.bytes().all(|b| b.is_ascii_hexdigit()) {
@@ -283,7 +285,10 @@ impl OperationJournal {
             || !self.source_commit.bytes().all(|b| b.is_ascii_hexdigit())
             || self.manufacturer.len() > 128
             || self.device_fingerprint.len() != 64
-            || !self.device_fingerprint.bytes().all(|b| b.is_ascii_hexdigit())
+            || !self
+                .device_fingerprint
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit())
             || self.model.len() > 128
             || self.build_display_id.len() > 256
             || self
@@ -326,7 +331,13 @@ impl OperationJournal {
 mod tests {
     use super::*;
 
-    fn profile_values() -> (&'static str, &'static str, &'static str, &'static str, &'static str) {
+    fn profile_values() -> (
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+    ) {
         (
             "Amazon",
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
