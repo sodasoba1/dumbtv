@@ -61,7 +61,7 @@ class RestoreTest(unittest.TestCase):
 
     def test_restore_preserves_packages_disabled_before_dumbtv(self):
         result, commands, state = self.run_restore(
-            package_snapshot="com.amazon.tv.acr\\tdisabled\\n")
+            package_snapshot="com.amazon.tv.acr\tdisabled\n")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertFalse(state["packages"]["com.amazon.tv.acr"]["enabled"])
         self.assertNotIn("pm enable --user 0 com.amazon.tv.acr", commands)
