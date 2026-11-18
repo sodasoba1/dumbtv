@@ -656,6 +656,16 @@ pub async fn install_launcher(
     };
     drop(before);
 
+    let backup_bytes = serde_json::to_vec_pretty(&backup)
+        .map_err(|error| format!("cannot encode launcher restore backup: {error}"))?;
+    if let Some(parent) = backup_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("cannot create launcher backup folder: {error}"))?;
+    }
+    AtomicFile::new(backup_path, AllowOverwrite)
+        .write(|file| file.write_all(&backup_bytes))
+        .map_err(|error| format!("cannot persist launcher restore backup: {error}"))?;
+
     let remote = "/data/local/tmp/dumbtv-home-release.apk";
     push_staged_apk(ip, expected, remote, apk_bytes).await?;
 
@@ -670,24 +680,15 @@ pub async fn install_launcher(
     )
     .await?;
     if !installed.lines().any(|line| line.trim() == "Success") {
-        if installed.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE") {
-            return Err("signature mismatch: the existing DumbTV HOME was signed with a different key. It was left installed and untouched; uninstalling it would delete its settings.".into());
-        }
-        return Err(format!(
-            "Android package installer did not report Success: {}",
-            installed.trim()
-        ));
+        let reason = if installed.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE") {
+            "signature mismatch: the existing DumbTV HOME was signed with a different key. It was left installed and untouched; uninstalling it would delete its settings.".to_owned()
+        } else {
+            format!("Android package installer did not report Success: {}", installed.trim())
+        };
+        fs::remove_file(backup_path)
+            .map_err(|error| format!("{reason} The pre-install backup could not be retired: {error}"))?;
+        return Err(reason);
     }
-
-    let backup_bytes = serde_json::to_vec_pretty(&backup)
-        .map_err(|error| format!("cannot encode launcher restore backup: {error}"))?;
-    if let Some(parent) = backup_path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|error| format!("cannot create launcher backup folder: {error}"))?;
-    }
-    AtomicFile::new(backup_path, AllowOverwrite)
-        .write(|file| file.write_all(&backup_bytes))
-        .map_err(|error| format!("cannot persist launcher restore backup: {error}"))?;
 
     run_command(
         &mut connection,
@@ -1184,11 +1185,15 @@ pub async fn undo_smarttube(
             let disabled = crate::package_inventory::parse_pm_list_output(
                 &run_command(&mut connection, "pm list packages -d").await?,
             )?;
-            if !disabled.contains(stock) {
-                return Err("stock YouTube was re-enabled after SmartTube installation; refusing to override that later user change. The restore backup has been retained.".into());
-            }
-            if !backup.stock_youtube_was_disabled {
-                run_command(&mut connection, &format!("pm enable --user 0 {stock}")).await?;
+            let currently_disabled = disabled.contains(stock);
+            if currently_disabled != backup.stock_youtube_was_disabled {
+                // The only state change this installer makes is enabled -> disabled.
+                // Reverse that exact change; never override a later user action.
+                if !backup.stock_youtube_was_disabled && currently_disabled {
+                    run_command(&mut connection, &format!("pm enable --user 0 {stock}")).await?;
+                } else {
+                    return Err("stock YouTube's current state conflicts with the captured pre-install state; refusing to overwrite a later user change. The restore backup has been retained.".into());
+                }
             }
             let after = crate::package_inventory::parse_pm_list_output(
                 &run_command(&mut connection, "pm list packages -d").await?,
@@ -1223,7 +1228,7 @@ async fn read_remote_small_file(
         .parse::<usize>()
         .map_err(|_| "device returned an invalid home.conf size".to_owned())?;
     if size == 0 {
-        return Ok(None);
+        return Ok(Some(Vec::new()));
     }
     if size > crate::home_config::MAX_HOME_CONFIG_BYTES {
         return Err("DumbTV home.conf exceeds the 256 KiB safety limit".into());
