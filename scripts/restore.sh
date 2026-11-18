@@ -176,6 +176,7 @@ reboot_wait
 # A completed restore ends this cleanup cycle. Remove only the original-state
 # snapshots so a later run records the device's new baseline instead of reusing
 # stale values from this one.
+[[ ! -f $REPORT/debloat.txt ]] || mv "$REPORT/debloat.txt" "$REPORT/debloat-last.txt"
 rm -f "$REPORT/packages-before.txt" "$REPORT/settings-before-secure.txt" \
   "$REPORT/settings-before-global.txt"
 note "restored. dumbtv home and SmartTube (if added) remain installed; remove them in"
