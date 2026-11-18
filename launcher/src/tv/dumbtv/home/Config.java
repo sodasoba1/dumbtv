@@ -202,6 +202,7 @@ final class Config {
             0xFF000000, 0xFF141518, 0xFF141518};
 
     private static Config instance;
+    private static final String TEXT_PREFIX = "!dumbtv-text-v1!";
 
     final File dir;
     private final File file;
@@ -210,7 +211,7 @@ final class Config {
     private int version;
     private long visits;
 
-    static Config get(Context c) {
+    static synchronized Config get(Context c) {
         if (instance == null) instance = new Config(c.getApplicationContext());
         return instance;
     }
@@ -223,11 +224,11 @@ final class Config {
     }
 
     /** Changes every time a setting changes, from the UI or from the file on disk. */
-    int version() {
+    synchronized int version() {
         return version;
     }
 
-    void refresh() {
+    synchronized void refresh() {
         long sig = signature();
         if (sig == signature) return;
         signature = sig;
@@ -266,7 +267,7 @@ final class Config {
     }
 
     /** Writes a separately named copy beside home.conf for adb pull and later restore. */
-    File export() {
+    synchronized File export() {
         File copy = new File(dir, EXPORT);
         return writeSettings(copy, values) ? copy : null;
     }
@@ -287,24 +288,24 @@ final class Config {
         return false;
     }
 
-    String get(String key, String fallback) {
+    synchronized String get(String key, String fallback) {
         String v = values.get(key);
         return v == null || v.isEmpty() ? fallback : v;
     }
 
-    String get(Choice c) {
+    synchronized String get(Choice c) {
         String v = values.get(c.key);
         return v != null && Arrays.asList(c.values).contains(v) ? v : c.fallback;
     }
 
-    void set(String key, String value) {
+    synchronized void set(String key, String value) {
         if (value == null || value.isEmpty()) values.remove(key);
         else values.put(key, value);
         version++;
         save();
     }
 
-    List<String> list(String key) {
+    synchronized List<String> list(String key) {
         List<String> out = new ArrayList<>();
         for (String s : get(key, "").split(",")) {
             if (!s.trim().isEmpty()) out.add(s.trim());
@@ -318,7 +319,7 @@ final class Config {
     }
 
     /** Every key=value with this prefix in one string, to notice when any of them changes. */
-    String joined(String prefix) {
+    synchronized String joined(String prefix) {
         StringBuilder out = new StringBuilder();
         for (Map.Entry<String, String> e : values.entrySet()) {
             if (e.getKey().startsWith(prefix)) out.append(e.getKey()).append('=').append(e.getValue()).append('\n');
@@ -326,7 +327,7 @@ final class Config {
         return out.toString();
     }
 
-    void removePrefix(String... prefixes) {
+    synchronized void removePrefix(String... prefixes) {
         for (Iterator<String> it = values.keySet().iterator(); it.hasNext(); ) {
             String k = it.next();
             for (String p : prefixes) {
@@ -340,19 +341,19 @@ final class Config {
         save();
     }
 
-    int accent() {
+    synchronized int accent() {
         String v = values.get(ACCENT.key);
         if (v != null && v.startsWith("#")) return parseColor(v, ACCENTS[1]);
         if ("custom".equals(get(ACCENT))) return parseColor(get("accent_custom", ""), ACCENTS[1]);
         return ACCENTS[Arrays.asList(ACCENT.values).indexOf(get(ACCENT))];
     }
 
-    int background() {
+    synchronized int background() {
         if ("custom".equals(get(BACKGROUND))) return parseColor(get("background_custom", ""), BACKGROUNDS[0]);
         return BACKGROUNDS[Arrays.asList(BACKGROUND.values).indexOf(get(BACKGROUND))];
     }
 
-    int gradientColor() {
+    synchronized int gradientColor() {
         if ("custom".equals(get(GRADIENT_COLOR))) return parseColor(get("gradient_color_custom", ""), 0xFF000000);
         return paletteColor(get(GRADIENT_COLOR));
     }
@@ -371,8 +372,48 @@ final class Config {
         return index < 0 ? 0xFF000000 : ACCENTS[index];
     }
 
+    /**
+     * Custom widget text is multiline, unlike the line-oriented settings file. Store it as
+     * versioned UTF-8 hex so newlines, equals signs and backslashes survive a save/reload.
+     * Values without the marker are legacy plain-text settings and remain readable.
+     */
+    String getText(String key, String fallback) {
+        String value = get(key, null);
+        return value == null ? fallback : decodeText(value);
+    }
+
+    void setText(String key, String value) {
+        set(key, encodeText(value == null ? "" : value));
+    }
+
+    static String encodeText(String value) {
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        char[] hex = new char[bytes.length * 2];
+        final char[] digits = "0123456789abcdef".toCharArray();
+        for (int i = 0; i < bytes.length; i++) {
+            int b = bytes[i] & 0xff;
+            hex[i * 2] = digits[b >>> 4];
+            hex[i * 2 + 1] = digits[b & 0x0f];
+        }
+        return TEXT_PREFIX + new String(hex);
+    }
+
+    static String decodeText(String value) {
+        if (value == null || !value.startsWith(TEXT_PREFIX)) return value;
+        String hex = value.substring(TEXT_PREFIX.length());
+        if ((hex.length() & 1) != 0) return value;
+        byte[] bytes = new byte[hex.length() / 2];
+        for (int i = 0; i < bytes.length; i++) {
+            int high = Character.digit(hex.charAt(i * 2), 16);
+            int low = Character.digit(hex.charAt(i * 2 + 1), 16);
+            if (high < 0 || low < 0) return value;
+            bytes[i] = (byte) ((high << 4) | low);
+        }
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
     /** Counts returns to the home screen, for the "visit" rotation. */
-    void visited() {
+    synchronized void visited() {
         visits++;
     }
 
