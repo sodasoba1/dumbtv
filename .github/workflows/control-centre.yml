@@ -36,10 +36,11 @@ jobs:
             throw "The optional libadb RSA key features must remain disabled."
           }
 
-      - name: Install RustSec audit tool
-        run: |
-          cargo install --locked --version 0.23.0 cargo-audit
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install prebuilt RustSec audit tool
+        uses: taiki-e/install-action@v2.90.3
+        with:
+          tool: cargo-audit@0.22.2
+          fallback: none
 
       - name: Audit the complete locked dependency graph
         working-directory: tools/control-centre
