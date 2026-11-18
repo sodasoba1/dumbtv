@@ -44,6 +44,7 @@ if [[ $DRY_RUN == 1 ]]; then
 fi
 
 mkdir -p "$REPORT"
+snapshot_package_states
 log="$REPORT/debloat.txt"
 : > "$log"
 
