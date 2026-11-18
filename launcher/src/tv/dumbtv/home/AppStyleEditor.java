@@ -21,28 +21,32 @@ final class AppStyleEditor {
         String name;
         String banner;
         String background;
+        String size;
         boolean resetCustomisation;
         State(Config config, Item item) {
             name = Catalog.label(config, item).toString();
             banner = config.get(AppStyle.key(item, "banner"), null);
             background = config.get(AppStyle.key(item, "background"), null);
+            size = AppStyle.get(config, item, "size", "normal");
         }
     }
 
     private static void showMenu(Activity activity, Config config, Item item,
                                  State state, Runnable changed) {
         String[] actions = {"Rename app", "Change banner image", "Change background colour",
-                "Reset customisation", "Save changes"};
+                "Change tile size", "Reset customisation", "Save changes"};
         AlertDialog dialog = new AlertDialog.Builder(activity, Ui.DIALOG)
                 .setTitle("Customise · " + Catalog.label(config, item))
                 .setItems(actions, (d, which) -> {
                     if (which == 0) rename(activity, config, item, state, changed);
                     else if (which == 1) chooseBanner(activity, config, item, state, changed);
                     else if (which == 2) chooseBackground(activity, config, item, state, changed);
-                    else if (which == 3) {
+                    else if (which == 3) chooseSize(activity, config, item, state, changed);
+                    else if (which == 4) {
                         state.name = item.label.toString();
                         state.banner = null;
                         state.background = null;
+                        state.size = "normal";
                         state.resetCustomisation = true;
                         showMenu(activity, config, item, state, changed);
                     } else save(activity, config, item, state, changed);
@@ -115,14 +119,35 @@ final class AppStyleEditor {
         });
     }
 
+    private static void chooseSize(Activity activity, Config config, Item item,
+                                    State state, Runnable changed) {
+        String[] values = {"compact", "normal", "large"};
+        String[] labels = {"Compact", "Normal", "Large"};
+        int selected = 1;
+        for (int i = 0; i < values.length; i++) {
+            if (values[i].equals(state.size)) selected = i;
+        }
+        AlertDialog dialog = new AlertDialog.Builder(activity, Ui.DIALOG)
+                .setTitle("Favourite tile size")
+                .setSingleChoiceItems(labels, selected, (d, which) -> {
+                    state.size = values[which];
+                    showMenu(activity, config, item, state, changed);
+                })
+                .setNegativeButton(R.string.cancel, (d, which) ->
+                        showMenu(activity, config, item, state, changed))
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
+    }
+
     private static void save(Activity activity, Config config, Item item,
                              State state, Runnable changed) {
         AlertDialog dialog = new AlertDialog.Builder(activity, Ui.DIALOG)
                 .setTitle("Save changes?")
-                .setMessage("Apply the name, banner and background changes to " + item.label + "?")
+                .setMessage("Apply the name, banner, background and tile-size changes to " + item.label + "?")
                 .setPositiveButton(R.string.save, (d, which) -> {
                     AppStyle.save(config, item, state.name, item.label.toString(),
-                            state.banner, state.background, state.resetCustomisation);
+                            state.banner, state.background, state.size, state.resetCustomisation);
                     changed.run();
                 })
                 .setNegativeButton(R.string.cancel, (d, which) ->
