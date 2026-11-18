@@ -575,6 +575,195 @@ pub async fn push_staged_apk(
     Ok(())
 }
 
+/// Install the already checksum-verified published DumbTV APK on an API 25
+/// Fire TV. This intentionally does not uninstall an existing package: an
+/// update signed with a different key must fail without deleting user settings.
+pub async fn install_launcher(
+    ip: IpAddr,
+    expected: &DeviceProfile,
+    apk_bytes: &[u8],
+    expected_version_code: u64,
+) -> Result<String, String> {
+    if expected.launcher_compatibility() != Compatibility::Supported {
+        return Err("DumbTV HOME installation is supported only on Amazon Fire OS 6 / API 25".into());
+    }
+    if expected_version_code == 0 {
+        return Err("launcher release versionCode is invalid".into());
+    }
+    let remote = "/data/local/tmp/dumbtv-home-release.apk";
+    push_staged_apk(ip, expected, remote, apk_bytes).await?;
+
+    let mut connection = connect(ip).await?;
+    let actual = read_profile(&mut connection).await?;
+    if !same_device(&actual, expected) || actual.sdk != 25 {
+        return Err("device identity or API level changed before launcher installation".into());
+    }
+    let installed = run_command(&mut connection, "pm install -r /data/local/tmp/dumbtv-home-release.apk").await?;
+    if !installed.lines().any(|line| line.trim() == "Success") {
+        if installed.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE") {
+            return Err("signature mismatch: the existing DumbTV HOME was signed with a different key. It was left installed and untouched; uninstalling it would delete its settings.".into());
+        }
+        return Err(format!("Android package installer did not report Success: {}", installed.trim()));
+    }
+
+    let package = crate::apk_release::LAUNCHER_PACKAGE;
+    run_command(&mut connection, &format!("dumpsys deviceidle whitelist +{package}")).await?;
+    let whitelist = run_command(&mut connection, "dumpsys deviceidle whitelist").await?;
+    if !whitelist.contains(package) {
+        return Err("DumbTV HOME was installed, but its device-idle whitelist entry could not be verified".into());
+    }
+
+    run_command(&mut connection, &format!("appops set {package} GET_USAGE_STATS allow")).await?;
+    let usage = run_command(&mut connection, &format!("appops get {package} GET_USAGE_STATS")).await?;
+    if parse_appop_mode(&usage, "GET_USAGE_STATS")? != "allow" {
+        return Err("Keeper UsageStats access was not granted and verified".into());
+    }
+
+    let auto_probe = run_command(&mut connection, &format!("appops get {package} AUTO_START")).await.unwrap_or_default();
+    if !auto_probe.contains("Unknown operation string: AUTO_START") {
+        run_command(&mut connection, &format!("appops set {package} AUTO_START allow")).await?;
+        let _ = run_command(&mut connection, "appops write-settings").await;
+        let auto = run_command(&mut connection, &format!("appops get {package} AUTO_START")).await?;
+        if parse_appop_mode(&auto, "AUTO_START")? != "allow" {
+            return Err("Fire OS exposes AUTO_START but refused or failed to verify Keeper's grant".into());
+        }
+    }
+
+    run_command(&mut connection, &format!("pm grant {package} android.permission.READ_LOGS")).await?;
+    let package_dump = run_command(&mut connection, &format!("dumpsys package {package}")).await?;
+    if !package_dump.lines().any(|line| {
+        let line = line.trim();
+        line.starts_with("android.permission.READ_LOGS:") && line.contains("granted=true")
+    }) {
+        return Err("Keeper READ_LOGS permission was not granted and verified".into());
+    }
+
+    let _ = run_command(&mut connection, "input keyevent KEYCODE_WAKEUP").await;
+    let _ = run_command(&mut connection, &format!("am start -W -n {package}/.Home")).await;
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    let services = run_command(&mut connection, &format!("dumpsys activity services {package}")).await?;
+    if !services.contains("isForeground=true") || !services.contains(".Keeper") {
+        return Err("DumbTV HOME installed, but its Keeper service was not verified as foreground".into());
+    }
+    let mut foreground = false;
+    for _ in 0..10 {
+        let activities = run_command(&mut connection, "dumpsys activity activities").await?;
+        if activities.lines().any(|line| line.contains("ResumedActivity:") && line.contains(package)) {
+            foreground = true;
+            break;
+        }
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+    if !foreground {
+        return Err("DumbTV HOME is installed and Keeper is running, but HOME foreground could not be verified. Check the TV for a parental-control PIN prompt.".into());
+    }
+
+    let dump = run_command(&mut connection, &format!("dumpsys package {package}")).await?;
+    let version_code = parse_installed_version_code(&dump)?;
+    if version_code < expected_version_code {
+        return Err(format!("installed DumbTV HOME versionCode {version_code} is older than the expected release {expected_version_code}"));
+    }
+    Ok(format!("DumbTV HOME installed and verified (versionCode {version_code}); Keeper is foreground, required grants are present, and HOME is in front."))
+}
+
+/// Return HOME to Amazon and remove the runtime grants exactly as the existing
+/// launcher undo script does. The launcher APK remains installed.
+pub async fn undo_launcher(ip: IpAddr, expected: &DeviceProfile) -> Result<String, String> {
+    let mut connection = connect(ip).await?;
+    let actual = read_profile(&mut connection).await?;
+    if !same_device(&actual, expected) {
+        return Err("the device at the selected IP no longer matches the inspected Fire TV".into());
+    }
+    let package = crate::apk_release::LAUNCHER_PACKAGE;
+    let _ = run_command(&mut connection, &format!("am force-stop {package}")).await;
+    run_command(&mut connection, &format!("appops set {package} GET_USAGE_STATS default")).await?;
+    let _ = run_command(&mut connection, &format!("appops set {package} AUTO_START default")).await;
+    let _ = run_command(&mut connection, "appops write-settings").await;
+    run_command(&mut connection, &format!("pm revoke {package} android.permission.READ_LOGS")).await?;
+    run_command(&mut connection, &format!("dumpsys deviceidle whitelist -{package}")).await?;
+    run_command(&mut connection, "am start -a android.intent.action.MAIN -c android.intent.category.HOME").await?;
+    let usage = run_command(&mut connection, &format!("appops get {package} GET_USAGE_STATS")).await?;
+    if parse_appop_mode(&usage, "GET_USAGE_STATS")? != "default" {
+        return Err("UsageStats AppOp did not return to default during launcher undo".into());
+    }
+    let whitelist = run_command(&mut connection, "dumpsys deviceidle whitelist").await?;
+    if whitelist.contains(package) {
+        return Err("DumbTV HOME remains on the device-idle whitelist after undo".into());
+    }
+    let permission = run_command(&mut connection, &format!("dumpsys package {package}")).await?;
+    if permission.lines().any(|line| {
+        let line = line.trim();
+        line.starts_with("android.permission.READ_LOGS:") && line.contains("granted=true")
+    }) {
+        return Err("Keeper READ_LOGS remains granted after launcher undo".into());
+    }
+    Ok("Amazon HOME restored. DumbTV HOME remains installed; its Keeper grants and idle whitelist have been reset.".into())
+}
+
+/// Install the pinned SmartTube release. A dropped Wi-Fi ADB session after the
+/// APK transfer is not treated as failure: the package version is checked after
+/// reconnect, and one retry is allowed only if the required version is absent.
+pub async fn install_smarttube(
+    ip: IpAddr,
+    expected: &DeviceProfile,
+    apk_bytes: &[u8],
+) -> Result<String, String> {
+    crate::apk_release::verify_sha256(apk_bytes, crate::apk_release::SMARTTUBE_SHA256)?;
+    let package = crate::apk_release::SMARTTUBE_PACKAGE;
+    let remote = "/data/local/tmp/dumbtv-smarttube.apk";
+    let mut installed_code = 0_u64;
+    for attempt in 0..2 {
+        push_staged_apk(ip, expected, remote, apk_bytes).await?;
+        if let Ok(mut connection) = connect(ip).await {
+            let actual = read_profile(&mut connection).await?;
+            if !same_device(&actual, expected) {
+                return Err("the device at the selected IP no longer matches the inspected Fire TV".into());
+            }
+            let _ = run_command(&mut connection, &format!("pm install -r {remote}")).await;
+        }
+        let mut verify = connect(ip).await?;
+        let actual = read_profile(&mut verify).await?;
+        if !same_device(&actual, expected) {
+            return Err("the device identity changed while installing SmartTube".into());
+        }
+        let dump = run_command(&mut verify, &format!("dumpsys package {package}")).await?;
+        installed_code = parse_installed_version_code(&dump).unwrap_or(0);
+        if installed_code >= crate::apk_release::SMARTTUBE_VERSION_CODE {
+            break;
+        }
+        if attempt == 1 {
+            return Err(format!("SmartTube versionCode {installed_code} is below the required {}", crate::apk_release::SMARTTUBE_VERSION_CODE));
+        }
+    }
+
+    let mut connection = connect(ip).await?;
+    let actual = read_profile(&mut connection).await?;
+    if !same_device(&actual, expected) {
+        return Err("the device identity changed before YouTube replacement".into());
+    }
+    let all = crate::package_inventory::parse_pm_list_output(&run_command(&mut connection, "pm list packages").await?)?;
+    let disabled = crate::package_inventory::parse_pm_list_output(&run_command(&mut connection, "pm list packages -d").await?)?;
+    let stock = crate::apk_release::STOCK_YOUTUBE_PACKAGE;
+    if all.contains(stock) && !disabled.contains(stock) {
+        run_command(&mut connection, &format!("pm disable-user --user 0 {stock}")).await?;
+        let after = crate::package_inventory::parse_pm_list_output(&run_command(&mut connection, "pm list packages -d").await?)?;
+        if !after.contains(stock) {
+            return Err("SmartTube installed, but stock YouTube could not be disabled; it remains unchanged or requires manual review".into());
+        }
+    }
+    Ok(format!("SmartTube installed and verified (versionCode {installed_code}). Stock YouTube was disabled reversibly when it was installed and enabled."))
+}
+
+fn parse_installed_version_code(output: &str) -> Result<u64, String> {
+    for token in output.split_whitespace() {
+        if let Some(value) = token.strip_prefix("versionCode=") {
+            let digits: String = value.chars().take_while(|c| c.is_ascii_digit()).collect();
+            return digits.parse::<u64>().map_err(|_| "installed package has an invalid versionCode".into());
+        }
+    }
+    Err("installed package did not report a versionCode".into())
+}
+
 fn valid_apk_staging_path(path: &str) -> bool {
     let Some(name) = path.strip_prefix("/data/local/tmp/dumbtv-") else {
         return false;
