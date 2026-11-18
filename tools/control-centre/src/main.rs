@@ -172,13 +172,16 @@ impl eframe::App for ControlCentre {
             ui.label("Windows test build · AFTMM / Fire OS 6 project");
             ui.separator();
 
-            let (busy, status, latest, active) = {
+            let (busy, status, latest, active, host_key_md5, host_key_sha256, device_profile) = {
                 let state = self.shared.lock().expect("state lock poisoned");
                 (
                     state.busy,
                     state.status.clone(),
                     state.latest_commit.clone(),
                     state.active_commit.clone(),
+                    state.host_key_md5.clone(),
+                    state.host_key_sha256.clone(),
+                    state.device_profile.clone(),
                 )
             };
 
@@ -208,8 +211,44 @@ impl eframe::App for ControlCentre {
             ui.separator();
 
             ui.heading("Fire TV connection");
-            ui.label("ADB support is intentionally not enabled in this first test build.");
-            ui.label("The Rust ADB library is still undergoing dependency/security review. This build will not ask you to install Python, Bash, Git or platform-tools, and it will not run shell commands on your Stick.");
+            ui.label("Read-only inspection over legacy network ADB. Enable ADB Debugging on the Stick and find its IP address in Network settings.");
+            ui.horizontal(|ui| {
+                ui.label("Fire TV IP address:");
+                ui.text_edit_singleline(&mut self.device_ip);
+            });
+            ui.horizontal(|ui| {
+                if ui.add_enabled(!busy, egui::Button::new("Prepare ADB key")).clicked() {
+                    self.prepare_adb_key();
+                }
+                if ui.add_enabled(!busy && host_key_md5.is_some(), egui::Button::new("Connect and inspect")).clicked() {
+                    match self.device_ip.trim().parse::<std::net::IpAddr>() {
+                        Ok(ip) => self.inspect_fire_tv(ip),
+                        Err(_) => {
+                            let mut state = self.shared.lock().expect("state lock poisoned");
+                            state.status = "Enter a valid local IP address for the Fire TV.".into();
+                        }
+                    }
+                }
+            });
+            if let Some(fingerprint) = host_key_md5.as_deref() {
+                ui.label("ADB key MD5 fingerprint (this is what the Android 7-era TV prompt displays):");
+                ui.monospace(fingerprint);
+                if let Some(sha256) = host_key_sha256.as_deref() {
+                    ui.small(format!("SHA-256 app fingerprint: {sha256}"));
+                }
+                ui.label("On first connection, compare the TV's fingerprint with the MD5 value above before approving. The TV stores this host key only if you approve; selecting 'Always allow' avoids repeated prompts.");
+            } else {
+                ui.small("Prepare the host key first. Its private key remains in the Windows user key store.");
+            }
+            if let Some(profile) = device_profile.as_ref() {
+                ui.separator();
+                ui.label(format!("Device: {} · {}", profile.manufacturer, profile.model));
+                ui.label(format!("Build: {} · Android {} · SDK {}", profile.build_display_id, profile.android_release, profile.sdk));
+                ui.label(format!("CPU ABI: {}", profile.abi));
+                ui.label(format!("Cleanup compatibility: {:?}", profile.cleanup_compatibility()));
+                ui.label(format!("DumbTV HOME/Keeper compatibility: {:?}", profile.launcher_compatibility()));
+            }
+            ui.small("This connection reads only getprop. It does not change packages, settings, HOME, Keeper or installed apps. The target is restricted to a private/local IP on TCP 5555.");
             ui.separator();
 
             ui.heading("Status");
