@@ -33,7 +33,7 @@ On a first connection, the Fire TV may ask to authorise this PC's ADB public key
 
 **ADB compatibility note:** libadb's published support range lists Android 9+, while the target AFTMM runs Android 7.1.2 / API 25. Its protocol implementation includes legacy ADB negotiation and shell v1, and the Windows build/tests pass. I am treating the transport as working as requested; there is no observed protocol failure, but a physical AFTMM connection remains the final compatibility check.
 
-The GUI does not install or replace DumbTV HOME, modify Keeper, install YouTube/SmartTube, configure DNS/VPN, automatically reboot, or execute downloaded shell scripts. Force-stop is included for catalogued cleanup/protected packages: the app reads the process list (with the API 25 fallback used by the existing scripts), sends force-stop only when the exact package process is running, and verifies that it has exited. Never-disable packages are excluded. The app does not bundle Google's platform-tools, Python, Bash, Git or any ADB executable.
+The GUI does not install or replace DumbTV HOME, modify Keeper, install YouTube/SmartTube, configure DNS/VPN, automatically reboot, or execute downloaded shell scripts. For cleanup packages that remain running after disable, the app applies the matching background AppOps restrictions, adds an app-specific UID to the metered-data blacklist where safe, then force-stops and verifies the process has exited. Protected packages receive their separate lockdown policy. Process detection uses the API 25 fallback from the existing scripts. Never-disable packages are excluded. The app does not bundle Google's platform-tools, Python, Bash, Git or any ADB executable.
 
 ## Build on Windows
 
