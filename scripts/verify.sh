@@ -30,8 +30,10 @@ else
   else
     printf '%-10s %-38s %s\n' FAIL usage-access "${usage_access:-could not read app-op}"; fail=1
   fi
-  auto_start=$(dev 'appops get tv.dumbtv.home AUTO_START' | tr -d '\r')
-  if grep -Eq 'AUTO_START:[[:space:]]*allow([,[:space:]]|$)' <<<"$auto_start"; then
+  auto_start=$(dev 'appops get tv.dumbtv.home AUTO_START' 2>&1 | tr -d '\r')
+  if grep -Fq 'Unknown operation string: AUTO_START' <<<"$auto_start"; then
+    printf '%-10s %-38s %s\n' skip standby-start "AUTO_START unsupported by this firmware; boot receiver remains available"
+  elif grep -Eq 'AUTO_START:[[:space:]]*allow([,[:space:]]|$)' <<<"$auto_start"; then
     printf '%-10s %-38s %s\n' ok standby-start "Keeper AUTO_START allowed"
   else
     printf '%-10s %-38s %s\n' FAIL standby-start "${auto_start:-AUTO_START unavailable}; rerun ./launcher/install.sh"; fail=1
