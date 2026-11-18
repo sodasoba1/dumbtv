@@ -40,9 +40,10 @@ implementation into the executable.
 `src/adb_transport.rs` now contains a Rust TCP connection path using
 `libadb` and the Windows CNG authenticator. It connects only to the
 owner-supplied IP on port 5555, uses bounded ADB packet/channel buffers, and
-runs only fixed read-only commands: `getprop`, `pm list packages`,
-`pm list packages -s`, and `pm list packages -d`. It performs no package or
-settings writes. On a first connection the TV may add this host key to its ADB trust
+runs `getprop` first. It only runs the package inventory queries
+(`pm list packages`, `pm list packages -s`, and `pm list packages -d`) after
+the identity check confirms an Amazon Fire OS SDK 25–30 device. It performs no
+package or settings writes. On a first connection the TV may add this host key to its ADB trust
 store, but only after the owner approves the on-TV prompt. The GUI now exposes a two-step flow: prepare/display the host-key fingerprint,
 then connect to an owner-entered local IP. No physical device test has been
 performed.
