@@ -36,6 +36,14 @@ jobs:
             throw "The optional libadb RSA key features must remain disabled."
           }
 
+      - name: Audit the complete locked dependency graph
+        working-directory: tools/control-centre
+        run: |
+          cargo install cargo-audit --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo audit --deny warnings
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Compile and run unit tests
         working-directory: tools/control-centre
         run: |
