@@ -84,7 +84,7 @@ public final class Home extends Activity {
     private TextView clock, date;
     private Meter meter;
     private View memoryWidget;
-    private TextView recentWidget, networkWidget, textWidget, diagnosticsWidget, deviceWidget;
+    private TextView networkWidget, textWidget, diagnosticsWidget, deviceWidget;
     private View storageWidget;
     private Meter storageMeter;
     private WidgetGridView widgetGrid;
@@ -220,9 +220,7 @@ public final class Home extends Activity {
         super.onCreate(state);
         Future<List<Item>> catalog = io.submit(() -> Catalog.apps(this));
         cfg = Config.get(this);
-        boolean needsRecent = recentFor(Catalog.APPS) != null
-                || (WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, "")).find("recent") != null
-                && WidgetVisibility.isEnabled(cfg, "recent"));
+        boolean needsRecent = recentFor(Catalog.APPS) != null;
         Future<Map<String, Long>> times = needsRecent ? io.submit(() -> Recent.times(this)) : null;
         tv = (TvInputManager) getSystemService(Context.TV_INPUT_SERVICE);
         setContentView(build());
@@ -762,7 +760,6 @@ public final class Home extends Activity {
         ((FrameLayout) memoryWidget).addView(meter, meterLp);
         widgetGrid.addWidgetView("memory", memoryWidget);
 
-        recentWidget = widgetText("Recently opened\nNo recent apps");
         networkWidget = widgetText("Network\nChecking connection…");
         FrameLayout storageFrame = new FrameLayout(this);
         storageFrame.setBackground(null);
@@ -779,7 +776,6 @@ public final class Home extends Activity {
         deviceWidget = widgetText(WidgetDiagnostics.deviceInformation());
         deviceWidget.setMaxLines(3);
         deviceWidget.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
-        widgetGrid.addWidgetView("recent", recentWidget);
         widgetGrid.addWidgetView("network", networkWidget);
         widgetGrid.addWidgetView("storage", storageWidget);
         widgetGrid.addWidgetView("text", textWidget);
@@ -1120,24 +1116,6 @@ public final class Home extends Activity {
         }
     }
 
-    private void updateRecentWidget() {
-        if (recentWidget == null || widgetLayout == null || widgetLayout.find("recent") == null
-                || !WidgetVisibility.isEnabled(cfg, "recent")) return;
-        List<Item> latest = new ArrayList<>(apps.all);
-        Collections.sort(latest, (a, b) -> Recent.compare(recent, a.id, b.id));
-        StringBuilder value = new StringBuilder("Recently opened");
-        int shown = 0;
-        for (Item item : latest) {
-            Long used = recent.get(item.id);
-            if (used == null || used == 0) continue;
-            value.append(shown == 0 ? "\n" : "  ·  ");
-            value.append(Catalog.label(cfg, item));
-            if (++shown == 3) break;
-        }
-        if (shown == 0) value.append("\nNo recent apps");
-        recentWidget.setText(value.toString());
-    }
-
     private void updateSystemWidgets() {
         if (networkWidget == null || storageWidget == null || widgetLayout == null) return;
         if (widgetLayout.find("network") != null && WidgetVisibility.isEnabled(cfg, "network")) {
@@ -1177,7 +1155,6 @@ public final class Home extends Activity {
         boolean widgetBackgrounds = "on".equals(cfg.get(Config.WIDGET_BACKGROUNDS));
         clockWidget.setBackground(widgetBackgrounds ? Ui.surface(this, widgetSurface, dp(12)) : null);
         memoryWidget.setBackground(widgetBackgrounds ? Ui.surface(this, widgetSurface, dp(12)) : null);
-        recentWidget.setBackground(widgetBackgrounds ? Ui.surface(this, widgetSurface, dp(12)) : null);
         networkWidget.setBackground(widgetBackgrounds ? Ui.surface(this, widgetSurface, dp(12)) : null);
         storageWidget.setBackground(widgetBackgrounds ? Ui.surface(this, widgetSurface, dp(12)) : null);
         textWidget.setBackground(widgetBackgrounds ? Ui.surface(this, widgetSurface, dp(12)) : null);
@@ -1190,7 +1167,6 @@ public final class Home extends Activity {
         homeScroll.setLayoutParams(scrollParams);
         textWidget.setText(cfg.getText("widgets.text", "Custom text"));
         applyWidgetFontSizes();
-        updateRecentWidget();
         updateSystemWidgets();
         for (TextView c : chips) {
             Ui.focusStyle(c, accent, Ui.isGlass(this) ? 0x55303D4B : 0x14FFFFFF, dp(icons ? 21 : 18));
@@ -1245,8 +1221,7 @@ public final class Home extends Activity {
                 apps.all = list;
                 render(apps);
                 render(allApps);
-                updateRecentWidget();
-            });
+                    });
         });
     }
 
@@ -1285,8 +1260,7 @@ public final class Home extends Activity {
     /** With App order › Recently used, re-sorts the apps row on the way back home. */
     private void refreshRecent() {
         boolean sortPinned = recentFor(Catalog.APPS) != null;
-        boolean showWidget = widgetLayout != null && widgetLayout.find("recent") != null;
-        if (!sortPinned && !showWidget) return;
+        if (!sortPinned) return;
         io.execute(() -> {
             Map<String, Long> times = Recent.times(this);
             ui.post(() -> {
@@ -1297,8 +1271,7 @@ public final class Home extends Activity {
                 if (sortPinned && !before.equals(Catalog.visible(cfg, Catalog.APPS, apps.all, recent))) {
                     render(apps);
                 }
-                updateRecentWidget();
-            });
+                    });
         });
     }
 
