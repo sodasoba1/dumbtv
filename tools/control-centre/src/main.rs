@@ -62,6 +62,7 @@ struct SharedState {
 
 struct ControlCentre {
     shared: Arc<Mutex<SharedState>>,
+    recovery_journals: Vec<String>,
     device_ip: String,
     keep_alexa: bool,
     remove_packages: String,
@@ -76,7 +77,9 @@ struct ControlCentre {
 impl Default for ControlCentre {
     fn default() -> Self {
         let active_commit = load_active_source().ok().flatten().map(|m| m.commit);
+        let recovery_journals = load_unfinished_journals();
         let app = Self {
+            recovery_journals,
             shared: Arc::new(Mutex::new(SharedState {
                 status: "Checking the official repository for updates…".into(),
                 latest_commit: None,
@@ -629,7 +632,13 @@ impl eframe::App for ControlCentre {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
             ui.heading("DumbTV Control Centre");
-            ui.label("Windows test build · AFTMM / Fire OS 6 project");
+            ui.label("Portable Windows frontend · AFTMM / Fire OS 6 project");
+            if !self.recovery_journals.is_empty() {
+                ui.separator();
+                ui.heading("Unfinished operation journals");
+                ui.label("These records indicate work that did not reach a clean completion. Reconnect to the same Fire TV, inspect its current state and review restore. The app will never replay an interrupted operation automatically.");
+                for summary in &self.recovery_journals { ui.small(summary); }
+            }
             ui.separator();
 
             let (busy, status, latest, active, host_key_md5, host_key_sha256, device_profile, package_inventory, protected_uids, connected_ip, snapshot_path, restore_plan) = {
@@ -884,6 +893,41 @@ impl eframe::App for ControlCentre {
 
 fn short_sha(sha: &str) -> &str {
     sha.get(..7).unwrap_or(sha)
+}
+
+fn load_unfinished_journals() -> Vec<String> {
+    let root = match app_root() {
+        Ok(root) => root.join("journals"),
+        Err(_) => return Vec::new(),
+    };
+    let entries = match fs::read_dir(root) {
+        Ok(entries) => entries,
+        Err(_) => return Vec::new(),
+    };
+    let mut summaries = Vec::new();
+    for entry in entries.flatten().take(256) {
+        let path = entry.path();
+        if path.extension().and_then(|value| value.to_str()) != Some("json") {
+            continue;
+        }
+        let Ok(journal) = operation_journal::OperationJournal::load(&path) else {
+            continue;
+        };
+        if journal.finished {
+            continue;
+        }
+        let verified = journal.operations.iter().filter(|item| item.status == operation_journal::OperationStatus::Verified).count();
+        let running = journal.operations.iter().filter(|item| item.status == operation_journal::OperationStatus::Running).count();
+        let failed = journal.operations.iter().filter(|item| item.status == operation_journal::OperationStatus::Failed).count();
+        let pending = journal.operations.iter().filter(|item| item.status == operation_journal::OperationStatus::Pending).count();
+        let name = path.file_name().and_then(|value| value.to_str()).unwrap_or("operation journal");
+        summaries.push(format!(
+            "{name}: {verified} verified, {running} marked running at last save, {failed} failed, {pending} not attempted. Device recorded: {} {} · {}",
+            journal.manufacturer, journal.model, journal.build_display_id
+        ));
+    }
+    summaries.sort();
+    summaries
 }
 
 fn app_root() -> Result<PathBuf, String> {
