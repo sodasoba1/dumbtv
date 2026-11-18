@@ -1308,7 +1308,7 @@ public final class Home extends Activity {
             return;
         }
         int renderGeneration = ++row.renderGeneration;
-        if (moving != null && moving.kind.equals(row.kind)) stopMoving();
+        if (moving != null && moving.kind.equals(row.kind)) stopMoving(false);
         View focused = getCurrentFocus();
         String keep = focused instanceof Tile && ((Tile) focused).kind.equals(row.kind)
                 ? ((Tile) focused).item.id : null;
@@ -1910,6 +1910,10 @@ public final class Home extends Activity {
     }
 
     private void stopMoving() {
+        stopMoving(true);
+    }
+
+    private void stopMoving(boolean refreshCarousel) {
         Tile t = moving;
         moving = null;
         t.setMoving(false);
@@ -1923,6 +1927,7 @@ public final class Home extends Activity {
         }
         Catalog.saveOrder(cfg, t.kind, Catalog.logicalCycle(rendered, start, count));
         applied = cfg.version();
+        if (refreshCarousel && Catalog.APPS.equals(t.kind)) render(apps);
     }
 
     private int dp(float v) {
