@@ -1818,6 +1818,12 @@ public final class Home extends Activity {
                             }
                             moving = target;
                             target.setMoving(true);
+                            Tile focusTarget = target;
+                            ui.post(() -> {
+                                if (moving == focusTarget && focusTarget.getParent() != null) {
+                                    focusTarget.requestFocus();
+                                }
+                            });
                             break;
                         case R.string.tile_rename:
                             rename(t);
