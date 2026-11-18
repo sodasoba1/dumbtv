@@ -277,7 +277,7 @@ mod tests {
 
     #[test]
     fn owner_named_system_apps_are_disabled_not_uninstalled() {
-        let installed = ["com.example.streaming".into()].into_iter().collect();
+        let installed: BTreeSet<String> = ["com.example.streaming".into()].into_iter().collect();
         let system = installed.clone();
         let remove = ["com.example.streaming".into()].into_iter().collect();
         let plan = build_package_plan(
@@ -319,7 +319,7 @@ mod tests {
 
     #[test]
     fn already_disabled_catalogue_packages_are_not_scheduled_again() {
-        let installed = ["com.amazon.ads".into()].into_iter().collect();
+        let installed: BTreeSet<String> = ["com.amazon.ads".into()].into_iter().collect();
         let disabled = installed.clone();
         let plan = build_package_plan(
             &catalogue(),
