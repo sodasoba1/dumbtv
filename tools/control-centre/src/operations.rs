@@ -208,6 +208,71 @@ pub fn build_cleanup_plan(
     Ok(CleanupPlan { operations, skipped })
 }
 
+/// Limit restore to mutations that this Control Centre actually verified in
+/// its durable cleanup journal. Differences caused by later manual edits are
+/// left untouched and reported for review.
+pub fn scope_restore_to_verified_cleanup(
+    plan: &RestorePlan,
+    journal: &crate::operation_journal::OperationJournal,
+) -> (RestorePlan, usize) {
+    use crate::device_command::DeviceCommand;
+    use crate::operation_journal::{OperationStatus, WorkflowKind};
+
+    if journal.workflow != WorkflowKind::Cleanup {
+        return (RestorePlan { actions: Vec::new() }, plan.actions.len());
+    }
+    let verified: Vec<&DeviceCommand> = journal.operations.iter()
+        .filter(|item| item.status == OperationStatus::Verified)
+        .filter_map(|item| item.command.as_ref())
+        .collect();
+
+    let mut retained = Vec::new();
+    let mut excluded = 0;
+    for action in &plan.actions {
+        let belongs_to_cleanup = match action {
+            RestoreAction::SetPackageState { package, .. } =>
+                verified.iter().any(|command| matches!(command,
+                    DeviceCommand::DisablePackage(name) if name == package)),
+            RestoreAction::PutSetting { namespace, key, .. }
+            | RestoreAction::DeleteSetting { namespace, key } =>
+                verified.iter().any(|command| matches!(command,
+                    DeviceCommand::PutSetting { namespace: target, key: target_key, .. }
+                    if target_key == key && match namespace {
+                        crate::snapshot::SettingNamespace::Secure => *target == crate::settings_catalogue::SettingsNamespace::Secure,
+                        crate::snapshot::SettingNamespace::Global => *target == crate::settings_catalogue::SettingsNamespace::Global,
+                    })),
+            RestoreAction::SetAppOp { package, operation, .. } =>
+                verified.iter().any(|command| match command {
+                    DeviceCommand::SetAppOp { package: target, operation: target_op, .. } =>
+                        target == package && target_op == operation,
+                    DeviceCommand::ForceStopAndRestrictIfRunning { package: target, .. } =>
+                        target == package && matches!(operation.as_str(), "RUN_IN_BACKGROUND" | "RUN_ANY_IN_BACKGROUND"),
+                    _ => false,
+                }),
+            RestoreAction::SetRestrictBackground(_) =>
+                verified.iter().any(|command| matches!(command, DeviceCommand::SetRestrictBackground(true))),
+            RestoreAction::AddMeteredBlacklistUid(uid)
+            | RestoreAction::RemoveMeteredBlacklistUid(uid) =>
+                verified.iter().any(|command| match command {
+                    DeviceCommand::AddMeteredBlacklistUid(target) => target == uid,
+                    DeviceCommand::ForceStopAndRestrictIfRunning { uid: Some(target), .. } => target == uid,
+                    _ => false,
+                }),
+            RestoreAction::ManualUserAppReinstall(package) =>
+                verified.iter().any(|command| matches!(command,
+                    DeviceCommand::UninstallPackageForUser { package: target, .. } if target == package)),
+            RestoreAction::ManualStateUnavailable(_) => true,
+        };
+        if belongs_to_cleanup { retained.push(action.clone()); } else { excluded += 1; }
+    }
+    if excluded > 0 {
+        retained.push(RestoreAction::ManualStateUnavailable(
+            "Some changed captured fields were not verified as DumbTV cleanup operations and were left untouched; review those changes manually",
+        ));
+    }
+    (RestorePlan { actions: retained }, excluded)
+}
+
 /// Convert a delta restore plan into typed commands and human-readable
 /// manual actions. Store apps are never silently reinstalled or downloaded.
 pub fn build_restore_operations(plan: &RestorePlan) -> (Vec<PlannedOperation>, Vec<String>) {
