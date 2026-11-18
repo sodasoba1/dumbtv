@@ -8,9 +8,10 @@ by this migration.
 ## Completed Rust foundations
 
 - `device_profile.rs`: parses Android device properties and applies the same
-  compatibility boundary as the scripts: Amazon Fire OS SDK 25–30 for cleanup,
-  API 25 only for DumbTV HOME/Keeper installation. Unknown newer SDK levels
-  fail closed.
+  validated Control Centre matrix: Amazon Fire OS SDK 25–30 for cleanup,
+  API 25 only for DumbTV HOME/Keeper installation. This is stricter than the
+  current shell helper, which accepts SDK levels above 30 but labels them
+  untested; Rust fails closed until newer releases are validated.
 - `catalogue.rs`: parses the existing package lists without sourcing shell
   files. It preserves list order, strips comments, rejects malformed package
   identifiers, and mirrors the Fire OS 6 list fallback used by `fos()`.
