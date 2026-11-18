@@ -6,6 +6,7 @@ set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 parse_flags "$@"
 need_device
+need_supported_fireos
 load_conf
 
 # Everything debloat.sh or youtube.sh may have switched off, under any answers.
@@ -42,8 +43,22 @@ restore_value() {
   printf '%s' "$fallback"
 }
 
+package_snapshot="$REPORT/packages-before.txt"
+was_enabled_before() {
+  local state
+  [[ ! -f $package_snapshot ]] && return 0
+  state=$(awk -F '\t' -v package="$1" '$1 == package {print $2; exit}' "$package_snapshot")
+  [[ $state == enabled ]]
+}
+
 step "packages"
 for p in $(restore_list); do
+  # When a snapshot exists, only re-enable packages that were enabled before DumbTV
+  # ran. Older installations without a snapshot retain the historical restore path.
+  if ! was_enabled_before "$p"; then
+    printf '  %-46s left disabled (was not enabled in the original snapshot)\n' "$p"
+    continue
+  fi
   # Older versions uninstalled some system apps for user 0; install-existing brings
   # those back where the build has it. Store apps come back from the store.
   if ! present "$p"; then
@@ -66,6 +81,10 @@ step "never-disable packages left disabled"
 off=$(dev 'pm list packages -d' | sed 's/^package://' | tr -d '\r')
 for p in $(list_of "$(fos never-disable.txt)" | awk '{print $1}'); do
   grep -qx "$p" <<<"$off" || continue
+  was_enabled_before "$p" || {
+    printf '  %-46s left disabled (was not enabled in the original snapshot)\n' "$p"
+    continue
+  }
   b=$(acmd pm enable --user 0 "$p" 2>&1 | head -1)
   printf '  %-46s %s\n' "$p" "${b:-no output}"
 done
@@ -155,5 +174,11 @@ fi
 
 [[ $DRY_RUN == 1 ]] && { note "[dry-run] done"; exit 0; }
 reboot_wait
+# A completed restore ends this cleanup cycle. Remove only the original-state
+# snapshots so a later run records the device's new baseline instead of reusing
+# stale values from this one.
+[[ ! -f $REPORT/debloat.txt ]] || mv "$REPORT/debloat.txt" "$REPORT/debloat-last.txt"
+rm -f "$REPORT/packages-before.txt" "$REPORT/settings-before-secure.txt" \
+  "$REPORT/settings-before-global.txt"
 note "restored. dumbtv home and SmartTube (if added) remain installed; remove them in"
 note "Settings > Applications if you want them gone too."
