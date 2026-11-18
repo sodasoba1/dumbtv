@@ -493,6 +493,7 @@ mod tests {
         DeviceSnapshot {
             device_label: "Fire TV".into(),
             manufacturer: "Amazon".into(),
+            device_fingerprint: "a".repeat(64),
             model: "AFTMM".into(),
             build_display_id: "FireOS-6.7.1.1".into(),
             android_sdk: 25,
@@ -644,6 +645,7 @@ mod tests {
             dir.path(),
             WorkflowKind::Cleanup,
             "Amazon",
+            &"a".repeat(64),
             "AFTMM",
             "FireOS-6.7.1.1",
             25,
