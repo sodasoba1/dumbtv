@@ -44,8 +44,8 @@ const fn wide<const N: usize>(value: &str) -> [u16; N] {
 }
 
 pub struct WindowsCngAdbKey {
-    provider: isize,
-    key: isize,
+    provider: usize,
+    key: usize,
     public_key: AdbPublicKey,
 }
 
@@ -53,13 +53,13 @@ impl WindowsCngAdbKey {
     /// Open the dedicated current-user key, creating it once if absent.
     /// Existing keys are never overwritten.
     pub fn open_or_create() -> Result<Self, String> {
-        let mut provider = 0isize;
+        let mut provider = 0usize;
         let status = unsafe {
             NCryptOpenStorageProvider(&mut provider, PROVIDER.as_ptr(), 0)
         };
         check_status(status, "open Windows CNG key provider")?;
 
-        let mut key = 0isize;
+        let mut key = 0usize;
         let open_status = unsafe {
             NCryptOpenKey(provider, &mut key, KEY_NAME.as_ptr(), 0, 0)
         };
@@ -155,13 +155,13 @@ impl WindowsCngAdbKey {
     /// user's Windows key store.
     #[cfg(test)]
     fn generate_ephemeral() -> Result<Self, String> {
-        let mut provider = 0isize;
+        let mut provider = 0usize;
         let status = unsafe {
             NCryptOpenStorageProvider(&mut provider, PROVIDER.as_ptr(), 0)
         };
         check_status(status, "open Windows CNG key provider")?;
 
-        let mut key = 0isize;
+        let mut key = 0usize;
         let create_status = unsafe {
             NCryptCreatePersistedKey(
                 provider,
@@ -309,7 +309,7 @@ impl Drop for WindowsCngAdbKey {
     }
 }
 
-fn export_public_key(key: isize) -> Result<AdbPublicKey, String> {
+fn export_public_key(key: usize) -> Result<AdbPublicKey, String> {
     // A 2048-bit RSA public blob is only 24 header bytes plus exponent and
     // modulus. A fixed upper bound avoids a probe call and is checked below.
     let mut blob = vec![0u8; 512];
