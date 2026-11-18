@@ -443,11 +443,12 @@ impl ControlCentre {
             Ok(root) => root.join("journals"),
             Err(error) => { self.shared.lock().expect("state lock poisoned").status = error; return; }
         };
-        let descriptions: Vec<String> = plan.operations.iter().map(|item| item.description.clone()).collect();
-        let journal_path = match operation_journal::OperationJournal::create(
+        let journal_operations: Vec<(String, device_command::DeviceCommand)> = plan.operations.iter()
+            .map(|item| (item.description.clone(), item.command.clone())).collect();
+        let journal_path = match operation_journal::OperationJournal::create_with_commands(
             &journal_root, operation_journal::WorkflowKind::Cleanup,
             &profile.manufacturer, &profile.model, &profile.build_display_id, profile.sdk,
-            &original.source_commit, &descriptions,
+            &original.source_commit, &journal_operations,
         ) {
             Ok(path) => path,
             Err(error) => { self.shared.lock().expect("state lock poisoned").status = format!("Cannot start cleanup safely: {error}"); return; }
@@ -581,11 +582,12 @@ impl ControlCentre {
             Ok(root) => root.join("journals"),
             Err(error) => { self.shared.lock().expect("state lock poisoned").status = error; return; }
         };
-        let descriptions: Vec<String> = operations.iter().map(|item| item.description.clone()).collect();
-        let journal_path = match operation_journal::OperationJournal::create(
+        let journal_operations: Vec<(String, device_command::DeviceCommand)> = operations.iter()
+            .map(|item| (item.description.clone(), item.command.clone())).collect();
+        let journal_path = match operation_journal::OperationJournal::create_with_commands(
             &journal_root, operation_journal::WorkflowKind::Restore,
             &profile.manufacturer, &profile.model, &profile.build_display_id, profile.sdk,
-            &original.source_commit, &descriptions,
+            &original.source_commit, &journal_operations,
         ) {
             Ok(path) => path,
             Err(error) => { self.shared.lock().expect("state lock poisoned").status = format!("Cannot start restore safely: {error}"); return; }
