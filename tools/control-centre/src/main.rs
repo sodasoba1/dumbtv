@@ -51,6 +51,8 @@ struct SharedState {
     host_key_sha256: Option<String>,
     device_profile: Option<device_profile::DeviceProfile>,
     package_inventory: Option<package_inventory::PackageInventory>,
+    connected_ip: Option<std::net::IpAddr>,
+    snapshot_path: Option<PathBuf>,
 }
 
 struct ControlCentre {
@@ -71,6 +73,8 @@ impl Default for ControlCentre {
                 host_key_sha256: None,
                 device_profile: None,
                 package_inventory: None,
+                connected_ip: None,
+                snapshot_path: None,
             })),
             device_ip: String::new(),
         };
@@ -189,6 +193,8 @@ impl ControlCentre {
             state.busy = true;
             state.device_profile = None;
             state.package_inventory = None;
+            state.connected_ip = None;
+            state.snapshot_path = None;
             state.status = "Connecting to the specified Fire TV. Check the TV before approving its ADB key prompt…".into();
         }
         thread::spawn(move || {
@@ -207,10 +213,49 @@ impl ControlCentre {
                     } else {
                         "Connected. Device properties read; package inventory was skipped because this device is outside the validated cleanup support range.".into()
                     };
+                    state.connected_ip = Some(ip);
                     state.device_profile = Some(inventory.profile);
                     state.package_inventory = inventory.packages;
                 }
                 Err(error) => state.status = format!("ADB inspection failed: {error}"),
+            }
+            state.busy = false;
+        });
+    }
+
+
+    #[cfg(windows)]
+    fn capture_original_state(&self, ip: std::net::IpAddr) {
+        let shared = Arc::clone(&self.shared);
+        {
+            let mut state = shared.lock().expect("state lock poisoned");
+            if state.busy || state.connected_ip != Some(ip) || state.device_profile.is_none() || state.package_inventory.is_none() {
+                return;
+            }
+            state.busy = true;
+            state.status = "Capturing original packages, settings, AppOps and network policy. No device changes will be made…".into();
+        }
+        thread::spawn(move || {
+            let result = (|| -> Result<PathBuf, String> {
+                let manifest = load_active_source()?.ok_or("download the official source before capturing a snapshot")?;
+                let data_root = app_root()?.join("source-versions").join(&manifest.commit).join("data");
+                let snapshots = app_root()?.join("snapshots");
+                fs::create_dir_all(&snapshots).map_err(|error| format!("cannot create snapshot folder: {error}"))?;
+                let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+                    .map_err(|_| "system clock is earlier than the Unix epoch")?.as_nanos();
+                let path = snapshots.join(format!("original-{stamp}.json"));
+                let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
+                    .map_err(|error| format!("cannot start the ADB runtime: {error}"))?;
+                runtime.block_on(adb_transport::capture_original_snapshot(ip, &data_root, &path))?;
+                Ok(path)
+            })();
+            let mut state = shared.lock().expect("state lock poisoned");
+            match result {
+                Ok(path) => {
+                    state.status = format!("Original state captured and saved locally as {}. No TV settings or packages were changed.", path.file_name().and_then(|name| name.to_str()).unwrap_or("snapshot.json"));
+                    state.snapshot_path = Some(path);
+                }
+                Err(error) => state.status = format!("Original-state capture failed; no device changes were made: {error}"),
             }
             state.busy = false;
         });
@@ -225,7 +270,7 @@ impl eframe::App for ControlCentre {
             ui.label("Windows test build · AFTMM / Fire OS 6 project");
             ui.separator();
 
-            let (busy, status, latest, active, host_key_md5, host_key_sha256, device_profile, package_counts) = {
+            let (busy, status, latest, active, host_key_md5, host_key_sha256, device_profile, package_counts, connected_ip, snapshot_path) = {
                 let state = self.shared.lock().expect("state lock poisoned");
                 (
                     state.busy,
@@ -241,6 +286,8 @@ impl eframe::App for ControlCentre {
                         packages.user.len(),
                         packages.disabled.len(),
                     )),
+                    state.connected_ip,
+                    state.snapshot_path.clone(),
                 )
             };
 
@@ -312,7 +359,17 @@ impl eframe::App for ControlCentre {
             if let Some((installed, system, user, disabled)) = package_counts {
                 ui.label(format!("Package inventory: {installed} installed · {system} system · {user} user-installed · {disabled} disabled"));
             }
-            ui.small("This connection reads getprop and package-manager inventories only. It does not change packages, settings, HOME, Keeper or installed apps. The target is restricted to a private/local IP on TCP 5555.");
+            if let Some(ip) = connected_ip {
+                if snapshot_path.is_none() && package_counts.is_some() {
+                    if ui.add_enabled(!busy, egui::Button::new("Capture original state (read-only)")).clicked() {
+                        self.capture_original_state(ip);
+                    }
+                }
+                if let Some(path) = snapshot_path.as_ref() {
+                    ui.label(format!("Original-state snapshot: {}", path.file_name().and_then(|name| name.to_str()).unwrap_or("saved")));
+                }
+            }
+            ui.small("Connection uses one owner-selected private/local IP on TCP 5555. Inventory and original-state capture are read-only; no package, setting, HOME, Keeper or installed-app changes are made.");
             ui.separator();
 
             ui.heading("Status");
