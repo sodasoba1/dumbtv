@@ -78,7 +78,7 @@ class VerifyTests(unittest.TestCase):
         result, _ = self.run_verify(home="com.amazon.tv.launcher/.ui.HomeActivity_vNext")
         self.assertEqual(result.returncode, 1)
         self.assertIn("FAIL", result.stdout)
-        self.assertIn("foreground is com.amazon.tv.launcher", result.stdout)
+        self.assertIn("Amazon Home is foreground (com.amazon.tv.launcher", result.stdout)
 
     def test_running_keeper_passes_with_an_ordinary_app_in_foreground(self):
         result, _ = self.run_verify(home="com.netflix.ninja/.MainActivity")
