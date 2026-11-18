@@ -1,4 +1,5 @@
 mod adb_auth;
+mod apk_release;
 #[cfg(windows)]
 mod cng_auth;
 #[cfg(windows)]
