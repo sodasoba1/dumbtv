@@ -36,11 +36,16 @@ jobs:
             throw "The optional libadb RSA key features must remain disabled."
           }
 
+      - name: Install RustSec audit tool
+        run: |
+          cargo install --locked --version 0.23.0 cargo-audit
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Audit the complete locked dependency graph
-        uses: rustsec/audit-check@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          working-directory: tools/control-centre
+        working-directory: tools/control-centre
+        run: |
+          cargo audit --deny vulnerabilities
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Compile and run unit tests
         working-directory: tools/control-centre
