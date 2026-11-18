@@ -337,8 +337,8 @@ fn safe_windows_archive_path(name: &str) -> bool {
         if part.is_empty() {
             return true;
         }
-        if part.contains([':', '\\', '<', '>', '"', '|', '?', '*'])
-            || part.chars().any(char::is_control)
+        if part.chars().any(|c| matches!(c, ':' | '\\' | '<' | '>' | '"' | '|' | '?' | '*'))
+            || part.chars().any(|c| c.is_control())
             || part.ends_with('.')
             || part.ends_with(' ')
         {
