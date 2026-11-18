@@ -33,6 +33,9 @@ pub struct DeviceSnapshot {
     /// Stable local label chosen by the desktop app; do not put a raw serial in reports.
     pub device_label: String,
     pub manufacturer: String,
+    /// SHA-256 fingerprint of the device serial; raw serials are never persisted.
+    #[serde(default)]
+    pub device_fingerprint: String,
     pub model: String,
     pub build_display_id: String,
     pub android_sdk: u32,
@@ -61,6 +64,11 @@ impl DeviceSnapshot {
         }
         if self.manufacturer.trim().is_empty() || self.android_sdk == 0 {
             return Err("snapshot is missing device identity or SDK".into());
+        }
+        if self.device_fingerprint.len() != 64
+            || !self.device_fingerprint.bytes().all(|byte| byte.is_ascii_hexdigit())
+        {
+            return Err("snapshot is missing a valid unique device fingerprint; capture a new original-state snapshot".into());
         }
         if self.build_display_id.len() > 256 || self.build_display_id.chars().any(char::is_control)
         {
@@ -375,6 +383,7 @@ mod tests {
         DeviceSnapshot {
             device_label: "Fire TV (local)".into(),
             manufacturer: "Amazon".into(),
+            device_fingerprint: "a".repeat(64),
             model: "AFTMM".into(),
             build_display_id: "FireOS-6.7.1.1".into(),
             android_sdk: 25,
