@@ -4,7 +4,6 @@
 
 pub const MAX_HOME_CONFIG_BYTES: usize = 256 * 1024;
 
-#[allow(dead_code)] // Wired only when the YouTube backup/restore workflow is complete.
 pub fn rewrite_apps_order(original: &[u8]) -> Result<Vec<u8>, String> {
     if original.len() > MAX_HOME_CONFIG_BYTES {
         return Err("DumbTV home.conf exceeds the 256 KiB safety limit".into());
