@@ -200,6 +200,10 @@ impl WindowsCngAdbKey {
         self.public_key.as_wire_payload()
     }
 
+    pub fn public_key_fingerprint(&self) -> String {
+        self.public_key.fingerprint_sha256()
+    }
+
     /// Sign the device's 20-byte ADB AUTH token using Windows CNG.
     pub fn sign_token(&self, token: &[u8]) -> Result<Vec<u8>, String> {
         if token.len() != 20 {
