@@ -47,7 +47,7 @@ struct SharedState {
     host_key_md5: Option<String>,
     host_key_sha256: Option<String>,
     device_profile: Option<device_profile::DeviceProfile>,
-    package_counts: Option<(usize, usize, usize, usize)>,
+    package_inventory: Option<package_inventory::PackageInventory>,
 }
 
 struct ControlCentre {
@@ -67,7 +67,7 @@ impl Default for ControlCentre {
                 host_key_md5: None,
                 host_key_sha256: None,
                 device_profile: None,
-                package_counts: None,
+                package_inventory: None,
             })),
             device_ip: String::new(),
         }
@@ -144,7 +144,7 @@ impl ControlCentre {
             }
             state.busy = true;
             state.device_profile = None;
-            state.package_counts = None;
+            state.package_inventory = None;
             state.status = "Connecting to the specified Fire TV. Check the TV before approving its ADB key prompt…".into();
         }
         thread::spawn(move || {
@@ -160,12 +160,7 @@ impl ControlCentre {
                 Ok(inventory) => {
                     state.status = "Connected. Device properties and package inventory read successfully; no package or settings changes were made.".into();
                     state.device_profile = Some(inventory.profile);
-                    state.package_counts = Some((
-                        inventory.packages.installed.len(),
-                        inventory.packages.system.len(),
-                        inventory.packages.user.len(),
-                        inventory.packages.disabled.len(),
-                    ));
+                    state.package_inventory = Some(inventory.packages);
                 }
                 Err(error) => state.status = format!("ADB inspection failed: {error}"),
             }
@@ -192,7 +187,12 @@ impl eframe::App for ControlCentre {
                     state.host_key_md5.clone(),
                     state.host_key_sha256.clone(),
                     state.device_profile.clone(),
-                    state.package_counts,
+                    state.package_inventory.as_ref().map(|packages| (
+                        packages.installed.len(),
+                        packages.system.len(),
+                        packages.user.len(),
+                        packages.disabled.len(),
+                    )),
                 )
             };
 
