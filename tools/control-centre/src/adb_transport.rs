@@ -406,6 +406,15 @@ async fn execute_one(
                 return Err(format!("verification failed: {operation} was not ignored for {package}"));
             }
         }
+        // Keep the legacy script's ordering: apply AppOps, force-stop and
+        // verify process exit, then add the UID to the metered-data blacklist.
+        // A failed force-stop must not leave a package with only a partial
+        // network-policy change that the journal might mistake for completion.
+        run_command(connection, &shell_command).await?;
+        let after = read_running_names(connection).await?;
+        if after.contains(package) {
+            return Err(format!("verification failed: {package} still has a running process after force-stop"));
+        }
         if let Some(uid) = uid {
             let current = parse_uid_blacklist(
                 &run_command(connection, "cmd netpolicy list restrict-background-blacklist").await?,
@@ -419,11 +428,6 @@ async fn execute_one(
             if !verified.contains(uid) {
                 return Err(format!("verification failed: metered-data UID {uid} was not blacklisted"));
             }
-        }
-        run_command(connection, &shell_command).await?;
-        let after = read_running_names(connection).await?;
-        if after.contains(package) {
-            return Err(format!("verification failed: {package} still has a running process after force-stop"));
         }
         return Ok(format!("Restricted background execution and verified force-stop for {package}"));
     }
