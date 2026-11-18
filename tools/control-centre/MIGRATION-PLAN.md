@@ -35,9 +35,11 @@ by this migration.
   the complete metered-data UID blacklist. The snapshot is pinned to the exact
   source commit and persisted once without overwrite.
 - `operations.rs`: creates a visible cleanup plan from catalogue data, explicit
-  Alexa/keep/remove choices, protected UIDs and the saved baseline. It plans
-  package disable/uninstall, privacy settings, screensaver fallback, AppOps,
-  Data Saver and metered-data UID restrictions.
+  Alexa/keep/remove choices, package UIDs and the saved baseline. It plans
+  package disable/uninstall, privacy settings, screensaver fallback, Data Saver
+  and protected-package restrictions. For cleanup packages, it conditionally
+  applies background AppOps and metered-data restrictions only when the package
+  process survives disable, then force-stops and verifies it, matching debloat.sh.
 - `adb_transport.rs`: validates that the live device still matches the saved
   baseline before cleanup; executes typed operations over one authenticated
   connection, verifies each operation by read-back and stops on first failure.
