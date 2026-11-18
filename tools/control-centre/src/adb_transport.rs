@@ -22,6 +22,9 @@ const GETPROP_OUTPUT_LIMIT: usize = 64 * 1024;
 /// Connect to exactly one owner-specified Fire TV IP and read its properties.
 /// This performs no package, setting, launcher or other device modifications.
 pub async fn inspect_device(ip: IpAddr) -> Result<DeviceProfile, String> {
+    if !is_local_target(ip) {
+        return Err("refusing to connect to a non-local IP address".into());
+    }
     let address = SocketAddr::new(ip, ADB_PORT);
     let stream = timeout(CONNECT_TIMEOUT, TcpStream::connect(address))
         .await
@@ -60,4 +63,30 @@ pub async fn inspect_device(ip: IpAddr) -> Result<DeviceProfile, String> {
 
     let text = String::from_utf8_lossy(&output[..written]);
     DeviceProfile::parse_getprop_output(&text)
+}
+
+fn is_local_target(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(address) => {
+            address.is_private() || address.is_loopback() || address.is_link_local()
+        }
+        IpAddr::V6(address) => {
+            address.is_unique_local() || address.is_loopback() || address.is_unicast_link_local()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_private_or_link_local_addresses_are_allowed() {
+        assert!(is_local_target("192.168.1.25".parse().unwrap()));
+        assert!(is_local_target("10.0.0.5".parse().unwrap()));
+        assert!(is_local_target("169.254.1.2".parse().unwrap()));
+        assert!(is_local_target("fd00::1234".parse().unwrap()));
+        assert!(!is_local_target("8.8.8.8".parse().unwrap()));
+        assert!(!is_local_target("2001:4860:4860::8888".parse().unwrap()));
+    }
 }
