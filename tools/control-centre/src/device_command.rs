@@ -53,7 +53,7 @@ impl DeviceCommand {
             Self::PutSetting { namespace, key, value } => {
                 validate_setting_key(key)?;
                 validate_setting_value(value)?;
-                Ok(format!("settings put {} {key} {value}", namespace.as_str()))
+                Ok(format!("settings put {} {key} {}", namespace.as_str(), shell_quote(value)))
             }
             Self::DeleteSetting { namespace, key } => {
                 validate_setting_key(key)?;
@@ -121,12 +121,15 @@ fn validate_setting_key(value: &str) -> Result<(), String> {
     Ok(())
 }
 fn validate_setting_value(value: &str) -> Result<(), String> {
-    if value.is_empty()
-        || !value.bytes().all(|b| b.is_ascii_alphanumeric() || b"_.:-".contains(&b))
-    {
-        return Err("invalid Android settings value".into());
+    if value.len() > 4096 || value.chars().any(char::is_control) {
+        return Err("Android settings value is too long or contains control characters".into());
     }
     Ok(())
+}
+
+/// POSIX-shell single-quote escaping for a single validated data argument.
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
 }
 fn valid_operation(value: &str) -> bool {
     !value.is_empty() && value.bytes().all(|b| b.is_ascii_uppercase() || b == b'_')
@@ -183,9 +186,12 @@ mod tests {
     #[test]
     fn rejects_shell_injection_and_shared_system_uids() {
         assert!(DeviceCommand::DisablePackage("com.example.app; reboot".into()).to_adb_shell(&policy()).is_err());
-        assert!(DeviceCommand::PutSetting {
-            namespace: SettingsNamespace::Secure, key: "safe_key".into(), value: "$(id)".into(),
-        }.to_adb_shell(&policy()).is_err());
+        assert_eq!(
+            DeviceCommand::PutSetting {
+                namespace: SettingsNamespace::Secure, key: "safe_key".into(), value: "$(id); reboot".into(),
+            }.to_adb_shell(&policy()).unwrap(),
+            "settings put secure safe_key '$(id); reboot'"
+        );
         assert!(DeviceCommand::AddMeteredBlacklistUid(1000).to_adb_shell(&policy()).is_err());
     }
 
@@ -195,7 +201,7 @@ mod tests {
             DeviceCommand::PutSetting {
                 namespace: SettingsNamespace::Secure, key: "advertising_id".into(), value: "0".into(),
             }.to_adb_shell(&policy()).unwrap(),
-            "settings put secure advertising_id 0"
+            "settings put secure advertising_id '0'"
         );
         assert_eq!(
             DeviceCommand::SetAppOp {
