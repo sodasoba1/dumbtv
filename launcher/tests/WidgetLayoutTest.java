@@ -15,6 +15,8 @@ public final class WidgetLayoutTest {
         check(!grid.add("overlap", "text", 1, 0, 2, 1), "reject overlap");
         check(!grid.add("outside", "text", 5, 3, 2, 1), "reject horizontal overflow");
         check(!grid.add("bad", "unknown", 0, 2, 1, 1), "reject unknown widget type");
+        check(!grid.add("recent", "recent", 0, 2, 1, 2),
+                "Recently Opened is no longer an available widget");
         WidgetLayout newWidgets = new WidgetLayout();
         check(newWidgets.add("diagnostics", "diagnostics", 0, 0, 3, 3), "accept diagnostics widget");
         check(newWidgets.add("device", "device", 3, 0, 3, 2), "accept device information widget");
@@ -47,6 +49,11 @@ public final class WidgetLayoutTest {
                 + ";bad,clock,99,0,1,1;clock,memory,x,0,1,1;clock,clock,0,0,1,1");
         check(repaired.items().size() == 2, "ignore malformed, out-of-bounds and duplicate records");
         check(!repaired.add("clock", "clock", 0, 3, 1, 1), "prevent duplicate widget IDs");
-        System.out.println("WidgetLayoutTest passed (bounds, collision, move, resize, remove, persistence)");
+        WidgetLayout oldSaved = WidgetLayout.decode(
+                "clock,clock,0,0,1,2;recent,recent,1,0,2,2;network,network,3,0,1,2");
+        check(oldSaved.find("clock") != null && oldSaved.find("network") != null
+                && oldSaved.find("recent") == null,
+                "ignore the removed widget in existing saved layouts without losing other widgets");
+        System.out.println("WidgetLayoutTest passed (bounds, collision, move, resize, remove, persistence, removed widget migration)");
     }
 }
