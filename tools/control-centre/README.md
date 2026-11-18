@@ -37,7 +37,7 @@ On a first connection, the Fire TV may ask to authorise this PC's ADB public key
 
 - Install/update the existing published launcher APK for Amazon API 25 only. The installer reads `launcher/version.env`, downloads the release asset and SHA-256 sidecar, and re-verifies the bytes immediately before staging.
 - A signature mismatch fails without uninstalling the existing package or deleting its settings.
-- The installer grants and verifies the device-idle whitelist, UsageStats AppOp, optional vendor AUTO_START AppOp, and Keeper READ_LOGS permission.
+- The installer grants and verifies the device-idle whitelist, UsageStats AppOp, and Keeper READ_LOGS permission.
 - It starts `tv.dumbtv.home/.Home`, verifies `tv.dumbtv.home/.Keeper` is foreground, and checks that DumbTV HOME is the resumed activity. A parental-control PIN prompt is reported as a possible reason the foreground check cannot complete.
 - Before changing runtime grants it stores the prior AppOps, READ_LOGS and idle-whitelist state locally. Undo hands HOME back to Amazon and restores those captured values. The launcher APK remains installed.
 
@@ -81,16 +81,78 @@ The repository's MIT licence applies to this Control Centre source. Third-party 
 8. On a physical AFTMM, connect to its local IP, compare the TV's RSA prompt fingerprint, and approve only if it matches.
 9. Confirm the app reports the expected AFTMM / API 25 properties and package counts, and does not change packages or settings.
 
-## Verified APK assets
+## End-to-end setup workflow
 
-The GUI can download and SHA-256 verify the pinned API 25 DumbTV HOME release (version metadata from the active source) and the optional SmartTube 32.56s release (pinned versionCode and checksum from the maintained YouTube script). Assets are stored under `%LOCALAPPDATA%\\DumbTV-ControlCentre\\verified-apks` without overwriting an existing file. The SmartTube download is an explicit owner action.
+The current test build wires the reviewed cleanup, DumbTV HOME installation and optional SmartTube installation into one guided sequence:
 
-This is currently an asset-preparation milestone only. It does not install either APK, modify Keeper or permissions, disable stock YouTube, or edit DumbTV HOME configuration. Those operations remain gated until their device-state snapshot, rollback and verification paths are complete. A pure, offline-tested home.conf transformer is also in place: it inserts SmartTube at the front of apps.order, removes stock YouTube and preserves unrelated settings. It is not connected to the device until exact-byte backup and restore are implemented. The Rust ADB sync staging primitive is implemented with a fixed `/data/local/tmp/dumbtv-*.apk` path allowlist, transfer bounds and full SHA-256 read-back verification, but the launcher/YouTube installation workflow is not yet wired to it.
+1. Connect to the owner-selected Fire TV IP and complete the read-only device/package inspection.
+2. Download and validate the maintained source catalogues, then capture the original package/settings/AppOps/network-policy state. The snapshot is immutable and tied to the device fingerprint and exact source commit.
+3. Review the generated cleanup plan, including skipped/protected packages and any individually selected user-app removals.
+4. Confirm the operation in a separate confirmation dialog. The installer rechecks that the device still matches the captured baseline before sending any cleanup command.
+5. Apply typed operations one at a time, journal each step before the write, and verify each result by reading the state back. A failed operation stops the sequence.
+6. If selected and supported, install the published DumbTV HOME API 25 APK after cleanup and any selected reboot/reconnect verification.
+7. If SmartTube was explicitly selected, install it after DumbTV HOME, reversibly disable stock YouTube, and update `home.conf` only after saving its exact original bytes.
+8. Review and apply the selective restore plan if rollback is required.
 
-## Snapshot, cleanup and restore
+The installer does not blindly replay operations after a crash or connection loss. An interrupted or failed journal is displayed on startup. Reconnect to the same device, inspect its live state, then use the normal read-only verification and restore-review controls. Only mutations recorded as verified, whose live values still match the values applied by that cleanup journal, are eligible for automatic restoration. Uncertain or subsequently changed state is left untouched and reported for manual review.
 
-The GUI now captures a complete pre-change baseline and refuses to overwrite it. Cleanup and restore each write a durable operation journal under `%LOCALAPPDATA%\\DumbTV-ControlCentre\\journals`; each operation is marked running before the ADB write and verified only after read-back succeeds. A separate read-only verification button can recheck all verified cleanup mutations later, including after reboot. Cleanup itself performs a second full read-back pass after the sequence; an optional reboot must show an ADB disconnect, reconnect within 120 seconds, pass same-device identity checks and repeat the verification. Journals omit device IPs, ADB serials, host keys and raw command output. An interrupted operation is not automatically replayed: reconnect and inspect the live device before choosing restore. Interrupted and failed journals are listed when the frontend starts, newest first, with verified, failed, running-at-last-save and pending counts plus the affected step summary. A controlled failure closes its journal and records later steps as not attempted; a crash or power loss leaves the in-flight journal visibly unfinished. Before cleanup begins, it reconnects and compares the live package states, captured settings, AppOps and network-policy values against that baseline. If anything changed after capture, it sends no cleanup commands.
+The current recovery surface is deliberately conservative but not yet a complete novice-guided reconciliation wizard. It provides journal summaries and safe restore planning; it does not automatically resume or retry interrupted steps.
 
-Cleanup is reviewed before execution and requires a separate final confirmation. Each operation is a typed command with validated arguments and a read-back check. A failure stops the sequence; completed operations are reported and the original snapshot is retained. The restore planner first calculates differences from the saved baseline, then scopes automatic restore to mutations recorded as verified in the matching device/source cleanup journal. It also checks that each live field still equals the value applied by that cleanup command; later edits to a different value are left untouched and listed for manual review. The journal stores typed command intent, never raw shell text. Restore still requires review and confirmation, and actions are verified individually. It does not recreate uninstalled APKs or assume defaults for unknown state.
+## Build and test
 
-The remaining work is guided reconciliation for unverified/interrupted steps, launcher/Keeper installation and undo, optional YouTube installation and home.conf backup/restore, and review of the generated third-party licence report and committed Cargo.lock. No physical AFTMM test has been performed. Do not treat this draft PR as a signed public release.
+The pull request's Windows Actions workflow builds and packages the portable test ZIP. The artifact contains:
+
+- `dumbtv-control-centre.exe`
+- This README
+- The repository MIT licence
+- Third-party notices and the complete generated third-party licence texts
+- The exact resolved `Cargo.lock`
+
+The ZIP is unsigned. Windows may show its normal unknown-publisher warning. Only use the artifact downloaded from the linked run in this repository.
+
+No separate runtime installation is needed. The executable uses Windows system libraries and does not bundle or invoke Python, Bash, Git, PowerShell or an external ADB executable.
+
+## Test checklist
+
+**Windows application**
+
+1. Extract the ZIP and launch the EXE on Windows 10/11 without installing Python, Bash, Git or ADB.
+2. Check source updates online and offline; download a source revision and confirm its SHA is displayed.
+3. Download the same revision again and confirm the existing immutable source directory is not overwritten.
+4. Confirm unrelated repository checkouts and user configuration remain untouched.
+5. Inspect the managed source cache and active-source manifest.
+
+**Read-only Fire TV connection**
+
+6. Prepare the ADB host key and compare the displayed MD5 fingerprint with the Fire TV authorisation prompt. Do not approve a mismatched key.
+7. Connect to an AFTMM on the local network and confirm the model, build, SDK and package inventory are correct.
+8. Capture the original state and confirm that this action changes no device packages or settings.
+
+**Device-changing tests — use a test device**
+
+9. Review the cleanup plan and verify protected packages and never-disable entries are excluded.
+10. Confirm no user app is uninstalled unless individually selected.
+11. Apply cleanup and confirm every operation is journalled and read-back verified.
+12. Test cleanup verification after reconnect/reboot.
+13. Test selective restore and confirm changes made outside the installer are not overwritten.
+14. Test DumbTV HOME installation from the published API 25 release, then test launcher undo.
+15. Test SmartTube only after explicit opt-in; verify stock YouTube is reversibly disabled and `home.conf` is backed up exactly.
+16. Edit `home.conf` after installation and confirm SmartTube undo refuses to overwrite that later edit.
+17. Inspect interrupted/failed journal summaries and confirm no operation is automatically replayed.
+
+Physical AFTMM testing is still required. The successful Windows CI build and offline tests do not prove ADB compatibility or device-side behaviour. Do not use a primary device for the first cleanup/restore tests.
+
+## Compatibility and safety boundaries
+
+- Cleanup supports Fire OS SDK 25–30. DumbTV HOME/Keeper installation is restricted to API 25. Unsupported SDKs fail closed.
+- No root, remount, `/system` writes, bootloader operations or factory reset.
+- Never disable never-disable entries or `com.amazon.vizzini`.
+- No user app is removed unless individually selected and confirmed. Alexa remains an explicit choice.
+- SmartTube is optional; stock YouTube is not removed.
+- No DNS-filter or VPN installation/configuration. Legacy DNS-filter cleanup is only eligible when detected and explicitly approved.
+- Keeper remains part of the existing DumbTV APK and is not split out, modified or rebuilt.
+- The installer downloads and verifies the already-published launcher APK; it does not build or alter Android source or APK assets.
+
+## Licensing
+
+The Control Centre source is covered by the repository MIT licence. Dependencies retain their own licences. The Windows workflow audits the resolved dependency graph and generates complete third-party licence texts from the locked dependency set, including the accepted Ubuntu Font Licence expression. The generated licence inventory is included in the test ZIP. This documentation is not legal advice.
