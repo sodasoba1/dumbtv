@@ -206,6 +206,22 @@ mod tests {
     }
 
     #[test]
+    fn conditional_background_restriction_rejects_shared_uids_and_unsupported_sdk() {
+        let shared = DeviceCommand::ForceStopAndRestrictIfRunning {
+            package: "com.amazon.ads".into(), uid: Some(1000), sdk: 25,
+        };
+        assert!(shared.to_adb_shell(&policy()).is_err());
+        let unsupported = DeviceCommand::ForceStopAndRestrictIfRunning {
+            package: "com.amazon.ads".into(), uid: Some(10001), sdk: 31,
+        };
+        assert!(unsupported.to_adb_shell(&policy()).is_err());
+        let valid = DeviceCommand::ForceStopAndRestrictIfRunning {
+            package: "com.amazon.ads".into(), uid: Some(10001), sdk: 25,
+        };
+        assert_eq!(valid.to_adb_shell(&policy()).unwrap(), "am force-stop com.amazon.ads");
+    }
+
+    #[test]
     fn creates_whitelisted_settings_appops_and_policy_commands() {
         assert_eq!(
             DeviceCommand::PutSetting {
