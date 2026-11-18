@@ -24,6 +24,18 @@ jobs:
       - name: Install stable Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Resolve and inspect ADB dependency features
+        working-directory: tools/control-centre
+        run: |
+          cargo generate-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $features = cargo tree -e features -i libadb | Out-String
+          Write-Output $features
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($features -match 'libadb feature "keys"' -or $features -match 'libadb feature "host-keys"') {
+            throw "The optional libadb RSA key features must remain disabled."
+          }
+
       - name: Compile and run unit tests
         working-directory: tools/control-centre
         run: |
@@ -46,6 +58,14 @@ jobs:
           Copy-Item "README.md" $package
           Copy-Item "THIRD-PARTY-NOTICES.md" $package
           Compress-Archive -Path (Join-Path $package "*") -DestinationPath (Join-Path $env:RUNNER_TEMP "DumbTV-Control-Centre-test-windows-x64.zip") -Force
+
+      - name: Upload resolved Cargo lockfile for dependency audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: control-centre-cargo-lock
+          path: tools/control-centre/Cargo.lock
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload portable test build
         uses: actions/upload-artifact@v4
