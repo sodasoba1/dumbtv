@@ -886,30 +886,34 @@ pub async fn install_smarttube(
         .map_err(|error| format!("cannot persist SmartTube restore backup: {error}"))?;
 
     let remote = "/data/local/tmp/dumbtv-smarttube.apk";
-    let mut installed_code = 0_u64;
-    for attempt in 0..2 {
-        if let Err(error) = push_staged_apk(ip, expected, remote, apk_bytes).await {
-            if attempt == 1 {
-                return Err(format!("SmartTube APK staging failed after two attempts: {error}"));
+    let installed_code = {
+        let mut attempt = 0;
+        loop {
+            if let Err(error) = push_staged_apk(ip, expected, remote, apk_bytes).await {
+                if attempt == 1 {
+                    return Err(format!("SmartTube APK staging failed after two attempts: {error}"));
+                }
+                attempt += 1;
+                continue;
             }
-            continue;
+            if let Ok(mut connection) = connect_with_retry(ip, expected, Duration::from_secs(60)).await {
+                // The install command may lose its Wi-Fi ADB response after the APK
+                // has been pushed. The installed version, not the final shell text,
+                // is the source of truth.
+                let _ = run_command(&mut connection, &format!("pm install -r {remote}")).await;
+            }
+            let mut verify = connect_with_retry(ip, expected, Duration::from_secs(60)).await?;
+            let dump = run_command(&mut verify, &format!("dumpsys package {package}")).await?;
+            let code = parse_installed_version_code(&dump).unwrap_or(0);
+            if code >= crate::apk_release::SMARTTUBE_VERSION_CODE {
+                break code;
+            }
+            if attempt == 1 {
+                return Err(format!("SmartTube versionCode {code} is below the required {}", crate::apk_release::SMARTTUBE_VERSION_CODE));
+            }
+            attempt += 1;
         }
-        if let Ok(mut connection) = connect_with_retry(ip, expected, Duration::from_secs(60)).await {
-            // The install command may lose its Wi-Fi ADB response after the APK
-            // has been pushed. The installed version, not the final shell text,
-            // is the source of truth.
-            let _ = run_command(&mut connection, &format!("pm install -r {remote}")).await;
-        }
-        let mut verify = connect_with_retry(ip, expected, Duration::from_secs(60)).await?;
-        let dump = run_command(&mut verify, &format!("dumpsys package {package}")).await?;
-        installed_code = parse_installed_version_code(&dump).unwrap_or(0);
-        if installed_code >= crate::apk_release::SMARTTUBE_VERSION_CODE {
-            break;
-        }
-        if attempt == 1 {
-            return Err(format!("SmartTube versionCode {installed_code} is below the required {}", crate::apk_release::SMARTTUBE_VERSION_CODE));
-        }
-    }
+    };
 
     let mut connection = connect_with_retry(ip, expected, Duration::from_secs(60)).await?;
     let _ = run_command(&mut connection, &format!("rm -f {remote}")).await;
