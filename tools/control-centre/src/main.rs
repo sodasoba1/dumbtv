@@ -1513,8 +1513,8 @@ fn store_verified_apk(name: &str, bytes: &[u8], expected_sha256: &str) -> Result
 #[cfg(windows)]
 fn launcher_backup_path(profile: &device_profile::DeviceProfile) -> Result<PathBuf, String> {
     let identity = format!(
-        "{}|{}|{}|{}",
-        profile.manufacturer, profile.model, profile.build_display_id, profile.sdk
+        "{}|{}|{}|{}|{}",
+        profile.manufacturer, profile.model, profile.build_display_id, profile.sdk, profile.serial_fingerprint
     );
     let key = apk_release::sha256_hex(identity.as_bytes());
     Ok(app_root()?
