@@ -38,7 +38,7 @@ Before publishing a user-facing release:
 - Audit every direct and transitive dependency's exact licence and advisory status.
 - Verify that the optional `rsa 0.9` feature of libadb is not enabled or pulled
   into the resolved build graph; do not suppress RUSTSEC-2023-0071.
-- Generate notices for the exact locked graph and include required licence texts.
+- Review the generated `THIRD-PARTY-LICENSES.md` artifact and confirm every included licence is acceptable for distribution.
 - Resolve all security advisories rather than suppressing them without a
   documented security decision.
 - Review all upstream licence texts and the repository MIT licence separately
