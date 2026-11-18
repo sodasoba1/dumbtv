@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Catalog selection uses real settings files; no package manager, Android UI or TV is needed. */
+/** Catalog selection and per-app settings persistence; no package manager or TV is needed. */
 public final class AppSectionsTest {
     private AppSectionsTest() {}
 
@@ -24,6 +24,36 @@ public final class AppSectionsTest {
         for (int i = 0; i < expected.length; i++) {
             check(expected[i].equals(actual.get(i).id), "section order at " + i);
         }
+    }
+
+    private static void appStyleSavePreservesOtherOverrides(Config cfg, Item item) {
+        cfg.set("appstyle.alpha.labels", "always");
+        cfg.set("appstyle.alpha.shadow", "glow");
+        cfg.set("appstyle.alpha.size", "large");
+
+        AppStyle.save(cfg, item, "Renamed", item.label.toString(),
+                "custom.png", "#123456", false);
+        check("always".equals(cfg.get("appstyle.alpha.labels", "")),
+                "ordinary save preserves per-app labels");
+        check("glow".equals(cfg.get("appstyle.alpha.shadow", "")),
+                "ordinary save preserves per-app shadow");
+        check("large".equals(cfg.get("appstyle.alpha.size", "")),
+                "ordinary save preserves other per-app overrides");
+        check("Renamed".equals(cfg.get("name.alpha", "")), "ordinary save applies app name");
+        check("custom.png".equals(cfg.get("appstyle.alpha.banner", "")),
+                "ordinary save applies banner");
+        check("#123456".equals(cfg.get("appstyle.alpha.background", "")),
+                "ordinary save applies background");
+
+        AppStyle.save(cfg, item, item.label.toString(), item.label.toString(),
+                null, null, true);
+        check("".equals(cfg.get("appstyle.alpha.labels", "")),
+                "explicit reset clears per-app labels");
+        check("".equals(cfg.get("appstyle.alpha.shadow", "")),
+                "explicit reset clears per-app shadow");
+        check("".equals(cfg.get("appstyle.alpha.size", "")),
+                "explicit reset clears other per-app overrides");
+        check("".equals(cfg.get("name.alpha", "")), "explicit reset restores original name");
     }
 
     public static void main(String[] args) throws Exception {
@@ -87,7 +117,9 @@ public final class AppSectionsTest {
             ids(catalog, "alpha", "beta", "gamma");
             ids(Catalog.visible(cfg, Catalog.INPUTS, Arrays.asList(c)), "gamma");
             check(Catalog.isApp(Catalog.ALL_APPS) && !Catalog.isApp(Catalog.INPUTS), "tile types");
-            System.out.println("AppSectionsTest passed (pinned row, removed home catalogue row, lock)");
+
+            appStyleSavePreservesOtherOverrides(cfg, a);
+            System.out.println("AppSectionsTest passed (catalogue, lock and per-app settings persistence)");
         } finally {
             File[] files = dir.listFiles();
             if (files != null) for (File file : files) check(file.delete(), "remove settings");
