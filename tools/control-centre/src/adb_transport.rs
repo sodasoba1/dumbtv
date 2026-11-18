@@ -527,8 +527,7 @@ pub async fn reboot_and_reconnect(
 
 /// Push a verified APK into the app-private staging area using ADB sync.
 /// The caller must verify the APK checksum before calling this function.
-/// Kept isolated until the launcher/YouTube snapshot and rollback flows are wired.
-#[allow(dead_code)]
+/// Used by the launcher and SmartTube installers after local checksum verification.
 pub async fn push_staged_apk(
     ip: IpAddr,
     expected: &DeviceProfile,
@@ -776,6 +775,10 @@ pub async fn undo_launcher(
     run_command(&mut connection, &format!("appops set {package} GET_USAGE_STATS {usage_mode}")).await?;
     if let Some(mode) = backup.as_ref().and_then(|value| value.auto_start_mode.as_deref()) {
         run_command(&mut connection, &format!("appops set {package} AUTO_START {mode}")).await?;
+        let auto = run_command(&mut connection, &format!("appops get {package} AUTO_START")).await?;
+        if parse_appop_mode(&auto, "AUTO_START")? != mode {
+            return Err("Keeper AUTO_START AppOp did not return to its captured pre-install state".into());
+        }
     } else {
         let _ = run_command(&mut connection, &format!("appops set {package} AUTO_START default")).await;
     }
@@ -793,6 +796,10 @@ pub async fn undo_launcher(
         run_command(&mut connection, &format!("dumpsys deviceidle whitelist -{package}")).await?;
     }
     run_command(&mut connection, "am start -a android.intent.action.MAIN -c android.intent.category.HOME").await?;
+    let home = run_command(&mut connection, "dumpsys activity activities").await?;
+    if home.lines().any(|line| line.contains("ResumedActivity:") && line.contains(package)) {
+        return Err("Amazon HOME launch was requested, but DumbTV HOME is still the resumed activity".into());
+    }
 
     let usage = run_command(&mut connection, &format!("appops get {package} GET_USAGE_STATS")).await?;
     if parse_appop_mode(&usage, "GET_USAGE_STATS")? != usage_mode {
