@@ -151,6 +151,22 @@ public final class ConfigTest {
         }
     }
 
+    private static void customTextRoundTrips() throws Exception {
+        try (Fixture f = new Fixture()) {
+            Config cfg = f.open();
+            String expected = "First line\\nSecond=line\\\\path\\n雪";
+            cfg.setText("widgets.text", expected);
+            String stored = new String(Files.readAllBytes(f.settings.toPath()), StandardCharsets.UTF_8);
+            check(stored.contains("widgets.text=!dumbtv-text-v1!"),
+                    "multiline widget text is stored on one settings line");
+            Config reopened = f.open();
+            check(expected.equals(reopened.getText("widgets.text", "Custom text")),
+                    "multiline text, equals, backslash and Unicode survive restart");
+            check("legacy text".equals(Config.decodeText("legacy text")),
+                    "legacy plain-text values remain readable");
+        }
+    }
+
     private static void failedWriteCanRecover() throws Exception {
         try (Fixture f = new Fixture()) {
             File blocked = new File(f.dir, Config.FILE + ".tmp");
@@ -172,6 +188,7 @@ public final class ConfigTest {
         themeAndTileSizePresets();
         favouritesAlignmentDefaultsAndPersists();
         toolbarAutoHideDefaultsAndPersists();
+        customTextRoundTrips();
         failedWriteCanRecover();
         System.out.println("ConfigTest passed (settings persistence, export, custom colours, legacy values, top bar auto-hide, failed-write recovery)");
     }
