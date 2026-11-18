@@ -83,8 +83,9 @@ by this migration.
 5. **Restore:** implemented as a reviewed delta plan with live-state recheck,
    typed restore commands and per-operation verification. User-app reinstall
    and missing system-package recovery remain manual and are explicitly shown.
-6. **Remaining parity:** force-stop/process handling, automatic reboot/reconnect,
-   complete post-change verification and a more detailed failure journal.
+6. **Remaining parity:** automatic reboot/reconnect, complete post-change
+   verification and a more detailed failure journal. Force-stop now uses the
+   API 25 process-list fallback and read-back verification.
 7. **Launcher:** still gated separately; API 25 only, with APK signing, grants,
    Keeper lifecycle, reboot/reconnect and undo to validate.
 8. **Optional YouTube replacement:** last, with explicit opt-in and pinned
@@ -95,8 +96,9 @@ by this migration.
 - No generic command runner or arbitrary shell text in the UI. Rust code builds
   each reviewed device operation from validated typed values. The ADB protocol's
   remote shell service is used only where Android exposes no equivalent API.
-- Exactly one connected/selected device per operation. A serial change or
-  multiple-device result aborts the workflow.
+- One owner-selected private/local IP per operation. The app rechecks the
+  inspected manufacturer/model/build and complete saved baseline before writes;
+  it does not enumerate or claim to detect other ADB devices on the network.
 - No writes to `/system`, root, remount, bootloader or factory reset.
 - `never-disable.txt` is an absolute deny-list; `com.amazon.vizzini` is
   protected regardless of catalogue drift.

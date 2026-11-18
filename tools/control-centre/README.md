@@ -33,7 +33,7 @@ On a first connection, the Fire TV may ask to authorise this PC's ADB public key
 
 **ADB compatibility note:** libadb's published support range lists Android 9+, while the target AFTMM runs Android 7.1.2 / API 25. Its protocol implementation includes legacy ADB negotiation and shell v1, and the Windows build/tests pass. I am treating the transport as working as requested; there is no observed protocol failure, but a physical AFTMM connection remains the final compatibility check.
 
-The GUI does not install or replace DumbTV HOME, modify Keeper, install YouTube/SmartTube, configure DNS/VPN, automatically reboot, or execute downloaded shell scripts. Force-stop parity is also deferred until a reliable API 25 process-state read-back is available. The app does not bundle Google's platform-tools, Python, Bash, Git or any ADB executable.
+The GUI does not install or replace DumbTV HOME, modify Keeper, install YouTube/SmartTube, configure DNS/VPN, automatically reboot, or execute downloaded shell scripts. Force-stop is included for catalogued cleanup/protected packages: the app reads the process list (with the API 25 fallback used by the existing scripts), sends force-stop only when the exact package process is running, and verifies that it has exited. Never-disable packages are excluded. The app does not bundle Google's platform-tools, Python, Bash, Git or any ADB executable.
 
 ## Build on Windows
 
@@ -70,4 +70,4 @@ The GUI now captures a complete pre-change baseline and refuses to overwrite it.
 
 Cleanup is reviewed before execution and requires a separate final confirmation. Each operation is a typed command with validated arguments and a read-back check. A failure stops the sequence; completed operations are reported and the original snapshot is retained. The restore planner calculates only differences from the saved baseline, and the restore UI likewise requires review and confirmation. Restore actions are verified individually. It does not recreate uninstalled APKs or assume defaults for unknown state.
 
-The remaining work is launcher/Keeper installation and undo, optional YouTube replacement, force-stop parity, reboot/reconnect handling, final verification and a full third-party licence audit. Do not treat this draft PR as a signed public release.
+The remaining work is launcher/Keeper installation and undo, optional YouTube replacement, reboot/reconnect handling, stronger persistent recovery journaling, final verification and a full third-party licence audit. Do not treat this draft PR as a signed public release.

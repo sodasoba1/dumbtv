@@ -364,8 +364,18 @@ async fn execute_one(
 ) -> Result<String, String> {
     use crate::device_command::DeviceCommand;
 
-    if matches!(command, DeviceCommand::ForceStopPackage(_)) {
-        return Err("force-stop is not enabled until a reliable API 25 process-state read-back is implemented".into());
+    if let DeviceCommand::ForceStopPackage(package) = command {
+        let shell_command = command.to_adb_shell(never_disable)?;
+        let before = read_running_names(connection).await?;
+        if !before.contains(package) {
+            return Ok(format!("{package} was not running; no force-stop was needed"));
+        }
+        let _command_output = run_command(connection, &shell_command).await?;
+        let after = read_running_names(connection).await?;
+        if after.contains(package) {
+            return Err(format!("verification failed: {package} still has a running process after force-stop"));
+        }
+        return Ok(format!("Force-stopped and verified {package}"));
     }
     let shell_command = command.to_adb_shell(never_disable)?;
     let _command_output = run_command(connection, &shell_command).await?;
@@ -432,6 +442,28 @@ async fn execute_one(
         }
         DeviceCommand::ForceStopPackage(_) => unreachable!(),
     }
+}
+
+async fn read_running_names(connection: &mut Connection<TokioTcp>) -> Result<BTreeSet<String>, String> {
+    let output = run_command(connection, "ps -A -o NAME").await?;
+    if output.to_ascii_lowercase().contains("bad pid") {
+        let fallback = run_command(connection, "ps").await?;
+        parse_running_names(&fallback, true)
+    } else {
+        parse_running_names(&output, false)
+    }
+}
+
+fn parse_running_names(output: &str, full_ps_columns: bool) -> Result<BTreeSet<String>, String> {
+    if output.to_ascii_lowercase().contains("bad pid") {
+        return Err("Fire OS did not return a usable process list; force-stop was not attempted".into());
+    }
+    let mut names = BTreeSet::new();
+    for line in output.lines().skip(1) {
+        let name = if full_ps_columns { line.split_whitespace().last() } else { line.split_whitespace().next() };
+        if let Some(name) = name.filter(|name| !name.is_empty()) { names.insert(name.to_owned()); }
+    }
+    Ok(names)
 }
 
 async fn connect(ip: IpAddr) -> Result<Connection<TokioTcp>, String> {
@@ -597,6 +629,17 @@ mod tests {
         assert!(is_local_target("fd00::1234".parse().unwrap()));
         assert!(!is_local_target("8.8.8.8".parse().unwrap()));
         assert!(!is_local_target("2001:4860:4860::8888".parse().unwrap()));
+    }
+
+    #[test]
+    fn parses_running_process_names_with_api25_fallback_columns() {
+        let modern = "NAME\\ncom.amazon.foo\\ncom.amazon.bar\\n";
+        assert_eq!(parse_running_names(modern, false).unwrap(), [
+            "com.amazon.bar".to_owned(), "com.amazon.foo".to_owned()
+        ].into_iter().collect());
+        let legacy = "USER PID PPID VSIZE RSS WCHAN PC NAME\\nsystem 1 0 0 0 0 0 init\\nu0_a12 42 1 0 0 0 0 com.amazon.foo\\n";
+        assert!(parse_running_names(legacy, true).unwrap().contains("com.amazon.foo"));
+        assert!(parse_running_names("bad pid", false).is_err());
     }
 
     #[test]

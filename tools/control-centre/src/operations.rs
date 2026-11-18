@@ -71,6 +71,23 @@ pub fn build_cleanup_plan(
         }
     }
 
+    // Match debloat.sh's process cleanup for catalogue packages. Protected
+    // packages are handled with their AppOps/network policy below.
+    for package in &catalogue.packages {
+        if inventory.installed.contains(package)
+            && !choices.keep.contains(package)
+            && !catalogue.never_disable.contains(package)
+            && package != "com.amazon.vizzini"
+            && !catalogue.protected.contains(package)
+            && !(choices.keep_alexa && catalogue.alexa.contains(package))
+        {
+            operations.push(PlannedOperation {
+                description: format!("Force-stop {package} only if it is still running"),
+                command: DeviceCommand::ForceStopPackage(package.clone()),
+            });
+        }
+    }
+
     let mut setting_changes = settings.privacy;
     if !choices.keep_alexa {
         setting_changes.extend(settings.alexa_off);
@@ -127,6 +144,14 @@ pub fn build_cleanup_plan(
             skipped.push(format!("{package} — explicitly kept; background restrictions skipped"));
             continue;
         }
+        let Some(uid) = protected_uids.get(package).copied() else {
+            skipped.push(format!("{package} — UID could not be read; background restrictions skipped"));
+            continue;
+        };
+        if uid < 10_000 {
+            skipped.push(format!("{package} — shared system UID {uid}; background restrictions skipped"));
+            continue;
+        }
         let mut ops = vec!["RUN_IN_BACKGROUND"];
         if sdk >= 28 { ops.push("RUN_ANY_IN_BACKGROUND"); }
         for operation in ops {
@@ -146,7 +171,13 @@ pub fn build_cleanup_plan(
                 });
             }
         }
-        match protected_uids.get(package).copied() {
+        if !catalogue.never_disable.contains(package) && package != "com.amazon.vizzini" {
+            operations.push(PlannedOperation {
+                description: format!("Force-stop protected package {package} only if it is still running"),
+                command: DeviceCommand::ForceStopPackage(package.clone()),
+            });
+        }
+        match Some(uid) {
             Some(uid) if uid >= 10_000 && original.metered_blacklist_uids.as_ref().is_some_and(|uids| uids.contains(&uid)) => {
                 skipped.push(format!("{package} — UID {uid} is already on the metered-data blacklist"));
             }
