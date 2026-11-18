@@ -142,6 +142,15 @@ mod tests {
         let n0 = u32::from_le_bytes(blob[8..12].try_into().unwrap());
         let n0_inverse = u32::from_le_bytes(blob[4..8].try_into().unwrap());
         assert_eq!(n0.wrapping_mul(n0_inverse), u32::MAX);
+        let rr = BigUint::from_bytes_le(&blob[8 + MODULUS_BYTES..8 + MODULUS_BYTES * 2]);
+        assert_eq!(rr, BigUint::from(1u32));
+
+        for odd in [3u32, 5, 0x1234_5679, 0xffff_ffff] {
+            assert_eq!(
+                odd.wrapping_mul(negative_inverse_mod_2_32(odd)),
+                u32::MAX
+            );
+        }
     }
 
     #[test]
