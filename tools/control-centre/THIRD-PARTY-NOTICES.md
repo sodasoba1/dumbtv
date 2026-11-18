@@ -7,7 +7,7 @@ This prototype depends on the following direct Rust crates. The resolved transit
 | eframe / egui | MIT OR Apache-2.0 | Native desktop GUI |
 | reqwest | MIT OR Apache-2.0 | HTTPS GitHub API and archive download |
 | serde / serde_json | MIT OR Apache-2.0 | JSON metadata |
-| atomicwrites | MIT OR Apache-2.0 | Atomic active-source manifest replacement |
+| atomicwrites | MIT | Atomic active-source manifest replacement |
 | dirs | MIT OR Apache-2.0 | Windows Local AppData path |
 | tempfile | MIT OR Apache-2.0 | Safe staging directory |
 | zip | MIT | ZIP archive reading |
