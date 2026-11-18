@@ -9,6 +9,7 @@ mod package_plan;
 mod package_inventory;
 mod settings_catalogue;
 mod snapshot;
+mod device_command;
 
 use eframe::egui;
 use atomicwrites::{AllowOverwrite, AtomicFile};
