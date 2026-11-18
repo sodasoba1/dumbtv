@@ -39,7 +39,10 @@ pub async fn inspect_device(ip: IpAddr) -> Result<DeviceProfile, String> {
             transport,
             key,
             HostBanner::Features(&[Feature::ShellV2]),
-            ConnectionConfig::new(),
+            ConnectionConfig::new()
+                .with_max_payload(64 * 1024)
+                .with_max_rx_per_channel(64 * 1024)
+                .with_max_channels(1),
         ),
     )
     .await
