@@ -210,7 +210,7 @@ mod tests {
 
     #[test]
     fn parses_getprop_output_and_keeps_optional_values_optional() {
-        let output = "[ro.product.manufacturer]: [Amazon]\n[ro.product.model]: [AFTMM]\n[ro.build.display.id]: [PS7613/]\n[ro.build.version.release]: [7.1.2]\n[ro.build.version.sdk]: [25]\n[ro.product.cpu.abi]: [armeabi-v7a]\n";
+        let output = "[ro.product.manufacturer]: [Amazon]\n[ro.serialno]: [G070L1234567890]\n[ro.product.model]: [AFTMM]\n[ro.build.display.id]: [PS7613/]\n[ro.build.version.release]: [7.1.2]\n[ro.build.version.sdk]: [25]\n[ro.product.cpu.abi]: [armeabi-v7a]\n";
         let profile = DeviceProfile::parse_getprop_output(output).unwrap();
         assert_eq!(profile.model, "AFTMM");
         assert_eq!(profile.sdk, 25);
