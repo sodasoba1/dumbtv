@@ -28,6 +28,9 @@ while IFS= read -r line || [[ -n $line ]]; do
   line=${line%%$'\r'}
   [[ -z ${line// } || $line == \#* ]] && continue
   img=$(printf '%s' "${line%%|*}" | xargs)
+  case "$img" in
+    ""|.|..|*/*|*\\*) echo "error: picture names must be simple file names: $img" >&2; exit 1 ;;
+  esac
   [[ -f $SRC/$img ]] || { echo "  missing picture: $img (line skipped on the TV)"; continue; }
   out="$WORK/$img"
   cp "$SRC/$img" "$out"
@@ -56,11 +59,29 @@ sdk=$(adb_ shell getprop ro.build.version.sdk | tr -d '\r')
 
 # The launcher is API 25 only; getExternalFilesDir(null) resolves here on AFTMM.
 DEST=/sdcard/Android/data/tv.dumbtv.home/files/library
+STAGE="$DEST.staging.$"
+BACKUP="$DEST.backup.$"
 
-adb_ shell "rm -rf '$DEST' && mkdir -p '$DEST'"
+# Upload into a sibling directory first. A failed push must leave the current
+# Library untouched; only swap directories after every file has arrived.
+adb_ shell "mkdir -p '$STAGE'"
 for f in "$WORK"/*; do
-  adb_ push "$f" "$DEST/" 2>&1 | grep -v -E 'pushed|^$' || true
+  if ! adb_ push "$f" "$STAGE/" >/dev/null; then
+    adb_ shell "rm -rf '$STAGE'" >/dev/null 2>&1 || true
+    echo "error: upload failed for $(basename "$f"); existing Library was left untouched" >&2
+    exit 1
+  fi
 done
+if ! adb_ shell "test -s '$STAGE/library.conf'"; then
+  adb_ shell "rm -rf '$STAGE'" >/dev/null 2>&1 || true
+  echo "error: uploaded Library configuration could not be verified" >&2
+  exit 1
+fi
+if ! adb_ shell "if [ -d '$DEST' ]; then mv '$DEST' '$BACKUP' || exit 1; fi; if mv '$STAGE' '$DEST'; then rm -rf '$BACKUP'; else [ ! -d '$BACKUP' ] || mv '$BACKUP' '$DEST'; exit 1; fi"; then
+  adb_ shell "rm -rf '$STAGE'" >/dev/null 2>&1 || true
+  echo "error: could not activate the uploaded Library; the previous copy was restored where possible" >&2
+  exit 1
+fi
 echo "pushed $n titles to $DEST"
-adb_ shell input keyevent KEYCODE_HOME
-echo "the banner reloads now that the home screen came back"
+adb_ shell input keyevent KEYCODE_HOME >/dev/null 2>&1 || echo "note: return to DumbTV home to reload the banner"
+echo "the banner reloads when the home screen comes back"
