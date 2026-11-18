@@ -59,19 +59,21 @@ struct ControlCentre {
 impl Default for ControlCentre {
     fn default() -> Self {
         let active_commit = load_active_source().ok().flatten().map(|m| m.commit);
-        Self {
+        let app = Self {
             shared: Arc::new(Mutex::new(SharedState {
-                status: "Ready. Device-changing operations are not available in this test build.".into(),
+                status: "Checking the official repository for updates…".into(),
                 latest_commit: None,
                 active_commit,
-                busy: false,
+                busy: true,
                 host_key_md5: None,
                 host_key_sha256: None,
                 device_profile: None,
                 package_inventory: None,
             })),
             device_ip: String::new(),
-        }
+        };
+        app.start_initial_update_check();
+        app
     }
 }
 
@@ -102,6 +104,43 @@ impl ControlCentre {
             if latest.is_some() {
                 state.latest_commit = latest;
             }
+        });
+    }
+}
+
+impl ControlCentre {
+    fn start_initial_update_check(&self) {
+        let shared = Arc::clone(&self.shared);
+        thread::spawn(move || {
+            let latest_result = check_latest_commit();
+            let mut state = shared.lock().expect("state lock poisoned");
+            match latest_result {
+                Ok(Some(latest)) => {
+                    state.latest_commit = Some(latest.clone());
+                    state.status = match state.active_commit.as_deref() {
+                        Some(active) if active == latest => {
+                            format!("Official source is up to date ({})", short_sha(&latest))
+                        }
+                        Some(_) => format!(
+                            "An official source update is available ({})",
+                            short_sha(&latest)
+                        ),
+                        None => format!(
+                            "Official source is available ({}) and has not yet been downloaded",
+                            short_sha(&latest)
+                        ),
+                    };
+                }
+                Ok(None) => {
+                    state.status = "GitHub returned no main-branch commit.".into();
+                }
+                Err(error) => {
+                    state.status = format!(
+                        "Automatic update check failed: {error}. You can retry from Project updates."
+                    );
+                }
+            }
+            state.busy = false;
         });
     }
 }
