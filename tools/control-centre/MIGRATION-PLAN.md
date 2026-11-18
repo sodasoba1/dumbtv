@@ -14,8 +14,14 @@ by this migration.
 - `catalogue.rs`: parses the existing package lists without sourcing shell
   files. It preserves list order, strips comments, rejects malformed package
   identifiers, and mirrors the Fire OS 6 list fallback used by `fos()`.
+- `package_plan.rs`: builds an offline, read-only cleanup plan from the
+  catalogue, installed/system package inventories and explicit owner choices.
+  Defaults keep Alexa; named system apps are disabled; named user apps are
+  uninstalled; never-disable entries are rejected; contradictory keep/remove
+  choices fail closed.
 - Unit tests cover API 25/28/30, unsupported manufacturers, older/newer SDKs,
-  getprop parsing, catalogue parsing, duplicate entries and generation fallback.
+  getprop parsing, catalogue parsing, actual repository catalogues, duplicate
+  entries, generation fallback and cleanup-plan safety rules.
 
 ## Script migration matrix
 
