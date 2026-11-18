@@ -392,6 +392,7 @@ impl ControlCentre {
                 match inventory_result {
                     Ok(inventory)
                         if inventory.profile.manufacturer == expected_profile.manufacturer
+                            && inventory.profile.serial_fingerprint == expected_profile.serial_fingerprint
                             && inventory.profile.model == expected_profile.model
                             && inventory.profile.sdk == expected_profile.sdk
                             && inventory.profile.build_display_id == expected_profile.build_display_id =>
@@ -455,6 +456,7 @@ impl ControlCentre {
         validate_source_tree(&source_root)?;
         let data_root = source_root.join("data");
         if original.manufacturer != profile.manufacturer
+            || original.device_fingerprint != profile.serial_fingerprint
             || original.model != profile.model
             || original.build_display_id != profile.build_display_id
             || original.android_sdk != profile.sdk
@@ -713,6 +715,7 @@ impl ControlCentre {
             let result = (|| -> Result<usize, String> {
                 let original = snapshot::DeviceSnapshot::load(&snapshot_path)?;
                 if original.manufacturer != profile.manufacturer
+                    || original.device_fingerprint != profile.serial_fingerprint
                     || original.model != profile.model
                     || original.build_display_id != profile.build_display_id
                     || original.android_sdk != profile.sdk
@@ -759,7 +762,7 @@ impl ControlCentre {
         thread::spawn(move || {
             let result = (|| -> Result<(snapshot::RestorePlan, snapshot::CurrentDeviceState, usize), String> {
                 let original = snapshot::DeviceSnapshot::load(&snapshot_path)?;
-                if original.manufacturer != profile.manufacturer || original.model != profile.model || original.build_display_id != profile.build_display_id || original.android_sdk != profile.sdk {
+                if original.manufacturer != profile.manufacturer || original.device_fingerprint != profile.serial_fingerprint || original.model != profile.model || original.build_display_id != profile.build_display_id || original.android_sdk != profile.sdk {
                     return Err("the saved original snapshot belongs to a different device".into());
                 }
                 let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
