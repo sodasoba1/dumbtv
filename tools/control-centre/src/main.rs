@@ -507,7 +507,7 @@ impl ControlCentre {
                     .map_err(|error| format!("cannot start the ADB runtime: {error}"))?;
                 let current = runtime.block_on(adb_transport::read_current_device_state(ip, &profile, &original))?;
                 let full_plan = snapshot::build_restore_plan(&original, &current)?;
-                let journal = latest_cleanup_journal()?.ok_or(
+                let journal = latest_cleanup_journal(&profile, &original.source_commit)?.ok_or(
                     "no cleanup journal is available; refusing to restore arbitrary differences from the original snapshot"
                 )?;
                 if journal.manufacturer != profile.manufacturer
@@ -870,9 +870,9 @@ impl eframe::App for ControlCentre {
                 let mut restore_clicked = false;
                 let mut cancel_restore = false;
                 egui::Window::new("Confirm restore").collapsible(false).resizable(false).show(ctx, |ui| {
-                    ui.label("Restore the captured package, settings, AppOps and network-policy state on this Fire TV?");
+                    ui.label("Restore only the verified changes made by this Control Centre cleanup on this Fire TV?");
                     ui.label("User apps removed for user 0 are not backed up; reinstall them manually from their original source (Amazon Appstore or sideloaded APK).");
-                    ui.label("Restore returns captured fields to their original snapshot values. Any later manual changes to those same package, settings, AppOps or network-policy fields will also be reverted.");
+                    ui.label("Selective restore only reverses operations recorded as verified in the matching DumbTV cleanup journal. Other differences from the original snapshot are left untouched and listed for manual review.");
                     ui.horizontal(|ui| {
                         if ui.button("Restore captured state").clicked() { restore_clicked = true; }
                         if ui.button("Cancel").clicked() { cancel_restore = true; }
@@ -909,7 +909,10 @@ fn short_sha(sha: &str) -> &str {
     sha.get(..7).unwrap_or(sha)
 }
 
-fn latest_cleanup_journal() -> Result<Option<operation_journal::OperationJournal>, String> {
+fn latest_cleanup_journal(
+    profile: &device_profile::DeviceProfile,
+    source_commit: &str,
+) -> Result<Option<operation_journal::OperationJournal>, String> {
     let root = app_root()?.join("journals");
     let entries = match fs::read_dir(root) {
         Ok(entries) => entries,
@@ -920,7 +923,12 @@ fn latest_cleanup_journal() -> Result<Option<operation_journal::OperationJournal
         .map(|entry| entry.path())
         .filter(|path| path.extension().and_then(|value| value.to_str()) == Some("json"))
         .filter_map(|path| operation_journal::OperationJournal::load(&path).ok())
-        .filter(|journal| journal.workflow == operation_journal::WorkflowKind::Cleanup)
+        .filter(|journal| journal.workflow == operation_journal::WorkflowKind::Cleanup
+            && journal.manufacturer == profile.manufacturer
+            && journal.model == profile.model
+            && journal.build_display_id == profile.build_display_id
+            && journal.android_sdk == profile.sdk
+            && journal.source_commit == source_commit)
         .collect();
     journals.sort_by(|left, right| right.created_unix_seconds.cmp(&left.created_unix_seconds));
     Ok(journals.into_iter().next())
