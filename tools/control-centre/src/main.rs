@@ -47,6 +47,7 @@ struct SharedState {
     host_key_md5: Option<String>,
     host_key_sha256: Option<String>,
     device_profile: Option<device_profile::DeviceProfile>,
+    package_counts: Option<(usize, usize, usize, usize)>,
 }
 
 struct ControlCentre {
@@ -66,6 +67,7 @@ impl Default for ControlCentre {
                 host_key_md5: None,
                 host_key_sha256: None,
                 device_profile: None,
+                package_counts: None,
             })),
             device_ip: String::new(),
         }
@@ -142,6 +144,7 @@ impl ControlCentre {
             }
             state.busy = true;
             state.device_profile = None;
+            state.package_counts = None;
             state.status = "Connecting to the specified Fire TV. Check the TV before approving its ADB key prompt…".into();
         }
         thread::spawn(move || {
@@ -154,9 +157,15 @@ impl ControlCentre {
                 });
             let mut state = shared.lock().expect("state lock poisoned");
             match result {
-                Ok(profile) => {
-                    state.status = "Connected. Device properties read successfully; no package or settings changes were made.".into();
-                    state.device_profile = Some(profile);
+                Ok(inventory) => {
+                    state.status = "Connected. Device properties and package inventory read successfully; no package or settings changes were made.".into();
+                    state.device_profile = Some(inventory.profile);
+                    state.package_counts = Some((
+                        inventory.packages.installed.len(),
+                        inventory.packages.system.len(),
+                        inventory.packages.user.len(),
+                        inventory.packages.disabled.len(),
+                    ));
                 }
                 Err(error) => state.status = format!("ADB inspection failed: {error}"),
             }
@@ -173,7 +182,7 @@ impl eframe::App for ControlCentre {
             ui.label("Windows test build · AFTMM / Fire OS 6 project");
             ui.separator();
 
-            let (busy, status, latest, active, host_key_md5, host_key_sha256, device_profile) = {
+            let (busy, status, latest, active, host_key_md5, host_key_sha256, device_profile, package_counts) = {
                 let state = self.shared.lock().expect("state lock poisoned");
                 (
                     state.busy,
@@ -183,6 +192,7 @@ impl eframe::App for ControlCentre {
                     state.host_key_md5.clone(),
                     state.host_key_sha256.clone(),
                     state.device_profile.clone(),
+                    state.package_counts,
                 )
             };
 
@@ -249,7 +259,10 @@ impl eframe::App for ControlCentre {
                 ui.label(format!("Cleanup compatibility: {:?}", profile.cleanup_compatibility()));
                 ui.label(format!("DumbTV HOME/Keeper compatibility: {:?}", profile.launcher_compatibility()));
             }
-            ui.small("This connection reads only getprop. It does not change packages, settings, HOME, Keeper or installed apps. The target is restricted to a private/local IP on TCP 5555.");
+            if let Some((installed, system, user, disabled)) = package_counts {
+                ui.label(format!("Package inventory: {installed} installed · {system} system · {user} user-installed · {disabled} disabled"));
+            }
+            ui.small("This connection reads getprop and package-manager inventories only. It does not change packages, settings, HOME, Keeper or installed apps. The target is restricted to a private/local IP on TCP 5555.");
             ui.separator();
 
             ui.heading("Status");
