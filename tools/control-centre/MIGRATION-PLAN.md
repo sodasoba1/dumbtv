@@ -103,9 +103,10 @@ by this migration.
 7. **Launcher:** APK metadata parsing, release checksum validation, download
    and bounded ADB sync staging are implemented. Installation, API 25 state
    snapshot, grants, Keeper lifecycle and undo remain gated.
-8. **Optional YouTube replacement:** pinned SmartTube metadata/checksum and
-   explicit APK preparation are implemented. Install, stock-app choice,
-   home.conf backup/edit/restore and verification remain outstanding.
+8. **Optional YouTube replacement:** pinned SmartTube metadata/checksum,
+   explicit APK preparation and a pure tested home.conf rewrite are implemented.
+   Install, stock-app choice, exact-byte home.conf backup/restore and verification
+   remain outstanding.
 
 ## Safety invariants
 
