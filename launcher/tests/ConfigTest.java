@@ -155,6 +155,9 @@ public final class ConfigTest {
     private static void customTextRoundTrips() throws Exception {
         try (Fixture f = new Fixture()) {
             Config cfg = f.open();
+            cfg.setText("widgets.singleline", "Readable text");
+            check("Readable text".equals(cfg.getText("widgets.singleline", "")),
+                    "single-line custom text remains readable");
             String expected = "First line\nSecond=line\\path\n雪";
             cfg.setText("widgets.text", expected);
             String stored = new String(Files.readAllBytes(f.settings.toPath()), StandardCharsets.UTF_8);
@@ -163,6 +166,8 @@ public final class ConfigTest {
             Config reopened = f.open();
             check(expected.equals(reopened.getText("widgets.text", "Custom text")),
                     "multiline text, equals, backslash and Unicode survive restart");
+            check("Readable text".equals(reopened.getText("widgets.singleline", "")),
+                    "single-line text survives restart without encoding");
             check("legacy text".equals(Config.decodeText("legacy text")),
                     "legacy plain-text values remain readable");
             reopened.setText("widgets.text", "");
