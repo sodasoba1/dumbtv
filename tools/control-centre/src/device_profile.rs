@@ -196,6 +196,19 @@ mod tests {
     }
 
     #[test]
+    fn missing_descriptive_properties_do_not_block_read_only_identification() {
+        let mut values = properties("Amazon", "25");
+        values.remove("ro.product.model");
+        values.remove("ro.build.display.id");
+        values.remove("ro.build.version.release");
+        values.remove("ro.product.cpu.abi");
+        let profile = DeviceProfile::from_properties(&values).unwrap();
+        assert_eq!(profile.cleanup_compatibility(), Compatibility::Supported);
+        assert!(profile.model.is_empty());
+        assert!(profile.abi.is_empty());
+    }
+
+    #[test]
     fn rejects_missing_or_invalid_sdk_properties() {
         let mut missing = properties("Amazon", "25");
         missing.remove("ro.build.version.sdk");
