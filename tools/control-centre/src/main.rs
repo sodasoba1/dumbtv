@@ -194,7 +194,8 @@ impl ControlCentre {
             let (bytes, version_code) = verified_launcher_apk()?;
             let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
                 .map_err(|error| format!("cannot start ADB runtime: {error}"))?;
-            runtime.block_on(adb_transport::install_launcher(ip, &profile, &bytes, version_code))
+            let backup = launcher_backup_path(&profile)?;
+            runtime.block_on(adb_transport::install_launcher(ip, &profile, &bytes, version_code, &backup))
         });
     }
 
@@ -203,7 +204,8 @@ impl ControlCentre {
         self.start_task(move || {
             let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()
                 .map_err(|error| format!("cannot start ADB runtime: {error}"))?;
-            runtime.block_on(adb_transport::undo_launcher(ip, &profile))
+            let backup = launcher_backup_path(&profile)?;
+            runtime.block_on(adb_transport::undo_launcher(ip, &profile, &backup))
         });
     }
 
@@ -1416,6 +1418,13 @@ fn store_verified_apk(name: &str, bytes: &[u8], expected_sha256: &str) -> Result
         )
     })?;
     Ok(path)
+}
+
+#[cfg(windows)]
+fn launcher_backup_path(profile: &device_profile::DeviceProfile) -> Result<PathBuf, String> {
+    let identity = format!("{}|{}|{}|{}", profile.manufacturer, profile.model, profile.build_display_id, profile.sdk);
+    let key = apk_release::sha256_hex(identity.as_bytes());
+    Ok(app_root()?.join("backups").join(format!("launcher-{key}.json")))
 }
 
 #[cfg(windows)]
