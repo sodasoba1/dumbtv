@@ -115,6 +115,8 @@ impl ControlCentre {
                 return;
             }
             state.busy = true;
+            state.host_key_md5 = None;
+            state.host_key_sha256 = None;
             state.status = "Preparing the Windows-protected ADB host key…".into();
         }
         thread::spawn(move || {
@@ -236,6 +238,8 @@ impl eframe::App for ControlCentre {
                         Ok(ip) => self.inspect_fire_tv(ip),
                         Err(_) => {
                             let mut state = self.shared.lock().expect("state lock poisoned");
+                            state.device_profile = None;
+                            state.package_inventory = None;
                             state.status = "Enter a valid local IP address for the Fire TV.".into();
                         }
                     }
