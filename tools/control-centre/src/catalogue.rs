@@ -6,7 +6,7 @@
 use std::{
     collections::HashSet,
     fs,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,12 +34,6 @@ impl FireOsCatalogue {
         })
     }
 
-    pub fn package_list_directory(data_root: &Path, sdk: u32) -> PathBuf {
-        generation_file(data_root, sdk, "packages.txt")
-            .parent()
-            .unwrap_or(data_root)
-            .to_path_buf()
-    }
 }
 
 /// Mirrors scripts/lib.sh: SDK 25–27 prefers fireos6/<name> when present;
@@ -148,7 +142,6 @@ mod tests {
         assert_eq!(profile.protected, vec!["com.amazon.protected"]);
         assert_eq!(profile.alexa, vec!["com.amazon.alexa"]);
 
-        fs::remove_file(fireos6.join("protected.txt")).unwrap();
         let fallback = FireOsCatalogue::load(dir.path(), 25).unwrap();
         assert_eq!(fallback.protected, vec!["com.amazon.protected"]);
     }
