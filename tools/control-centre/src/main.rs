@@ -750,6 +750,18 @@ impl eframe::App for ControlCentre {
             ui.label("Source updates are extracted into a versioned managed folder. Existing folders are never overwritten, and downloaded scripts are not run.");
             ui.separator();
 
+            ui.heading("Verified APK assets");
+            ui.label("These buttons only download and verify the pinned APKs. They do not install apps, disable stock YouTube or change the home screen.");
+            ui.horizontal(|ui| {
+                if ui.add_enabled(!busy && active.is_some(), egui::Button::new("Prepare API 25 DumbTV HOME APK")).clicked() {
+                    self.start_task(download_launcher_apk);
+                }
+                if ui.add_enabled(!busy, egui::Button::new("Prepare optional SmartTube APK")).clicked() {
+                    self.start_task(download_smarttube_apk);
+                }
+            });
+            ui.separator();
+
             ui.heading("Fire TV connection");
             ui.label("Read-only inspection over legacy network ADB. Enable ADB Debugging on the Stick and find its IP address in Network settings.");
             ui.horizontal(|ui| {
