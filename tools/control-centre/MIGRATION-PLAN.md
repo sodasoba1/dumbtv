@@ -40,16 +40,17 @@ by this migration.
 
 | Existing script or helper | Rust destination | Behaviour that must be preserved |
 |---|---|---|
-| `scripts/lib.sh` | `adb/`, `device_profile.rs`, `catalogue.rs`, `snapshot.rs`, `operations/` | Single-device selection, lost-connection distinction, compatibility checks, package-list fallback, never-disable policy, dry-run planning, reconnect and bounded timeouts. |
-| `scripts/preflight.sh` | `preflight.rs` | Read-only identity and current-state inventory; show proposed actions; save original settings only once before the first modification. |
+| `scripts/lib.sh` | `adb_transport.rs`, `device_profile.rs`, `catalogue.rs`, `package_inventory.rs`, `snapshot.rs`, `operations/` | Single-device selection, lost-connection distinction, compatibility checks, package-list fallback, never-disable policy, dry-run planning, reconnect and bounded timeouts. |
+| `scripts/preflight.sh` | `preflight.rs`, `snapshot.rs` | Read-only identity, package, settings, AppOps and network-policy inventory; show proposed actions; save original state once before the first modification. |
 | `scripts/configure.sh` | `configuration.rs` | Alexa kept by default; launcher choice; YouTube off by default; no app removed unless individually named; validate package IDs and keep-list entries. |
 | `scripts/cleanup-legacy-dnsfilter.sh` | `operations/legacy_cleanup.rs` (separately gated) | Only retire the legacy personalDNSfilter integration when present and only clear its always-on setting when it names that app. Do not install or configure any DNS filter or VPN. |
-| `scripts/debloat.sh` | `operations/packages.rs`, `operations/settings.rs` | Disable only present catalogue packages; never touch never-disable entries; honour keep choices; named system apps are disabled, named user apps are uninstalled; preserve original package states; handle protected/system-disabled/suspect outcomes; apply generation-specific privacy settings and screensaver fallback. |
-| `scripts/lockdown.sh` | `operations/background_policy.rs` | Data Saver, protected-package background AppOps and per-UID metered-data blacklist; skip absent packages, shared system UIDs and keep-list entries; verify results. |
+| `scripts/debloat.sh` | `package_plan.rs`, `operations/packages.rs`, `operations/settings.rs` | Disable only present catalogue packages; never touch never-disable entries; honour keep choices; named system apps are disabled, named user apps are uninstalled; preserve original package states; handle protected/system-disabled/suspect outcomes; apply generation-specific privacy settings and screensaver fallback. |
+| `scripts/lockdown.sh` | `operations/appops.rs`, `operations/network_policy.rs` | Data Saver, protected-package background AppOps and per-UID metered-data blacklist; skip absent packages, shared system UIDs and keep-list entries; verify results and restore original modes. |
 | `scripts/launcher.sh` + `launcher/install.sh` | `operations/launcher.rs` (later milestone) | API 25 gate; pinned release checksum; install; exact UsageStats, optional AUTO_START and READ_LOGS grants; verify Keeper and HOME; undo path. Keeper and launcher source remain untouched until parity is independently validated. |
 | `scripts/youtube.sh` | `operations/youtube.rs` (opt-in milestone) | YouTube remains untouched by default; pinned SmartTube URL, SHA-256 and version; install verification; owner-selected disable versus uninstall; preserve unrelated DumbTV home configuration. |
 | `scripts/verify.sh` | `verification.rs` | Read-only verification of HOME/Keeper, package state, privacy settings, Data Saver and launcher version; report warnings separately from hard failures. |
-| `scripts/restore.sh` | `restore.rs` | Restore only packages enabled in the original snapshot; restore settings from original snapshots or documented defaults; clear only the project-owned network-policy changes; hand HOME back; accurately report that store apps uninstalled for user 0 require store reinstall. |
+| `scripts/restore.sh` | `snapshot.rs`, `restore.rs` | Restore only packages enabled in the original snapshot; restore exact original settings, AppOps and network-policy state where captured; keep documented fallback limitations; launcher/HOME undo remains separately gated; report that store apps uninstalled for user 0 require store reinstall. |
+| `scripts/all.sh` | `workflow.rs` | Orchestrate preflight, original-state snapshot, configuration, dry-run plan, explicit approval, execution, verification and restore. |
 | `scripts/dns-preflight.sh` | Optional desktop diagnostic | Read-only DNS diagnostics only. It is not part of device cleanup and must not mutate Pi-hole, Unbound, VPN or device DNS settings. |
 
 ## Implementation order
@@ -64,11 +65,13 @@ by this migration.
 3. **Configuration and plan:** load the source catalogue, validate owner
    choices, calculate the exact proposed operations, and display them without
    executing them.
-4. **Snapshots:** save package enabled/disabled state and relevant settings
-   atomically to local app data before the first device write. Never replace an
-   existing original snapshot with a later, already-modified state.
-5. **Reversible cleanup:** implement package disable, privacy settings,
-   background policy, screensaver fallback and post-change verification.
+4. **Snapshots:** save package enabled/disabled state, secure/global settings,
+   AppOps modes and Data Saver/UID blacklist state atomically to local app data
+   before the first device write. Never replace an existing original snapshot
+   with a later, already-modified state.
+5. **Reversible cleanup:** implement package disable/uninstall, privacy
+   settings, background policy, screensaver fallback and post-change
+   verification. Restore only the changes made by this app, not assumed defaults.
 6. **Restore:** implement and test restore before exposing cleanup as a normal
    user workflow.
 7. **Launcher:** only after separate AFTMM validation of APK signing, grants,
