@@ -30,29 +30,6 @@ final class Recent {
         prefs(c).edit().putLong(pkg, System.currentTimeMillis()).apply();
     }
 
-    /** Lightweight editor preview from locally recorded launches; never queries UsageStats. */
-    static String preview(Context c) {
-        List<Map.Entry<String, ?>> entries = new ArrayList<>(prefs(c).getAll().entrySet());
-        Collections.sort(entries, (a, b) -> Long.compare(
-                b.getValue() instanceof Long ? (Long) b.getValue() : 0L,
-                a.getValue() instanceof Long ? (Long) a.getValue() : 0L));
-        StringBuilder out = new StringBuilder("Recently opened");
-        int shown = 0;
-        PackageManager pm = c.getPackageManager();
-        for (Map.Entry<String, ?> entry : entries) {
-            if (!(entry.getValue() instanceof Long)) continue;
-            try {
-                CharSequence label = pm.getApplicationLabel(pm.getApplicationInfo(entry.getKey(), 0));
-                out.append(shown == 0 ? "\n" : "  ·  ").append(label);
-                if (++shown == 3) break;
-            } catch (PackageManager.NameNotFoundException ignored) {
-                // The app may have been uninstalled since it was last opened.
-            }
-        }
-        if (shown == 0) out.append("\nNo recent apps");
-        return out.toString();
-    }
-
     /** Last-used time per package. Does a binder call: call off the UI thread. */
     static Map<String, Long> times(Context c) {
         Map<String, Long> out = new HashMap<>();
