@@ -1587,8 +1587,8 @@ fn extract_verified_archive(
         // Retain only the small data/configuration surface needed by the
         // installer. In particular, do not extract Android source, Gradle
         // projects, APK build inputs, or shell scripts into the managed cache.
-        let keep = relative.starts_with("data")
-            || relative == Path::new("launcher").join("version.env");
+        let keep =
+            relative.starts_with("data") || relative == Path::new("launcher").join("version.env");
         if !keep {
             continue;
         }
@@ -1740,14 +1740,19 @@ mod tests {
             let root = "dumbtv-0123456789abcdef0123456789abcdef01234567/";
             for (path, contents) in [
                 ("data/fireos/packages.txt", "com.amazon.example"),
-                ("launcher/version.env", "VERSION=1.13\\nVERSION_CODE=14\\nVERSION_NAME=1.13"),
+                (
+                    "launcher/version.env",
+                    "VERSION=1.13\\nVERSION_CODE=14\\nVERSION_NAME=1.13",
+                ),
                 ("app/build.gradle", "android source must not be retained"),
                 ("scripts/all.sh", "shell scripts are reference only"),
             ] {
-                writer.start_file(
-                    format!("{root}{path}"),
-                    zip::write::SimpleFileOptions::default(),
-                ).unwrap();
+                writer
+                    .start_file(
+                        format!("{root}{path}"),
+                        zip::write::SimpleFileOptions::default(),
+                    )
+                    .unwrap();
                 writer.write_all(contents.as_bytes()).unwrap();
             }
             writer.finish().unwrap();
@@ -1757,9 +1762,15 @@ mod tests {
             &bytes,
             dir.path(),
             "0123456789abcdef0123456789abcdef01234567",
-        ).unwrap();
-        let extracted = dir.path().join("dumbtv-0123456789abcdef0123456789abcdef01234567");
-        assert_eq!(fs::read_to_string(extracted.join("data/fireos/packages.txt")).unwrap(), "com.amazon.example");
+        )
+        .unwrap();
+        let extracted = dir
+            .path()
+            .join("dumbtv-0123456789abcdef0123456789abcdef01234567");
+        assert_eq!(
+            fs::read_to_string(extracted.join("data/fireos/packages.txt")).unwrap(),
+            "com.amazon.example"
+        );
         assert!(extracted.join("launcher/version.env").is_file());
         assert!(!extracted.join("app/build.gradle").exists());
         assert!(!extracted.join("scripts/all.sh").exists());
