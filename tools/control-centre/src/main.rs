@@ -67,17 +67,19 @@ impl ControlCentre {
         }
         thread::spawn(move || {
             let result = task();
+            let active = load_active_source().ok().flatten().map(|manifest| manifest.commit);
+            let latest = check_latest_commit().ok().flatten();
             let mut state = shared.lock().expect("state lock poisoned");
             state.status = match result {
                 Ok(message) => message,
                 Err(error) => format!("Error: {error}"),
             };
             state.busy = false;
-            if let Ok(Some(active)) = load_active_source() {
-                state.active_commit = Some(active.commit);
+            if active.is_some() {
+                state.active_commit = active;
             }
-            if let Ok(Some(latest)) = check_latest_commit() {
-                state.latest_commit = Some(latest);
+            if latest.is_some() {
+                state.latest_commit = latest;
             }
         });
     }
@@ -192,6 +194,9 @@ fn check_latest_commit() -> Result<Option<String>, String> {
         .map_err(|e| format!("GitHub request failed: {e}"))?
         .error_for_status()
         .map_err(|e| format!("GitHub rejected the update check: {e}"))?;
+    if response.url().scheme() != "https" || response.url().host_str() != Some("api.github.com") {
+        return Err("update check redirected outside the official GitHub API host".into());
+    }
     let commit: GitHubCommit = response
         .json()
         .map_err(|e| format!("GitHub returned an unreadable commit response: {e}"))?;
@@ -224,6 +229,11 @@ fn download_latest_source() -> Result<String, String> {
         .error_for_status()
         .map_err(|e| format!("GitHub rejected the source download: {e}"))?;
 
+    if response.url().scheme() != "https"
+        || !matches!(response.url().host_str(), Some("github.com" | "codeload.github.com"))
+    {
+        return Err("source download redirected outside the official GitHub archive hosts".into());
+    }
     if response.content_length().is_some_and(|n| n > MAX_ARCHIVE_BYTES) {
         return Err("source archive exceeds the 512 MiB safety limit".into());
     }
