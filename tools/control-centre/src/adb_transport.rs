@@ -218,7 +218,9 @@ pub async fn execute_plan(
     }
     if report.failure.is_none() {
         if let Err(error) = verify_cleanup_operations(&mut connection, operations).await {
-            report.failure = Some(format!("final post-change verification failed: {error}"));
+            let detail = format!("final post-change verification failed: {error}");
+            journal.finish_with_error(journal_path, &detail)?;
+            report.failure = Some(detail);
         }
     }
     if report.failure.is_none() { journal.finish(journal_path)?; }
