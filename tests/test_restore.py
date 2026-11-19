@@ -35,7 +35,7 @@ class RestoreTest(unittest.TestCase):
                                          "manufacturer": manufacturer,
                                          "ignores_reboot": ignores_reboot,
                                          "svc_refused": svc_refused, "sdk": 25,
-                                         "omit_disabled_from_listing": protected_disabled}))
+                                         "omit_disabled_package": "com.amazon.firebat" if protected_disabled else ""}))
             log = tmp / "commands.log"
             log.touch()
             (tmp / "dumbtv.conf").write_text("")

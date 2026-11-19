@@ -36,6 +36,10 @@ class ContributeTest(unittest.TestCase):
                 self.assertIn("looks like", result.stderr)
                 self.assertNotIn(flags[1], result.stdout)
 
+    def test_dns_filter_protocol_syntax_is_not_an_ipv6_address(self):
+        result = contribute("--notes", "fallbackDNS = [<resolver>]::53::UDP")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_versions_and_blocked_answers_are_not_addresses(self):
         result = contribute("--notes", "Fire OS 7.6.9.7: blocked hosts answered 127.0.0.1 or 0.0.0.0")
         self.assertEqual(result.returncode, 0, result.stderr)
