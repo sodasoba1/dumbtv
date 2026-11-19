@@ -127,7 +127,7 @@ elif command in ('svc power reboot', 'reboot'):
         state['boots'] = state.get('boots', 0) + 1
         save()
 elif command == 'getprop ro.build.version.sdk':
-    print(state.get('sdk', 28))
+    print(state.get('sdk', 25))
 elif command == 'getprop ro.product.manufacturer':
     print(state.get('manufacturer', 'Amazon'))
 elif command == 'getprop sys.boot_completed':
