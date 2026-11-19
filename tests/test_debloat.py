@@ -11,6 +11,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data" / "fireos6"
+SHARED_DATA = ROOT / "data" / "fireos"
 
 
 def entries(path):
@@ -23,8 +24,8 @@ def entries(path):
 
 
 CLEANUP = entries(DATA / "packages.txt")
-ALEXA = entries(DATA / "alexa.txt")
-USER_APPS = entries(DATA / "user-apps.txt")
+ALEXA = entries(SHARED_DATA / "alexa.txt")
+USER_APPS = entries(SHARED_DATA / "user-apps.txt")
 STORE_APPS = ["com.netflix.ninja", "com.amazon.firetv.youtube", "org.videolan.vlc",
               "in.startv.hotstar", "com.zee5.amazon"]
 
