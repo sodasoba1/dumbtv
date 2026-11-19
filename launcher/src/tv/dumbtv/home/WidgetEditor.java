@@ -49,9 +49,9 @@ public final class WidgetEditor extends Activity {
         } else {
             layout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         }
-        if (!"3".equals(savedWidgetVersion)) layout.ensureDateWidget();
+        if (!"4".equals(savedWidgetVersion)) layout.ensureDateWidget();
         cfg.set(WidgetLayout.CONFIG_KEY, layout.encode());
-        cfg.set("widgets.layout.version", "3");
+        cfg.set("widgets.layout.version", "4");
         pendingText = cfg.getText("widgets.text", "Custom text");
         for (WidgetLayout.Widget widget : layout.items()) {
             int fallback = "clock".equals(widget.type) ? 32
@@ -350,11 +350,26 @@ public final class WidgetEditor extends Activity {
     private void configure() {
         pendingMove = null;
         pendingAddType = null;
-        WidgetLayout.Widget widget = selectedId == null ? null : layout.find(selectedId);
-        if (widget == null) {
+        if (selectedId == null || layout.find(selectedId) == null) {
             message("Select a widget first");
             return;
         }
+        String[] options = {"Font size", "Content alignment"};
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
+                .setTitle("Configure widget")
+                .setItems(options, (d, which) -> {
+                    if (which == 0) configureFontSize();
+                    else configureAlignment();
+                })
+                .setNegativeButton("Cancel", null)
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
+    }
+
+    private void configureFontSize() {
+        WidgetLayout.Widget widget = layout.find(selectedId);
+        if (widget == null) return;
         int current = fontSizes.containsKey(selectedId) ? fontSizes.get(selectedId)
                 : ("clock".equals(widget.type) ? 32
                 : "diagnostics".equals(widget.type) ? 11
@@ -373,6 +388,26 @@ public final class WidgetEditor extends Activity {
                 .setSingleChoiceItems(labels, selected, (d, which) -> {
                     fontSizes.put(selectedId, sizes[which]);
                     preview.setWidgetFontSize(selectedId, sizes[which]);
+                    d.dismiss();
+                })
+                .setNegativeButton("Cancel", null)
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
+    }
+
+    private void configureAlignment() {
+        WidgetLayout.Widget widget = layout.find(selectedId);
+        if (widget == null) return;
+        String[] values = {"left", "center", "right"};
+        String[] labels = {"Left", "Centre", "Right"};
+        int selected = "center".equals(widget.alignment) ? 1 : "right".equals(widget.alignment) ? 2 : 0;
+        AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
+                .setTitle("Content alignment · " + widget.type)
+                .setSingleChoiceItems(labels, selected, (d, which) -> {
+                    layout.setAlignment(selectedId, values[which]);
+                    preview.setLayout(layout, pendingText);
+                    applyPreviewFonts();
                     d.dismiss();
                 })
                 .setNegativeButton("Cancel", null)
@@ -415,7 +450,7 @@ public final class WidgetEditor extends Activity {
 
     private void save() {
         cfg.set(WidgetLayout.CONFIG_KEY, layout.encode());
-        cfg.set("widgets.layout.version", "3");
+        cfg.set("widgets.layout.version", "4");
         cfg.setText("widgets.text", pendingText);
         for (WidgetLayout.Widget widget : layout.items()) {
             Integer size = fontSizes.get(widget.id);
