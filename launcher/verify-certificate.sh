@@ -53,24 +53,24 @@ if [[ $APKSIGNER_KIND == windows-bat ]]; then
   win_signer=$(cygpath -w "$APKSIGNER")
   win_apk=$(cygpath -w "$APK")
   # cmd /s /c needs an extra outer quote pair so paths with spaces survive.
-  command_line="\"\"$win_signer\" verify --print-certs \"$win_apk\""\""
+  command_line="\"\"$win_signer\" verify --print-certs \"$win_apk\"\""
   output=$(cmd.exe //d //s //c "$command_line" 2>&1) || {
     echo "error: apksigner could not verify the downloaded release APK" >&2
-    printf '%s\\n' "$output" >&2
+    printf '%s\n' "$output" >&2
     echo "not installing this APK" >&2
     exit 1
   }
 else
   output=$("$APKSIGNER" verify --print-certs "$APK" 2>&1) || {
     echo "error: apksigner could not verify the downloaded release APK" >&2
-    printf '%s\\n' "$output" >&2
+    printf '%s\n' "$output" >&2
     echo "not installing this APK" >&2
     exit 1
   }
 fi
 
-digests=$(printf '%s\\n' "$output" | sed -n 's/^Signer #[0-9][0-9]* certificate SHA-256 digest: //p' | tr 'A-F' 'a-f')
-count=$(printf '%s\\n' "$digests" | awk 'NF {n++} END {print n+0}')
+digests=$(printf '%s\n' "$output" | sed -n 's/^Signer #[0-9][0-9]* certificate SHA-256 digest: //p' | tr 'A-F' 'a-f')
+count=$(printf '%s\n' "$digests" | awk 'NF {n++} END {print n+0}')
 [[ $count == 1 ]] || { echo "error: expected exactly one APK signer certificate, found $count" >&2; echo "not installing this APK" >&2; exit 1; }
 ACTUAL=$digests
 [[ $ACTUAL == "$EXPECTED" ]] || {
