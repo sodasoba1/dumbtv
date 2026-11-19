@@ -20,14 +20,16 @@ final class WidgetLayout {
         final int y;
         final int width;
         final int height;
+        final String alignment;
 
-        Widget(String id, String type, int x, int y, int width, int height) {
+        Widget(String id, String type, int x, int y, int width, int height, String alignment) {
             this.id = id;
             this.type = type;
             this.x = x;
             this.y = y;
             this.width = width;
             this.height = height;
+            this.alignment = validAlignment(alignment) ? alignment : "left";
         }
 
         boolean occupies(int column, int row) {
@@ -68,7 +70,7 @@ final class WidgetLayout {
     boolean add(String id, String type, int x, int y, int width, int height) {
         if (!validId(id) || !validType(type) || find(id) != null
                 || !inside(x, y, width, height) || !validSize(width, height) || collides(null, x, y, width, height)) return false;
-        widgets.add(new Widget(id, type, x, y, width, height));
+        widgets.add(new Widget(id, type, x, y, width, height, "left"));
         return true;
     }
 
@@ -80,6 +82,14 @@ final class WidgetLayout {
     boolean resize(String id, int width, int height) {
         Widget old = find(id);
         return old != null && replace(old, old.x, old.y, width, height);
+    }
+
+    boolean setAlignment(String id, String alignment) {
+        Widget old = find(id);
+        if (old == null || !validAlignment(alignment)) return false;
+        widgets.set(widgets.indexOf(old), new Widget(old.id, old.type, old.x, old.y,
+                old.width, old.height, alignment));
+        return true;
     }
 
     boolean remove(String id) {
@@ -95,7 +105,8 @@ final class WidgetLayout {
     private boolean replace(Widget old, int x, int y, int width, int height) {
         if (!inside(x, y, width, height) || !validSize(width, height)
                 || collides(old.id, x, y, width, height)) return false;
-        widgets.set(widgets.indexOf(old), new Widget(old.id, old.type, x, y, width, height));
+        widgets.set(widgets.indexOf(old), new Widget(old.id, old.type, x, y,
+                width, height, old.alignment));
         return true;
     }
 
@@ -125,6 +136,10 @@ final class WidgetLayout {
     }
 
     /** Width is columns across; height is rows down. Every in-bounds rectangle is valid. */
+    private static boolean validAlignment(String alignment) {
+        return "left".equals(alignment) || "center".equals(alignment) || "right".equals(alignment);
+    }
+
     private static boolean validSize(int width, int height) {
         return width >= 1 && width <= COLUMNS && height >= 1 && height <= ROWS;
     }
@@ -136,7 +151,8 @@ final class WidgetLayout {
             if (out.length() > 0) out.append(';');
             out.append(widget.id).append(',').append(widget.type).append(',')
                     .append(widget.x).append(',').append(widget.y).append(',')
-                    .append(widget.width).append(',').append(widget.height);
+                    .append(widget.width).append(',').append(widget.height).append(',')
+                    .append(widget.alignment);
         }
         return out.toString();
     }
@@ -184,11 +200,12 @@ final class WidgetLayout {
         if (encoded == null || encoded.trim().isEmpty()) return result;
         for (String record : encoded.split(";")) {
             String[] fields = record.split(",", -1);
-            if (fields.length != 6) continue;
+            if (fields.length != 6 && fields.length != 7) continue;
             try {
-                result.add(fields[0], fields[1], Integer.parseInt(fields[2]),
+                boolean added = result.add(fields[0], fields[1], Integer.parseInt(fields[2]),
                         Integer.parseInt(fields[3]), Integer.parseInt(fields[4]),
                         Integer.parseInt(fields[5]));
+                if (added && fields.length == 7) result.setAlignment(fields[0], fields[6]);
             } catch (NumberFormatException ignored) {
                 // Ignore corrupt records; retain every other valid placement.
             }
