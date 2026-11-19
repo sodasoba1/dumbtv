@@ -287,6 +287,12 @@ adb_reconnect() {
   die "lost adb to $SERIAL; check the TV is on, then run this again"
 }
 
+# Android per-user state: 0=default, 1=enabled, 2=system-disabled, 3=user-disabled, 4=disabled-until-used.
+# State 2 is a Fire OS decision and must never be overridden by DumbTV.
+package_user_enabled_state() {
+  dev "dumpsys package $1" | sed -nE 's/.*User 0:.*enabled=([0-9]+).*/\\1/p' | head -1
+}
+
 # Preserve the device's original package enabled/disabled state before the first cleanup.
 # restore.sh uses this to avoid enabling apps the owner had already disabled.
 snapshot_package_states() {

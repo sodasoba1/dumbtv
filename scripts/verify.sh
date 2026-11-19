@@ -55,6 +55,25 @@ printf '%-10s %-38s %s\n' packages "" "$(printf '%s\n' "$off" | grep -c '^packag
 # A Fire OS update can switch a disabled package back on or put an ad-tracking
 # setting back to Amazon's default, and nothing on the TV says so.
 installed=$(dev 'pm list packages' | tr -d '\r')
+
+# Never-disable packages must not remain user-disabled. State 2 is an intentional
+# system disable and is reported without trying to change it.
+protected_bad=""; protected_system=""
+while read -r p; do
+  [[ -z ${p:-} ]] && continue
+  grep -qxF "package:$p" <<<"$installed" || continue
+  grep -qxF "package:$p" <<<"$off" || continue
+  state=$(package_user_enabled_state "$p")
+  case $state in 2) protected_system="$protected_system $p" ;; 3) protected_bad="$protected_bad $p" ;; esac
+done < <(list_of "$(fos never-disable.txt)" | awk '{print $1}')
+if [[ -n $protected_bad ]]; then
+  printf '%-10s %-38s %s\n' FAIL protected "user-disabled:$protected_bad; inspect before re-enabling"; fail=1
+elif [[ -n $protected_system ]]; then
+  printf '%-10s %-38s %s\n' ok protected "Fire OS-disabled (state 2), left untouched:$protected_system"
+else
+  printf '%-10s %-38s %s\n' ok protected "never-disable packages are enabled"
+fi
+
 back=""
 for p in $(cleanup_list); do
   protected_by_policy "$p" && continue
