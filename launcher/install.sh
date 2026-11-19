@@ -223,6 +223,7 @@ printf 'front window:  %s\n' "$(sh_ dumpsys window | grep -m1 mCurrentFocus | se
 # disable the package whenever present. Clear the setting only if it names this
 # app; other VPN apps are never changed. Keep this last because stopping a VPN
 # can briefly interrupt a network ADB connection.
+if [[ $mode != permissions ]]; then
 legacy_vpn=$(sh_ settings get secure always_on_vpn_app | tr -d '\r')
 if installed dnsfilter.android; then
   echo "disabling the legacy personalDNSfilter app"
@@ -249,4 +250,5 @@ if [[ $legacy_vpn == dnsfilter.android ]]; then
   sh_ settings delete secure always_on_vpn_app >/dev/null
   remaining=$(sh_ settings get secure always_on_vpn_app | tr -d '\r')
   [[ $remaining != dnsfilter.android ]] || { echo "error: could not clear the legacy VPN selection" >&2; exit 1; }
+fi
 fi
