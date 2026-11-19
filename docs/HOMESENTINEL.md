@@ -102,7 +102,10 @@ The logcat path:
   not itself treated as a failure.
 
 UsageStats remains active as an independent path. Logcat supplements it; it
-does not replace it.
+does not replace it. Unlike the logcat callback, the UsageStats polling path
+does not independently call `PowerManager.isInteractive()` before evaluating a
+positive foreground event. The normal standby route is the screen-on refresh;
+the service does not request a wake lock or use a wakeup alarm.
 
 ### 3. Screen state
 
