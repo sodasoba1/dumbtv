@@ -117,6 +117,10 @@ jobs:
         run: for f in scripts/*.sh launcher/*.sh; do bash -n "$f" || exit 1; done
       - name: Pi-hole export consistency
         run: python3 scripts/export-pihole-lists.py --check
+      - name: install ImageMagick for real-image library tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
       - name: offline script tests (no device)
         run: python3 -m unittest discover -s tests -v
       - name: launcher version manifest

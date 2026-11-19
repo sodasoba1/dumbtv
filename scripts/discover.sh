@@ -20,7 +20,6 @@ NEVER=$DATA/$PLATFORM/never-disable.txt
 [[ $PLATFORM == fireos ]] && NEVER=$(fos never-disable.txt)
 [[ -f $NEVER ]] || NEVER=$DATA/fireos/never-disable.txt
 OUT="$REPORT/discover-$PLATFORM-$(date +%Y%m%d-%H%M).txt"
-mkdir -p "$REPORT"
 
 step "inventory"
 note "platform  $PLATFORM"
@@ -64,7 +63,7 @@ done
 
 count=$(printf '%s' "$cand" | grep -c . || true)
 
-{
+write_report() {
   printf '# dumbtv discover — %s\n' "$(date '+%Y-%m-%d %H:%M')"
   printf '# model: %s · android %s · platform %s\n' "$MODEL" "$ANDROID" "$PLATFORM"
   printf '# %s packages total, %s third-party, %s disabled\n' "$total" "$(printf '%s\n' "$third" | grep -c .)" "$(printf '%s\n' "$dis" | grep -c .)"
@@ -76,7 +75,14 @@ count=$(printf '%s' "$cand" | grep -c . || true)
   printf '%s' "$cand" | while read -r pkg rest; do
     [[ -n $pkg ]] && printf '# %-58s %s\n' "$pkg" "$rest"
   done
-} > "$OUT"
+}
+if [[ $DRY_RUN == 1 ]]; then
+  note "dry-run: report not written (would be $OUT)"
+  write_report
+else
+  mkdir -p "$REPORT"
+  write_report > "$OUT"
+fi"
 
 step "result"
 note "candidates $count of $total packages"

@@ -62,7 +62,8 @@ protected_bad=""; protected_system=""
 while read -r p; do
   [[ -z ${p:-} ]] && continue
   grep -qxF "package:$p" <<<"$installed" || continue
-  grep -qxF "package:$p" <<<"$off" || continue
+  # Do not trust pm list packages -d to be exhaustive on Fire OS. Query the
+  # per-user package state for every installed protected package.
   state=$(package_user_enabled_state "$p")
   case $state in 2) protected_system="$protected_system $p" ;; 3) protected_bad="$protected_bad $p" ;; esac
 done < <(list_of "$(fos never-disable.txt)" | awk '{print $1}')
@@ -95,6 +96,14 @@ while read -r ns key value; do
   now=$(printf '%s\n' "$current" | awk -v k="$key" 'index($0, k "=") == 1 { print substr($0, length(k) + 2); exit }')
   [[ $now == "$value" ]] || reset="$reset $key=${now:-unset}"
 done < <(list_of "$(fos settings.txt)" | sed 's/ = / /')
+if [[ $ALEXA == 0 ]]; then
+  while read -r ns key value; do
+    [[ -z ${ns:-} || $ns == \#* ]] && continue
+    checked=$((checked+1))
+    now=$(printf '%s\n' "$current" | awk -v k="$key" 'index($0, k "=") == 1 { print substr($0, length(k) + 2); exit }')
+    [[ $now == "$value" ]] || reset="$reset $key=${now:-unset}"
+  done < <(list_of "$(fos settings.alexa.txt)" | sed 's/ = / /')
+fi
 if [[ -n $reset ]]; then
   printf '%-10s %-38s %s\n' warn settings "back to Amazon's values:$reset; run debloat.sh"
 else

@@ -15,11 +15,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class RestoreTest(unittest.TestCase):
     def run_restore(self, ignores_reboot=False, settings=None, svc_refused=False,
-                    package_snapshot=None, manufacturer='Amazon'):
+                    package_snapshot=None, manufacturer='Amazon', protected_disabled=False):
         packages = {
             "dnsfilter.android": {"system": False, "enabled": True},
             "com.amazon.hedwig": {"system": True, "enabled": False},
         }
+        if protected_disabled:
+            packages["com.amazon.firebat"] = {
+                "system": True, "enabled": False, "enabled_state": 3
+            }
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
             state = tmp / "state.json"
@@ -30,7 +34,8 @@ class RestoreTest(unittest.TestCase):
             state.write_text(json.dumps({"packages": packages, "settings": hooked,
                                          "manufacturer": manufacturer,
                                          "ignores_reboot": ignores_reboot,
-                                         "svc_refused": svc_refused, "sdk": 25}))
+                                         "svc_refused": svc_refused, "sdk": 25,
+                                         "omit_disabled_from_listing": protected_disabled}))
             log = tmp / "commands.log"
             log.touch()
             (tmp / "dumbtv.conf").write_text("")
@@ -69,6 +74,14 @@ class RestoreTest(unittest.TestCase):
         self.assertIn("left disabled (was not enabled in the original snapshot)", result.stdout)
         self.assertFalse(self.package_snapshot_exists_after,
                          "successful restore clears snapshots for the next cleanup cycle")
+
+    def test_restore_recovers_protected_package_when_disabled_listing_omits_it(self):
+        result, commands, state = self.run_restore(
+            protected_disabled=True,
+            package_snapshot="com.amazon.firebat\tenabled\n")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(state["packages"]["com.amazon.firebat"]["enabled"])
+        self.assertIn("pm enable --user 0 com.amazon.firebat", commands)
 
     def test_restore_refuses_to_run_on_non_fire_os_devices(self):
         result, commands, _ = self.run_restore(manufacturer="Google")

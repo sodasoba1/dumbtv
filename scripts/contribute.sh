@@ -54,15 +54,18 @@ ask() { # prompt, default -> stdout
 # Anything that identifies a household never goes in the catalog: IP and MAC
 # addresses, email addresses, and this TV's serial number.
 identifies() {
-  local ip first
-  # A dotted quad that starts with one digit is a Fire OS version (7.6.9.7), and 127.x
-  # and 0.0.0.0 are what a blocked host answers. Any other one is an address.
-  for ip in $(printf '%s' "$1" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
+  local value ip first
+  # Preserve an explicitly labelled Fire OS firmware version, but treat other
+  # dotted quads as addresses regardless of their first octet (1-9 are public
+  # IPv4 space too, not evidence of a software version).
+  value=$(printf '%s' "$1" | sed -E 's/[Ff]ire[[:space:]]+[Oo][Ss][[:space:]]+[0-9]{1,3}(\.[0-9]{1,3}){3}/ /g')
+  for ip in $(printf '%s' "$value" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
     first=$((10#${ip%%.*}))
-    [[ $first -ge 10 && $first != 127 ]] && return 0
+    [[ $first == 127 || $ip == 0.0.0.0 ]] && continue
+    return 0
   done
-  printf '%s' "$1" | grep -Eq '([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}|[^[:space:]@]+@[^[:space:]@]+\.[A-Za-z]{2,}' ||
-    [[ ${#DEVICE_SERIAL} -ge 6 && $1 == *"$DEVICE_SERIAL"* ]]
+  printf '%s' "$value" | grep -Eq '(^|[^[:xdigit:]])([[:xdigit:]]{0,4}:){2,}[[:xdigit:]]{0,4}(%[[:alnum:]_.-]+)?([^[:xdigit:]]|$)|([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}|[^[:space:]@]+@[^[:space:]@]+\.[A-Za-z]{2,}' ||
+    [[ ${#DEVICE_SERIAL} -ge 6 && $value == *"$DEVICE_SERIAL"* ]]
 }
 clean() {
   local v=$1

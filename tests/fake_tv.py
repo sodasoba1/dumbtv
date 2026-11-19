@@ -149,7 +149,8 @@ elif command == 'pm list packages':
 elif command == 'pm list packages -s':
     print('\n'.join(f'package:{p}' for p, a in apps.items() if a['system']))
 elif command == 'pm list packages -d':
-    print('\n'.join(f'package:{p}' for p, a in apps.items() if not a['enabled']))
+    if not state.get('omit_disabled_from_listing'):
+        print('\n'.join(f'package:{p}' for p, a in apps.items() if not a['enabled']))
 elif words[:4] == ['pm', 'disable-user', '--user', '0']:
     name = words[4]
     if apps.get(name, {}).get('protected'):
