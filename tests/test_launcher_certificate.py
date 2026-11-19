@@ -63,9 +63,9 @@ class LauncherCertificateTest(unittest.TestCase):
             bindir = tmp / "bin"
             bindir.mkdir()
             signer = bindir / "apksigner"
-            signer.write_text("#!/usr/bin/env bash\\n"
-                              '[[ "$1" == verify && "$2" == --print-certs ]] || exit 90\\n'
-                              f"printf '%s\\\\n' 'Signer #1 certificate SHA-256 digest: {PIN}'\\n")
+            signer.write_text("#!/usr/bin/env bash\n"
+                              '[[ "$1" == verify && "$2" == --print-certs ]] || exit 90\n'
+                              f"printf '%s\\n' 'Signer #1 certificate SHA-256 digest: {PIN}'\n")
             signer.chmod(0o755)
             env = dict(os.environ, ANDROID_HOME="", PATH=str(bindir) + os.pathsep + os.environ.get("PATH", ""))
             result = subprocess.run(["bash", str(VERIFY), str(apk)], env=env,
@@ -78,7 +78,7 @@ class LauncherCertificateTest(unittest.TestCase):
             sdk = tmp / "Android SDK"
             signer = sdk / "build-tools" / "34.0.0" / "apksigner.bat"
             signer.parent.mkdir(parents=True)
-            signer.write_text("@echo off\\r\\n")
+            signer.write_text("@echo off\r\n")
             apk = tmp / "release package.apk"
             apk.write_bytes(b"fake apk")
             bindir = tmp / "mock-bin"
@@ -87,16 +87,16 @@ class LauncherCertificateTest(unittest.TestCase):
 
             cygpath = bindir / "cygpath"
             cygpath.write_text(
-                "#!/usr/bin/env bash\\n"
-                '[[ "$1" == -w || "$1" == -u ]] || exit 91\\n'
-                'printf "%s\\\\n" "$2"\\n'
+                "#!/usr/bin/env bash\n"
+                '[[ "$1" == -w || "$1" == -u ]] || exit 91\n'
+                'printf "%s\\n" "$2"\n'
             )
             cygpath.chmod(0o755)
             cmd = bindir / "cmd.exe"
             cmd.write_text(
-                "#!/usr/bin/env bash\\n"
-                'printf "%s\\\\n" "$@" > "$CMD_CAPTURE"\\n'
-                f"printf '%s\\\\n' 'Signer #1 certificate SHA-256 digest: {PIN}'\\n"
+                "#!/usr/bin/env bash\n"
+                'printf "%s\\n" "$@" > "$CMD_CAPTURE"\n'
+                f"printf '%s\\n' 'Signer #1 certificate SHA-256 digest: {PIN}'\n"
             )
             cmd.chmod(0o755)
 
