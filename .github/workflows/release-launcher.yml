@@ -61,8 +61,8 @@ jobs:
           signature=$("$tools/apksigner" verify --print-certs "$apk")
           echo "$signature"
           expected_signer=$(< launcher/signing.sha256)
-          actual_signer=$(printf '%s\\n' "$signature" | sed -n 's/^Signer #[0-9][0-9]* certificate SHA-256 digest: //p' | tr 'A-F' 'a-f')
-          signer_count=$(printf '%s\\n' "$actual_signer" | awk 'NF {n++} END {print n+0}')
+          actual_signer=$(printf '%s\n' "$signature" | sed -n 's/^Signer #[0-9][0-9]* certificate SHA-256 digest: //p' | tr 'A-F' 'a-f')
+          signer_count=$(printf '%s\n' "$actual_signer" | awk 'NF {n++} END {print n+0}')
           [[ "$expected_signer" =~ ^[0-9a-f]{64}$ && "$signer_count" == 1 && "$actual_signer" == "$expected_signer" ]] || {
             echo "release signer does not match launcher/signing.sha256"
             exit 1
