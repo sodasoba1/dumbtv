@@ -88,6 +88,31 @@ The checksum sidecar detects a damaged or incomplete APK download. It is
 published alongside the release asset, so it is a transfer-integrity check,
 not an independent signature of the release publisher.
 
+## Install a supplied APK or repair Keeper permissions
+
+For a locally built or otherwise supplied DumbTV APK, use the installer's local
+APK mode rather than running `adb install` directly:
+
+```sh
+./launcher/install.sh --apk /path/to/dumbtv-home.apk
+```
+
+This installs/updates the package and then runs the same Keeper setup as the
+release installer: Doze exemption, UsageStats, AUTO_START where the firmware
+supports it, READ_LOGS grant and verification, and Keeper startup checks. The
+APK must target API 25 and be signed with the same key as the installed app;
+Android rejects updates signed with a different certificate.
+
+If the APK has already been installed manually, repair its special access
+without reinstalling it:
+
+```sh
+./launcher/install.sh --permissions-only
+```
+
+Both modes are restricted to API 25, just like normal launcher installation.
+The `--undo` path remains available on other supported device versions.
+
 ## Important upgrade note
 
 This fork's release signing key will differ from the original
