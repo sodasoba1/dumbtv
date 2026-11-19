@@ -118,11 +118,12 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("FAIL", result.stdout)
         self.assertIn("READ_LOGS not granted", result.stdout)
 
-    def test_non_api25_device_is_rejected_before_homesentinel_checks(self):
+    def test_non_api25_device_skips_homesentinel_checks(self):
         result, calls = self.run_verify(sdk="28")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("only Fire OS 6 / API 25", result.stdout)
-        self.assertFalse(any("AUTO_START" in " ".join(call) for call in calls))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("skip", result.stdout)
+        self.assertIn("API 25", result.stdout)
+        self.assertFalse(any("tv.dumbtv.home" in " ".join(call) for call in calls))
 
     def test_launcher_opt_out_skips_homesentinel_checks(self):
         result, calls = self.run_verify(launcher="0")

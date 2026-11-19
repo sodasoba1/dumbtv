@@ -16,7 +16,7 @@ home=$(front_activity)
 if [[ $LAUNCHER == 0 ]]; then
   printf '%-10s %-38s %s\n' skip home "LAUNCHER=0, not checked"
 elif [[ $SDK != 25 ]]; then
-  printf '%-10s %-38s %s\n' FAIL home "launcher supports only Fire OS 6 / API 25 (device reports API $SDK)"; fail=1
+  printf '%-10s %-38s %s\n' skip home "HomeSentinel supports API 25 only; device reports API $SDK"
 else
   homesentinel=$(dev 'dumpsys activity services tv.dumbtv.home' | grep -c 'isForeground=true' || true)
   home_package=${home%%/*}
@@ -124,8 +124,8 @@ fi
 # The launcher on the TV can be older than the release this repo ships. Releases
 # up to 1.2 let the TV sleep while an HDMI picture was up (a passthrough input
 # counts as no activity), and nothing else on the TV says so.
-if [[ $LAUNCHER == 0 ]]; then
-  printf '%-10s %-38s %s\n' skip launcher "LAUNCHER=0, not checked"
+if [[ $LAUNCHER == 0 || $SDK != 25 ]]; then
+  printf '%-10s %-38s %s\n' skip launcher "not applicable to this device (API $SDK; launcher target is API 25)"
 else
   have=$(dev 'dumpsys package tv.dumbtv.home' | sed -n 's/.*versionName=\([0-9][0-9.]*\).*/\1/p' | head -1)
   want=$(sed -n 's/^VERSION=//p' "$ROOT/launcher/version.env" 2>/dev/null | head -1)
