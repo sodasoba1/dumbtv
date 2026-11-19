@@ -298,39 +298,7 @@ public final class Home extends Activity {
     private Runnable artJob(Item it, boolean cornerIcon) {
         String pack = cfg.get(IconPack.KEY, IconPack.OFF);
         String chosen = cfg.get(IconPack.CHOSEN + it.id, null);
-        return () -> {
-            Catalog.art(getPackageManager(), it, cornerIcon, replacementArt(it, chosen, pack));
-            Drawable custom = Catalog.customBanner(this, it);
-            if (custom != null) {
-                it.banner = custom;
-                it.icon = null;
-            }
-        };
-    }
-
-    /**
-     * The picture that replaces an app's own art: the icon picked for it from the chosen pack,
-     * then the chosen pack's match. Null keeps the app's own. io thread only.
-     */
-    private Drawable replacementArt(Item it, String chosen, String pack) {
-        if (IconPack.OWN.equals(chosen)) return null;
-        IconPack p = iconPack(pack);
-        if (p == null) return null;
-        // A picked icon belongs to the pack it came from and only counts while that pack is the
-        // chosen one: switching packs needs no tile fixed by hand, switching back restores it.
-        String picked = IconMatch.picked(chosen, pack);
-        Drawable d = picked == null ? null : p.picture(picked);
-        return d != null ? d : p.drawable(it);
-    }
-
-    /** An icon pack by package, read once. io thread only. */
-    private IconPack iconPack(String pkg) {
-        if (!packs.containsKey(pkg)) {
-            IconPack p = IconPack.load(getPackageManager(), pkg);
-            packs.put(pkg, p);
-            if (p != null) HomeSentinel.note("icon pack " + pkg + ": " + p.size() + " apps");
-        }
-        return packs.get(pkg);
+        return () -> AppArtwork.load(this, getPackageManager(), it, cornerIcon, packs, pack, chosen);
     }
 
     @Override
