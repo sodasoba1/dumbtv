@@ -40,6 +40,14 @@ public final class WidgetLayoutTest {
                 "preserve existing 2x2 widget size");
         check(WidgetLayout.decode(legacy.encode()).find("network").width == 2,
                 "preserve all existing widget sizes");
+        check("left".equals(WidgetLayout.decode(legacy.encode()).find("clock").alignment),
+                "new widget content alignment defaults to left");
+        check(legacy.setAlignment("clock", "right"), "set widget content alignment");
+        check("right".equals(WidgetLayout.decode(legacy.encode()).find("clock").alignment),
+                "persist widget content alignment");
+        check("left".equals(WidgetLayout.decode("old,text,0,0,2,1").find("old").alignment),
+                "migrate six-field saved widgets with left alignment");
+        check(!legacy.setAlignment("clock", "diagonal"), "reject invalid widget alignment");
         check(grid.move("memory", 4, 0), "move into free cells");
         check(!grid.move("memory", 1, 0), "reject move into occupied cells");
         check(!grid.resize("clock", 5, 2), "reject resize into occupied cells");
