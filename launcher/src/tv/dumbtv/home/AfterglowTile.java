@@ -20,6 +20,7 @@ final class AfterglowTile {
     private final Context context;
     private final String title;
     private final int[] colors;
+    private final boolean customBackground;
     private final Drawable brandMark;
     private final Paint brand = new Paint();
     private final Paint fade = new Paint();
@@ -28,11 +29,14 @@ final class AfterglowTile {
     private final TextPaint text = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private CharSequence fitted;
 
-    AfterglowTile(Context c, String packageId, CharSequence label, int accent, int backgroundColor) {
+    AfterglowTile(Context c, String packageId, CharSequence label, int accent,
+            int backgroundColor, boolean customBackground) {
         context = c;
         title = label.toString().toUpperCase(Locale.ROOT);
         int[] known = BrandColors.forPackage(packageId);
         colors = known != null ? known : new int[] {accent, accent};
+        this.customBackground = customBackground;
+        if (customBackground) brand.setColor(backgroundColor);
         if ("org.smarttube.stable".equals(packageId)) {
             brandMark = c.getDrawable(R.drawable.ic_brand_youtube);
         } else if ("Smart Kick TV".equalsIgnoreCase(label.toString().trim())) {
@@ -54,7 +58,8 @@ final class AfterglowTile {
     }
 
     void resize(int w, int h) {
-        brand.setShader(new LinearGradient(0, 0, w, 0, colors, null, Shader.TileMode.CLAMP));
+        brand.setShader(customBackground ? null
+                : new LinearGradient(0, 0, w, 0, colors, null, Shader.TileMode.CLAMP));
         int strength = Integer.parseInt(Config.get(context).get(Config.AFTERGLOW_STRENGTH));
         int a = Math.min(255, strength * 255 / 100);
         fade.setShader(new LinearGradient(0, 0, 0, h,
@@ -70,7 +75,7 @@ final class AfterglowTile {
 
     void draw(Canvas canvas, Drawable icon, int w, int h, boolean showTitle) {
         canvas.drawRect(0, 0, w, h, brand);
-        canvas.drawRect(0, 0, w, h, fade);
+        if (!customBackground) canvas.drawRect(0, 0, w, h, fade);
         if (showTitle) {
             canvas.drawText(fitted, 0, fitted.length(), w / 2f,
                     h / 2f - (text.ascent() + text.descent()) / 2, text);
