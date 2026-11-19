@@ -10,8 +10,8 @@ The service was originally named **Keeper**. The name changed because its role
 has grown well beyond a simple foreground watcher: it now combines event-history
 tracking, a second ActivityManager signal, screen-state handling, explicit
 pause/resume rules, task restoration, verification and bounded retry logic.
-The rename is descriptive; it does not change the service's runtime behaviour,
-package name, permissions, or launcher identity.
+The rename is descriptive; it does not change the service's monitoring or
+recovery behaviour, package name, permissions, or launcher identity.
 
 ## How it differs from the original Keeper
 
