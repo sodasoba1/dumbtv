@@ -186,7 +186,8 @@ elif words[:2] == ['dumpsys', 'package']:
 elif command == 'ps -A -o NAME':
     print('NAME')
 elif command == 'dumpsys activity activities':
-    print('  mResumedActivity: ActivityRecord{1 u0 tv.dumbtv.home/.Home t1}')
+    print(state.get('foreground_line',
+                    '  mResumedActivity: ActivityRecord{1 u0 tv.dumbtv.home/.Home t1}'))
 elif words[:1] == ['am'] and words[1:2] in (['force-stop'], ['start']):
     # Activity-manager operations used by the launcher install/undo scripts.
     pass

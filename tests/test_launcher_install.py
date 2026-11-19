@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LauncherInstallTest(unittest.TestCase):
-    def install(self, appops_refused=False, auto_start_unsupported=False, read_logs_refused=False, read_logs_not_recorded=False, installer_args=None):
+    def install(self, appops_refused=False, auto_start_unsupported=False, read_logs_refused=False, read_logs_not_recorded=False, installer_args=None, foreground_line=None):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
             launcher = tmp / "launcher"
@@ -38,6 +38,7 @@ class LauncherInstallTest(unittest.TestCase):
                 "auto_start_unsupported": auto_start_unsupported,
                 "read_logs_refused": read_logs_refused,
                 "read_logs_not_recorded": read_logs_not_recorded,
+                **({"foreground_line": foreground_line} if foreground_line is not None else {}),
                 "appops": {"tv.dumbtv.home": {}},
             }))
             log = tmp / "commands.log"
@@ -69,6 +70,11 @@ class LauncherInstallTest(unittest.TestCase):
         self.assertIn("appops set tv.dumbtv.home GET_USAGE_STATS allow", commands)
         self.assertIn("pm grant tv.dumbtv.home android.permission.READ_LOGS", commands)
         self.assertTrue(state["permissions"]["tv.dumbtv.home"]["android.permission.READ_LOGS"])
+        grant = commands.index("pm grant tv.dumbtv.home android.permission.READ_LOGS")
+        force_stop = commands.index("am force-stop tv.dumbtv.home")
+        launch = commands.index("am start -W -n tv.dumbtv.home/.Home")
+        self.assertLess(grant, force_stop)
+        self.assertLess(force_stop, launch)
 
     def test_permissions_only_requires_existing_install(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -134,6 +140,22 @@ class LauncherInstallTest(unittest.TestCase):
         self.assertFalse(state.get("permissions", {}).get("tv.dumbtv.home", {}).get(
             "android.permission.READ_LOGS", False))
 
+    def test_foreground_detection_accepts_android_7_resumed_activity(self):
+        result, commands, _ = self.install()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("dumpsys activity activities", commands)
+        self.assertIn("home: dumbtv", result.stdout)
+
+    def test_foreground_detection_fails_when_activity_is_empty(self):
+        result, _, _ = self.install(foreground_line="")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("could not determine the foreground activity", result.stderr)
+
+    def test_foreground_detection_fails_when_another_package_is_in_front(self):
+        result, _, _ = self.install(
+            foreground_line="  mResumedActivity: ActivityRecord{1 u0 com.amazon.tv.launcher/.Launcher t1}")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("not in front", result.stderr)
 
 if __name__ == "__main__":
     unittest.main()
