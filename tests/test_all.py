@@ -17,7 +17,8 @@ STEPS = ["preflight", "cleanup-legacy-dnsfilter", "debloat", "lockdown", "launch
 class AllTest(unittest.TestCase):
     def run_all(self, config=None, answer="0", flags=(), inherited_youtube=None, conf_env=None, sdk="25"):
         with tempfile.TemporaryDirectory() as tmp:
-            repo = Path(tmp) / "repo with spaces"
+            tmp = Path(tmp)
+            repo = tmp / "repo with spaces"
             scripts = repo / "scripts"
             scripts.mkdir(parents=True)
             shutil.copy2(ROOT / "scripts" / "all.sh", scripts / "all.sh")
