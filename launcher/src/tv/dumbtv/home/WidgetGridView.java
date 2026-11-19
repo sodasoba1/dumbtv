@@ -3,6 +3,10 @@ package tv.dumbtv.home;
 import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Gravity;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -37,12 +41,55 @@ class WidgetGridView extends ViewGroup {
 
     void setLayout(WidgetLayout value) {
         layout = value == null ? new WidgetLayout() : value;
+        applyContentAlignments();
         requestLayout();
         invalidate();
     }
 
     WidgetLayout getLayoutModel() {
         return layout;
+    }
+
+    private void applyContentAlignments() {
+        for (int i = 0; i < getChildCount(); i++) {
+            View child = getChildAt(i);
+            WidgetLayout.Widget widget = layout.find(widgetId(child));
+            if (widget == null) continue;
+            int horizontal = "center".equals(widget.alignment) ? Gravity.CENTER_HORIZONTAL
+                    : "right".equals(widget.alignment) ? Gravity.RIGHT : Gravity.LEFT;
+            if (child instanceof TextView) {
+                TextView text = (TextView) child;
+                text.setGravity(horizontal | (text.getGravity() & Gravity.VERTICAL_GRAVITY_MASK));
+            } else if (child instanceof LinearLayout) {
+                LinearLayout group = (LinearLayout) child;
+                group.setGravity(horizontal | (group.getGravity() & Gravity.VERTICAL_GRAVITY_MASK));
+                for (int j = 0; j < group.getChildCount(); j++) {
+                    View inner = group.getChildAt(j);
+                    if (inner instanceof TextView) {
+                        TextView text = (TextView) inner;
+                        text.setGravity(horizontal | (text.getGravity() & Gravity.VERTICAL_GRAVITY_MASK));
+                    }
+                }
+            } else if (child instanceof FrameLayout) {
+                FrameLayout frame = (FrameLayout) child;
+                for (int j = 0; j < frame.getChildCount(); j++) {
+                    View inner = frame.getChildAt(j);
+                    if (inner instanceof Meter) {
+                        Meter meter = (Meter) inner;
+                        meter.setAlignment(horizontal);
+                        ViewGroup.LayoutParams raw = meter.getLayoutParams();
+                        if (raw instanceof FrameLayout.LayoutParams) {
+                            FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) raw;
+                            params.gravity = horizontal | Gravity.CENTER_VERTICAL;
+                            meter.setLayoutParams(params);
+                        }
+                    } else if (inner instanceof TextView) {
+                        TextView text = (TextView) inner;
+                        text.setGravity(horizontal | (text.getGravity() & Gravity.VERTICAL_GRAVITY_MASK));
+                    }
+                }
+            }
+        }
     }
 
     void setWidgetEnabled(String id, boolean enabled) {
