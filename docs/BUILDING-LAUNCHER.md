@@ -98,8 +98,8 @@ APK mode rather than running `adb install` directly:
 ```
 
 This installs/updates the package and then runs the same HomeSentinel setup as the
-release installer: Doze exemption, UsageStats, AUTO_START where the firmware
-supports it, READ_LOGS grant and verification, and HomeSentinel startup checks. The
+release installer: Doze exemption, UsageStats, READ_LOGS grant and verification,
+and HomeSentinel startup checks. The
 APK must target API 25. When updating an existing install, it must be signed
 with the same key; Android rejects updates signed with a different certificate.
 
