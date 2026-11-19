@@ -30,6 +30,7 @@ set -eu
 name=$(basename "$0" .sh)
 printf '%s' "$name" >> "$STEP_LOG"
 printf ' %s' "$@" >> "$STEP_LOG"
+if [[ $name == youtube ]]; then printf ' ASSUME_YES=%s' "${ASSUME_YES:-0}" >> "$STEP_LOG"; fi
 printf '\\n' >> "$STEP_LOG"
 if [[ $name == configure ]]; then
   for arg in "$@"; do [[ $arg != --dry-run ]] || exit 0; done
@@ -56,7 +57,7 @@ fi
 
     def test_saved_yes_runs_youtube_before_verification(self):
         steps = self.run_all(config="YOUTUBE=1\n")
-        self.assertEqual(steps, [[name] for name in STEPS + ["youtube", "verify"]])
+        self.assertEqual(steps, [[name] for name in STEPS] + [["youtube", "ASSUME_YES=1"], ["verify"]])
 
     def test_saved_no_overrides_inherited_yes(self):
         steps = self.run_all(config="YOUTUBE=0\n", inherited_youtube="1")
@@ -64,7 +65,7 @@ fi
 
     def test_conf_from_the_environment_is_the_one_read(self):
         steps = self.run_all(conf_env="YOUTUBE=1\n")
-        self.assertEqual(steps, [[name] for name in STEPS + ["youtube", "verify"]])
+        self.assertEqual(steps, [[name] for name in STEPS] + [["youtube", "ASSUME_YES=1"], ["verify"]])
 
     def test_older_config_defaults_to_no(self):
         steps = self.run_all(config="PRIME=1\n")
@@ -73,7 +74,7 @@ fi
     def test_new_yes_is_loaded_after_configure(self):
         steps = self.run_all(answer="1")
         expected = ["preflight", "configure", *STEPS[1:], "youtube", "verify"]
-        self.assertEqual(steps, [[name] for name in expected])
+        self.assertEqual(steps, [[name] for name in expected[:-2]] + [["youtube", "ASSUME_YES=1"], ["verify"]])
 
     def test_new_no_skips_youtube(self):
         steps = self.run_all(answer="0")
@@ -82,8 +83,8 @@ fi
 
     def test_dry_run_passes_flags_to_opted_in_step(self):
         steps = self.run_all(config="YOUTUBE=1\n", flags=("--dry-run", "-y"))
-        expected = [[name, "--dry-run", "-y"] for name in STEPS + ["youtube"]]
-        self.assertEqual(steps, expected + [["verify"]])
+        expected = [[name, "--dry-run", "-y"] for name in STEPS]
+        self.assertEqual(steps, expected + [["youtube", "--dry-run", "-y", "ASSUME_YES=1"], ["verify"]])
 
     def test_dry_run_without_config_does_not_require_a_written_file(self):
         steps = self.run_all(answer="1", flags=("--dry-run",))
