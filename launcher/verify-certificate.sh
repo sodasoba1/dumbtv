@@ -57,7 +57,6 @@ if [[ $APKSIGNER_KIND == windows-bat ]]; then
   win_apk=$(cygpath -w "$APK")
   # Use CALL so cmd.exe can execute the batch file without /s /c quote gymnastics.
   output=$(cmd.exe //d //c call "$win_signer" verify --print-certs "$win_apk" 2>&1) || {
-  output=$(cmd.exe //d //s //c "$command_line" 2>&1) || {
     echo "error: apksigner could not verify the downloaded release APK" >&2
     printf '%s\n' "$output" >&2
     echo "not installing this APK" >&2
