@@ -55,9 +55,16 @@ if [[ $mode == both || $mode == --remote ]]; then
       && curl -fsSL "$BASE/dumbtv-home.apk" -o "$tmp/dumbtv-home.apk"; then
     expected=$(tr -d '[:space:]' < "$tmp/dumbtv-home.apk.sha256")
     got=$(sha256 "$tmp/dumbtv-home.apk")
-    [[ $expected =~ ^[0-9a-f]{64}$ && $got == "$expected" ]] \
-      && ok "fork release launcher-v$VERSION matches its published checksum" \
-      || bad "fork release APK does not match its SHA-256 sidecar"
+    if [[ $expected =~ ^[0-9a-f]{64}$ && $got == "$expected" ]]; then
+      ok "fork release launcher-v$VERSION matches its published checksum"
+      if ./verify-certificate.sh "$tmp/dumbtv-home.apk"; then
+        ok "fork release launcher-v$VERSION matches the trusted signer pin"
+      else
+        bad "fork release launcher-v$VERSION signer certificate verification failed"
+      fi
+    else
+      bad "fork release APK does not match its SHA-256 sidecar"
+    fi
   else
     bad "fork release launcher-v$VERSION or its checksum sidecar is not reachable"
   fi

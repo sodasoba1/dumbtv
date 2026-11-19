@@ -49,6 +49,11 @@ command -v "$ADB" >/dev/null || { echo "error: adb not found — install Android
 state=$(adb_ get-state 2>/dev/null || true)
 [[ $state == device ]] || { echo "error: no TV connected (adb connect <tv-ip>:5555; set ADB_SERIAL if several)" >&2; exit 1; }
 target_serial=$(adb_ get-serialno 2>/dev/null | tr -d '\r')
+# Reuse the shared activity parser. It handles Android 7.1's mResumedActivity output.
+# front_activity() uses dev(), so give it the serial selected above explicitly.
+# shellcheck disable=SC1091
+source ../scripts/lib.sh
+SERIAL=$target_serial
 
 reconnect_after_vpn_change() {
   [[ $target_serial == *:* ]] || return 0
@@ -198,6 +203,11 @@ if ! grep -Eq '^[[:space:]]*android\.permission\.READ_LOGS:[[:space:]]*granted=t
   exit 1
 fi
 echo "logcat monitoring: READ_LOGS granted and verified"
+# --permissions-only does not reinstall the APK, so explicitly recreate the app
+# process after the verified grant; HomeSentinel's logcat reader starts in onCreate.
+if [[ $mode == permissions ]]; then
+  sh_ am force-stop "$PKG" || { echo "error: could not restart $PKG after permission repair" >&2; exit 1; }
+fi
 start_home $PKG/.Home
 sleep 3
 if ! grep -q 'isForeground=true' <<<"$(sh_ dumpsys activity services $PKG 2>/dev/null)"; then
@@ -206,13 +216,15 @@ if ! grep -q 'isForeground=true' <<<"$(sh_ dumpsys activity services $PKG 2>/dev
 fi
 front=""
 for _ in 1 2 3 4 5 6 7 8 9 10; do
-  front=$(sh_ dumpsys activity activities | grep -m1 'ResumedActivity: ' || true)
-  [[ $front == *"$PKG"* ]] && break
+  front=$(front_activity)
+  [[ $front == "$PKG/"* ]] && break
   sleep 1
 done
 if [[ -z $front ]]; then
-  echo "note: could not read which app is in front; ./scripts/verify.sh checks HomeSentinel"
-elif [[ $front != *"$PKG"* ]]; then
+  echo "error: could not determine the foreground activity after starting dumbtv home" >&2
+  exit 1
+fi
+if [[ $front != "$PKG/"* ]]; then
   echo "error: dumbtv home is installed but not in front ($front)" >&2
   exit 1
 fi
