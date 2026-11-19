@@ -55,7 +55,7 @@ class VerifyTests(unittest.TestCase):
     @staticmethod
     def applied_settings(**changed):
         rows = []
-        for line in (ROOT / "data/fireos6/settings.txt").read_text().splitlines():
+        for line in (ROOT / "data/fireos/settings.txt").read_text().splitlines():
             line = line.split("#")[0].split()
             if len(line) == 3:
                 rows.append(f"{line[1]}={changed.get(line[1], line[2])}")
