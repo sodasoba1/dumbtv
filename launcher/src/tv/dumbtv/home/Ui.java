@@ -143,7 +143,7 @@ final class Ui {
     private static void styleDialogText(android.view.View view, Context c, int accent) {
         if (view instanceof TextView) {
             TextView text = (TextView) view;
-            text.setTextColor(TEXT);
+            text.setTextColor(focused(ink(accent), TEXT));
             text.setTypeface(MEDIUM);
         } else if (view instanceof android.view.ViewGroup) {
             android.view.ViewGroup group = (android.view.ViewGroup) view;
@@ -158,7 +158,7 @@ final class Ui {
         if (button == null) return;
         button.setAllCaps(false);
         button.setTypeface(MEDIUM);
-        button.setTextColor(primary ? accent : TEXT);
+        button.setTextColor(focused(ink(accent), primary ? accent : TEXT));
         button.setMinHeight(dp(c, 44));
         button.setPadding(dp(c, 14), dp(c, 6), dp(c, 14), dp(c, 6));
         button.setBackground(focusBackground(c, accent,
