@@ -231,7 +231,7 @@ final class AppStyleEditor {
             Drawable artwork = previewArtwork(activity, item, asset, state.bannerColor);
             if (artwork == null) artwork = item.icon;
             image.setImageDrawable(artwork);
-            cell.addView(image, new LinearLayout.LayoutParams(Ui.dp(activity, 176), Ui.dp(activity, 94)));
+            cell.addView(image, new LinearLayout.LayoutParams(Ui.dp(activity, 88), Ui.dp(activity, 47)));
             TextView caption = Ui.text(activity, 11, Ui.TEXT, Ui.MEDIUM);
             caption.setText(asset == null ? "Original artwork" : asset.replace('_', ' '));
             caption.setGravity(Gravity.CENTER);
