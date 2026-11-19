@@ -94,7 +94,8 @@ final class AppStyleEditor {
         button.setClickable(true);
         button.setPadding(Ui.dp(activity, 14), Ui.dp(activity, 12),
                 Ui.dp(activity, 14), Ui.dp(activity, 12));
-        button.setBackground(Ui.surface(activity, Ui.optionSurface(activity), Ui.dp(activity, 9)));
+        Ui.focusStyle(button, Config.get(activity).accent(),
+                Ui.optionSurface(activity), Ui.dp(activity, 9));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = Ui.dp(activity, 5);
@@ -117,8 +118,7 @@ final class AppStyleEditor {
         if (artwork != null) {
             ImageView image = new ImageView(activity);
             image.setImageDrawable(artwork);
-            image.setScaleType(state.banner == null && item.banner == null
-                    ? ImageView.ScaleType.CENTER_INSIDE : ImageView.ScaleType.CENTER_CROP);
+            image.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
             FrameLayout.LayoutParams imageLp = new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
             if (image.getScaleType() == ImageView.ScaleType.CENTER_INSIDE) {
@@ -144,7 +144,9 @@ final class AppStyleEditor {
         if (asset == null) return item.banner;
         try (java.io.InputStream in = activity.getAssets().open("custom-banners/" + asset)) {
             Bitmap bitmap = BitmapFactory.decodeStream(in);
-            return bitmap == null ? item.banner : new BitmapDrawable(activity.getResources(), bitmap);
+            if (bitmap == null) return item.banner;
+            Drawable artwork = new BitmapDrawable(activity.getResources(), bitmap);
+            return Ui.tintArtwork(artwork, Config.get(activity).accent());
         } catch (IOException e) {
             return item.banner;
         }
@@ -208,10 +210,15 @@ final class AppStyleEditor {
             cell.setClickable(true);
             cell.setPadding(Ui.dp(activity, 7), Ui.dp(activity, 7),
                     Ui.dp(activity, 7), Ui.dp(activity, 7));
-            cell.setBackground(Ui.surface(activity, Ui.optionSurface(activity), Ui.dp(activity, 8)));
+            android.graphics.drawable.StateListDrawable cellStates =
+                    new android.graphics.drawable.StateListDrawable();
+            cellStates.addState(new int[] {android.R.attr.state_focused},
+                    Ui.round(Config.get(activity).accent(), Ui.dp(activity, 8)));
+            cellStates.addState(new int[0],
+                    Ui.surface(activity, Ui.optionSurface(activity), Ui.dp(activity, 8)));
+            cell.setBackground(cellStates);
             ImageView image = new ImageView(activity);
-            image.setScaleType(asset == null && item.banner == null
-                    ? ImageView.ScaleType.CENTER_INSIDE : ImageView.ScaleType.CENTER_CROP);
+            image.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
             Drawable artwork = previewArtwork(activity, item, asset);
             if (artwork == null) artwork = item.icon;
             image.setImageDrawable(artwork);
