@@ -124,7 +124,7 @@ class LauncherCertificateTest(unittest.TestCase):
             apk.write_bytes(b"fake apk")
             sdk = tmp / "empty-sdk"
             sdk.mkdir()
-            env = dict(os.environ, ANDROID_HOME=str(sdk))
+            env = dict(os.environ, ANDROID_HOME=str(sdk), ANDROID_SDK_ROOT="", LOCALAPPDATA="")
             result = subprocess.run(["bash", str(VERIFY), str(apk)], env=env,
                                     capture_output=True, text=True, timeout=30)
             self.assertNotEqual(result.returncode, 0)
