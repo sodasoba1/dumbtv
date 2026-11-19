@@ -93,7 +93,7 @@ identifies() {
     [[ $first == 0 || $first == 127 ]] && continue
     return 0
   done
-  for ip in $(printf '%s' "$value" | grep -oE '(^|[^[:xdigit:]:])[[:xdigit:]:]{2,}([^[:xdigit:]:]|$)' |
+  for ip in $(printf '%s' "$value" | grep -oE '(^|[^[:xdigit:]:])([[:xdigit:]:]*:[[:xdigit:]:]*:[[:xdigit:]:]*)([^[:xdigit:]:]|$)' |
               sed -E 's/^[^[:xdigit:]:]//; s/[^[:xdigit:]:]$//'); do
     is_ipv6_literal "$ip" && return 0
   done
