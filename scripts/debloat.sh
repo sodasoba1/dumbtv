@@ -59,7 +59,7 @@ if [[ -f $log ]]; then cp "$log" "$previous_log"; else : > "$previous_log"; fi
 # and only for DISABLED_USER (3). Never override Fire OS DISABLED (2).
 step "restore newly protected packages"
 installed=$(dev "pm list packages" | sed "s/^package://" | tr -d "\r")
-for p in $(list_of "$(fos never-disable.txt)" | awk "{print $1}"); do
+for p in $(list_of "$(fos never-disable.txt)" | awk '{print $1}'); do
   # Query the package manager's per-user state directly. Do not infer it from
   # pm list packages -d, whose output can vary across Fire OS builds.
   grep -qxF "$p" <<<"$installed" || continue
