@@ -78,7 +78,9 @@ final class Catalog {
         if (filename == null || !filename.matches("[A-Za-z0-9_.-]+\\.png")) return null;
         try (java.io.InputStream input = context.getAssets().open("custom-banners/" + filename)) {
             Bitmap bitmap = BitmapFactory.decodeStream(input);
-            return bitmap == null ? null : new BitmapDrawable(context.getResources(), bitmap);
+            if (bitmap == null) return null;
+            Drawable artwork = new BitmapDrawable(context.getResources(), bitmap);
+            return Ui.tintArtwork(artwork, Config.get(context).accent());
         } catch (java.io.IOException | RuntimeException e) {
             return null;
         }
