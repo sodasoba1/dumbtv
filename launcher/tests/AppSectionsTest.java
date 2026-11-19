@@ -26,6 +26,25 @@ public final class AppSectionsTest {
         }
     }
 
+    private static void appStyleBackgroundFallbacks(Config cfg, Item item) {
+        String key = AppStyle.key(item, "background");
+        cfg.set(key, null);
+        check(AppStyle.get(cfg, item, "background", null) == null,
+                "missing background safely accepts a null fallback");
+        check("#123456".equals(AppStyle.get(cfg, item, "background", "#123456")),
+                "missing background inherits a non-null fallback");
+
+        cfg.set(key, "#abcdef");
+        check("#abcdef".equals(AppStyle.get(cfg, item, "background", null)),
+                "valid custom background is retained");
+
+        cfg.set(key, "not-a-colour");
+        check(AppStyle.get(cfg, item, "background", null) == null,
+                "invalid background safely falls back to null");
+        check("#654321".equals(AppStyle.get(cfg, item, "background", "#654321")),
+                "invalid background inherits the supplied fallback");
+    }
+
     private static void appStyleSavePreservesOtherOverrides(Config cfg, Item item) {
         cfg.set("appstyle.alpha.labels", "always");
         cfg.set("appstyle.alpha.shadow", "glow");
@@ -118,6 +137,7 @@ public final class AppSectionsTest {
             ids(Catalog.visible(cfg, Catalog.INPUTS, Arrays.asList(c)), "gamma");
             check(Catalog.isApp(Catalog.ALL_APPS) && !Catalog.isApp(Catalog.INPUTS), "tile types");
 
+            appStyleBackgroundFallbacks(cfg, a);
             appStyleSavePreservesOtherOverrides(cfg, a);
             System.out.println("AppSectionsTest passed (catalogue, lock and per-app settings persistence)");
         } finally {
