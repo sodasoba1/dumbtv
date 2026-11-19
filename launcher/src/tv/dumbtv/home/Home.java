@@ -1308,27 +1308,13 @@ public final class Home extends Activity {
         int accent = cfg.accent();
         String spacing = cfg.get(Config.TILE_SPACING);
         int tileGap = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
-        int availableWidth = getResources().getDisplayMetrics().widthPixels - dp(48);
-        int contentWidth = 0;
-        if (row == apps) {
-            for (Item item : shown) contentWidth += favoriteCardSize(item)[0];
-        } else if (size != null) {
-            contentWidth = shown.size() * size[0];
-        }
-        contentWidth += Math.max(0, shown.size() - 1) * tileGap;
-        // A single strip is a true carousel: no cloned tiles, no hidden cycle or focus recentering.
-        boolean loopingFavourites = false;
-        int copies = 1;
+        // A single strip is a true carousel: no cloned tiles, hidden cycle or focus recentering.
         row.initialFocusIndex = 0;
         if (row == apps) {
             row.strip.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
             row.strip.setLayoutParams(new FrameLayout.LayoutParams(MATCH, WRAP));
         }
-        int index = 0, restore = -1;
-        for (int copy = 0; copy < copies; copy++) {
-            for (int itemIndex = 0; itemIndex < shown.size(); itemIndex++) {
-                final int copyIndex = copy;
-                final int itemPosition = itemIndex;
+        for (int itemIndex = 0; itemIndex < shown.size(); itemIndex++) {
                 Item it = shown.get(itemIndex);
                 int[] itemSize = row == apps ? favoriteCardSize(it) : size;
                 int w = itemSize[0];
@@ -1341,20 +1327,6 @@ public final class Home extends Activity {
                         lastFocusedKind = tile.kind;
                         lastIds.put(tile.kind, tile.item.id);
                         focusBackground(tile.item);
-                        if (loopingFavourites && copyIndex != 1) {
-                            ui.post(() -> {
-                                if (renderGeneration != row.renderGeneration
-                                        || getCurrentFocus() != tile || tile.getParent() != target) return;
-                                View equivalent = target.getChildAt(shown.size() + itemPosition);
-                                if (equivalent != null) {
-                                    // Use the actual measured tile positions, not an estimated
-                                    // cycle width, so spacing and card changes cannot introduce a jump.
-                                    int offset = equivalent.getLeft() - tile.getLeft();
-                                    row.scroll.scrollTo(row.scroll.getScrollX() + offset, 0);
-                                    equivalent.requestFocus();
-                                }
-                            });
-                        }
                     }
                 });
                 t.setOnLongClickListener(v -> {
@@ -1362,24 +1334,12 @@ public final class Home extends Activity {
                     return true;
                 });
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
-                lp.rightMargin = row == apps && copy == copies - 1
-                        && itemIndex == shown.size() - 1 ? 0 : tileGap;
+                lp.rightMargin = row == apps && itemIndex == shown.size() - 1 ? 0 : tileGap;
                 target.addView(t, lp);
-                if (it.id.equals(keep) && (!loopingFavourites || copy == 1)) restore = index;
-                index++;
                 String tileStyle = cfg.get(Config.TILE_STYLE);
                 boolean needsStyleIcon = "afterglow".equals(tileStyle)
                         && cfg.get(AppStyle.key(it, "banner"), null) == null && it.icon == null;
                 if (Catalog.isApp(row.kind) && (!it.artRequested || needsStyleIcon)) loadArt(it);
-            }
-        }
-        if (loopingFavourites) {
-            final int initialScrollIndex = restore >= 0 ? restore : row.initialFocusIndex;
-            row.scroll.post(() -> {
-                if (renderGeneration != row.renderGeneration) return;
-                View initialTile = row.tiles().getChildAt(initialScrollIndex);
-                if (initialTile != null) row.scroll.scrollTo(initialTile.getLeft(), 0);
-            });
         }
         row.setVisible(row != allApps && !shown.isEmpty());
         if (row == apps) row.title.setVisibility(View.GONE);
@@ -1550,13 +1510,8 @@ public final class Home extends Activity {
     private void focusFirst() {
         View first = null;
         for (Row row : rows()) {
-            if (row == apps && row.initialFocusIndex > 0) {
-                first = row.tiles().getChildAt(row.initialFocusIndex);
-                if (first != null) row.scroll.scrollTo(first.getLeft(), 0);
-            } else {
-                row.scroll.scrollTo(0, 0);
-                if (first == null) first = row.tiles().getChildAt(0);
-            }
+            row.scroll.scrollTo(0, 0);
+            if (first == null) first = row.tiles().getChildAt(0);
         }
         landed = apps.tiles().getChildCount() > 0 || allApps.tiles().getChildCount() > 0;
         if (first == null) first = chips.get(0);
