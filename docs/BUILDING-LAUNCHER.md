@@ -100,8 +100,8 @@ APK mode rather than running `adb install` directly:
 This installs/updates the package and then runs the same Keeper setup as the
 release installer: Doze exemption, UsageStats, AUTO_START where the firmware
 supports it, READ_LOGS grant and verification, and Keeper startup checks. The
-APK must target API 25 and be signed with the same key as the installed app;
-Android rejects updates signed with a different certificate.
+APK must target API 25. When updating an existing install, it must be signed
+with the same key; Android rejects updates signed with a different certificate.
 
 If the APK has already been installed manually, repair its special access
 without reinstalling it:
