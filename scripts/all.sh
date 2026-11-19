@@ -37,7 +37,7 @@ need_device
 if [[ $SDK == 25 || ${LAUNCHER:-1} == 0 ]]; then
   run "$DIR/launcher.sh" || exit 1
 else
-  printf 'skip launcher: this fork\x27s HomeSentinel supports API 25 only (device reports API %s)\n' "$SDK"
+  printf 'skip launcher: HomeSentinel supports API 25 only (device reports API %s)\n' "$SDK"
 fi
 # The configuration interview already captured explicit consent to replace YouTube.
 # Do not ask a second time in the middle of the full install.
