@@ -56,9 +56,10 @@ final class Tile extends View {
         String tileStyle = Config.get(c).get(Config.TILE_STYLE);
         afterglow = app && "afterglow".equals(tileStyle)
                 && Config.get(c).get(AppStyle.key(item, "banner"), null) == null
-                ? new AfterglowTile(c, item.id, title, accent) : null;
+                ? new AfterglowTile(c, item.id, title, accent,
+                        AppStyle.backgroundColor(Config.get(c), item, Ui.tileSurface(c, true))) : null;
         // All Apps uses one label baseline for banner artwork, icons and Afterglow tiles.
-        labelH = app && (afterglow == null || Catalog.ALL_APPS.equals(kind)) ? Ui.dp(c, 26) : 0;
+        labelH = app && afterglow == null ? Ui.dp(c, 26) : 0;
         labelAlways = "always".equals(labels);
         labelOnFocus = "focus".equals(labels);
         radius = Ui.cornerRadius(c);
@@ -165,7 +166,7 @@ final class Tile extends View {
         canvas.clipPath(clip);
         canvas.drawRect(card, fill);
         if (afterglow != null) {
-            afterglow.draw(canvas, icon, cardW, cardH, !Catalog.ALL_APPS.equals(kind));
+            afterglow.draw(canvas, icon, cardW, cardH, true);
         } else if (banner != null) {
             int sourceWidth = Math.max(1, banner.getIntrinsicWidth());
             int sourceHeight = Math.max(1, banner.getIntrinsicHeight());
@@ -245,11 +246,8 @@ final class Tile extends View {
         }
         if (moving) drawArrows(canvas);
         String appLabels = AppStyle.get(Config.get(getContext()), item, "labels", Config.get(getContext()).get(Config.LABELS));
-        boolean afterglowAllApps = afterglow != null && Catalog.ALL_APPS.equals(kind);
-        boolean label = afterglowAllApps
-                ? "always".equals(appLabels) || "focus".equals(appLabels) && isFocused()
-                : banner == null || "always".equals(appLabels)
-                        || "focus".equals(appLabels) && isFocused();
+        boolean label = banner == null || "always".equals(appLabels)
+                || "focus".equals(appLabels) && isFocused();
         if (labelH > 0 && label) {
             drawLine(canvas, under, cardW / 2f, cardH + labelH - Ui.dp(getContext(), 6));
         }
