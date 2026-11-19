@@ -143,7 +143,7 @@ If the APK was already installed manually with ADB, reapply and verify its Keepe
 ./launcher/install.sh --permissions-only
 ```
 
-The local APK option expects a DumbTV home APK signed with the same key as the currently installed version. It still performs the API 25 check, grants and verifies UsageStats/READ_LOGS/AUTO_START where supported, starts Keeper and checks that DumbTV is in front.
+The local APK option expects a DumbTV home APK. When updating an existing install, it must be signed with the same key as that installed version. It still performs the API 25 check, grants and verifies UsageStats/READ_LOGS/AUTO_START where supported, starts Keeper and checks that DumbTV is in front.
 
 To undo the launcher takeover:
 
