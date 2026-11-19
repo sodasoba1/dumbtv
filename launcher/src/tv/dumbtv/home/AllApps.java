@@ -21,7 +21,9 @@ import android.widget.Toast;
 
 import java.text.Collator;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -37,6 +39,8 @@ public final class AllApps extends Activity {
     private Grid grid;
     private ScrollView scroll;
     private final Set<String> artRequested = new HashSet<>();
+    /** Loaded once per icon-pack package; accessed only by the serial IO executor. */
+    private final Map<String, IconPack> packs = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle state) {
@@ -111,20 +115,24 @@ public final class AllApps extends Activity {
         }
         int top = scroll.getScrollY() - Ui.dp(this, 220);
         int bottom = scroll.getScrollY() + scroll.getHeight() + Ui.dp(this, 220);
-        for (int i = 0; i < grid.getChildCount(); i++) {
+        int columns = grid.columns();
+        int stride = grid.rowStride();
+        if (columns < 1 || stride < 1) return;
+        int firstRow = Math.max(0, (top - grid.getPaddingTop()) / stride);
+        int lastRow = Math.max(firstRow, (bottom - grid.getPaddingTop()) / stride);
+        int first = firstRow * columns;
+        int end = Math.min(grid.getChildCount(), (lastRow + 1) * columns);
+        for (int i = first; i < end; i++) {
             View child = grid.getChildAt(i);
-            if (!(child instanceof Tile) || child.getBottom() < top || child.getTop() > bottom) continue;
+            if (!(child instanceof Tile)) continue;
             Tile tile = (Tile) child;
             Item item = tile.item;
             if (item.banner != null || item.icon != null || !artRequested.add(item.id)) continue;
+            String pack = cfg.get(IconPack.KEY, IconPack.OFF);
+            String chosen = cfg.get(IconPack.CHOSEN + item.id, null);
+            boolean cornerIcon = "afterglow".equals(cfg.get(Config.TILE_STYLE));
             io.execute(() -> {
-                Catalog.art(getPackageManager(), item,
-                        "afterglow".equals(cfg.get(Config.TILE_STYLE)), null);
-                Drawable custom = Catalog.customBanner(this, item);
-                if (custom != null) {
-                    item.banner = custom;
-                    item.icon = null;
-                }
+                AppArtwork.load(this, getPackageManager(), item, cornerIcon, packs, pack, chosen);
                 runOnUiThread(() -> {
                     if (!isFinishing() && !isDestroyed()) tile.invalidate();
                 });

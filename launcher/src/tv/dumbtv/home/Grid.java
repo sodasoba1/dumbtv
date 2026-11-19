@@ -35,6 +35,11 @@ final class Grid extends ViewGroup {
         return columns(getWidth() - getPaddingLeft() - getPaddingRight(), getChildAt(0).getMeasuredWidth());
     }
 
+    /** Height of one tile row including its vertical gap; zero before children are measured. */
+    int rowStride() {
+        return getChildCount() == 0 ? 0 : getChildAt(0).getMeasuredHeight() + gap();
+    }
+
     @Override
     protected void onMeasure(int widthSpec, int heightSpec) {
         int width = MeasureSpec.getSize(widthSpec);
