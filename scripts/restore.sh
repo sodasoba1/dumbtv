@@ -83,19 +83,17 @@ for p in $(list_of "$(fos never-disable.txt)" | awk '{print $1}'); do
   grep -qxF "package:$p" <<<"$installed" || continue
   # Query the actual per-user state; pm list packages -d can omit disabled apps.
   state=$(package_user_enabled_state "$p")
-  [[ $state == 3 ]] || continue
+  case $state in
+    2)
+      printf '  %-46s left disabled by Fire OS (state 2)\n' "$p"
+      continue ;;
+    3) ;;
+    *) continue ;;
+  esac
   was_enabled_before "$p" || {
     printf '  %-46s left disabled (was not enabled in the original snapshot)\n' "$p"
     continue
   }
-  if [[ $state == 2 ]]; then
-    printf '  %-46s left disabled by Fire OS (state 2)\n' "$p"
-    continue
-  fi
-  if [[ $state != 3 ]]; then
-    printf '  %-46s already enabled or state unknown (%s)\n' "$p" "${state:-unknown}"
-    continue
-  fi
   b=$(acmd pm enable --user 0 "$p" 2>&1 | head -1)
   printf '  %-46s %s\n' "$p" "${b:-no output}"
 done

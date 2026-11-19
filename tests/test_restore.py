@@ -15,14 +15,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class RestoreTest(unittest.TestCase):
     def run_restore(self, ignores_reboot=False, settings=None, svc_refused=False,
-                    package_snapshot=None, manufacturer='Amazon', protected_disabled=False):
+                    package_snapshot=None, manufacturer='Amazon', protected_disabled=False,
+                    protected_state=3):
         packages = {
             "dnsfilter.android": {"system": False, "enabled": True},
             "com.amazon.hedwig": {"system": True, "enabled": False},
         }
         if protected_disabled:
             packages["com.amazon.firebat"] = {
-                "system": True, "enabled": False, "enabled_state": 3
+                "system": True, "enabled": False, "enabled_state": protected_state
             }
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
@@ -82,6 +83,15 @@ class RestoreTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue(state["packages"]["com.amazon.firebat"]["enabled"])
         self.assertIn("pm enable --user 0 com.amazon.firebat", commands)
+
+    def test_restore_leaves_system_disabled_protected_package_untouched(self):
+        result, commands, state = self.run_restore(
+            protected_disabled=True, protected_state=2,
+            package_snapshot="com.amazon.firebat\tenabled\n")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse(state["packages"]["com.amazon.firebat"]["enabled"])
+        self.assertNotIn("pm enable --user 0 com.amazon.firebat", commands)
+        self.assertIn("left disabled by Fire OS (state 2)", result.stdout)
 
     def test_restore_refuses_to_run_on_non_fire_os_devices(self):
         result, commands, _ = self.run_restore(manufacturer="Google")
