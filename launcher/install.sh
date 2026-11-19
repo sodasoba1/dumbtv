@@ -125,6 +125,7 @@ else
   fi
   got=$(sha256 "$APK")
   [[ $got == "$expected" ]] || { rm -f "$SUM.part"; echo "error: checksum mismatch for $APK (got $got, expected $expected) — not installing" >&2; exit 1; }
+  "$HERE/verify-certificate.sh" "$APK"
   mv "$SUM.part" "$SUM"
   echo "checksum ok"
 fi

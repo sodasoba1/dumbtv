@@ -58,7 +58,14 @@ jobs:
           grep -Fx "sdkVersion:'25'" <<<"$badging"
           grep -Fx "targetSdkVersion:'25'" <<<"$badging"
           "$tools/zipalign" -c -v 4 "$apk"
-          "$tools/apksigner" verify --verbose --print-certs "$apk"
+          signature=$("$tools/apksigner" verify --verbose --print-certs "$apk")
+          echo "$signature"
+          expected_signer=$(tr -d '[:space:]' < launcher/release-certificate.sha256)
+          actual_signer=$(printf '%s\\n' "$signature" | sed -n 's/^Signer #[0-9][0-9]* certificate SHA-256 digest: //p' | tr 'A-F' 'a-f')
+          [[ "$actual_signer" == "$expected_signer" ]] || {
+            echo "release signer does not match launcher/release-certificate.sha256"
+            exit 1
+          }
           test -s launcher/build/dumbtv-home.apk.sha256
           expected=$(tr -d '[:space:]' < launcher/build/dumbtv-home.apk.sha256)
           actual=$(sha256sum "$apk" | awk '{print $1}')
