@@ -175,7 +175,7 @@ public final class WidgetEditor extends Activity {
                         GridLayout.spec(row, 1, 1f), GridLayout.spec(column, 1, 1f));
                 lp.width = 0;
                 lp.height = 0;
-                lp.setMargins(dp(3), dp(3), dp(3), dp(3));
+                lp.setMargins(column == 0 ? 0 : dp(8), row == 0 ? 0 : dp(8), 0, 0);
                 grid.addView(cell, lp);
                 if (index == focusIndex) cell.requestFocus();
             }
