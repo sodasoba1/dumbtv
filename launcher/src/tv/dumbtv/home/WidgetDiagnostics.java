@@ -16,7 +16,7 @@ final class WidgetDiagnostics {
     private WidgetDiagnostics() {}
 
     static String snapshot(Context context) {
-        return "DumbTV diagnostics\nHomeSentinel · " + HomeSentinelState(context)
+        return "DumbTV diagnostics\nHomeSentinel · " + homeSentinelState(context)
                 + "\nApp memory · " + memory(context)
                 + "\nPermissions · " + permissionSummary(context);
     }
@@ -34,7 +34,7 @@ final class WidgetDiagnostics {
         }
     }
 
-    private static String HomeSentinelState(Context context) {
+    private static String homeSentinelState(Context context) {
         try {
             ActivityManager manager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
             if (manager == null) return "Status unavailable";

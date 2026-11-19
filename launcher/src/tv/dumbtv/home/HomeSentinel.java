@@ -189,7 +189,7 @@ public final class HomeSentinel extends Service {
         super.onDestroy();
     }
 
-    /** Writes to logcat, and to HomeSentinel.log when the optional debug marker exists. */
+    /** Writes to logcat, and to homesentinel.log when the optional debug marker exists. */
     static void note(String msg) {
         android.util.Log.i("dumbtvtest", msg);
         java.io.File marker = new java.io.File(
