@@ -79,11 +79,9 @@ WORK=$(mktemp -d "${TMPDIR:-/tmp}/dumbtv-wall.XXXXXX") || die "could not create 
 trap 'rm -rf "$WORK"' EXIT
 used_names="$WORK/.used-names"
 : > "$used_names"
-# Stable shuffle seed: identical ordered input basenames produce identical plans.
-if [[ $SHUFFLE == 1 ]]; then
-  seed=$(printf '%s\n' "${images[@]##*/}" | cksum | awk '{print $1 % 32767}')
-  RANDOM=$seed
-fi
+# Derive each shuffled prefix from its position and basename. This is stable across
+# dry-run and real runs; the launcher sorts by filename to get the shuffled order.
+
 
 step "images"
 n=0
@@ -94,7 +92,10 @@ for f in "${images[@]}"; do
   # Names keep to letters, digits, - and _: the launcher sorts by name, and rotate=daytime
   # reads the words in it (morning, afternoon, night).
   name=$(printf '%s' "${base%.*}" | tr -c 'A-Za-z0-9_-' '-')
-  if [[ $SHUFFLE == 1 ]]; then name=$(printf '%05d-%s' "$((RANDOM % 100000))" "$name"); fi
+  if [[ $SHUFFLE == 1 ]]; then
+    hash=$(printf '%s\\n' "$n:$base" | cksum | awk '{print $1}')
+    name=$(printf '%05d-%s' "$((hash % 100000))" "$name")
+  fi
   candidate=$name; suffix=1
   while grep -qxF "$candidate" "$used_names"; do candidate=$name-$suffix; suffix=$((suffix + 1)); done
   name=$candidate
