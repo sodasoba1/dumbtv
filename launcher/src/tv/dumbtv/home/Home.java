@@ -1063,20 +1063,31 @@ public final class Home extends Activity {
     }
 
     private boolean iconChips() {
-        return "icons".equals(cfg.get(Config.CHIPS));
+        String mode = cfg.get(Config.CHIPS);
+        return "icons".equals(mode) || "both".equals(mode);
     }
 
-    /** Text and padding for the chip style: the name always for text, on focus only for icons. */
-    private void chipLook(TextView c, boolean focused) {
-        if (c.getTag() == null || !iconChips()) {
-            c.setText(c.getContentDescription());
-            c.setCompoundDrawablePadding(0);
-            c.setPadding(dp(18), dp(9), dp(18), dp(9));
-            return;
+    /** One width for every toolbar chip, sized to the longest label in the selected mode. */
+    private int toolbarChipWidth() {
+        String mode = cfg.get(Config.CHIPS);
+        if ("icons".equals(mode)) return dp(48);
+        float longest = 0;
+        for (TextView chip : chips) {
+            CharSequence label = chip.getContentDescription();
+            if (label != null) longest = Math.max(longest, chip.getPaint().measureText(label.toString()));
         }
-        c.setText(focused ? c.getContentDescription() : "");
-        c.setCompoundDrawablePadding(focused ? dp(8) : 0);
-        c.setPadding(dp(10), dp(10), dp(focused ? 16 : 10), dp(10));
+        int text = (int) Math.ceil(longest);
+        return text + ("both".equals(mode) ? dp(22 + 8 + 28) : dp(18 * 2));
+    }
+
+    /** Apply the selected chip content without changing its size when focus moves. */
+    private void chipLook(TextView c, boolean focused) {
+        String mode = cfg.get(Config.CHIPS);
+        boolean showText = !"icons".equals(mode);
+        c.setText(showText ? c.getContentDescription() : "");
+        c.setCompoundDrawablePadding("both".equals(mode) ? dp(8) : 0);
+        int horizontal = "icons".equals(mode) ? 13 : "both".equals(mode) ? 14 : 18;
+        c.setPadding(dp(horizontal), dp(9), dp(horizontal), dp(9));
     }
 
     private TextView widgetText(String value) {
@@ -1178,13 +1189,21 @@ public final class Home extends Activity {
         textWidget.setText(cfg.getText("widgets.text", "Custom text"));
         applyWidgetFontSizes();
         updateSystemWidgets();
+        int chipWidth = toolbarChipWidth();
         for (TextView c : chips) {
-            Ui.focusStyle(c, accent, Ui.isGlass(this) ? 0x55303D4B : 0x14FFFFFF, dp(icons ? 21 : 18));
+            Ui.focusStyle(c, accent, Ui.isGlass(this) ? 0x55303D4B : 0x14FFFFFF, dp(18));
             int[] art = (int[]) c.getTag();
-            c.setCompoundDrawablesRelative(icons && art != null ? Ui.chipIcon(getDrawable(art[0]), getDrawable(art[1]),
-                    accent, dp(22)) : null, null, null, null);
-            if (art == null) c.setText(c.getContentDescription());
+            c.setCompoundDrawablesRelative(icons && art != null
+                    ? Ui.chipIcon(getDrawable(art[0]), getDrawable(art[1]), accent, dp(22))
+                    : null, null, null, null);
             chipLook(c, c.isFocused());
+            c.setMinWidth(chipWidth);
+            ViewGroup.LayoutParams params = c.getLayoutParams();
+            if (params != null) {
+                params.width = chipWidth;
+                params.height = dp(48);
+                c.setLayoutParams(params);
+            }
             c.setVisibility(locked() ? View.GONE : View.VISIBLE);
         }
         for (WidgetVisibility.Definition definition : WidgetVisibility.ALL) {
