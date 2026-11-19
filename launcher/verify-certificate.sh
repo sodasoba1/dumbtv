@@ -52,8 +52,8 @@ fi
 if [[ $APKSIGNER_KIND == windows-bat ]]; then
   win_signer=$(cygpath -w "$APKSIGNER")
   win_apk=$(cygpath -w "$APK")
-  # cmd /s /c needs an extra outer quote pair so paths with spaces survive.
-  command_line="\"\"$win_signer\" verify --print-certs \"$win_apk\"\""
+  # Use CALL so cmd.exe can execute the batch file without /s /c quote gymnastics.
+  output=$(cmd.exe //d //c call "$win_signer" verify --print-certs "$win_apk" 2>&1) || {
   output=$(cmd.exe //d //s //c "$command_line" 2>&1) || {
     echo "error: apksigner could not verify the downloaded release APK" >&2
     printf '%s\n' "$output" >&2
