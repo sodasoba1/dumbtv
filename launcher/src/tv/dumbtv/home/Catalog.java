@@ -79,8 +79,9 @@ final class Catalog {
         try (java.io.InputStream input = context.getAssets().open("custom-banners/" + filename)) {
             Bitmap bitmap = BitmapFactory.decodeStream(input);
             if (bitmap == null) return null;
-            Drawable artwork = new BitmapDrawable(context.getResources(), bitmap);
-            return Ui.tintArtwork(artwork, Config.get(context).accent());
+            Drawable artwork = new BitmapDrawable(context.getResources(), bitmap).mutate();
+            artwork.setTint(Config.get(context).accent());
+            return artwork;
         } catch (java.io.IOException | RuntimeException e) {
             return null;
         }
