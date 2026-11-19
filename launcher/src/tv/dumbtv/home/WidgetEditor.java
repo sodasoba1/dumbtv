@@ -360,11 +360,11 @@ public final class WidgetEditor extends Activity {
                 : "diagnostics".equals(widget.type) ? 11
                 : "device".equals(widget.type) ? 12
                 : "memory".equals(widget.type) || "storage".equals(widget.type) ? 13 : 14);
-        int[] sizes = {10, 11, 12, 13, 14, 18, 24, 32, 40};
+        int[] sizes = {10, 11, 12, 13, 14, 16, 18, 22, 24, 26, 30, 32, 34, 36, 38, 40};
         String[] labels = new String[sizes.length];
         int selected = 0;
         for (int i = 0; i < sizes.length; i++) {
-            labels[i] = (i == 0 ? "Small" : i == 5 ? "Normal" : i == 7 ? "Large" : i == 8 ? "Extra large" : "Custom")
+            labels[i] = (i == 0 ? "Small" : i == 6 ? "Normal" : i == 11 ? "Large" : i == 15 ? "Extra large" : "Custom")
                     + " · " + sizes[i] + " sp";
             if (sizes[i] == current) selected = i;
         }
