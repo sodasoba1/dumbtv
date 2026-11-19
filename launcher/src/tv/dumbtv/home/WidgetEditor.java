@@ -415,7 +415,7 @@ public final class WidgetEditor extends Activity {
 
     private void save() {
         cfg.set(WidgetLayout.CONFIG_KEY, layout.encode());
-        cfg.set("widgets.layout.version", "2");
+        cfg.set("widgets.layout.version", "3");
         cfg.setText("widgets.text", pendingText);
         for (WidgetLayout.Widget widget : layout.items()) {
             Integer size = fontSizes.get(widget.id);
