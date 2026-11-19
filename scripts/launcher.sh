@@ -23,7 +23,7 @@ while [[ $# -gt 0 ]]; do
       shift ;;
   esac
 done
-parse_flags "${flags[@]+"\${flags[@]}"}"
+parse_flags "${flags[@]+"${flags[@]}"}"
 need_device
 load_conf
 
