@@ -131,6 +131,20 @@ adb connect <firestick-ip>:5555
 
 Accept the ADB authorisation prompt on the television. The install/build path checks the device SDK and refuses to install if it is not API 25. The `--undo` path is deliberately not API-gated, so it can restore Amazon HOME even if the installed launcher is being removed from a different Fire OS generation.
 
+To install or update from a locally supplied DumbTV APK (and apply the required Keeper permissions):
+
+```sh
+./launcher/install.sh --apk /path/to/dumbtv-home.apk
+```
+
+If the APK was already installed manually with ADB, reapply and verify its Keeper permissions without reinstalling:
+
+```sh
+./launcher/install.sh --permissions-only
+```
+
+The local APK option expects a DumbTV home APK. When updating an existing install, it must be signed with the same key as that installed version. It still performs the API 25 check, grants and verifies UsageStats/READ_LOGS/AUTO_START where supported, starts Keeper and checks that DumbTV is in front.
+
 To undo the launcher takeover:
 
 ```sh

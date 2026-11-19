@@ -62,7 +62,6 @@ check_keep_list() {
 
 step() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 note() { printf '  %s\n' "$*" >&2; }
-ask_note() { printf '  %s\n' "$*"; }
 die()  { printf 'error: %s\n' "$*" >&2; exit 1; }
 
 dev()  { "$ADB" -s "$SERIAL" shell "$@" 2>&1 </dev/null; }
@@ -321,9 +320,3 @@ fetch() { curl -fsSL --retry 4 --retry-delay 3 --retry-all-errors --connect-time
 # are stripped, and an exact match would silently fail to protect anything.
 protected_by_policy() { list_of "$(fos never-disable.txt)" | awk '{print $1}' | grep -qx "$1"; }
 
-# App name for a package, from data/apps.txt. Names may contain spaces, so match
-# the package anywhere in the line and keep whatever precedes it.
-app_name() {
-  awk -v p="$1" 'index($0,p)==0 {next} {n=substr($0,1,index($0,p)-1); sub(/[[:space:]]+$/,"",n); print n; exit}' \
-    "$DATA/apps.txt" 2>/dev/null
-}

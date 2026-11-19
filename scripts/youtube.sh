@@ -53,7 +53,10 @@ if [[ $DRY_RUN == 1 ]]; then
   note "[dry-run] pm disable-user --user 0 $YT"
   exit 0
 fi
-confirm "Replace YouTube with SmartTube on $SERIAL?" || die "cancelled"
+if ! confirm "Replace YouTube with SmartTube on $SERIAL?"; then
+  note "SmartTube installation cancelled; leaving stock YouTube unchanged."
+  exit 0
+fi
 
 step "download"
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/dumbtv-yt.XXXXXX") || die "could not create a temp dir"

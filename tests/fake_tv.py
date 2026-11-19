@@ -23,6 +23,8 @@ def save():
 if args == ['start-server'] or args[:1] == ['connect']:
     sys.exit(0)
 if len(args) >= 4 and args[0] == '-s' and args[2] == 'install':
+    with Path(os.environ['FAKE_TV_LOG']).open('a') as log:
+        log.write('install ' + ' '.join(args[3:]) + '\n')
     print('Success')
     sys.exit(0)
 if args[:1] == ['disconnect']:
@@ -125,7 +127,7 @@ elif command in ('svc power reboot', 'reboot'):
         state['boots'] = state.get('boots', 0) + 1
         save()
 elif command == 'getprop ro.build.version.sdk':
-    print(state.get('sdk', 28))
+    print(state.get('sdk', 25))
 elif command == 'getprop ro.product.manufacturer':
     print(state.get('manufacturer', 'Amazon'))
 elif command == 'getprop sys.boot_completed':

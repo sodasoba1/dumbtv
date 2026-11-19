@@ -112,12 +112,6 @@ else
   fi
 fi
 
-if [[ $LAUNCHER == 0 ]]; then
-  printf '%-10s %-38s %s\n' skip alarm "LAUNCHER=0, not checked"
-else
-  printf '%-10s %-38s %s\n' skip alarm "Keeper recovery does not modify AlarmManager timing"
-fi
-
 if [[ $fail == 0 ]]; then
   printf '\nall checks passed\n'
 else

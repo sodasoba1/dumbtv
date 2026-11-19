@@ -2,9 +2,12 @@
 # Installs dumbtv home on the TV and gives it the HOME button.
 #   ./launcher/install.sh            download the release APK (checksum-verified), install, take over HOME
 #   ./launcher/install.sh --build    build from source instead (needs a JDK and the Android SDK)
+#   ./launcher/install.sh --apk FILE install a supplied DumbTV APK, then apply Keeper permissions
+#   ./launcher/install.sh --permissions-only reapply Keeper permissions without reinstalling
 #   ./launcher/install.sh --undo     hand HOME back to Amazon's launcher
 # Pick the device with ADB_SERIAL when more than one is connected.
 set -euo pipefail
+CALLER_DIR=$PWD
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 # shellcheck disable=SC1091
@@ -22,11 +25,24 @@ installed() { sh_ pm path "$1" 2>/dev/null | grep -q '^package:'; }
 source ../scripts/home.sh
 
 mode=release
+LOCAL_APK=""
 case ${1:-} in
   "") ;;
-  --build) mode=build ;;
-  --undo) mode=undo ;;
-  *) echo "usage: $0 [--build | --undo]" >&2; exit 2 ;;
+  --build)
+    [[ $# == 1 ]] || { echo "usage: $0 [--build | --apk FILE | --permissions-only | --undo]" >&2; exit 2; }
+    mode=build ;;
+  --apk)
+    [[ $# == 2 && -n ${2:-} ]] || { echo "usage: $0 --apk FILE" >&2; exit 2; }
+    mode=apk
+    LOCAL_APK=$2
+    [[ $LOCAL_APK == /* ]] || LOCAL_APK="$CALLER_DIR/$LOCAL_APK" ;;
+  --permissions-only)
+    [[ $# == 1 ]] || { echo "usage: $0 --permissions-only" >&2; exit 2; }
+    mode=permissions ;;
+  --undo)
+    [[ $# == 1 ]] || { echo "usage: $0 --undo" >&2; exit 2; }
+    mode=undo ;;
+  *) echo "usage: $0 [--build | --apk FILE | --permissions-only | --undo]" >&2; exit 2 ;;
 esac
 
 command -v "$ADB" >/dev/null || { echo "error: adb not found — install Android platform-tools" >&2; exit 1; }
@@ -82,8 +98,15 @@ install_apk() {
   out=$(adb_ install -r "$APK" 2>&1 | grep -m1 -E 'Success|Failure|failed' || true)
 }
 
-if [[ $mode == build ]]; then
+if [[ $mode == permissions ]]; then
+  installed "$PKG" || { echo "error: $PKG is not installed; install an APK first" >&2; exit 1; }
+  echo "reapplying Keeper permissions for the installed $PKG"
+elif [[ $mode == build ]]; then
   build_apk
+elif [[ $mode == apk ]]; then
+  [[ -s $LOCAL_APK ]] || { echo "error: APK file not found or empty: $LOCAL_APK" >&2; exit 1; }
+  APK=$LOCAL_APK
+  echo "installing supplied APK: $APK"
 else
   mkdir -p build
   APK=build/dumbtv-home-$VERSION.apk
@@ -106,21 +129,26 @@ else
   echo "checksum ok"
 fi
 
-install_apk
-case $out in
-  *Success*) ;;
-  *INSTALL_FAILED_UPDATE_INCOMPATIBLE*)
-    echo "error: the installed dumbtv home was signed with a different key (release vs your own build)." >&2
-    if [[ $mode == release ]]; then
-      echo "  it is probably your own build: run ./launcher/install.sh --build instead" >&2
-    else
-      echo "  it is probably the release: this build's key cannot update it." >&2
-    fi
-    echo "  Replacing it means uninstalling it (adb uninstall $PKG), which deletes its settings;" >&2
-    exit 1 ;;
-  *) echo "error: adb install failed: $(printf '%s' "$out" | tail -1)" >&2; exit 1 ;;
-esac
-echo "installed $PKG"
+if [[ $mode != permissions ]]; then
+  install_apk
+  case $out in
+    *Success*) ;;
+    *INSTALL_FAILED_UPDATE_INCOMPATIBLE*)
+      echo "error: the installed dumbtv home was signed with a different key." >&2
+      if [[ $mode == release ]]; then
+        echo "  the installed app may be a local build; use ./launcher/install.sh --build only if it has the same signing key." >&2
+      elif [[ $mode == apk ]]; then
+        echo "  the supplied APK must use the same signing key as the installed app." >&2
+      else
+        echo "  the installed app may be the release; this build's key cannot update it." >&2
+      fi
+      echo "  Replacing it requires uninstalling $PKG, which deletes its settings." >&2
+      exit 1 ;;
+    *) echo "error: adb install failed: $(printf '%s' "$out" | tail -1)" >&2; exit 1 ;;
+  esac
+  installed "$PKG" || { echo "error: ADB reported success but $PKG is not installed" >&2; exit 1; }
+  echo "installed $PKG"
+fi
 
 sh_ dumpsys deviceidle whitelist +$PKG >/dev/null
 # Fire OS 6 only: Keeper uses UsageStats and ActivityManager logcat; no accessibility service.
@@ -195,6 +223,7 @@ printf 'front window:  %s\n' "$(sh_ dumpsys window | grep -m1 mCurrentFocus | se
 # disable the package whenever present. Clear the setting only if it names this
 # app; other VPN apps are never changed. Keep this last because stopping a VPN
 # can briefly interrupt a network ADB connection.
+if [[ $mode != permissions ]]; then
 legacy_vpn=$(sh_ settings get secure always_on_vpn_app | tr -d '\r')
 if installed dnsfilter.android; then
   echo "disabling the legacy personalDNSfilter app"
@@ -221,4 +250,5 @@ if [[ $legacy_vpn == dnsfilter.android ]]; then
   sh_ settings delete secure always_on_vpn_app >/dev/null
   remaining=$(sh_ settings get secure always_on_vpn_app | tr -d '\r')
   [[ $remaining != dnsfilter.android ]] || { echo "error: could not clear the legacy VPN selection" >&2; exit 1; }
+fi
 fi
