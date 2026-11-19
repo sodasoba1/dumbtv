@@ -12,6 +12,19 @@ PIN = (ROOT / "launcher" / "signing.sha256").read_text().strip()
 
 
 class LauncherReleaseCheckTest(unittest.TestCase):
+    def isolated_path(self, root, curl_script):
+        """Provide test tools without leaking the host Android SDK into PATH."""
+        bindir = root / "isolated-bin"
+        bindir.mkdir(exist_ok=True)
+        for name in ("bash", "dirname", "tr", "awk", "sed", "sha256sum", "shasum", "mktemp", "rm", "cp"):
+            executable = shutil.which(name)
+            if executable:
+                (bindir / name).symlink_to(executable)
+        curl = bindir / "curl"
+        curl.write_text(curl_script)
+        curl.chmod(0o755)
+        return str(bindir)
+
     def run_remote(self, signer_digest=PIN, provide_apksigner=True):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
@@ -49,7 +62,7 @@ class LauncherReleaseCheckTest(unittest.TestCase):
                 signer.chmod(0o755)
             env = dict(os.environ, ANDROID_HOME=str(sdk), FAKE_APK=str(apk),
                        FAKE_SIDECAR=str(sidecar), FAKE_SIGNER_DIGEST=signer_digest,
-                       PATH=str(bindir) + os.pathsep + os.environ.get("PATH", ""))
+                       PATH=self.isolated_path(tmp, "#!/usr/bin/env bash\\nout= url=\\nwhile (($#)); do if [[ $1 == -o ]]; then out=$2; shift 2; else url=$1; shift; fi; done\\ncase $url in *.sha256) cp \\"$FAKE_SIDECAR\\" \\"$out\\" ;; *) cp \\"$FAKE_APK\\" \\"$out\\" ;; esac\\n"))
             return subprocess.run(["bash", str(launcher / "release-check.sh"), "--remote"],
                                   env=env, capture_output=True, text=True, timeout=30)
 
