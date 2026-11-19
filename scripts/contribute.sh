@@ -82,8 +82,6 @@ clean() {
 # Double-quoted YAML scalar.
 yamlq() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
 
-slug() { printf '%s' "$1" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9.\n' '-' | sed 's/--*/-/g; s/^-//; s/-$//'; }
-
 step "this TV"
 if [[ $USE_DEVICE == 1 ]]; then
   need_device
@@ -116,17 +114,12 @@ else
 fi
 [[ -z $STATUS ]] && STATUS=untested
 
-# Detect a duplicate as soon as the device identity is known, before asking
-# for human-only details such as prompts, quirks and notes.
-[[ -z $ID ]] && ID=$(printf '%s-%s-%s' "$PLATFORM" "$(slug "$BRAND")" "$(slug "$MODEL")")
-printf '%s' "$ID" | grep -Eq '^[a-z0-9][a-z0-9.-]*$' || die "invalid catalogue id: $ID"
-[[ ! -e $ROOT/catalog/devices/$ID.yaml ]] || die "catalogue entry already exists: $ROOT/catalog/devices/$ID.yaml"
-
 if [[ $ASSUME_YES == 1 && ( -z $BRAND || -z $MODEL ) ]]; then
   die "unattended mode needs --brand and --model (or drop --no-device so they can be read from the TV)"
 fi
-
-step "the parts only a human knows"
+slug() { printf '%s' "$1" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9.\n' '-' | sed 's/--*/-/g; s/^-//; s/-$//'; }
+[[ -z $ID ]] && ID=$(printf '%s-%s-%s' "$PLATFORM" "$(slug "$BRAND")" "$(slug "$MODEL")")
+printf '%s' "$ID" | grep -Eq '^[a-z0-9][a-z0-9.-]*
 if [[ -z $DEV_MODE ]]; then
   case $PLATFORM in
     fireos) DEF="Settings > My Fire TV > About > click the device name 7 times, then My Fire TV > Developer Options > ADB debugging: ON" ;;
@@ -246,15 +239,9 @@ note "git push -u origin add-$ID"
 note "gh pr create --fill"
 note ""
 note "or paste the file into a new issue if you would rather not use git"
- || die "invalid catalogue id: $ID"
+ || die "id '$ID' must be lowercase letters, digits, dots or dashes"
+# Refuse an existing entry before asking for human-only prompts, quirks and notes.
 [[ ! -e $ROOT/catalog/devices/$ID.yaml ]] || die "catalogue entry already exists: $ROOT/catalog/devices/$ID.yaml"
-
-if [[ $ASSUME_YES == 1 && ( -z $BRAND || -z $MODEL ) ]]; then
-  die "unattended mode needs --brand and --model (or drop --no-device so they can be read from the TV)"
-fi
-slug() { printf '%s' "$1" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9.\n' '-' | sed 's/--*/-/g; s/^-//; s/-$//'; }
-[[ -z $ID ]] && ID=$(printf '%s-%s-%s' "$PLATFORM" "$(slug "$BRAND")" "$(slug "$MODEL")")
-printf '%s' "$ID" | grep -Eq '^[a-z0-9][a-z0-9.-]*$' || die "id '$ID' must be lowercase letters, digits, dots or dashes"
 
 step "the parts only a human knows"
 if [[ -z $DEV_MODE ]]; then
