@@ -40,7 +40,7 @@ class LibraryDeployTest(unittest.TestCase):
         source.mkdir()
         line = "# no titles for this path test\n" if image_line is None else image_line
         (source / "library.conf").write_text(line)
-        (source / "victim.jpg").write_bytes(b"not an image")
+        (source / "victim.jpg").write_bytes(b"P6\n1 1\n255\n" + bytes((0, 0, 0)))
         log = tmp / "adb.log"
         adb = tmp / "adb"
         fake_adb(adb)
