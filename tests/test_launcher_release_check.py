@@ -1,4 +1,4 @@
-""""The remote release check verifies both the published APK hash and pinned signer."""
+"""The remote release check verifies both the published APK hash and pinned signer."""
 import hashlib
 import os
 from pathlib import Path
@@ -36,27 +36,27 @@ class LauncherReleaseCheckTest(unittest.TestCase):
             apk = tmp / "remote.apk"
             apk.write_bytes(b"remote signed apk fixture")
             sidecar = tmp / "remote.apk.sha256"
-            sidecar.write_text(hashlib.sha256(apk.read_bytes()).hexdigest() + "\\n")
+            sidecar.write_text(hashlib.sha256(apk.read_bytes()).hexdigest() + "\n")
 
             curl_script = (
-                "#!/usr/bin/env bash\\n"
-                "out= url=\\n"
-                "while (($#)); do\\n"
-                "  if [[ $1 == -o ]]; then out=$2; shift 2; else url=$1; shift; fi\\n"
-                "done\\n"
-                "case $url in\\n"
-                "  *.sha256) cp \\"$FAKE_SIDECAR\\" \\"$out\\" ;;\\n"
-                "  *) cp \\"$FAKE_APK\\" \\"$out\\" ;;\\n"
-                "esac\\n"
+                "#!/usr/bin/env bash\n"
+                "out= url=\n"
+                "while (($#)); do\n"
+                "  if [[ $1 == -o ]]; then out=$2; shift 2; else url=$1; shift; fi\n"
+                "done\n"
+                "case $url in\n"
+                "  *.sha256) cp \"$FAKE_SIDECAR\" \"$out\" ;;\n"
+                "  *) cp \"$FAKE_APK\" \"$out\" ;;\n"
+                "esac\n"
             )
             sdk = tmp / "sdk"
             signer = sdk / "build-tools" / "34.0.0" / "apksigner"
             if provide_apksigner:
                 signer.parent.mkdir(parents=True)
                 signer.write_text(
-                    "#!/usr/bin/env bash\\n"
-                    '[[ $1 == verify && $2 == --print-certs ]] || exit 90\\n'
-                    "printf 'Signer #1 certificate SHA-256 digest: %s\\\\n' \\"$FAKE_SIGNER_DIGEST\\"\\n"
+                    "#!/usr/bin/env bash\n"
+                    '[[ $1 == verify && $2 == --print-certs ]] || exit 90\n'
+                    "printf 'Signer #1 certificate SHA-256 digest: %s\\n' \"$FAKE_SIGNER_DIGEST\"\n"
                 )
                 signer.chmod(0o755)
             env = dict(
