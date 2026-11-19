@@ -920,8 +920,8 @@ public final class Home extends Activity {
         ViewGroup strip = apps.tiles();
         int count = strip.getChildCount();
         if (count == 0) return null;
-        int start = count > 6 && count % 3 == 0 ? count / 3 : 0;
-        int end = count > 6 && count % 3 == 0 ? start + count / 3 : count;
+        int start = 0;
+        int end = count;
         int[] at = new int[2];
         from.getLocationOnScreen(at);
         int x = at[0] + from.getWidth() / 2;
