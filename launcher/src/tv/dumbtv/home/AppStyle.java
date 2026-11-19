@@ -17,7 +17,7 @@ final class AppStyle {
         else if ("labels".equals(property)) allowed = values(3);
         else if ("size".equals(property)) allowed = values(4);
         else if ("background".equals(property)) {
-            return value.matches("#[0-9A-Fa-f]{6}") ? value : fallback;
+            return value != null && value.matches("#[0-9A-Fa-f]{6}") ? value : fallback;
         } else return fallback;
         for (String option : allowed) if (option.equals(value)) return value;
         return fallback;
