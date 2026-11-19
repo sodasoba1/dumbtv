@@ -371,10 +371,11 @@ HomeSentinel is the only HOME recovery service:
    the exact Amazon Home activity becoming displayed or resumed, alongside
    UsageStats and screen on/off broadcasts. Installation fails if READ_LOGS
    cannot be granted or verified.
-4. HomeSentinel only intervenes after a positive Amazon Home foreground event and
-   only while the display is interactive. It moves the existing DumbTV task
-   to the foreground, then verifies recovery; a limited direct activity-launch
-   fallback is used if task reordering does not succeed.
+4. HomeSentinel only intervenes after a positive Amazon Home foreground event.
+   The logcat-triggered path explicitly checks that the display is interactive;
+   standby recovery uses the screen-on receiver and refreshed UsageStats history.
+   It moves the existing DumbTV task to the foreground, then verifies recovery;
+   a limited direct activity-launch fallback is used if task reordering fails.
 5. Opening Amazon's own settings pauses takeover. The pause remains while
    Amazon/system settings screens are foregrounded and clears when a third-party
    app is opened.
