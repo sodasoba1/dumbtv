@@ -20,9 +20,12 @@ ROTATE="" DIM="" CROP=center SHUFFLE=0 REPLACE=0
 args=() images=()
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --rotate) ROTATE=${2:-}; shift ;;
-    --dim) DIM=${2:-}; shift ;;
-    --crop) CROP=${2:-}; shift ;;
+    --rotate|--dim|--crop)
+      option=$1
+      [[ $# -ge 2 && -n $2 && $2 != -* ]] || die "$option requires a value"
+      case $option in --rotate) ROTATE=$2 ;; --dim) DIM=$2 ;; --crop) CROP=$2 ;; esac
+      shift
+      ;;
     --shuffle) SHUFFLE=1 ;;
     --replace) REPLACE=1 ;;
     --dry-run|-y|--yes) args+=("$1") ;;
@@ -74,6 +77,13 @@ if [[ $DRY_RUN == 0 ]]; then confirm "Put these wallpapers on $SERIAL?" || die "
 
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/dumbtv-wall.XXXXXX") || die "could not create a temp dir"
 trap 'rm -rf "$WORK"' EXIT
+used_names="$WORK/.used-names"
+: > "$used_names"
+# Stable shuffle seed: identical ordered input basenames produce identical plans.
+if [[ $SHUFFLE == 1 ]]; then
+  seed=$(printf '%s\n' "${images[@]##*/}" | cksum | awk '{print $1 % 32767}')
+  RANDOM=$seed
+fi
 
 step "images"
 n=0
@@ -85,7 +95,10 @@ for f in "${images[@]}"; do
   # reads the words in it (morning, afternoon, night).
   name=$(printf '%s' "${base%.*}" | tr -c 'A-Za-z0-9_-' '-')
   if [[ $SHUFFLE == 1 ]]; then name=$(printf '%05d-%s' "$((RANDOM % 100000))" "$name"); fi
-  while compgen -G "$WORK/$name.*" >/dev/null; do name=$name-$n; done
+  candidate=$name; suffix=1
+  while grep -qxF "$candidate" "$used_names"; do candidate=$name-$suffix; suffix=$((suffix + 1)); done
+  name=$candidate
+  printf '%s\n' "$name" >> "$used_names"
   if [[ -n $MAGICK ]]; then
     out=$WORK/$name.jpg
     if [[ $DRY_RUN == 0 ]]; then
