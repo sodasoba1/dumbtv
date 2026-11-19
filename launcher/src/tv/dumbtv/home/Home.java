@@ -162,7 +162,6 @@ public final class Home extends Activity {
         final LinearLayout strip;
         List<Item> all = new ArrayList<>();
         int initialFocusIndex;
-        int renderGeneration;
 
         Row(String kind, String name, LinearLayout parent) {
             this.kind = kind;
@@ -1291,7 +1290,6 @@ public final class Home extends Activity {
             row.setVisible(false);
             return;
         }
-        int renderGeneration = ++row.renderGeneration;
         if (moving != null && moving.kind.equals(row.kind)) stopMoving(false);
         View focused = getCurrentFocus();
         String keep = focused instanceof Tile && ((Tile) focused).kind.equals(row.kind)
@@ -1314,8 +1312,9 @@ public final class Home extends Activity {
             row.strip.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
             row.strip.setLayoutParams(new FrameLayout.LayoutParams(MATCH, WRAP));
         }
+        int restore = -1;
         for (int itemIndex = 0; itemIndex < shown.size(); itemIndex++) {
-                Item it = shown.get(itemIndex);
+            Item it = shown.get(itemIndex);
                 int[] itemSize = row == apps ? favoriteCardSize(it) : size;
                 int w = itemSize[0];
                 int h = Catalog.isApp(row.kind) ? itemSize[1] : Math.round(itemSize[1] * 0.56f);
@@ -1335,8 +1334,9 @@ public final class Home extends Activity {
                 });
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
                 lp.rightMargin = row == apps && itemIndex == shown.size() - 1 ? 0 : tileGap;
-                target.addView(t, lp);
-                String tileStyle = cfg.get(Config.TILE_STYLE);
+            target.addView(t, lp);
+            if (it.id.equals(keep)) restore = target.getChildCount() - 1;
+            String tileStyle = cfg.get(Config.TILE_STYLE);
                 boolean needsStyleIcon = "afterglow".equals(tileStyle)
                         && cfg.get(AppStyle.key(it, "banner"), null) == null && it.icon == null;
                 if (Catalog.isApp(row.kind) && (!it.artRequested || needsStyleIcon)) loadArt(it);
