@@ -2,7 +2,20 @@ package tv.dumbtv.home;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.GridLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,28 +46,99 @@ final class AppStyleEditor {
 
     private static void showMenu(Activity activity, Config config, Item item,
                                  State state, Runnable changed) {
-        String[] actions = {"Rename app", "Change banner image", "Change background colour",
-                "Change tile size", "Reset customisation", "Save changes"};
+        LinearLayout content = new LinearLayout(activity);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(Ui.dp(activity, 18), Ui.dp(activity, 12),
+                Ui.dp(activity, 18), Ui.dp(activity, 12));
+        content.addView(tilePreview(activity, item, state),
+                new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(activity, 150)));
+        final AlertDialog[] holder = new AlertDialog[1];
+        addAction(activity, content, "Rename app", () -> rename(activity, config, item, state, changed), holder);
+        addAction(activity, content, "Banner artwork", () -> chooseBanner(activity, config, item, state, changed), holder);
+        addAction(activity, content, "Background colour", () -> chooseBackground(activity, config, item, state, changed), holder);
+        addAction(activity, content, "Tile size", () -> chooseSize(activity, config, item, state, changed), holder);
+        addAction(activity, content, "Reset customisation", () -> {
+            state.name = item.label.toString();
+            state.banner = null;
+            state.background = null;
+            state.size = "normal";
+            state.resetCustomisation = true;
+            showMenu(activity, config, item, state, changed);
+        }, holder);
+        addAction(activity, content, "Save changes", () -> save(activity, config, item, state, changed), holder);
         AlertDialog dialog = new AlertDialog.Builder(activity, Ui.DIALOG)
                 .setTitle("Customise · " + Catalog.label(config, item))
-                .setItems(actions, (d, which) -> {
-                    if (which == 0) rename(activity, config, item, state, changed);
-                    else if (which == 1) chooseBanner(activity, config, item, state, changed);
-                    else if (which == 2) chooseBackground(activity, config, item, state, changed);
-                    else if (which == 3) chooseSize(activity, config, item, state, changed);
-                    else if (which == 4) {
-                        state.name = item.label.toString();
-                        state.banner = null;
-                        state.background = null;
-                        state.size = "normal";
-                        state.resetCustomisation = true;
-                        showMenu(activity, config, item, state, changed);
-                    } else save(activity, config, item, state, changed);
-                })
+                .setView(content)
                 .setNegativeButton(R.string.cancel, null)
                 .create();
+        holder[0] = dialog;
         dialog.show();
         Ui.styleDialog(dialog);
+    }
+
+    private static void addAction(Activity activity, LinearLayout parent, String label,
+                                  Runnable action, AlertDialog[] dialog) {
+        TextView button = Ui.text(activity, 15, Ui.TEXT, Ui.MEDIUM);
+        button.setText(label);
+        button.setGravity(Gravity.CENTER_VERTICAL);
+        button.setFocusable(true);
+        button.setClickable(true);
+        button.setPadding(Ui.dp(activity, 14), Ui.dp(activity, 12),
+                Ui.dp(activity, 14), Ui.dp(activity, 12));
+        button.setBackground(Ui.surface(activity, Ui.optionSurface(activity), Ui.dp(activity, 9)));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = Ui.dp(activity, 5);
+        parent.addView(button, lp);
+        button.setOnClickListener(v -> {
+            if (dialog[0] != null) dialog[0].dismiss();
+            action.run();
+        });
+    }
+
+    private static View tilePreview(Activity activity, Item item, State state) {
+        float scale = "compact".equals(state.size) ? 0.82f : "large".equals(state.size) ? 1.18f : 1f;
+        FrameLayout card = new FrameLayout(activity);
+        int fallback = Ui.tileSurface(activity, true);
+        card.setBackground(Ui.round(state.background == null ? fallback
+                : Config.parseColor(state.background, fallback), Ui.cornerRadius(activity)));
+        card.setClipToOutline(true);
+        Drawable artwork = previewArtwork(activity, item, state.banner);
+        if (artwork == null) artwork = item.icon;
+        if (artwork != null) {
+            ImageView image = new ImageView(activity);
+            image.setImageDrawable(artwork);
+            image.setScaleType(state.banner == null && item.banner == null
+                    ? ImageView.ScaleType.CENTER_INSIDE : ImageView.ScaleType.CENTER_CROP);
+            FrameLayout.LayoutParams imageLp = new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+            if (image.getScaleType() == ImageView.ScaleType.CENTER_INSIDE) {
+                imageLp.setMargins(Ui.dp(activity, 28), Ui.dp(activity, 10),
+                        Ui.dp(activity, 28), Ui.dp(activity, 38));
+            }
+            card.addView(image, imageLp);
+        }
+        TextView label = Ui.text(activity, Math.round(14 * scale), Ui.TEXT, Ui.MEDIUM);
+        label.setText(state.name);
+        label.setGravity(Gravity.CENTER_VERTICAL);
+        label.setPadding(Ui.dp(activity, 12), Ui.dp(activity, 5),
+                Ui.dp(activity, 12), Ui.dp(activity, 5));
+        label.setBackground(Ui.round(0x99000000, Ui.dp(activity, 7)));
+        FrameLayout.LayoutParams labelLp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM);
+        labelLp.setMargins(Ui.dp(activity, 8), 0, Ui.dp(activity, 8), Ui.dp(activity, 8));
+        card.addView(label, labelLp);
+        return card;
+    }
+
+    private static Drawable previewArtwork(Activity activity, Item item, String asset) {
+        if (asset == null) return item.banner;
+        try (java.io.InputStream in = activity.getAssets().open("custom-banners/" + asset)) {
+            Bitmap bitmap = BitmapFactory.decodeStream(in);
+            return bitmap == null ? item.banner : new BitmapDrawable(activity.getResources(), bitmap);
+        } catch (IOException e) {
+            return item.banner;
+        }
     }
 
     private static void rename(Activity activity, Config config, Item item,
@@ -81,30 +165,71 @@ final class AppStyleEditor {
     private static void chooseBanner(Activity activity, Config config, Item item,
                                      State state, Runnable changed) {
         List<String> choices = new ArrayList<>();
-        choices.add("Use app's original banner");
+        choices.add(null);
         try {
             String[] files = activity.getAssets().list("custom-banners");
             if (files != null) {
                 java.util.Arrays.sort(files, String.CASE_INSENSITIVE_ORDER);
                 for (String file : files) {
-                    if (file != null && file.toLowerCase(Locale.ROOT).endsWith(".png")) {
-                        choices.add(file);
-                    }
+                    if (file != null && file.toLowerCase(Locale.ROOT).endsWith(".png")) choices.add(file);
                 }
             }
         } catch (IOException ignored) {
-            // The original banner remains available if the asset folder cannot be read.
+            // The original artwork remains available if the asset folder cannot be read.
         }
-        String[] assets = choices.toArray(new String[0]);
+
+        ScrollView scroll = new ScrollView(activity);
+        scroll.setFillViewport(true);
+        scroll.setVerticalScrollBarEnabled(true);
+        GridLayout grid = new GridLayout(activity);
+        grid.setColumnCount(3);
+        grid.setUseDefaultMargins(false);
+        grid.setPadding(Ui.dp(activity, 10), Ui.dp(activity, 10),
+                Ui.dp(activity, 10), Ui.dp(activity, 10));
+        scroll.addView(grid, new ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        final AlertDialog[] holder = new AlertDialog[1];
+        for (String asset : choices) {
+            LinearLayout cell = new LinearLayout(activity);
+            cell.setOrientation(LinearLayout.VERTICAL);
+            cell.setGravity(Gravity.CENTER);
+            cell.setFocusable(true);
+            cell.setClickable(true);
+            cell.setPadding(Ui.dp(activity, 7), Ui.dp(activity, 7),
+                    Ui.dp(activity, 7), Ui.dp(activity, 7));
+            cell.setBackground(Ui.surface(activity, Ui.optionSurface(activity), Ui.dp(activity, 8)));
+            ImageView image = new ImageView(activity);
+            image.setScaleType(asset == null && item.banner == null
+                    ? ImageView.ScaleType.CENTER_INSIDE : ImageView.ScaleType.CENTER_CROP);
+            Drawable artwork = previewArtwork(activity, item, asset);
+            if (artwork == null) artwork = item.icon;
+            image.setImageDrawable(artwork);
+            cell.addView(image, new LinearLayout.LayoutParams(Ui.dp(activity, 156), Ui.dp(activity, 82)));
+            TextView caption = Ui.text(activity, 11, Ui.TEXT, Ui.MEDIUM);
+            caption.setText(asset == null ? "Original artwork" : asset.replace('_', ' '));
+            caption.setGravity(Gravity.CENTER);
+            caption.setMaxLines(2);
+            cell.addView(caption, new LinearLayout.LayoutParams(
+                    Ui.dp(activity, 156), ViewGroup.LayoutParams.WRAP_CONTENT));
+            GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
+            lp.width = Ui.dp(activity, 174);
+            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            lp.setMargins(Ui.dp(activity, 4), Ui.dp(activity, 4),
+                    Ui.dp(activity, 4), Ui.dp(activity, 4));
+            grid.addView(cell, lp);
+            cell.setOnClickListener(v -> {
+                state.banner = asset;
+                if (holder[0] != null) holder[0].dismiss();
+                showMenu(activity, config, item, state, changed);
+            });
+        }
         AlertDialog dialog = new AlertDialog.Builder(activity, Ui.DIALOG)
-                .setTitle("Banner image")
-                .setItems(assets, (d, which) -> {
-                    state.banner = which == 0 ? null : assets[which];
-                    showMenu(activity, config, item, state, changed);
-                })
+                .setTitle("Choose banner artwork")
+                .setView(scroll)
                 .setNegativeButton(R.string.cancel, (d, which) ->
                         showMenu(activity, config, item, state, changed))
                 .create();
+        holder[0] = dialog;
         dialog.show();
         Ui.styleDialog(dialog);
     }
