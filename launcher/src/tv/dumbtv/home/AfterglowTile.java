@@ -68,11 +68,13 @@ final class AfterglowTile {
         fitted = TextUtils.ellipsize(title, text, room, TextUtils.TruncateAt.END);
     }
 
-    void draw(Canvas canvas, Drawable icon, int w, int h) {
+    void draw(Canvas canvas, Drawable icon, int w, int h, boolean showTitle) {
         canvas.drawRect(0, 0, w, h, brand);
         canvas.drawRect(0, 0, w, h, fade);
-        canvas.drawText(fitted, 0, fitted.length(), w / 2f,
-                h / 2f - (text.ascent() + text.descent()) / 2, text);
+        if (showTitle) {
+            canvas.drawText(fitted, 0, fitted.length(), w / 2f,
+                    h / 2f - (text.ascent() + text.descent()) / 2, text);
+        }
         Drawable corner = brandMark != null ? brandMark : icon;
         if (corner != null) {
             float aspect = (float) Math.max(1, corner.getIntrinsicWidth())
