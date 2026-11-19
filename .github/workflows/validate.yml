@@ -31,9 +31,25 @@ jobs:
       - name: sdk
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-25" "build-tools;34.0.0" < <(yes) >/dev/null
-      - name: build (pinned SDK 25 + build-tools 34.0.0; fails on Android APIs newer than Fire OS 6)
+      - name: prepare persistent release signing key
+        env:
+          DUMBTV_KEYSTORE_BASE64: ${{ secrets.DUMBTV_KEYSTORE_BASE64 }}
+          DUMBTV_KEYPASS: ${{ secrets.DUMBTV_KEYPASS }}
+        run: |
+          [[ -n "$DUMBTV_KEYSTORE_BASE64" && -n "$DUMBTV_KEYPASS" ]] || {
+            echo "Missing repository Actions secrets: DUMBTV_KEYSTORE_BASE64 and DUMBTV_KEYPASS."
+            exit 1
+          }
+          printf '%s' "$DUMBTV_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/dumbtv-release.keystore"
+          chmod 600 "$RUNNER_TEMP/dumbtv-release.keystore"
+          test -s "$RUNNER_TEMP/dumbtv-release.keystore"
+          "$JAVA_HOME/bin/keytool" -list -keystore "$RUNNER_TEMP/dumbtv-release.keystore" \
+            -storepass "$DUMBTV_KEYPASS" -alias home >/dev/null
+      - name: build (pinned SDK 25 + build-tools 34.0.0; signed with persistent release key)
         env:
           ANDROID_BUILD_TOOLS_VERSION: "34.0.0"
+          DUMBTV_KEYSTORE: ${{ runner.temp }}/dumbtv-release.keystore
+          DUMBTV_KEYPASS: ${{ secrets.DUMBTV_KEYPASS }}
         run: ./launcher/build.sh
       - name: host-side launcher tests
         run: |
@@ -84,7 +100,14 @@ jobs:
           grep -Fx "sdkVersion:'25'" <<<"$badging"
           grep -Fx "targetSdkVersion:'25'" <<<"$badging"
           "$tools/zipalign" -c -v 4 "$apk"
-          "$tools/apksigner" verify --verbose "$apk"
+          signature=$("$tools/apksigner" verify --print-certs "$apk")
+          actual_signer=$(printf '%s\\n' "$signature" | sed -n 's/^Signer #[0-9][0-9]* certificate SHA-256 digest: //p' | tr 'A-F' 'a-f')
+          expected_signer=$(< launcher/signing.sha256)
+          signer_count=$(printf '%s\\n' "$actual_signer" | awk 'NF {n++} END {print n+0}')
+          [[ "$expected_signer" =~ ^[0-9a-f]{64}$ && "$signer_count" == 1 && "$actual_signer" == "$expected_signer" ]] || {
+            echo "test APK signer does not match launcher/signing.sha256"
+            exit 1
+          }
           expected=$(tr -d '[:space:]' < launcher/build/dumbtv-home.apk.sha256)
           actual=$(sha256sum "$apk" | awk '{print $1}')
           [[ "$expected" == "$actual" && "$expected" =~ ^[0-9a-f]{64}$ ]]

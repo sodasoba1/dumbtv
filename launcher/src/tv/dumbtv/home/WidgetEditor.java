@@ -105,7 +105,7 @@ public final class WidgetEditor extends Activity {
         grid.setRowCount(WidgetLayout.ROWS);
         grid.setUseDefaultMargins(false);
         grid.setAlignmentMode(GridLayout.ALIGN_BOUNDS);
-        grid.setBackgroundColor(0x00000000);
+        grid.setBackgroundColor(0x44313D49);
         canvas.addView(grid, new FrameLayout.LayoutParams(MATCH, MATCH));
         root.addView(canvas, canvasLp);
 
@@ -155,20 +155,20 @@ public final class WidgetEditor extends Activity {
             for (int column = 0; column < WidgetLayout.COLUMNS; column++) {
                 final int x = column, y = row, index = row * WidgetLayout.COLUMNS + column;
                 WidgetLayout.Widget occupied = occupant(x, y);
-                TextView cell = Ui.text(this, 11, Ui.TEXT, Ui.MEDIUM);
+                TextView cell = Ui.text(this, 9, Ui.TEXT, Ui.MEDIUM);
                 cell.setGravity(Gravity.CENTER);
                 cell.setFocusable(true);
                 cell.setClickable(true);
                 cell.setPadding(dp(4), dp(4), dp(4), dp(4));
                 if (occupied == null) {
-                    cell.setText("Empty");
-                    cell.setBackground(focusableBackground(0x33101010, dp(7)));
+                    cell.setText("");
+                    cell.setBackground(focusableBackground(0x66313D49, dp(7)));
                 } else {
                     boolean selected = occupied.id.equals(selectedId);
                     cell.setText(x == occupied.x && y == occupied.y
-                            ? occupied.type.toUpperCase(java.util.Locale.ROOT) + "\n" + occupied.id : "·");
-                    cell.setBackground(focusableBackground(selected ? (cfg.accent() & 0x00FFFFFF) | 0x66000000
-                            : 0x33101010, dp(7)));
+                            ? occupied.type.toUpperCase(java.util.Locale.ROOT) : "");
+                    cell.setBackground(focusableBackground(selected ? (cfg.accent() & 0x00FFFFFF) | 0x77000000
+                            : 0x55465360, dp(7)));
                 }
                 cell.setOnClickListener(v -> chooseCell(x, y));
                 GridLayout.LayoutParams lp = new GridLayout.LayoutParams(

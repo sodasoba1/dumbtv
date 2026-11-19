@@ -80,7 +80,9 @@ final class Catalog {
             Bitmap bitmap = BitmapFactory.decodeStream(input);
             if (bitmap == null) return null;
             Drawable artwork = new BitmapDrawable(context.getResources(), bitmap).mutate();
-            artwork.setTint(Config.get(context).accent());
+            String tint = Config.get(context).get("appstyle." + item.id + ".bannerColor", "original");
+            if ("accent".equals(tint)) artwork.setTint(Config.get(context).accent());
+            else if (tint.matches("#[0-9A-Fa-f]{6}")) artwork.setTint(Config.parseColor(tint, Config.get(context).accent()));
             return artwork;
         } catch (java.io.IOException | RuntimeException e) {
             return null;

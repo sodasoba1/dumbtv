@@ -34,12 +34,14 @@ final class AppStyleEditor {
         String name;
         String banner;
         String background;
+        String bannerColor;
         String size;
         boolean resetCustomisation;
         State(Config config, Item item) {
             name = Catalog.label(config, item).toString();
             banner = config.get(AppStyle.key(item, "banner"), null);
             background = config.get(AppStyle.key(item, "background"), null);
+            bannerColor = config.get(AppStyle.key(item, "bannerColor"), "original");
             size = AppStyle.get(config, item, "size", "normal");
         }
     }
@@ -59,12 +61,14 @@ final class AppStyleEditor {
         final AlertDialog[] holder = new AlertDialog[1];
         addAction(activity, content, "Rename app", () -> rename(activity, config, item, state, changed), holder);
         addAction(activity, content, "Banner artwork", () -> chooseBanner(activity, config, item, state, changed), holder);
+        addAction(activity, content, "Banner colour", () -> chooseBannerColor(activity, config, item, state, changed), holder);
         addAction(activity, content, "Background colour", () -> chooseBackground(activity, config, item, state, changed), holder);
         addAction(activity, content, "Tile size", () -> chooseSize(activity, config, item, state, changed), holder);
         addAction(activity, content, "Reset customisation", () -> {
             state.name = item.label.toString();
             state.banner = null;
             state.background = null;
+            state.bannerColor = "original";
             state.size = "normal";
             state.resetCustomisation = true;
             showMenu(activity, config, item, state, changed);
@@ -113,7 +117,7 @@ final class AppStyleEditor {
         card.setBackground(Ui.round(state.background == null ? fallback
                 : Config.parseColor(state.background, fallback), Ui.cornerRadius(activity)));
         card.setClipToOutline(true);
-        Drawable artwork = previewArtwork(activity, item, state.banner);
+        Drawable artwork = previewArtwork(activity, item, state.banner, state.bannerColor);
         if (artwork == null) artwork = item.icon;
         if (artwork != null) {
             ImageView image = new ImageView(activity);
@@ -140,13 +144,17 @@ final class AppStyleEditor {
         return card;
     }
 
-    private static Drawable previewArtwork(Activity activity, Item item, String asset) {
+    private static Drawable previewArtwork(Activity activity, Item item, String asset, String bannerColor) {
         if (asset == null) return item.banner;
         try (java.io.InputStream in = activity.getAssets().open("custom-banners/" + asset)) {
             Bitmap bitmap = BitmapFactory.decodeStream(in);
             if (bitmap == null) return item.banner;
             Drawable artwork = new BitmapDrawable(activity.getResources(), bitmap);
-            return Ui.tintArtwork(artwork, Config.get(activity).accent());
+            if ("accent".equals(bannerColor)) return Ui.tintArtwork(artwork, Config.get(activity).accent());
+            if (bannerColor != null && bannerColor.matches("#[0-9A-Fa-f]{6}")) {
+                return Ui.tintArtwork(artwork, Config.parseColor(bannerColor, Config.get(activity).accent()));
+            }
+            return artwork;
         } catch (IOException e) {
             return item.banner;
         }
@@ -192,8 +200,9 @@ final class AppStyleEditor {
         ScrollView scroll = new ScrollView(activity);
         scroll.setFillViewport(true);
         scroll.setVerticalScrollBarEnabled(true);
+        int screenHeight = activity.getResources().getDisplayMetrics().heightPixels;
         scroll.setLayoutParams(new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(activity, 420)));
+                ViewGroup.LayoutParams.MATCH_PARENT, Math.round(screenHeight * 0.76f)));
         GridLayout grid = new GridLayout(activity);
         grid.setColumnCount(3);
         grid.setUseDefaultMargins(false);
@@ -219,18 +228,18 @@ final class AppStyleEditor {
             cell.setBackground(cellStates);
             ImageView image = new ImageView(activity);
             image.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-            Drawable artwork = previewArtwork(activity, item, asset);
+            Drawable artwork = previewArtwork(activity, item, asset, state.bannerColor);
             if (artwork == null) artwork = item.icon;
             image.setImageDrawable(artwork);
-            cell.addView(image, new LinearLayout.LayoutParams(Ui.dp(activity, 156), Ui.dp(activity, 82)));
+            cell.addView(image, new LinearLayout.LayoutParams(Ui.dp(activity, 88), Ui.dp(activity, 47)));
             TextView caption = Ui.text(activity, 11, Ui.TEXT, Ui.MEDIUM);
             caption.setText(asset == null ? "Original artwork" : asset.replace('_', ' '));
             caption.setGravity(Gravity.CENTER);
             caption.setMaxLines(2);
             cell.addView(caption, new LinearLayout.LayoutParams(
-                    Ui.dp(activity, 156), ViewGroup.LayoutParams.WRAP_CONTENT));
+                    Ui.dp(activity, 176), ViewGroup.LayoutParams.WRAP_CONTENT));
             GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
-            lp.width = Ui.dp(activity, 174);
+            lp.width = Ui.dp(activity, 194);
             lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
             lp.setMargins(Ui.dp(activity, 4), Ui.dp(activity, 4),
                     Ui.dp(activity, 4), Ui.dp(activity, 4));
@@ -248,6 +257,38 @@ final class AppStyleEditor {
                         showMenu(activity, config, item, state, changed))
                 .create();
         holder[0] = dialog;
+        dialog.show();
+        Ui.styleDialog(dialog);
+        if (dialog.getWindow() != null) {
+            int width = activity.getResources().getDisplayMetrics().widthPixels;
+            int height = activity.getResources().getDisplayMetrics().heightPixels;
+            dialog.getWindow().setLayout(Math.round(width * 0.88f), Math.round(height * 0.86f));
+        }
+    }
+
+    private static void chooseBannerColor(Activity activity, Config config, Item item,
+                                          State state, Runnable changed) {
+        String[] choices = {"Original image colours", "Use launcher accent", "Choose a colour"};
+        AlertDialog dialog = new AlertDialog.Builder(activity, Ui.DIALOG)
+                .setTitle("Banner colour")
+                .setItems(choices, (d, which) -> {
+                    if (which == 0) {
+                        state.bannerColor = "original";
+                        showMenu(activity, config, item, state, changed);
+                    } else if (which == 1) {
+                        state.bannerColor = "accent";
+                        showMenu(activity, config, item, state, changed);
+                    } else {
+                        int current = state.bannerColor != null && state.bannerColor.matches("#[0-9A-Fa-f]{6}")
+                                ? Config.parseColor(state.bannerColor, config.accent()) : config.accent();
+                        ColorPicker.show(activity, current, color -> {
+                            state.bannerColor = String.format(Locale.US, "#%06X", color & 0x00FFFFFF);
+                            showMenu(activity, config, item, state, changed);
+                        });
+                    }
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .create();
         dialog.show();
         Ui.styleDialog(dialog);
     }
@@ -291,6 +332,8 @@ final class AppStyleEditor {
                 .setPositiveButton(R.string.save, (d, which) -> {
                     AppStyle.save(config, item, state.name, item.label.toString(),
                             state.banner, state.background, state.size, state.resetCustomisation);
+                    config.set(AppStyle.key(item, "bannerColor"),
+                            "original".equals(state.bannerColor) ? null : state.bannerColor);
                     changed.run();
                 })
                 .setNegativeButton(R.string.cancel, (d, which) ->

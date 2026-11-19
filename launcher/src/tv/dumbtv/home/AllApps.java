@@ -22,6 +22,8 @@ import android.widget.Toast;
 import java.text.Collator;
 import java.util.Collections;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -33,6 +35,8 @@ public final class AllApps extends Activity {
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private Config cfg;
     private Grid grid;
+    private ScrollView scroll;
+    private final Set<String> artRequested = new HashSet<>();
 
     @Override
     protected void onCreate(Bundle state) {
@@ -51,7 +55,7 @@ public final class AllApps extends Activity {
                 ? Ui.surface(this, pageSurface, 0) : Ui.round(pageSurface, 0));
         page.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 24));
 
-        ScrollView scroll = new ScrollView(this);
+        scroll = new ScrollView(this);
         scroll.setFocusable(false);
         scroll.setFillViewport(true);
         scroll.setVerticalScrollBarEnabled(false);
@@ -59,6 +63,7 @@ public final class AllApps extends Activity {
         grid = new Grid(this);
         grid.setPadding(Ui.dp(this, 24), Ui.dp(this, 12), Ui.dp(this, 24), Ui.dp(this, 28));
         scroll.addView(grid, new FrameLayout.LayoutParams(MATCH, WRAP));
+        scroll.setOnScrollChangeListener((View v, int x, int y, int oldX, int oldY) -> loadVisibleArt());
         page.addView(scroll, new LinearLayout.LayoutParams(MATCH, 0, 1f));
         setContentView(page);
         loadApps();
@@ -90,21 +95,41 @@ public final class AllApps extends Activity {
                         return false;
                     });
                     grid.addView(tile, new ViewGroup.LayoutParams(WRAP, WRAP));
-                    io.execute(() -> {
-                        Catalog.art(getPackageManager(), item, "afterglow".equals(cfg.get(Config.TILE_STYLE)), null);
-                        Drawable custom = Catalog.customBanner(this, item);
-                        if (custom != null) {
-                            item.banner = custom;
-                            item.icon = null;
-                        }
-                        runOnUiThread(() -> {
-                            if (!isFinishing() && !isDestroyed()) tile.invalidate();
-                        });
-                    });
                 }
                 if (grid.getChildCount() > 0) grid.getChildAt(0).requestFocus();
+                scroll.post(this::loadVisibleArt);
             });
         });
+    }
+
+    /** Decode artwork only for tiles near the viewport. */
+    private void loadVisibleArt() {
+        if (grid == null || scroll == null || isFinishing() || isDestroyed()) return;
+        if (grid.getHeight() == 0 || scroll.getHeight() == 0) {
+            grid.post(this::loadVisibleArt);
+            return;
+        }
+        int top = scroll.getScrollY() - Ui.dp(this, 220);
+        int bottom = scroll.getScrollY() + scroll.getHeight() + Ui.dp(this, 220);
+        for (int i = 0; i < grid.getChildCount(); i++) {
+            View child = grid.getChildAt(i);
+            if (!(child instanceof Tile) || child.getBottom() < top || child.getTop() > bottom) continue;
+            Tile tile = (Tile) child;
+            Item item = tile.item;
+            if (item.banner != null || item.icon != null || !artRequested.add(item.id)) continue;
+            io.execute(() -> {
+                Catalog.art(getPackageManager(), item,
+                        "afterglow".equals(cfg.get(Config.TILE_STYLE)), null);
+                Drawable custom = Catalog.customBanner(this, item);
+                if (custom != null) {
+                    item.banner = custom;
+                    item.icon = null;
+                }
+                runOnUiThread(() -> {
+                    if (!isFinishing() && !isDestroyed()) tile.invalidate();
+                });
+            });
+        }
     }
 
     private int[] cardSize() {
@@ -115,6 +140,20 @@ public final class AllApps extends Activity {
             case "extra-large": return new int[] {Ui.dp(this, 260), Ui.dp(this, 146)};
             default: return new int[] {Ui.dp(this, 180), Ui.dp(this, 101)};
         }
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getAction() == KeyEvent.ACTION_DOWN
+                && event.getKeyCode() == KeyEvent.KEYCODE_DPAD_UP) {
+            View focused = getCurrentFocus();
+            int index = grid == null ? -1 : grid.indexOfChild(focused);
+            if (index >= 0 && index < grid.columns()) {
+                finish();
+                return true;
+            }
+        }
+        return super.dispatchKeyEvent(event);
     }
 
     @Override

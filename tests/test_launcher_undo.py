@@ -47,11 +47,12 @@ class LauncherUndoTest(unittest.TestCase):
     def test_all_homesentinel_access_is_reset(self):
         commands, state = self.undo(sdk=25)
         self.assertIn("appops set tv.dumbtv.home GET_USAGE_STATS default", commands)
-        self.assertIn("appops set tv.dumbtv.home AUTO_START default", commands)
+        self.assertNotIn("appops set tv.dumbtv.home AUTO_START default", commands)
         self.assertIn("pm revoke tv.dumbtv.home android.permission.READ_LOGS", commands)
         self.assertIn("dumpsys deviceidle whitelist -tv.dumbtv.home", commands)
         self.assertEqual(state["appops"]["tv.dumbtv.home"]["GET_USAGE_STATS"], "default")
-        self.assertEqual(state["appops"]["tv.dumbtv.home"]["AUTO_START"], "default")
+        # AUTO_START is not supported on Fire OS 6 and must not be modified.
+        self.assertEqual(state["appops"]["tv.dumbtv.home"]["AUTO_START"], "allow")
         self.assertFalse(state["permissions"]["tv.dumbtv.home"]["android.permission.READ_LOGS"])
 
     def test_undo_does_not_touch_accessibility_or_alarm_settings(self):
