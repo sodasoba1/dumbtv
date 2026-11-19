@@ -21,7 +21,7 @@ class LauncherReleaseCheckTest(unittest.TestCase):
             bindir.mkdir()
             for name in ("release-check.sh", "verify-certificate.sh", "signing.sha256"):
                 shutil.copy(ROOT / "launcher" / name, launcher / name)
-            (launcher / "version.env").write_text("VERSION=1.11\n")
+            shutil.copy(ROOT / "launcher" / "version.env", launcher / "version.env")
             apk = tmp / "remote.apk"
             apk.write_bytes(b"remote signed apk fixture")
             sidecar = tmp / "remote.apk.sha256"
