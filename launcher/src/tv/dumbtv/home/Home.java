@@ -1310,7 +1310,7 @@ public final class Home extends Activity {
         row.initialFocusIndex = 0;
         if (row == apps) {
             row.strip.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
-            row.strip.setLayoutParams(new FrameLayout.LayoutParams(MATCH, WRAP));
+            row.strip.setLayoutParams(new FrameLayout.LayoutParams(WRAP, WRAP));
         }
         int restore = -1;
         for (int itemIndex = 0; itemIndex < shown.size(); itemIndex++) {
