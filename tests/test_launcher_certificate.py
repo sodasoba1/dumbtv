@@ -16,7 +16,7 @@ class LauncherCertificateTest(unittest.TestCase):
         """Expose only required shell utilities and explicit test shims."""
         bindir = root / "isolated-bin"
         bindir.mkdir(exist_ok=True)
-        for name in ("dirname", "sed", "awk", "tr"):
+        for name in ("bash", "dirname", "sed", "awk", "tr"):
             executable = shutil.which(name)
             if executable:
                 (bindir / name).symlink_to(executable)
@@ -83,7 +83,7 @@ class LauncherCertificateTest(unittest.TestCase):
                               f"printf '%s\\n' 'Signer #1 certificate SHA-256 digest: {PIN}'\n")
             signer.chmod(0o755)
             env = dict(os.environ, ANDROID_HOME="", ANDROID_SDK_ROOT="", LOCALAPPDATA="")
-            env["PATH"] = self.isolated_path(tmp)
+            env["PATH"] = self.isolated_path(tmp, (("apksigner", signer.read_text()),))
             result = subprocess.run(["bash", str(VERIFY), str(apk)], env=env,
                                     capture_output=True, text=True, timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -109,7 +109,7 @@ class LauncherCertificateTest(unittest.TestCase):
             )
             cmd.chmod(0o755)
 
-            cygpath = "#!/usr/bin/env bash\\nprintf '%s\\\\n' \\\"$2\\\"\\n"
+            cygpath = "#!/bin/bash\nprintf '%s\\n' \"$2\"\n"
             env = dict(os.environ)
             env.update({
                 "ANDROID_HOME": str(sdk),
@@ -128,8 +128,6 @@ class LauncherCertificateTest(unittest.TestCase):
             self.assertIn("release package.apk", args)
 
     def test_missing_apksigner_is_a_hard_failure(self):
-        if shutil.which("apksigner"):
-            self.skipTest("apksigner is installed on this test host")
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
             apk = tmp / "release.apk"
@@ -137,6 +135,7 @@ class LauncherCertificateTest(unittest.TestCase):
             sdk = tmp / "empty-sdk"
             sdk.mkdir()
             env = dict(os.environ, ANDROID_HOME=str(sdk), ANDROID_SDK_ROOT="", LOCALAPPDATA="")
+            env["PATH"] = self.isolated_path(tmp)
             result = subprocess.run(["bash", str(VERIFY), str(apk)], env=env,
                                     capture_output=True, text=True, timeout=30)
             self.assertNotEqual(result.returncode, 0)
