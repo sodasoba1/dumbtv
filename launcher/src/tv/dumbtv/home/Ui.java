@@ -6,11 +6,13 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.StateListDrawable;
 import android.util.TypedValue;
 import android.widget.TextView;
+import android.widget.ListView;
 
 final class Ui {
     static final int TEXT = 0xFFF2F2F3;
@@ -97,21 +99,83 @@ final class Ui {
         return d;
     }
 
-    /** Apply the selected non-Classic theme to system dialogs while preserving Classic. */
+    /** Give Android dialogs DumbTV surfaces, typography, accent and focus treatment. */
     static void styleDialog(AlertDialog dialog) {
         Context c = dialog.getContext();
         if (dialog.getWindow() == null) return;
+        int accent = Config.get(c).accent();
         Drawable background = isGlass(c)
                 ? surface(c, optionSurface(c), dp(c, 18))
                 : round(c, optionSurface(c));
         dialog.getWindow().setBackgroundDrawable(background);
-        if ("classic".equals(Config.get(c).get(Config.THEME))) return;
-        android.widget.Button positive = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
-        android.widget.Button negative = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
-        android.widget.Button neutral = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
-        if (positive != null) positive.setTextColor(Config.get(c).accent());
-        if (negative != null) negative.setTextColor(TEXT);
-        if (neutral != null) neutral.setTextColor(TEXT);
+
+        TextView title = dialog.findViewById(android.R.id.alertTitle);
+        if (title != null) {
+            title.setTextColor(TEXT);
+            title.setTypeface(MEDIUM);
+            title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19);
+            title.setPadding(dp(c, 4), dp(c, 2), dp(c, 4), dp(c, 4));
+        }
+        TextView message = dialog.findViewById(android.R.id.message);
+        if (message != null) {
+            message.setTextColor(MUTED);
+            message.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        }
+        ListView list = dialog.getListView();
+        if (list != null) {
+            list.setBackgroundColor(Color.TRANSPARENT);
+            list.setDivider(new ColorDrawable(0x22FFFFFF));
+            list.setDividerHeight(Math.max(1, dp(c, 1)));
+            for (int i = 0; i < list.getChildCount(); i++) {
+                styleDialogText(list.getChildAt(i), c, accent);
+            }
+        }
+        styleDialogButton(dialog.getButton(AlertDialog.BUTTON_POSITIVE), c, accent, true);
+        styleDialogButton(dialog.getButton(AlertDialog.BUTTON_NEGATIVE), c, accent, false);
+        styleDialogButton(dialog.getButton(AlertDialog.BUTTON_NEUTRAL), c, accent, false);
+    }
+
+    private static void styleDialogText(android.view.View view, Context c, int accent) {
+        if (view instanceof TextView) {
+            TextView text = (TextView) view;
+            text.setTextColor(TEXT);
+            text.setTypeface(MEDIUM);
+            text.setBackground(focusBackground(c, accent, 0x00000000));
+        } else if (view instanceof android.view.ViewGroup) {
+            android.view.ViewGroup group = (android.view.ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                styleDialogText(group.getChildAt(i), c, accent);
+            }
+        }
+    }
+
+    private static void styleDialogButton(android.widget.Button button, Context c,
+                                          int accent, boolean primary) {
+        if (button == null) return;
+        button.setAllCaps(false);
+        button.setTypeface(MEDIUM);
+        button.setTextColor(primary ? accent : TEXT);
+        button.setMinHeight(dp(c, 44));
+        button.setPadding(dp(c, 14), dp(c, 6), dp(c, 14), dp(c, 6));
+        button.setBackground(focusBackground(c, accent,
+                primary ? 0x22000000 : 0x00000000));
+    }
+
+    private static Drawable focusBackground(Context c, int accent, int idle) {
+        StateListDrawable states = new StateListDrawable();
+        states.addState(new int[] {android.R.attr.state_focused},
+                isGlass(c) ? surface(c, accent, dp(c, 9)) : round(accent, dp(c, 9)));
+        states.addState(new int[0],
+                isGlass(c) ? surface(c, idle, dp(c, 9)) : round(idle, dp(c, 9)));
+        return states;
+    }
+
+    /** Apply a monochrome PNG's alpha mask as the selected DumbTV accent colour. */
+    static Drawable tintArtwork(Drawable artwork, int color) {
+        if (artwork == null) return null;
+        Drawable tinted = artwork.mutate();
+        tinted.setTint(color);
+        return tinted;
     }
 
     /** Accent fill when focused, a faint fill otherwise. */
