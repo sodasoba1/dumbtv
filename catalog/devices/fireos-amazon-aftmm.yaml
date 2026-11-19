@@ -38,7 +38,7 @@ data:
 launcher:
   mechanism: usage_stats_keeper
   package: tv.dumbtv.home
-  reason: "6.7.1.1 never binds a third-party accessibility service (FireOSFwk A11yAuthorizer, trust=false); the Keeper reads UsageStats and calls moveTaskToFront, which is not an activity launch and skips the 5 s app-switch delay"
+  reason: "Fire OS 6.7.1.1 never binds a third-party accessibility service (FireOSFwk A11yAuthorizer, trust=false); the Keeper reads UsageStats and calls moveTaskToFront, which is not an activity launch and skips the 5 s app-switch delay"
   fallback: "holding HOME opens Fire OS's quick menu; Options > Open Amazon's home screen pauses the Keeper"
   quirk: "needs appops set tv.dumbtv.home GET_USAGE_STATS allow (install.sh grants it); only reacts to HomeActivity_vNext, so Settings and search are not treated as home"
 quirks:
@@ -52,7 +52,7 @@ quirks:
   - "Keeper must match the home activity class, not just com.amazon.tv.launcher: MainSettingsActivity lives in the same package"
   - "SYSTEM_DNS=1 optionally adds android to androidAppWhiteList so the system can sync NTP past the filter VPN; apps and OTA stay filtered"
 known_limits:
-  - "no bootloader unlock on 6.2.8.0 and later (eFuse), no /system writes (dm-verity)"
+  - "no bootloader unlock on Fire OS 6.2.8.0 and later (eFuse), no /system writes (dm-verity)"
   - "protected packages can only be starved, not disabled"
   - "Prime Video stops working unless its CDN is left unblocked (PRIME=1 in dumbtv.conf)"
   - "Keeper declares GET_USAGE_STATS, RECEIVE_BOOT_COMPLETED and REORDER_TASKS with maxSdkVersion=27, so Fire OS 7/8 does not request them"
