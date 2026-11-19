@@ -41,6 +41,9 @@ jobs:
           javac --release 8 -Xlint:all -Werror -d /tmp/host launcher/src/tv/dumbtv/home/HomeSentinelPause.java \
             launcher/tests/HomeSentinelPauseTest.java
           java -cp /tmp/host tv.dumbtv.home.HomeSentinelPauseTest
+          javac --release 8 -Xlint:all -Werror -d /tmp/host launcher/src/tv/dumbtv/home/HomeSentinelLogcat.java \
+            launcher/tests/HomeSentinelLogcatTest.java
+          java -cp /tmp/host tv.dumbtv.home.HomeSentinelLogcatTest
           javac --release 8 -Xlint:all -Werror -d /tmp/host launcher/src/tv/dumbtv/home/UsageEventCursor.java \
             launcher/tests/UsageEventCursorTest.java
           java -cp /tmp/host tv.dumbtv.home.UsageEventCursorTest
@@ -117,6 +120,13 @@ jobs:
         run: for f in scripts/*.sh launcher/*.sh; do bash -n "$f" || exit 1; done
       - name: Pi-hole export consistency
         run: python3 scripts/export-pihole-lists.py --check
+      - name: ensure ImageMagick is available for real-image library tests
+        run: |
+          if ! command -v magick >/dev/null 2>&1 && ! command -v convert >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y imagemagick
+          fi
+          command -v magick >/dev/null 2>&1 || command -v convert >/dev/null 2>&1
       - name: offline script tests (no device)
         run: python3 -m unittest discover -s tests -v
       - name: launcher version manifest

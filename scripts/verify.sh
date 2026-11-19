@@ -16,7 +16,7 @@ home=$(front_activity)
 if [[ $LAUNCHER == 0 ]]; then
   printf '%-10s %-38s %s\n' skip home "LAUNCHER=0, not checked"
 elif [[ $SDK != 25 ]]; then
-  printf '%-10s %-38s %s\n' FAIL home "launcher supports only Fire OS 6 / API 25 (device reports API $SDK)"; fail=1
+  printf '%-10s %-38s %s\n' skip home "HomeSentinel supports API 25 only; device reports API $SDK"
 else
   homesentinel=$(dev 'dumpsys activity services tv.dumbtv.home' | grep -c 'isForeground=true' || true)
   home_package=${home%%/*}
@@ -62,7 +62,8 @@ protected_bad=""; protected_system=""
 while read -r p; do
   [[ -z ${p:-} ]] && continue
   grep -qxF "package:$p" <<<"$installed" || continue
-  grep -qxF "package:$p" <<<"$off" || continue
+  # Do not trust pm list packages -d to be exhaustive on Fire OS. Query the
+  # per-user package state for every installed protected package.
   state=$(package_user_enabled_state "$p")
   case $state in 2) protected_system="$protected_system $p" ;; 3) protected_bad="$protected_bad $p" ;; esac
 done < <(list_of "$(fos never-disable.txt)" | awk '{print $1}')
@@ -95,6 +96,14 @@ while read -r ns key value; do
   now=$(printf '%s\n' "$current" | awk -v k="$key" 'index($0, k "=") == 1 { print substr($0, length(k) + 2); exit }')
   [[ $now == "$value" ]] || reset="$reset $key=${now:-unset}"
 done < <(list_of "$(fos settings.txt)" | sed 's/ = / /')
+if [[ $ALEXA == 0 ]]; then
+  while read -r ns key value; do
+    [[ -z ${ns:-} || $ns == \#* ]] && continue
+    checked=$((checked+1))
+    now=$(printf '%s\n' "$current" | awk -v k="$key" 'index($0, k "=") == 1 { print substr($0, length(k) + 2); exit }')
+    [[ $now == "$value" ]] || reset="$reset $key=${now:-unset}"
+  done < <(list_of "$(fos settings.alexa.txt)" | sed 's/ = / /')
+fi
 if [[ -n $reset ]]; then
   printf '%-10s %-38s %s\n' warn settings "back to Amazon's values:$reset; run debloat.sh"
 else
@@ -115,8 +124,8 @@ fi
 # The launcher on the TV can be older than the release this repo ships. Releases
 # up to 1.2 let the TV sleep while an HDMI picture was up (a passthrough input
 # counts as no activity), and nothing else on the TV says so.
-if [[ $LAUNCHER == 0 ]]; then
-  printf '%-10s %-38s %s\n' skip launcher "LAUNCHER=0, not checked"
+if [[ $LAUNCHER == 0 || $SDK != 25 ]]; then
+  printf '%-10s %-38s %s\n' skip launcher "not applicable to this device (API $SDK; launcher target is API 25)"
 else
   have=$(dev 'dumpsys package tv.dumbtv.home' | sed -n 's/.*versionName=\([0-9][0-9.]*\).*/\1/p' | head -1)
   want=$(sed -n 's/^VERSION=//p' "$ROOT/launcher/version.env" 2>/dev/null | head -1)

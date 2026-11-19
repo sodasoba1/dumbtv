@@ -25,7 +25,7 @@ def path_without_magick(shim):
             continue
         shim.mkdir(exist_ok=True)
         for entry in Path(d).iterdir():
-            if entry.name != "magick" and not (shim / entry.name).exists():
+            if entry.name != "magick" and not os.path.lexists(shim / entry.name):
                 (shim / entry.name).symlink_to(entry)
         if str(shim) not in dirs:
             dirs.append(str(shim))

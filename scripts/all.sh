@@ -29,7 +29,16 @@ fi
 run bash "$DIR/cleanup-legacy-dnsfilter.sh" || exit 1
 run "$DIR/debloat.sh"   || exit 1
 run "$DIR/lockdown.sh"  || exit 1
-run "$DIR/launcher.sh"  || exit 1
+# The launcher APK and HomeSentinel are intentionally API 25 only. Keep the
+# rest of the cleanup usable on other Fire OS generations; direct launcher.sh
+# and launcher/install.sh invocations still reject unsupported SDKs.
+source "$DIR/lib.sh"
+need_device
+if [[ $SDK == 25 || ${LAUNCHER:-1} == 0 ]]; then
+  run "$DIR/launcher.sh" || exit 1
+else
+  printf 'skip launcher: HomeSentinel supports API 25 only (device reports API %s)\n' "$SDK"
+fi
 # The configuration interview already captured explicit consent to replace YouTube.
 # Do not ask a second time in the middle of the full install.
 if [[ ${YOUTUBE:-0} == 1 ]]; then ASSUME_YES=1 run "$DIR/youtube.sh" || exit 1; fi

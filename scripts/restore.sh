@@ -78,22 +78,22 @@ done
 # Older lists disabled packages that have since moved to never-disable.txt
 # (com.amazon.firebat is Prime Video), so the loop above no longer reaches them.
 step "never-disable packages left disabled"
-off=$(dev 'pm list packages -d' | sed 's/^package://' | tr -d '\r')
+installed=$(dev 'pm list packages' | tr -d '\r')
 for p in $(list_of "$(fos never-disable.txt)" | awk '{print $1}'); do
-  grep -qx "$p" <<<"$off" || continue
+  grep -qxF "package:$p" <<<"$installed" || continue
+  # Query the actual per-user state; pm list packages -d can omit disabled apps.
+  state=$(package_user_enabled_state "$p")
+  case $state in
+    2)
+      printf '  %-46s left disabled by Fire OS (state 2)\n' "$p"
+      continue ;;
+    3) ;;
+    *) continue ;;
+  esac
   was_enabled_before "$p" || {
     printf '  %-46s left disabled (was not enabled in the original snapshot)\n' "$p"
     continue
   }
-  state=$(package_user_enabled_state "$p")
-  if [[ $state == 2 ]]; then
-    printf '  %-46s left disabled by Fire OS (state 2)\n' "$p"
-    continue
-  fi
-  if [[ $state != 3 ]]; then
-    printf '  %-46s already enabled or state unknown (%s)\n' "$p" "${state:-unknown}"
-    continue
-  fi
   b=$(acmd pm enable --user 0 "$p" 2>&1 | head -1)
   printf '  %-46s %s\n' "$p" "${b:-no output}"
 done

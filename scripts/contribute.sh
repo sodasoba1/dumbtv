@@ -53,16 +53,52 @@ ask() { # prompt, default -> stdout
 
 # Anything that identifies a household never goes in the catalog: IP and MAC
 # addresses, email addresses, and this TV's serial number.
+is_ipv6_literal() {
+  awk -v ip="$1" '
+  BEGIN {
+    if (ip !~ /^[[:xdigit:]:]+$/) exit 1
+    if (index(ip, "::")) {
+      if (ip ~ /::.*::/) exit 1
+      split(ip, halves, "::")
+      count=0
+      for (side=1; side<=2; side++) {
+        part=halves[side]
+        if (part == "") continue
+        n=split(part, groups, ":")
+        for (i=1; i<=n; i++) {
+          if (length(groups[i]) < 1 || length(groups[i]) > 4 ||
+              groups[i] !~ /^[[:xdigit:]]+$/) exit 1
+          count++
+        }
+      }
+      if (count >= 8) exit 1
+      exit 0
+    }
+    n=split(ip, groups, ":")
+    if (n != 8) exit 1
+    for (i=1; i<=n; i++)
+      if (length(groups[i]) < 1 || length(groups[i]) > 4 ||
+          groups[i] !~ /^[[:xdigit:]]+$/) exit 1
+    exit 0
+  }'
+}
 identifies() {
-  local ip first
-  # A dotted quad that starts with one digit is a Fire OS version (7.6.9.7), and 127.x
-  # and 0.0.0.0 are what a blocked host answers. Any other one is an address.
-  for ip in $(printf '%s' "$1" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
+  local value ip first
+  # Preserve an explicitly labelled Fire OS firmware version. 0/8 and 127/8
+  # are reserved/loopback, not household addresses; some Android build
+  # fingerprints use a 00.00.00.xx component.
+  value=$(printf '%s' "$1" | sed -E 's/[Ff]ire[[:space:]]+[Oo][Ss][[:space:]]+[0-9]{1,3}(\.[0-9]{1,3}){3}/ /g')
+  for ip in $(printf '%s' "$value" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
     first=$((10#${ip%%.*}))
-    [[ $first -ge 10 && $first != 127 ]] && return 0
+    [[ $first == 0 || $first == 127 ]] && continue
+    return 0
   done
-  printf '%s' "$1" | grep -Eq '([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}|[^[:space:]@]+@[^[:space:]@]+\.[A-Za-z]{2,}' ||
-    [[ ${#DEVICE_SERIAL} -ge 6 && $1 == *"$DEVICE_SERIAL"* ]]
+  for ip in $(printf '%s' "$value" | grep -oE '(^|[^[:xdigit:]:])([[:xdigit:]:]*:[[:xdigit:]:]*:[[:xdigit:]:]*)([^[:xdigit:]:]|$)' |
+              sed -E 's/^[^[:xdigit:]:]//; s/[^[:xdigit:]:]$//'); do
+    is_ipv6_literal "$ip" && return 0
+  done
+  printf '%s' "$value" | grep -Eq '([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}|[^[:space:]@]+@[^[:space:]@]+\.[A-Za-z]{2,}' ||
+    [[ ${#DEVICE_SERIAL} -ge 6 && $value == *"$DEVICE_SERIAL"* ]]
 }
 clean() {
   local v=$1

@@ -27,12 +27,18 @@ class ContributeTest(unittest.TestCase):
                       ["--quirk", "MAC " + ":".join(["aa", "bb", "cc", "dd", "ee", "ff"])],
                       ["--quirk", "MAC " + "-".join(["AA", "BB", "CC", "DD", "EE", "FF"])],
                       ["--prompt", "Allow USB debugging?|press OK, then adb connect " + ip(10, 0, 0, 5)],
-                      ["--ip-location", "Settings > Network shows " + ip(172, 16, 4, 2)]):
+                      ["--ip-location", "Settings > Network shows " + ip(172, 16, 4, 2)],
+                      ["--notes", "public address " + ip(1, 2, 3, 4)],
+                      ["--notes", "IPv6 address 2001:db8:85a3::8a2e:370:7334"]):
             with self.subTest(flags=flags):
                 result = contribute(*flags)
                 self.assertEqual(result.returncode, 1, result.stdout)
                 self.assertIn("looks like", result.stderr)
                 self.assertNotIn(flags[1], result.stdout)
+
+    def test_dns_filter_protocol_syntax_is_not_an_ipv6_address(self):
+        result = contribute("--notes", "fallbackDNS = [<resolver>]::53::UDP")
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_versions_and_blocked_answers_are_not_addresses(self):
         result = contribute("--notes", "Fire OS 7.6.9.7: blocked hosts answered 127.0.0.1 or 0.0.0.0")

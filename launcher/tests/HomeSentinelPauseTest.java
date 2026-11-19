@@ -1,30 +1,43 @@
 package tv.dumbtv.home;
 
-/** Fire OS 6 pause classification checks; no Android runtime or device required. */
+/** State-transition tests for the Fire OS 6 manual Amazon-interface hand-off. */
 public final class HomeSentinelPauseTest {
     private static void check(boolean ok, String name) {
         if (!ok) throw new AssertionError(name);
     }
 
-    private static void amazonPause() {
-        check(!HomeSentinelPause.shouldResume("com.amazon.tv.launcher"),
-                "Amazon settings remain inside the paused launcher");
-        check(!HomeSentinelPause.shouldResume("com.amazon.tv.settings.v2"),
-                "Amazon Network and Applications settings keep the pause");
-        check(!HomeSentinelPause.shouldResume("com.amazon.tv.notificationcenter"),
-                "Amazon notification centre keeps the pause");
-        check(!HomeSentinelPause.shouldResume("com.amazon.tv.devicecontrolsettings"),
-                "Amazon device control settings keep the pause");
-        check(!HomeSentinelPause.shouldResume("tv.dumbtv.home"), "DumbTV does not resume its own pause");
-        check(!HomeSentinelPause.shouldResume("com.android.systemui"), "System UI is not an app departure");
-        check(!HomeSentinelPause.shouldResume("android"), "Android system UI is not an app departure");
-        check(!HomeSentinelPause.shouldResume(null), "unknown foreground does not clear pause");
-        check(HomeSentinelPause.shouldResume("com.netflix.ninja"),
-                "opening another app resumes takeover");
+    private static void settingsRoute() {
+        HomeSentinelPause.State state = HomeSentinelPause.State.AMAZON_SETTINGS;
+        state = HomeSentinelPause.afterForeground(state, "com.android.systemui", null);
+        check(state == HomeSentinelPause.State.AMAZON_SETTINGS, "System UI keeps settings hand-off");
+        state = HomeSentinelPause.afterForeground(state, "com.amazon.tv.settings.v2", null);
+        check(state == HomeSentinelPause.State.AMAZON_SETTINGS, "Amazon settings keep hand-off");
+        state = HomeSentinelPause.afterForeground(state, "com.amazon.tv.launcher",
+                "com.amazon.tv.launcher.ui.HomeActivity_vNext");
+        check(state == HomeSentinelPause.State.ACTIVE, "returning to Amazon Home resumes takeover");
+        check(HomeSentinelPause.shouldRecover(state), "Amazon Home is recoverable after settings route");
+    }
+
+    private static void explicitAmazonHomeHold() {
+        HomeSentinelPause.State state = HomeSentinelPause.State.AMAZON_HOME_HOLD;
+        state = HomeSentinelPause.afterForeground(state, "com.amazon.tv.settings.v2", null);
+        check(state == HomeSentinelPause.State.AMAZON_HOME_HOLD, "Amazon settings preserve explicit Home hold");
+        state = HomeSentinelPause.afterForeground(state, "com.amazon.tv.launcher",
+                "com.amazon.tv.launcher.ui.HomeActivity_vNext");
+        check(state == HomeSentinelPause.State.AMAZON_HOME_HOLD, "explicit Amazon Home remains held");
+        check(!HomeSentinelPause.shouldRecover(state), "explicit Amazon Home must not be reclaimed");
+        state = HomeSentinelPause.afterForeground(state, "com.android.systemui", null);
+        check(state == HomeSentinelPause.State.AMAZON_HOME_HOLD, "System UI does not release explicit hold");
+        state = HomeSentinelPause.afterForeground(state, "com.netflix.ninja", null);
+        check(state == HomeSentinelPause.State.ACTIVE, "leaving Amazon for an app releases explicit hold");
+        state = HomeSentinelPause.afterForeground(HomeSentinelPause.State.AMAZON_HOME_HOLD,
+                "tv.dumbtv.home", null);
+        check(state == HomeSentinelPause.State.ACTIVE, "returning to DumbTV releases explicit hold");
     }
 
     public static void main(String[] args) {
-        amazonPause();
+        settingsRoute();
+        explicitAmazonHomeHold();
         System.out.println("HomeSentinelPauseTest passed");
     }
 }

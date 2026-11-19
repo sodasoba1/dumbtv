@@ -40,7 +40,7 @@ public final class HomeSentinel extends Service {
     private static final long LOGCAT_WATCHDOG_MS = 30_000;
     private static final long DEBUG_LOG_MAX_BYTES = 128 * 1024;
 
-    private static volatile boolean paused;
+    private static volatile HomeSentinelPause.State pauseState = HomeSentinelPause.State.ACTIVE;
     private HandlerThread thread;
     private Handler worker;
     private UsageStatsManager usage;
@@ -107,12 +107,12 @@ public final class HomeSentinel extends Service {
             screenOffTime = now;
             note("screen off; last foreground=" + lastTop + "/" + lastTopClass);
         } else if (Intent.ACTION_SCREEN_ON.equals(action)) {
-            if (paused) return;
             long now = System.currentTimeMillis();
             // Do not require a successful screen-off snapshot. A missed/stale snapshot must
             // not permanently suppress wake recovery after a long suspend.
             updateTop(Math.max(0, (screenOffTime == 0 ? now : screenOffTime) - 10_000), now);
-            if (isAmazonHome()) {
+            pauseState = HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass);
+            if (isAmazonHome() && HomeSentinelPause.shouldRecover(pauseState)) {
                 note("screen on; restoring last foreground Amazon Home");
                 beginRecovery();
             } else {
@@ -123,18 +123,18 @@ public final class HomeSentinel extends Service {
     }
 
     static void pause() {
-        paused = true;
+        pauseState = HomeSentinelPause.State.AMAZON_SETTINGS;
     }
 
     /** Opens Amazon's own home/settings screen without allowing HomeSentinel to reclaim it. */
     static void openAmazonHome(Context c) {
-        pause();
+        pauseState = HomeSentinelPause.State.AMAZON_HOME_HOLD;
         Intent intent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
                 .setPackage(AMAZON_PKG).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             c.startActivity(intent);
         } catch (android.content.ActivityNotFoundException e) {
-            paused = false;
+            pauseState = HomeSentinelPause.State.ACTIVE;
             note("Amazon Home could not be opened: " + e);
         }
     }
@@ -225,10 +225,18 @@ public final class HomeSentinel extends Service {
             note("logcat reader unavailable: READ_LOGS not granted");
             return;
         }
-        logcatStopping = false;
-        logcatThread = new Thread(this::readLogcatLoop, "homesentinel-logcat");
-        logcatThread.setDaemon(true);
-        logcatThread.start();
+        synchronized (logcatLock) {
+            if (logcatThread != null && logcatThread.isAlive()) return;
+            if (logcatProcess != null) {
+                logcatProcess.destroy();
+                logcatProcess = null;
+            }
+            logcatStopping = false;
+            Thread reader = new Thread(this::readLogcatLoop, "homesentinel-logcat");
+            reader.setDaemon(true);
+            logcatThread = reader;
+            reader.start();
+        }
     }
 
     private void stopLogcatReader() {
@@ -265,7 +273,7 @@ public final class HomeSentinel extends Service {
                 streamStarted = true;
                 String line;
                 while (!logcatStopping && (line = reader.readLine()) != null) {
-                    if (isAmazonHomeLogLine(line) && worker != null) {
+                    if (HomeSentinelLogcat.matches(line) && worker != null) {
                         // Do not persist raw system lines; they can contain other apps' data.
                         worker.post(this::handleAmazonHomeDetected);
                     }
@@ -295,18 +303,9 @@ public final class HomeSentinel extends Service {
         }
     }
 
-    /** Match the exact Amazon Home activity and real activity-transition records. */
-    private boolean isAmazonHomeLogLine(String line) {
-        if (line == null || !line.contains(AMAZON_PKG)
-                || !line.contains("HomeActivity_vNext")) return false;
-        // START only means an activity launch was requested, not that it became visible.
-        // Require a displayed/resumed record to avoid stealing focus during ordinary navigation.
-        return line.contains("Displayed ") || line.contains("Resumed ")
-                || line.contains("topResumedActivity");
-    }
-
     private void handleAmazonHomeDetected() {
-        if (paused) return;
+        pauseState = HomeSentinelPause.afterForeground(pauseState, AMAZON_PKG, AMAZON_HOME);
+        if (!HomeSentinelPause.shouldRecover(pauseState)) return;
         // Never launch an activity in response to a log event while the TV display is off.
         // This watcher must not turn standby into an unintended screen wake.
         android.os.PowerManager power = (android.os.PowerManager)
@@ -340,9 +339,12 @@ public final class HomeSentinel extends Service {
         boolean changed = updateTop(from, now);
         if (!changed) return;
         if (isAmazonHome()) {
-            if (!paused) beginRecovery();
+            pauseState = HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass);
+            if (HomeSentinelPause.shouldRecover(pauseState)) beginRecovery();
+            else cancelRecovery("Amazon Home is intentionally held");
             return;
         }
+        pauseState = HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass);
         if (lastTop == null || SYSTEM_UI.equals(lastTop) || "android".equals(lastTop)) {
             cancelRecovery("system UI foreground");
             return;
@@ -356,7 +358,7 @@ public final class HomeSentinel extends Service {
         }
         if (!DUMBTV_PKG.equals(lastTop)) {
             cancelRecovery("another app foreground: " + lastTop);
-            if (HomeSentinelPause.shouldResume(lastTop)) paused = false;
+
         } else {
             cancelRecovery("DumbTV foreground");
         }
@@ -396,7 +398,7 @@ public final class HomeSentinel extends Service {
     }
 
     private void beginRecovery() {
-        if (paused || !isAmazonHome() || recovering) return;
+        if (!HomeSentinelPause.shouldRecover(pauseState) || !isAmazonHome() || recovering) return;
         recovering = true;
         attempts = 0;
         worker.removeCallbacks(verify);
@@ -405,7 +407,7 @@ public final class HomeSentinel extends Service {
     }
 
     private void attemptRecovery() {
-        if (!recovering || paused || !isAmazonHome()) {
+        if (!recovering || !HomeSentinelPause.shouldRecover(pauseState) || !isAmazonHome()) {
             cancelRecovery("recovery no longer eligible");
             return;
         }
@@ -449,7 +451,7 @@ public final class HomeSentinel extends Service {
             cancelRecovery("verified");
             return;
         }
-        if (!isAmazonHome() || paused) {
+        if (!isAmazonHome() || !HomeSentinelPause.shouldRecover(pauseState)) {
             cancelRecovery("recovery stopped; foreground=" + lastTop + "/" + lastTopClass);
             return;
         }
@@ -496,6 +498,9 @@ public final class HomeSentinel extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int id) {
+        // Permissions may have been repaired while this sticky service was already running.
+        // Re-check on every start request so ActivityManager monitoring can resume immediately.
+        startLogcatReader();
         return START_STICKY;
     }
 

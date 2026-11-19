@@ -15,7 +15,8 @@ class VerifyTests(unittest.TestCase):
     def run_verify(self, *, sdk="25", homesentinel=True, usage="allow", auto_start="allow",
                    read_logs=True, launcher="1", launcher_package=None, extra=None,
                    changed_settings=None, disabled="", installed="", data_saver="enabled",
-                   screensaver="null", home="tv.dumbtv.home/.Home"):
+                   screensaver="null", home="tv.dumbtv.home/.Home", alexa=1,
+                   changed_alexa_settings=None):
         version = RELEASE if launcher_package is None else launcher_package
         package_dump = f"    versionName={version}\n"
         if read_logs:
@@ -33,7 +34,9 @@ class VerifyTests(unittest.TestCase):
             "dumpsys package tv.dumbtv.home": {"out": package_dump},
             "pm list packages -d": {"out": disabled},
             "pm list packages": {"out": installed},
-            "settings list secure; settings list global": {"out": self.applied_settings(**(changed_settings or {}))},
+            "settings list secure; settings list global": {
+                "out": self.applied_settings(**(changed_settings or {}), alexa=alexa,
+                                             changed_alexa=(changed_alexa_settings or {}))},
             "cmd netpolicy get restrict-background": {"out": f"Restrict background status: {data_saver}"},
             "settings get secure screensaver_components": {"out": screensaver},
         }
@@ -42,8 +45,10 @@ class VerifyTests(unittest.TestCase):
             tmp = Path(tmp)
             data, log = tmp / "responses.json", tmp / "calls.jsonl"
             data.write_text(json.dumps(replies))
+            conf = tmp / "test.conf"
+            conf.write_text("ALEXA=0\n" if alexa == 0 else "")
             env = dict(os.environ, ADB=str(ROOT / "tests/fake_verify_adb.py"),
-                       SERIAL="test-tv", CONF=str(tmp / "absent.conf"),
+                       SERIAL="test-tv", CONF=str(conf),
                        LAUNCHER=launcher, KEEP_APPS="", FAKE_ADB_LOG=str(log),
                        FAKE_ADB_RESPONSES=str(data))
             result = subprocess.run(["bash", str(ROOT / "scripts/verify.sh")],
@@ -53,12 +58,17 @@ class VerifyTests(unittest.TestCase):
         return result, calls
 
     @staticmethod
-    def applied_settings(**changed):
+    def applied_settings(alexa=1, changed_alexa=None, **changed):
         rows = []
-        for line in (ROOT / "data/fireos/settings.txt").read_text().splitlines():
-            line = line.split("#")[0].split()
-            if len(line) == 3:
-                rows.append(f"{line[1]}={changed.get(line[1], line[2])}")
+        sources = [ROOT / "data/fireos/settings.txt"]
+        if alexa == 0:
+            sources.append(ROOT / "data/fireos/settings.alexa.txt")
+        for source in sources:
+            for line in source.read_text().splitlines():
+                line = line.split("#")[0].split()
+                if len(line) == 3:
+                    overrides = (changed_alexa or {}) if source.name == "settings.alexa.txt" else changed
+                    rows.append(f"{line[1]}={overrides.get(line[1], line[2])}")
         return "\n".join(rows)
 
     def test_api25_homesentinel_and_standby_permissions_pass(self):
@@ -108,11 +118,12 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("FAIL", result.stdout)
         self.assertIn("READ_LOGS not granted", result.stdout)
 
-    def test_non_api25_device_is_rejected_before_homesentinel_checks(self):
+    def test_non_api25_device_skips_homesentinel_checks(self):
         result, calls = self.run_verify(sdk="28")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("only Fire OS 6 / API 25", result.stdout)
-        self.assertFalse(any("AUTO_START" in " ".join(call) for call in calls))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("skip", result.stdout)
+        self.assertIn("API 25", result.stdout)
+        self.assertFalse(any("tv.dumbtv.home" in " ".join(call) for call in calls))
 
     def test_launcher_opt_out_skips_homesentinel_checks(self):
         result, calls = self.run_verify(launcher="0")
@@ -143,6 +154,20 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("data-saver", result.stdout)
         self.assertIn("off", result.stdout)
+
+    def test_alexa_settings_are_verified_when_alexa_is_disabled(self):
+        result, _ = self.run_verify(alexa=0, changed_alexa_settings={"voice_disabled": "0"})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("back to Amazon's values: voice_disabled=0", result.stdout)
+
+    def test_protected_user_disabled_package_is_detected_even_if_disabled_listing_omits_it(self):
+        result, _ = self.run_verify(
+            installed="package:com.amazon.firebat",
+            extra={"dumpsys package com.amazon.firebat": {
+                "out": "  User 0: installed=true enabled=3"}})
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("protected", result.stdout)
+        self.assertIn("com.amazon.firebat", result.stdout)
 
     def test_user_disabled_never_disable_package_fails_verification(self):
         result, _ = self.run_verify(

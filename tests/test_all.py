@@ -15,12 +15,30 @@ STEPS = ["preflight", "cleanup-legacy-dnsfilter", "debloat", "lockdown", "launch
 
 
 class AllTest(unittest.TestCase):
-    def run_all(self, config=None, answer="0", flags=(), inherited_youtube=None, conf_env=None):
+    def run_all(self, config=None, answer="0", flags=(), inherited_youtube=None, conf_env=None, sdk="25"):
         with tempfile.TemporaryDirectory() as tmp:
-            repo = Path(tmp) / "repo with spaces"
+            tmp = Path(tmp)
+            repo = tmp / "repo with spaces"
             scripts = repo / "scripts"
             scripts.mkdir(parents=True)
             shutil.copy2(ROOT / "scripts" / "all.sh", scripts / "all.sh")
+            shutil.copy2(ROOT / "scripts" / "lib.sh", scripts / "lib.sh")
+            adb = tmp / "adb"
+            adb.write_text("""#!/usr/bin/env bash
+if [[ $1 == start-server ]]; then exit 0; fi
+if [[ $1 == -s && $2 == test-tv && $3 == shell ]]; then
+  shift 3
+  case "$*" in
+    "getprop ro.build.version.sdk") echo "${FAKE_SDK:-25}" ;;
+    "cmd package help") echo "install-existing" ;;
+    *) echo "unexpected adb command: $*" >&2; exit 92 ;;
+  esac
+  exit 0
+fi
+echo "unexpected adb invocation: $*" >&2
+exit 91
+""")
+            adb.chmod(0o755)
             if config is not None:
                 (repo / "dumbtv.conf").write_text(config)
             for name in STEPS + ["configure", "youtube", "verify"]:
@@ -39,7 +57,8 @@ fi
 ''')
                 stub.chmod(0o755)
             log = repo / "steps.log"
-            env = dict(os.environ, STEP_LOG=str(log), CONFIG_ANSWER=answer)
+            env = dict(os.environ, STEP_LOG=str(log), CONFIG_ANSWER=answer,
+                       ADB=str(adb), ADB_SERIAL="test-tv", FAKE_SDK=str(sdk))
             env.pop("YOUTUBE", None)
             env.pop("CONF", None)
             if conf_env is not None:
@@ -52,7 +71,8 @@ fi
                 ["bash", str(scripts / "all.sh"), *flags], env=env, cwd=repo,
                 capture_output=True, text=True,
             )
-            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.last_stdout = result.stdout
             return [line.split() for line in log.read_text().splitlines()]
 
     def test_saved_yes_runs_youtube_before_verification(self):
@@ -80,6 +100,12 @@ fi
         steps = self.run_all(answer="0")
         expected = ["preflight", "configure", *STEPS[1:], "verify"]
         self.assertEqual(steps, [[name] for name in expected])
+
+    def test_non_api25_device_skips_launcher_but_completes_cleanup(self):
+        steps = self.run_all(config="LAUNCHER=1\n", sdk="28")
+        self.assertEqual(steps, [[name] for name in STEPS if name != "launcher"] + [["verify"]])
+        self.assertIn("skip launcher", self.last_stdout)
+        self.assertIn("API 25 only", self.last_stdout)
 
     def test_dry_run_passes_flags_to_opted_in_step(self):
         steps = self.run_all(config="YOUTUBE=1\n", flags=("--dry-run", "-y"))

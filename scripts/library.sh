@@ -35,8 +35,12 @@ trap 'rm -rf "$WORK"' EXIT
 cp "$SRC/library.conf" "$WORK/library.conf"
 seen="$WORK/.seen"
 : > "$seen"
-MAGICK=0; SIPS=0
-command -v magick >/dev/null 2>&1 && MAGICK=1
+MAGICK=0; SIPS=0; MAGICK_CMD=""
+if command -v magick >/dev/null 2>&1; then
+  MAGICK=1; MAGICK_CMD=magick
+elif command -v convert >/dev/null 2>&1 && command -v identify >/dev/null 2>&1; then
+  MAGICK=1; MAGICK_CMD=convert
+fi
 command -v sips >/dev/null 2>&1 && SIPS=1
 if [[ $MAGICK == 0 && $SIPS == 0 ]]; then
   echo "note: neither ImageMagick nor sips is installed; pictures will be uploaded uncropped"
@@ -72,13 +76,19 @@ while IFS= read -r line || [[ -n $line ]]; do
     x=$(( (w - 1920) / 2 ))
     sips --cropToHeightWidth 500 1920 --cropOffset "$y" "$x" "$out" >/dev/null
   elif [[ $MAGICK == 1 ]]; then
-    magick "$out" -resize '1920x500^' "$out.resized"
-    dims=$(magick identify -format '%w %h' "$out.resized")
+    # Use an explicit MIFF intermediate; ImageMagick cannot infer a format from
+    # the old ".resized" suffix, and must not overwrite the source while reading it.
+    "$MAGICK_CMD" "$out" -resize '1920x500^' "miff:$out.resized.miff"
+    if command -v identify >/dev/null 2>&1; then
+      dims=$(identify -format '%w %h' "miff:$out.resized.miff")
+    else
+      dims=$(magick identify -format '%w %h' "miff:$out.resized.miff")
+    fi
     read -r w h <<< "$dims"
     y=$(awk -v h="$h" -v f="$frac" 'BEGIN {printf "%d", (h - 500) * f}')
     x=$(( (w - 1920) / 2 ))
-    magick "$out.resized" -crop "1920x500+$x+$y" +repage "$out"
-    rm -f "$out.resized"
+    "$MAGICK_CMD" "miff:$out.resized.miff" -crop "1920x500+$x+$y" +repage "$out"
+    rm -f "$out.resized.miff"
   fi
   printf '  %-40s ready (crop %s)\n' "$img" "$frac"
   n=$((n + 1))
