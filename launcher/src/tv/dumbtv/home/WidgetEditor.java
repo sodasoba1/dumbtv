@@ -9,6 +9,7 @@ import android.text.InputFilter;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -42,13 +43,15 @@ public final class WidgetEditor extends Activity {
         super.onCreate(state);
         cfg = Config.get(this);
         cfg.refresh();
-        if (!"2".equals(cfg.get("widgets.layout.version", ""))) {
+        String savedWidgetVersion = cfg.get("widgets.layout.version", "");
+        if ("1".equals(savedWidgetVersion)) {
             layout = WidgetLayout.decodeLegacy(cfg.get(WidgetLayout.CONFIG_KEY, ""));
-            cfg.set(WidgetLayout.CONFIG_KEY, layout.encode());
-            cfg.set("widgets.layout.version", "2");
         } else {
             layout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         }
+        if (!"3".equals(savedWidgetVersion)) layout.ensureDateWidget();
+        cfg.set(WidgetLayout.CONFIG_KEY, layout.encode());
+        cfg.set("widgets.layout.version", "3");
         pendingText = cfg.getText("widgets.text", "Custom text");
         for (WidgetLayout.Widget widget : layout.items()) {
             int fallback = "clock".equals(widget.type) ? 32
@@ -87,22 +90,24 @@ public final class WidgetEditor extends Activity {
         selectionInfo.setPadding(dp(8), 0, 0, dp(8));
         root.addView(selectionInfo);
 
+        FrameLayout canvas = new FrameLayout(this);
+        LinearLayout.LayoutParams canvasLp = new LinearLayout.LayoutParams(
+                MATCH, WidgetGridView.preferredHeight(this));
+        canvasLp.bottomMargin = dp(16);
         preview = new WidgetPreview(this);
         preview.setLayout(layout, pendingText);
+        preview.setAlpha(0.72f);
         applyPreviewFonts();
-        LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(
-                MATCH, WidgetGridView.preferredHeight(this));
-        previewLp.bottomMargin = dp(10);
-        root.addView(preview, previewLp);
+        canvas.addView(preview, new FrameLayout.LayoutParams(MATCH, MATCH));
 
         grid = new GridLayout(this);
         grid.setColumnCount(WidgetLayout.COLUMNS);
         grid.setRowCount(WidgetLayout.ROWS);
         grid.setUseDefaultMargins(false);
         grid.setAlignmentMode(GridLayout.ALIGN_BOUNDS);
-        LinearLayout.LayoutParams gridLp = new LinearLayout.LayoutParams(MATCH, dp(190));
-        gridLp.bottomMargin = dp(16);
-        root.addView(grid, gridLp);
+        grid.setBackgroundColor(0x00000000);
+        canvas.addView(grid, new FrameLayout.LayoutParams(MATCH, MATCH));
+        root.addView(canvas, canvasLp);
 
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
@@ -157,13 +162,13 @@ public final class WidgetEditor extends Activity {
                 cell.setPadding(dp(4), dp(4), dp(4), dp(4));
                 if (occupied == null) {
                     cell.setText("Empty");
-                    cell.setBackground(focusableBackground(Ui.tileSurface(this, true), dp(7)));
+                    cell.setBackground(focusableBackground(0x33101010, dp(7)));
                 } else {
                     boolean selected = occupied.id.equals(selectedId);
                     cell.setText(x == occupied.x && y == occupied.y
                             ? occupied.type.toUpperCase(java.util.Locale.ROOT) + "\n" + occupied.id : "·");
-                    cell.setBackground(focusableBackground(selected ? (cfg.accent() & 0x00FFFFFF) | 0x55000000
-                            : Ui.optionSurface(this), dp(7)));
+                    cell.setBackground(focusableBackground(selected ? (cfg.accent() & 0x00FFFFFF) | 0x66000000
+                            : 0x33101010, dp(7)));
                 }
                 cell.setOnClickListener(v -> chooseCell(x, y));
                 GridLayout.LayoutParams lp = new GridLayout.LayoutParams(
@@ -255,8 +260,8 @@ public final class WidgetEditor extends Activity {
     private void add() {
         pendingMove = null;
         pendingAddType = null;
-        String[] types = {"clock", "memory", "network", "storage", "text", "diagnostics", "device"};
-        String[] labels = {"Clock", "Memory", "Network", "Storage", "Custom text", "DumbTV diagnostics", "Device information"};
+        String[] types = {"clock", "date", "memory", "network", "storage", "text", "diagnostics", "device"};
+        String[] labels = {"Clock", "Day / date", "Memory", "Network", "Storage", "Custom text", "DumbTV diagnostics", "Device information"};
         List<String> available = new ArrayList<>();
         List<String> names = new ArrayList<>();
         for (int i = 0; i < types.length; i++) {
@@ -355,11 +360,12 @@ public final class WidgetEditor extends Activity {
                 : "diagnostics".equals(widget.type) ? 11
                 : "device".equals(widget.type) ? 12
                 : "memory".equals(widget.type) || "storage".equals(widget.type) ? 13 : 14);
-        int[] sizes = {11, 12, 13, 14, 16, 18, 22, 26, 30, 32, 34, 38};
+        int[] sizes = {10, 14, 18, 24, 30, 36, 42};
         String[] labels = new String[sizes.length];
         int selected = 0;
         for (int i = 0; i < sizes.length; i++) {
-            labels[i] = sizes[i] + " sp";
+            labels[i] = (i == 0 ? "Small" : i == 2 ? "Normal" : i == 4 ? "Large" : i == 6 ? "Extra large" : "Custom")
+                    + " · " + sizes[i] + " sp";
             if (sizes[i] == current) selected = i;
         }
         AlertDialog dialog = new AlertDialog.Builder(this, Ui.DIALOG)
