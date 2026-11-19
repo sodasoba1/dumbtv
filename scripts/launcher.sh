@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs dumbtv home on Fire OS 6 / Android 7.1.2 (API 25) only.
-# Keeper restores the launcher after Amazon Home becomes foreground. Usage: ./scripts/launcher.sh [--dry-run] [-y]
+# Keeper restores the launcher after Amazon Home becomes foreground. Usage: ./scripts/launcher.sh [--apk FILE | --permissions-only] [--dry-run] [-y]
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
