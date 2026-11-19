@@ -58,9 +58,11 @@ if [[ -f $log ]]; then cp "$log" "$previous_log"; else : > "$previous_log"; fi
 # Restore only when the old report or original snapshot proves DumbTV did it,
 # and only for DISABLED_USER (3). Never override Fire OS DISABLED (2).
 step "restore newly protected packages"
-off=$(dev "pm list packages -d" | sed "s/^package://" | tr -d "\r")
+installed=$(dev "pm list packages" | sed "s/^package://" | tr -d "\r")
 for p in $(list_of "$(fos never-disable.txt)" | awk "{print $1}"); do
-  grep -qxF "$p" <<<"$off" || continue
+  # Query the package manager's per-user state directly. Do not infer it from
+  # pm list packages -d, whose output can vary across Fire OS builds.
+  grep -qxF "$p" <<<"$installed" || continue
   state=$(package_user_enabled_state "$p")
   proven=0
   awk -F "\t" -v pkg="$p" '$1 == pkg && $2 == "disabled" {found=1} END {exit !found}' "$previous_log" && proven=1
