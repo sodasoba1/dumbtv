@@ -139,7 +139,7 @@ public final class WidgetEditor extends Activity {
         button.setFocusable(true);
         button.setClickable(true);
         button.setPadding(dp(8), dp(14), dp(8), dp(14));
-        button.setBackground(focusableBackground(Ui.optionSurface(this), dp(8)));
+        Ui.focusStyle(button, cfg.accent(), Ui.optionSurface(this), dp(8));
         button.setOnClickListener(v -> action.run());
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, WRAP, 1f);
         lp.setMargins(dp(3), 0, dp(3), 0);
