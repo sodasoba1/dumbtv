@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LauncherInstallTest(unittest.TestCase):
-    def install(self, appops_refused=False, auto_start_unsupported=False, read_logs_refused=False, read_logs_not_recorded=False, installer_args=None, foreground_line=None):
+    def install(self, read_logs_refused=False, read_logs_not_recorded=False, installer_args=None, foreground_line=None):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
             launcher = tmp / "launcher"
@@ -35,8 +35,6 @@ class LauncherInstallTest(unittest.TestCase):
                 "settings": {},
                 "sdk": 25,
                 "homesentinel_running": True,
-                "appops_refused": appops_refused,
-                "auto_start_unsupported": auto_start_unsupported,
                 "read_logs_refused": read_logs_refused,
                 "read_logs_not_recorded": read_logs_not_recorded,
                 **({"foreground_line": foreground_line} if foreground_line is not None else {}),
@@ -97,34 +95,15 @@ class LauncherInstallTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("is not installed", result.stderr)
 
-    def test_install_grants_homesentinel_standby_and_usage_access(self):
+    def test_install_grants_homesentinel_usage_access_and_doze_exemption(self):
         result, commands, state = self.install()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("appops set tv.dumbtv.home GET_USAGE_STATS allow", commands)
-        self.assertIn("appops set tv.dumbtv.home AUTO_START allow", commands)
         self.assertIn("dumpsys deviceidle whitelist +tv.dumbtv.home", commands)
         self.assertIn("pm grant tv.dumbtv.home android.permission.READ_LOGS", commands)
         self.assertEqual(state["appops"]["tv.dumbtv.home"]["GET_USAGE_STATS"], "allow")
-        self.assertEqual(state["appops"]["tv.dumbtv.home"]["AUTO_START"], "allow")
         self.assertTrue(state["permissions"]["tv.dumbtv.home"]["android.permission.READ_LOGS"])
-        self.assertIn("standby start: AUTO_START allowed", result.stdout)
         self.assertIn("READ_LOGS granted and verified", result.stdout)
-
-    def test_install_stops_if_fire_os_refuses_standby_access(self):
-        result, commands, _ = self.install(appops_refused=True)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("appops set tv.dumbtv.home AUTO_START allow", commands)
-        self.assertIn("Fire OS refused HomeSentinel's AUTO_START permission", result.stderr)
-
-    def test_install_continues_when_auto_start_operation_is_unsupported(self):
-        result, commands, state = self.install(auto_start_unsupported=True)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("appops get tv.dumbtv.home AUTO_START", commands)
-        self.assertNotIn("appops set tv.dumbtv.home AUTO_START allow", commands)
-        self.assertIn("AUTO_START is not supported by this firmware", result.stdout)
-        self.assertIn("pm grant tv.dumbtv.home android.permission.READ_LOGS", commands)
-        self.assertTrue(state["permissions"]["tv.dumbtv.home"]["android.permission.READ_LOGS"])
-        self.assertIn("dumpsys activity services tv.dumbtv.home", commands)
 
     def test_install_fails_if_adb_refuses_read_logs(self):
         result, commands, state = self.install(read_logs_refused=True)

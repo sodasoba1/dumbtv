@@ -166,8 +166,6 @@ The launcher is deliberately restricted to the AFTMM Fire TV Stick 4K
   grants this through ADB and verifies `granted=true`; installation fails if
   the grant cannot be made or verified. The Java service can detect a missing
   grant, but a correctly configured installation is expected to have it.
-- **Fire OS AUTO_START** is requested and verified by the installer where
-  supported so the service can restart after boot.
 - **Doze whitelist** setup reduces the risk of background restrictions
   interfering with the service.
 - **RECEIVE_BOOT_COMPLETED** starts the service after boot or app replacement.

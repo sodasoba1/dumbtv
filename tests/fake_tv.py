@@ -193,16 +193,10 @@ elif words[:1] == ['am'] and words[1:2] in (['force-stop'], ['start']):
     pass
 elif words[:2] == ['appops', 'set'] and len(words) >= 5:
     package, operation, mode = words[2], words[3], words[4]
-    if state.get('appops_refused') and operation == 'AUTO_START':
-        print('Security exception: app-op denied')
-        sys.exit(1)
     state.setdefault('appops', {}).setdefault(package, {})[operation] = mode
     save()
 elif words[:2] == ['appops', 'get'] and len(words) >= 4:
     package, operation = words[2], words[3]
-    if operation == 'AUTO_START' and state.get('auto_start_unsupported'):
-        print('Error: Unknown operation string: AUTO_START')
-        sys.exit(1)
     value = state.get('appops', {}).get(package, {}).get(operation, 'default')
     print(f'{operation}: {value}')
 elif words[:2] == ['appops', 'write-settings']:

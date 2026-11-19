@@ -74,8 +74,6 @@ if [[ $mode == undo ]]; then
   # force-stop also keeps the Fire OS 6 HomeSentinel from restarting at the next boot.
   sh_ am force-stop $PKG >/dev/null 2>&1 || true
   sh_ appops set $PKG GET_USAGE_STATS default >/dev/null 2>&1 || true
-  sh_ appops set $PKG AUTO_START default >/dev/null 2>&1 || true
-  sh_ appops write-settings >/dev/null 2>&1 || true
   sh_ pm revoke $PKG android.permission.READ_LOGS >/dev/null 2>&1 || true
   sh_ dumpsys deviceidle whitelist -$PKG >/dev/null 2>&1 || true
   sh_ am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null 2>&1 || true
@@ -169,28 +167,6 @@ if ! grep -Eq 'GET_USAGE_STATS:[[:space:]]*allow([,[:space:]]|$)' <<<"$usage_acc
   echo "error: HomeSentinel UsageStats access is not enabled ($usage_access)" >&2
   exit 1
 fi
-# AUTO_START is a vendor-specific AppOp, not part of Android's standard
-# AppOps API. Some Fire OS 6 builds expose it; others (including AFTMM
-# firmware) return "Unknown operation string". Skip only that unsupported
-# case. If the operation exists, a refused grant or failed verification remains
-# a hard error because standby recovery may otherwise be unreliable.
-auto_start_probe=$(sh_ appops get $PKG AUTO_START 2>&1 || true)
-if grep -Fq 'Unknown operation string: AUTO_START' <<<"$auto_start_probe"; then
-  echo "standby start: AUTO_START is not supported by this firmware; using the Fire OS boot receiver"
-else
-  if ! sh_ appops set $PKG AUTO_START allow; then
-    echo "error: Fire OS refused HomeSentinel's AUTO_START permission" >&2
-    exit 1
-  fi
-  sh_ appops write-settings >/dev/null 2>&1 || true
-  auto_start=$(sh_ appops get $PKG AUTO_START 2>/dev/null | tr -d '\r')
-  if ! grep -Eq 'AUTO_START:[[:space:]]*allow([,[:space:]]|$)' <<<"$auto_start"; then
-    echo "error: HomeSentinel AUTO_START permission is not enabled ($auto_start)" >&2
-    echo "  Fire OS may block standby recovery; enable automatic start for dumbtv home in device app settings." >&2
-    exit 1
-  fi
-  echo "standby start: AUTO_START allowed"
-fi
 # Request READ_LOGS on every install/update, then verify the resulting package
 # permission state. Fire OS 6 does not reliably implement pm check-permission.
 if ! sh_ pm grant $PKG android.permission.READ_LOGS; then
@@ -254,7 +230,6 @@ if installed dnsfilter.android; then
   }
   echo "removing legacy personalDNSfilter privileges"
   sh_ appops set dnsfilter.android ACTIVATE_VPN default >/dev/null 2>&1 || true
-  sh_ appops set dnsfilter.android AUTO_START default >/dev/null 2>&1 || true
   sh_ dumpsys deviceidle whitelist -dnsfilter.android >/dev/null 2>&1 || true
   sh_ pm revoke dnsfilter.android android.permission.READ_EXTERNAL_STORAGE >/dev/null 2>&1 || true
   sh_ pm revoke dnsfilter.android android.permission.WRITE_EXTERNAL_STORAGE >/dev/null 2>&1 || true

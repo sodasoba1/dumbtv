@@ -67,10 +67,48 @@ class LauncherCertificateTest(unittest.TestCase):
                               '[[ "$1" == verify && "$2" == --print-certs ]] || exit 90\n'
                               f"printf '%s\\n' 'Signer #1 certificate SHA-256 digest: {PIN}'\n")
             signer.chmod(0o755)
-            env = dict(os.environ, ANDROID_HOME="", PATH=str(bindir) + os.pathsep + os.environ.get("PATH", ""))
+            env = dict(os.environ, ANDROID_HOME="", ANDROID_SDK_ROOT="", LOCALAPPDATA="", PATH=str(bindir) + os.pathsep + os.environ.get("PATH", ""))
             result = subprocess.run(["bash", str(VERIFY), str(apk)], env=env,
                                     capture_output=True, text=True, timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_windows_git_bash_discovers_and_invokes_apksigner_bat_with_spaced_paths(self):
+        with tempfile.TemporaryDirectory(prefix="dumbtv test ") as tmp:
+            tmp = Path(tmp)
+            sdk = tmp / "Android SDK"
+            signer = sdk / "build-tools" / "34.0.0" / "apksigner.bat"
+            signer.parent.mkdir(parents=True)
+            signer.write_text("@echo off\r\n")
+            apk = tmp / "release package.apk"
+            apk.write_bytes(b"fake apk")
+            bindir = tmp / "mock-bin"
+            bindir.mkdir()
+            capture = tmp / "cmd-arguments.txt"
+
+            cmd = bindir / "cmd.exe"
+            cmd.write_text(
+                "#!/usr/bin/env bash\n"
+                'printf "%s\\n" "$@" > "$CMD_CAPTURE"\n'
+                f"printf '%s\\n' 'Signer #1 certificate SHA-256 digest: {PIN}'\n"
+            )
+            cmd.chmod(0o755)
+
+            env = dict(os.environ)
+            env.update({
+                "ANDROID_HOME": str(sdk),
+                "PATH": str(bindir) + os.pathsep + env.get("PATH", ""),
+                "CMD_CAPTURE": str(capture),
+            })
+            result = subprocess.run(["bash", str(VERIFY), str(apk)], env=env,
+                                    capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("release certificate verified", result.stdout)
+            args = capture.read_text()
+            self.assertIn("call", args)
+            self.assertIn("verify", args)
+            self.assertIn("--print-certs", args)
+            self.assertIn("apksigner.bat", args)
+            self.assertIn("release package.apk", args)
 
     def test_missing_apksigner_is_a_hard_failure(self):
         if shutil.which("apksigner"):
@@ -81,7 +119,7 @@ class LauncherCertificateTest(unittest.TestCase):
             apk.write_bytes(b"fake apk")
             sdk = tmp / "empty-sdk"
             sdk.mkdir()
-            env = dict(os.environ, ANDROID_HOME=str(sdk))
+            env = dict(os.environ, ANDROID_HOME=str(sdk), ANDROID_SDK_ROOT="", LOCALAPPDATA="")
             result = subprocess.run(["bash", str(VERIFY), str(apk)], env=env,
                                     capture_output=True, text=True, timeout=30)
             self.assertNotEqual(result.returncode, 0)
