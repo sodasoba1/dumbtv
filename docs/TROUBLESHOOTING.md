@@ -14,7 +14,7 @@ To put the TV back the way it was: `./scripts/restore.sh`.
 ### Amazon's home screen came back
 
 This launcher build supports only the AFTMM on Fire OS 6 / Android API 25.
-Keeper must be running as a foreground service, and UsageStats access must be
+HomeSentinel must be running as a foreground service, and UsageStats access must be
 granted. Check:
 
 ```sh
@@ -25,22 +25,22 @@ adb shell dumpsys package tv.dumbtv.home
 ```
 
 The installer runs the ADB grant and verifies `android.permission.READ_LOGS:
-granted=true` in the package dump. This is required for the intended Keeper
+granted=true` in the package dump. This is required for the intended HomeSentinel
 configuration; `./scripts/verify.sh` fails if it is missing. Re-run
 `./launcher/install.sh` and inspect its error if the grant is refused. Do not
 treat a successful UsageStats check as proof that logcat monitoring is active.
 
 READ_LOGS is required because it enables the ActivityManager wake-detection
-path added after a deep-sleep bug: Keeper's old four-second UsageStats query
+path added after a deep-sleep bug: HomeSentinel's old four-second UsageStats query
 could run too late after resume, and its screen-off snapshot could be stale or
-missing. See [Keeper standby and HOME recovery](KEEPER-RECOVERY.md) for the
+missing. See [HomeSentinel standby and HOME recovery](HOMESENTINEL.md) for the
 failure mechanism, the PR #15/#16 fixes, and the limits of the fix.
 
 ### Amazon's Settings stays on screen
 
 This is intentional. Opening Amazon's own settings pauses takeover so that
 navigation is not interrupted. Opening a third-party app clears the pause and
-allows Keeper to resume recovery.
+allows HomeSentinel to resume recovery.
 
 ### Settings bounces back to the home screen
 
@@ -189,7 +189,7 @@ run `./scripts/all.sh`.
 The launcher target is the Fire TV Stick 4K (AFTMM), Fire OS 6.7.1.1 / API 25.
 The scripts select `data/fireos6/` automatically.
 
-- **Keeper is not running.** Re-run `./scripts/launcher.sh -y`; then check
+- **HomeSentinel is not running.** Re-run `./scripts/launcher.sh -y`; then check
   `dumpsys activity services tv.dumbtv.home`.
 - **UsageStats is unavailable.** The installer grants `GET_USAGE_STATS`; check
   it with `appops get tv.dumbtv.home GET_USAGE_STATS`.
@@ -203,7 +203,7 @@ The scripts select `data/fireos6/` automatically.
   Re-run `./launcher/install.sh`; it issues `pm grant tv.dumbtv.home
   android.permission.READ_LOGS` and checks the package dump. If Fire OS refuses
   the grant, keep the install unverified and inspect the exact ADB error rather
-  than treating Keeper as fully configured.
+  than treating HomeSentinel as fully configured.
 - **`monkey` launches nothing** and says `SYS_KEYS has no physical keys` when
   the remote is asleep. Use `am start -n`, or pass `--pct-syskeys 0`.
 

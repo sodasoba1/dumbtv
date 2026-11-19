@@ -21,11 +21,11 @@ import java.io.InputStreamReader;
 /**
  * Watches for Amazon's launcher coming back to the foreground and restores dumbtv home.
  *
- * This build targets Fire OS 6 (Android 7.1.2, API 25). Keeper combines UsageStats
+ * This build targets Fire OS 6 (Android 7.1.2, API 25). HomeSentinel combines UsageStats
  * foreground events with ActivityManager logcat when READ_LOGS is granted. It only
  * intervenes after a positive Amazon Home event and stops as soon as another app is observed.
  */
-public final class Keeper extends Service {
+public final class HomeSentinel extends Service {
     static final String AMAZON_PKG = "com.amazon.tv.launcher";
     private static final String AMAZON_HOME = "com.amazon.tv.launcher.ui.HomeActivity_vNext";
     private static final String SYSTEM_UI = "com.android.systemui";
@@ -97,7 +97,7 @@ public final class Keeper extends Service {
         }
     };
 
-    /** All foreground/recovery state is confined to the Keeper worker thread. */
+    /** All foreground/recovery state is confined to the HomeSentinel worker thread. */
     private void handleScreen(String action) {
         if (Intent.ACTION_SCREEN_OFF.equals(action)) {
             long now = System.currentTimeMillis();
@@ -126,7 +126,7 @@ public final class Keeper extends Service {
         paused = true;
     }
 
-    /** Opens Amazon's own home/settings screen without allowing Keeper to reclaim it. */
+    /** Opens Amazon's own home/settings screen without allowing HomeSentinel to reclaim it. */
     static void openAmazonHome(Context c) {
         pause();
         Intent intent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
@@ -140,7 +140,7 @@ public final class Keeper extends Service {
     }
 
     static void start(Context c) {
-        c.startService(new Intent(c, Keeper.class));
+        c.startService(new Intent(c, HomeSentinel.class));
     }
 
     @Override
@@ -151,9 +151,9 @@ public final class Keeper extends Service {
         startForeground(1, new Notification.Builder(this)
                 .setSmallIcon(android.R.drawable.ic_menu_recent_history)
                 .setContentTitle("dumbtv")
-                .setContentText("home keeper")
+                .setContentText("HomeSentinel")
                 .build());
-        thread = new HandlerThread("keeper");
+        thread = new HandlerThread("homesentinel");
         thread.start();
         worker = new Handler(thread.getLooper());
         IntentFilter filter = new IntentFilter();
@@ -189,7 +189,7 @@ public final class Keeper extends Service {
         super.onDestroy();
     }
 
-    /** Writes to logcat, and to keeper.log when the optional debug marker exists. */
+    /** Writes to logcat, and to homesentinel.log when the optional debug marker exists. */
     static void note(String msg) {
         android.util.Log.i("dumbtvtest", msg);
         java.io.File marker = new java.io.File(
@@ -197,7 +197,7 @@ public final class Keeper extends Service {
                 "Android/data/tv.dumbtv.home/files/debug");
         if (!marker.exists()) return;
         try {
-            java.io.File f = new java.io.File(marker.getParentFile(), "keeper.log");
+            java.io.File f = new java.io.File(marker.getParentFile(), "homesentinel.log");
             if (f.getParentFile() != null) f.getParentFile().mkdirs();
             if (f.length() > DEBUG_LOG_MAX_BYTES) {
                 // Bound optional diagnostics so the debug file cannot grow indefinitely.
@@ -210,7 +210,7 @@ public final class Keeper extends Service {
                 out.close();
             }
         } catch (Exception e) {
-            android.util.Log.w("dumbtvtest", "could not append keeper log", e);
+            android.util.Log.w("dumbtvtest", "could not append HomeSentinel log", e);
         }
     }
 
@@ -226,7 +226,7 @@ public final class Keeper extends Service {
             return;
         }
         logcatStopping = false;
-        logcatThread = new Thread(this::readLogcatLoop, "keeper-logcat");
+        logcatThread = new Thread(this::readLogcatLoop, "homesentinel-logcat");
         logcatThread.setDaemon(true);
         logcatThread.start();
     }
@@ -356,7 +356,7 @@ public final class Keeper extends Service {
         }
         if (!DUMBTV_PKG.equals(lastTop)) {
             cancelRecovery("another app foreground: " + lastTop);
-            if (KeeperPause.shouldResume(lastTop)) paused = false;
+            if (HomeSentinelPause.shouldResume(lastTop)) paused = false;
         } else {
             cancelRecovery("DumbTV foreground");
         }

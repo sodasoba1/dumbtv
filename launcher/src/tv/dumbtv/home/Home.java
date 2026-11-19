@@ -230,7 +230,7 @@ public final class Home extends Activity {
         f.addAction(Intent.ACTION_PACKAGE_CHANGED);
         f.addDataScheme("package");
         registerReceiver(packages, f);
-        Keeper.start(this);
+        HomeSentinel.start(this);
         if (tv != null) tv.registerCallback(inputWatch, ui);
         firstApps(catalog, times);
         loadInputs();
@@ -329,7 +329,7 @@ public final class Home extends Activity {
         if (!packs.containsKey(pkg)) {
             IconPack p = IconPack.load(getPackageManager(), pkg);
             packs.put(pkg, p);
-            if (p != null) Keeper.note("icon pack " + pkg + ": " + p.size() + " apps");
+            if (p != null) HomeSentinel.note("icon pack " + pkg + ": " + p.size() + " apps");
         }
         return packs.get(pkg);
     }
@@ -1684,7 +1684,7 @@ public final class Home extends Activity {
                 .setTitle(R.string.settings)
                 .setItems(labels, (d, which) -> {
                     Item s = sections.get(which);
-                    Keeper.pause();
+                    HomeSentinel.pause();
                     launch(new Intent(s.intent), null);
                 })
                 .create();
@@ -1711,7 +1711,7 @@ public final class Home extends Activity {
     }
 
     private void launch(Intent i, String pkg) {
-        if (Keeper.AMAZON_PKG.equals(pkg)) Keeper.pause();
+        if (HomeSentinel.AMAZON_PKG.equals(pkg)) HomeSentinel.pause();
         try {
             // No transition: on a warm start of an app with a trampoline activity, such as
             // Prime Video, the animation showed home again between the two (#169).

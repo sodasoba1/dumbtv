@@ -11,12 +11,12 @@ import android.text.format.Formatter;
 import java.util.List;
 import java.util.Locale;
 
-/** Read-only process, permission and Keeper-service diagnostics; never changes Keeper state. */
+/** Read-only process, permission and HomeSentinel-service diagnostics; never changes HomeSentinel state. */
 final class WidgetDiagnostics {
     private WidgetDiagnostics() {}
 
     static String snapshot(Context context) {
-        return "DumbTV diagnostics\nKeeper · " + keeperState(context)
+        return "DumbTV diagnostics\nHomeSentinel · " + homeSentinelState(context)
                 + "\nApp memory · " + memory(context)
                 + "\nPermissions · " + permissionSummary(context);
     }
@@ -34,12 +34,12 @@ final class WidgetDiagnostics {
         }
     }
 
-    private static String keeperState(Context context) {
+    private static String homeSentinelState(Context context) {
         try {
             ActivityManager manager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
             if (manager == null) return "Status unavailable";
             List<ActivityManager.RunningServiceInfo> services = manager.getRunningServices(100);
-            String name = context.getPackageName() + ".Keeper";
+            String name = context.getPackageName() + ".HomeSentinel";
             if (services != null) {
                 for (ActivityManager.RunningServiceInfo service : services) {
                     if (service.service != null && name.equals(service.service.getClassName())) {
@@ -89,7 +89,7 @@ final class WidgetDiagnostics {
         }
     }
 
-    /** Device details stay separate from app and Keeper diagnostics. */
+    /** Device details stay separate from app and HomeSentinel diagnostics. */
     static String deviceInformation() {
         long minutes = android.os.SystemClock.elapsedRealtime() / 60000L;
         long days = minutes / 1440L;

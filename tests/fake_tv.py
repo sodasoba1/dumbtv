@@ -201,8 +201,8 @@ elif words[:2] == ['dumpsys', 'deviceidle']:
     # The fake tracks command ordering; Doze whitelist state is not queried here.
     pass
 elif words[:3] == ['dumpsys', 'activity', 'services']:
-    if state.get('keeper_running', True):
-        print('ServiceRecord tv.dumbtv.home/.Keeper isForeground=true')
+    if state.get('homesentinel_running', True):
+        print('ServiceRecord tv.dumbtv.home/.HomeSentinel isForeground=true')
 elif words[:2] == ['dumpsys', 'window']:
     print('mCurrentFocus=Window{1 u0 tv.dumbtv.home/.Home}')
 elif words[:2] == ['input', 'keyevent']:

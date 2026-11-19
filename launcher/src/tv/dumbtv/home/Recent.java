@@ -13,7 +13,7 @@ import java.util.Map;
  * When each app was last opened, for Options › App order › Recently used.
  *
  * Opens from this launcher are recorded on every Fire OS with no permission. Where the app has
- * usage access (Fire OS 6, where install.sh grants it for the Keeper), UsageStats adds apps
+ * usage access (Fire OS 6, where install.sh grants it for HomeSentinel), UsageStats adds apps
  * opened some other way, by voice or from another app. The times are kept in private
  * preferences rather than home.conf: they are history, not settings.
  */

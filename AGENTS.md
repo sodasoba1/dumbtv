@@ -83,9 +83,9 @@ adb shell getprop ro.build.version.sdk       # 25 Fire OS 6, 28 Fire OS 7, 30 Fi
 `unauthorized` means the TV shows "Allow USB debugging?". A person has to press
 Allow (and tick "Always allow"). Tell them, and do not retry in a loop.
 
-## Keeper permissions on the AFTMM launcher
+## HomeSentinel permissions on the AFTMM launcher
 
-The API 25 launcher installer must grant and verify all three required Keeper
+The API 25 launcher installer must grant and verify all three required HomeSentinel
 access paths: `GET_USAGE_STATS`, Fire OS `AUTO_START`, and
 `android.permission.READ_LOGS`. Use `./launcher/install.sh --apk FILE` for a
 supplied DumbTV APK so these grants are applied after installation; use
@@ -95,7 +95,7 @@ and granted by the ADB shell using `pm grant tv.dumbtv.home
 android.permission.READ_LOGS`. The installer verifies
 `android.permission.READ_LOGS: granted=true` in `dumpsys package` and must
 stop with an error if the grant or verification fails. Do not describe READ_LOGS
-as optional or silently fall back to a reduced Keeper configuration. See
+as optional or silently fall back to a reduced HomeSentinel configuration. See
 [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for recovery checks.
 
 ## Step 1: interview the owner
@@ -192,7 +192,7 @@ path. Use the table below; do not disable more packages.
 | What the owner sees | Fix |
 |---|---|
 | Amazon's home screen is back | `./scripts/launcher.sh -y` |
-| Amazon's home remains visible or Keeper does not recover | Re-run `./scripts/launcher.sh -y`, then check UsageStats, AUTO_START, READ_LOGS and the Doze whitelist with `docs/TROUBLESHOOTING.md`; this fork no longer uses an alarm-based takeover |
+| Amazon's home remains visible or HomeSentinel does not recover | Re-run `./scripts/launcher.sh -y`, then check UsageStats, AUTO_START, READ_LOGS and the Doze whitelist with `docs/TROUBLESHOOTING.md`; this fork no longer uses an alarm-based takeover |
 | `verify.sh` warns `enabled again` or `back to Amazon's values` | an update undid part of the cleanup: `./scripts/debloat.sh -y` |
 | `verify.sh` warns `data-saver off` | `./scripts/lockdown.sh -y` |
 | "Unable to Detect Your Remote" over everything | `adb shell pm enable --user 0 com.amazon.vizzini`, then reboot |

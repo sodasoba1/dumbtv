@@ -5,14 +5,14 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
-    <!-- Fire OS 6 Keeper: foreground events from UsageStats. -->
+    <!-- Fire OS 6 HomeSentinel: foreground events from UsageStats. -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
     <!-- Read connection state for the optional local network widget; no Internet permission. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- Starts Keeper after boot so dumbtv home can recover the HOME experience. -->
+    <!-- Starts HomeSentinel after boot so dumbtv home can recover the HOME experience. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REORDER_TASKS" />
-    <!-- ADB grants this development permission for the Keeper's ActivityManager signal. -->
+    <!-- ADB grants this development permission for the HomeSentinel's ActivityManager signal. -->
     <uses-permission android:name="android.permission.READ_LOGS" />
 
     <application
@@ -33,7 +33,7 @@
             android:screenOrientation="landscape"
             android:windowSoftInputMode="adjustNothing"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|uiMode">
-            <!-- Amazon's protected HOME activity remains the system default; Keeper restores
+            <!-- Amazon's protected HOME activity remains the system default; HomeSentinel restores
                  DumbTV after Amazon Home becomes the foreground activity. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -90,14 +90,14 @@
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|uiMode" />
 
         <service
-            android:name=".Keeper"
+            android:name=".HomeSentinel"
             android:exported="false" />
 
         <!-- directBootAware for LOCKED_BOOT_COMPLETED: Fire OS 6 walks BOOT_COMPLETED through
              every app's receiver one by one, which reached this one 75 s after Amazon's home
              appeared on an AFTMM. LOCKED_BOOT_COMPLETED only goes to direct-boot-aware
              receivers and reached them all within 7 s there. Only the receiver is direct-boot-aware;
-             it waits for the unlocked user before starting the Keeper. -->
+             it waits for the unlocked user before starting the HomeSentinel. -->
         <receiver
             android:name=".BootReceiver"
             android:exported="true"

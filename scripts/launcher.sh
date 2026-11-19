@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs dumbtv home on Fire OS 6 / Android 7.1.2 (API 25) only.
-# Keeper restores the launcher after Amazon Home becomes foreground. Usage: ./scripts/launcher.sh [--apk FILE | --permissions-only] [--dry-run] [-y]
+# HomeSentinel restores the launcher after Amazon Home becomes foreground. Usage: ./scripts/launcher.sh [--apk FILE | --permissions-only] [--dry-run] [-y]
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
@@ -41,12 +41,12 @@ if [[ -n $LOCAL_APK ]]; then
   [[ -s $LOCAL_APK ]] || die "APK file not found or empty: $LOCAL_APK"
   note "install supplied DumbTV APK: $LOCAL_APK"
 elif [[ $PERMISSIONS_ONLY == 1 ]]; then
-  note "reapply and verify Keeper permissions without reinstalling the APK"
+  note "reapply and verify HomeSentinel permissions without reinstalling the APK"
 else
   note "install dumbtv home: open source, no internet permission, no ad ID"
   note "the prebuilt APK comes from this repo's GitHub release and is checksum-verified"
 fi
-note "Keeper requires UsageStats, READ_LOGS and (where supported) AUTO_START access"
+note "HomeSentinel requires UsageStats, READ_LOGS and (where supported) AUTO_START access"
 note "Amazon's launcher stays installed: hold HOME for Fire OS's menu, or Options > Open Amazon's home screen"
 if [[ $DRY_RUN == 1 ]]; then
   if [[ -n $LOCAL_APK ]]; then
@@ -59,7 +59,7 @@ if [[ $DRY_RUN == 1 ]]; then
   exit 0
 fi
 if [[ $PERMISSIONS_ONLY == 1 ]]; then
-  confirm "Reapply Keeper permissions for dumbtv home on $SERIAL?" || die "cancelled"
+  confirm "Reapply HomeSentinel permissions for dumbtv home on $SERIAL?" || die "cancelled"
 elif [[ -n $LOCAL_APK ]]; then
   confirm "Install/update dumbtv home from this APK on $SERIAL?" || die "cancelled"
 else
@@ -69,7 +69,7 @@ fi
 if [[ -n $LOCAL_APK ]]; then
   ADB=$ADB ADB_SERIAL=$SERIAL "$ROOT/launcher/install.sh" --apk "$LOCAL_APK" || die "launcher APK install failed (see above)"
 elif [[ $PERMISSIONS_ONLY == 1 ]]; then
-  ADB=$ADB ADB_SERIAL=$SERIAL "$ROOT/launcher/install.sh" --permissions-only || die "Keeper permission repair failed (see above)"
+  ADB=$ADB ADB_SERIAL=$SERIAL "$ROOT/launcher/install.sh" --permissions-only || die "HomeSentinel permission repair failed (see above)"
 else
   ADB=$ADB ADB_SERIAL=$SERIAL "$ROOT/launcher/install.sh" || die "launcher install failed (see above)"
 fi

@@ -62,7 +62,7 @@ The rules the code keeps, and that a change must keep too:
 - Amazon packages are disabled, never uninstalled.
 - No app a person uses is removed unless they named it.
 - The launcher build is restricted to the AFTMM on Fire OS 6 / API 25. It has no
-  INTERNET permission. Keeper requires boot startup, UsageStats, Fire OS AUTO_START,
+  INTERNET permission. HomeSentinel requires boot startup, UsageStats, Fire OS AUTO_START,
   Doze exemption, task reordering and an ADB-granted READ_LOGS permission. The
   installer verifies these requirements and stops if a required grant fails. CI
   enforces the manifest permission set.

@@ -1,7 +1,7 @@
 package tv.dumbtv.home;
 
 /** Foreground package classification for the Fire OS 6 manual Amazon-home pause. */
-final class KeeperPause {
+final class HomeSentinelPause {
     private static final String AMAZON_LAUNCHER = "com.amazon.tv.launcher";
     private static final String AMAZON_SETTINGS = "com.amazon.tv.settings.v2";
     private static final String AMAZON_NOTIFICATIONS = "com.amazon.tv.notificationcenter";
@@ -9,7 +9,7 @@ final class KeeperPause {
     private static final String DUMBTV_PKG = "tv.dumbtv.home";
     private static final String SYSTEM_UI = "com.android.systemui";
 
-    private KeeperPause() {}
+    private HomeSentinelPause() {}
 
     /**
      * Amazon's Settings list launches some sections from separate Amazon packages. Keep the

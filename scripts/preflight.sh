@@ -24,7 +24,7 @@ if is_fireos; then
   note "lists         ${DATA#$ROOT/}/$(basename "$(dirname "$(fos packages.txt)")")"
   if [[ $SDK -lt 28 ]]; then
     note "fire os 6     own package lists, no RUN_ANY_IN_BACKGROUND, and HOME is held by the"
-    note "              launcher's Keeper because 6.7 refuses accessibility services"
+    note "              launcher's HomeSentinel because 6.7 refuses accessibility services"
   fi
 else
   note "platform      NOT Amazon hardware — read docs/OTHER-TVS.md before running debloat.sh"

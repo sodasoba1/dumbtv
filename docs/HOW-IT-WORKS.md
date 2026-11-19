@@ -7,7 +7,7 @@ written to `/system`.
 There are five layers. Each one exists because the layer before it cannot reach
 everything.
 
-**Scope and setup:** this guide explains the cleanup mechanisms. The complete support boundaries, first-run sequence, restore limitations, launcher/Keeper architecture, widget model and release process are in the [fork architecture and operating guide](FORK-ARCHITECTURE.md). The cleanup scripts support Fire OS 6/7/8; the launcher APK is a separate AFTMM / Fire OS 6 / API 25 target.
+**Scope and setup:** this guide explains the cleanup mechanisms. The complete support boundaries, first-run sequence, restore limitations, launcher/HomeSentinel architecture, widget model and release process are in the [fork architecture and operating guide](FORK-ARCHITECTURE.md). The cleanup scripts support Fire OS 6/7/8; the launcher APK is a separate AFTMM / Fire OS 6 / API 25 target.
 ## 1. Packages: disabled, never uninstalled
 
 `debloat.sh` runs `pm disable-user --user 0 <package>` for every entry in
@@ -89,26 +89,26 @@ the Fire TV Stick 4K (1st generation, AFTMM), Fire OS 6.7.1.1 / Android 7.1.2
 (API 25). This fork does not ship the old cross-version accessibility takeover.
 
 Amazon's protected launcher remains the system HOME handler. The launcher uses
-one recovery service, Keeper:
+one recovery service, HomeSentinel:
 
-- A boot receiver starts Keeper after the user is unlocked. Keeper runs as a
+- A boot receiver starts HomeSentinel after the user is unlocked. HomeSentinel runs as a
   foreground service.
 - UsageStats foreground events are polled every 250 ms. The installer grants
   GET_USAGE_STATS, enables the vendor-specific AUTO_START AppOp when the firmware
   exposes it, and adds the app to the Doze whitelist. Unsupported AUTO_START
   operations are detected and skipped; they are not treated as a failed grant.
 - The installer grants READ_LOGS through ADB and verifies it in the installed
-  package. Installation fails if the grant or verification fails. Keeper reads
+  package. Installation fails if the grant or verification fails. HomeSentinel reads
   ActivityManager logcat for the exact Amazon Home activity becoming displayed or
   resumed; UsageStats and screen broadcasts are additional independent signals.
-- Keeper only intervenes after a positive Amazon Home foreground event and only
+- HomeSentinel only intervenes after a positive Amazon Home foreground event and only
   while the display is interactive. It moves the existing DumbTV task to the
   foreground and verifies the result; a bounded direct activity-launch fallback
   handles a failed task move.
 - Opening Amazon's own settings pauses takeover. It remains paused through known
   Amazon settings screens and resumes when a third-party app is opened.
 
-Keeper does not reboot the device or force the display on. Recovery after long
+HomeSentinel does not reboot the device or force the display on. Recovery after long
 deep standby still depends on Fire OS delivering usable foreground state/events;
 that behaviour needs physical-device validation.
 

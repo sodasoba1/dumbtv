@@ -44,7 +44,7 @@ class LauncherUndoTest(unittest.TestCase):
         self.assertIn("am force-stop tv.dumbtv.home", commands)
         self.assertIn("am start -a android.intent.action.MAIN -c android.intent.category.HOME", commands)
 
-    def test_all_keeper_access_is_reset(self):
+    def test_all_homesentinel_access_is_reset(self):
         commands, state = self.undo(sdk=25)
         self.assertIn("appops set tv.dumbtv.home GET_USAGE_STATS default", commands)
         self.assertIn("appops set tv.dumbtv.home AUTO_START default", commands)

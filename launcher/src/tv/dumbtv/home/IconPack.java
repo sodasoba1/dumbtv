@@ -95,7 +95,7 @@ final class IconPack {
             IconPack pack = new IconPack(pkg, pm.getResourcesForApplication(info));
             return pack.read() ? pack : null;
         } catch (PackageManager.NameNotFoundException | RuntimeException e) {
-            Keeper.note("icon pack " + pkg + ": " + e);
+            HomeSentinel.note("icon pack " + pkg + ": " + e);
             return null;
         }
     }
@@ -168,7 +168,7 @@ final class IconPack {
         try {
             if (!parse("appfilter", true)) return false;
         } catch (Exception e) {
-            Keeper.note("icon pack " + pkg + ": no appfilter (" + e + ")");
+            HomeSentinel.note("icon pack " + pkg + ": no appfilter (" + e + ")");
             return false;
         }
         try {

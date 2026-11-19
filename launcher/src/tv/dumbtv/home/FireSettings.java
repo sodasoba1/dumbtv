@@ -70,8 +70,8 @@ final class FireSettings {
         // The node key Amazon's own menu navigation sends to its home activity; the settings
         // row draws in full there. Opening it pauses the HOME takeover, as Options › Open
         // Amazon's home screen does.
-        out.add(new Item(Keeper.AMAZON_PKG, c.getString(ALL), new Intent(Intent.ACTION_MAIN)
-                .addCategory(Intent.CATEGORY_HOME).setPackage(Keeper.AMAZON_PKG)
+        out.add(new Item(HomeSentinel.AMAZON_PKG, c.getString(ALL), new Intent(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_HOME).setPackage(HomeSentinel.AMAZON_PKG)
                 .putExtra("navigate_node", "l_settings")));
         return out;
     }

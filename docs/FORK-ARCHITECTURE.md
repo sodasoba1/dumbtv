@@ -20,7 +20,7 @@ Fire OS 5 and older are not supported by the cleanup scripts. Android TV/Google 
 ## 2. What is in the repository
 
 - `scripts/`: ADB preflight, configuration, package cleanup, privacy settings, app-ops/network policy, launcher deployment, optional YouTube replacement, verification and restore.
-- `launcher/`: Plain-Java Android launcher, Keeper recovery service, build/install/undo scripts, version manifest and UI documentation.
+- `launcher/`: Plain-Java Android launcher, HomeSentinel recovery service, build/install/undo scripts, version manifest and UI documentation.
 - `data/fireos/`, `data/fireos6/`: Fire OS package, setting and policy lists. Fire OS 6 selects its own list set; Fire OS 7/8 use the shared Fire OS lists.
 - `data/androidtv/`: reference lists only; the cleanup scripts do not apply them.
 - `data/blocklists/`: source domains, evidence/metadata and generated Pi-hole exports for different Pi-hole/FTL generations.
@@ -105,7 +105,7 @@ The legacy cleanup step exists only to migrate an older installation: it disable
 
 Pi-hole is an optional, independent network service. Its lists live under `data/blocklists/`; the generated exports distinguish Pi-hole v6, v5 with FTL 5.22+, and older v5 formats. Alexa and Prime Video blocking are opt-in. The default policy is intended to preserve those services. Follow [the Pi-hole guide](PI-HOLE.md), use a dedicated client group, and confirm effects in Pi-hole's Query Log. DNS blocking can break shared Amazon services and is not a reliable way to remove in-stream YouTube ads.
 
-## 6. How the launcher and Keeper work
+## 6. How the launcher and HomeSentinel work
 
 ### Build and deployment
 
@@ -121,18 +121,18 @@ The normal installer downloads the matching APK from this fork's GitHub Release 
 
 ### HOME recovery
 
-Amazon's HOME activity remains the protected system handler. DumbTV does not replace or disable it. Keeper restores the existing DumbTV home task after it positively detects Amazon Home in the foreground.
+Amazon's HOME activity remains the protected system handler. DumbTV does not replace or disable it. HomeSentinel restores the existing DumbTV home task after it positively detects Amazon Home in the foreground.
 
-- The boot receiver handles locked-boot, normal boot and package-replaced events, then waits for the user to unlock before starting Keeper.
-- Keeper runs as a foreground service.
+- The boot receiver handles locked-boot, normal boot and package-replaced events, then waits for the user to unlock before starting HomeSentinel.
+- HomeSentinel runs as a foreground service.
 - The installer grants and verifies UsageStats access, Fire OS `AUTO_START`, and `android.permission.READ_LOGS`; it also adds the Doze exemption and starts the service.
 - UsageStats foreground events are polled. ActivityManager logcat provides a second, more immediate signal for the exact Amazon Home activity. Screen on/off broadcasts provide additional recovery context.
 - The event cursor avoids relying on a fixed short look-back after deep sleep. Recovery attempts are debounced and verified; task reordering is attempted first, with a bounded activity-launch fallback.
-- Amazon settings navigation pauses takeover so Keeper does not immediately reclaim the screen. The pause is cleared when a third-party app becomes foregrounded.
+- Amazon settings navigation pauses takeover so HomeSentinel does not immediately reclaim the screen. The pause is cleared when a third-party app becomes foregrounded.
 
 `READ_LOGS` is required by this fork's installer because the ActivityManager signal is part of the AFTMM recovery design. It is not documented as optional. UsageStats and screen broadcasts remain separate signals, but a successful install must verify all required setup steps.
 
-Keeper does not intentionally wake the display, reboot the TV or interfere while the display is off. See [Keeper standby and HOME recovery](KEEPER-RECOVERY.md) for the original failure, the fix history and remaining physical-testing limits.
+HomeSentinel does not intentionally wake the display, reboot the TV or interfere while the display is off. See [HomeSentinel standby and HOME recovery](HOMESENTINEL.md) for the original failure, the fix history and remaining physical-testing limits.
 
 ## 7. Launcher UI and settings model
 
@@ -144,7 +144,7 @@ DumbTV home is a remote-first launcher built from native Android views. Its main
 - **Favourites/pins** are launcher navigation state, not Android package favourites. Hiding a section does not uninstall its apps.
 - **Wallpaper and Library assets** are files stored beside the launcher configuration. Export settings does not bundle those image files; back them up separately.
 
-The launcher reference documents the controls and the current glass theme/widget layout. Do not infer that a UI feature changes Keeper or the debloat scripts: these are separate layers.
+The launcher reference documents the controls and the current glass theme/widget layout. Do not infer that a UI feature changes HomeSentinel or the debloat scripts: these are separate layers.
 
 ## 8. Widgets
 
@@ -181,10 +181,10 @@ This is an independently maintained fork of [humblemuzzu/dumbtv](https://github.
 The fork retains the upstream project's broad ADB cleanup approach, much of its device catalogue and documentation, and the native Java launcher foundation. Its independent work includes:
 
 - An AFTMM-only API 25 launcher build/install/release path.
-- A Fire OS 6 Keeper implementation based on UsageStats, ActivityManager logcat and verified task recovery rather than the former cross-version accessibility/overlay/alarm takeover paths.
-- The deep-sleep event-cursor and wake-recovery fixes documented in [Keeper standby and HOME recovery](KEEPER-RECOVERY.md).
+- A Fire OS 6 HomeSentinel implementation based on UsageStats, ActivityManager logcat and verified task recovery rather than the former cross-version accessibility/overlay/alarm takeover paths.
+- The deep-sleep event-cursor and wake-recovery fixes documented in [HomeSentinel standby and HOME recovery](HOMESENTINEL.md).
 - Removal of the on-device personalDNSfilter/VPN dependency, with optional external Pi-hole exports and migration cleanup for existing installations.
 - Fork-specific validation, host tests, installer permission checks and signed release delivery.
 - Launcher UI work for the glass theme, home layout, favourites, widget placement and visibility, and reorganised Options navigation.
 
-Upstream changes must be reviewed against the AFTMM manifest, Keeper lifecycle, installer, restore path, build/release process and physical device behaviour before adoption.
+Upstream changes must be reviewed against the AFTMM manifest, HomeSentinel lifecycle, installer, restore path, build/release process and physical device behaviour before adoption.

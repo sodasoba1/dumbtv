@@ -116,7 +116,7 @@ on-device DNS filter.
 A home screen needs no internet access, no advertising ID and no permission to
 install apps. This fork's dumbtv home APK targets only Fire OS 6 / API 25. It asks
 for boot, UsageStats, task-reordering and log-reading permissions; the installer
-grants and verifies UsageStats, Fire OS AUTO_START and READ_LOGS. READ_LOGS is required by this fork's Keeper setup; installation stops if the grant cannot be verified.
+grants and verifies UsageStats, Fire OS AUTO_START and READ_LOGS. READ_LOGS is required by this fork's HomeSentinel setup; installation stops if the grant cannot be verified.
 Check the manifest yourself with `aapt2 dump permissions dumbtv-home.apk`.
 
 **Who made this?**

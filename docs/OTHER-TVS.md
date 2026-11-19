@@ -6,7 +6,7 @@ run commands on it, without root and without opening the case?
 | Platform | Disable vendor apps | Replace the home screen | DNS filtering route (separate from DumbTV) | Status |
 |---|---|---|---|---|
 | **Fire OS 5** (Android 5.1, e.g. Fire TV Stick 2nd gen) | no, `pm disable-user` is refused | no, the launcher needs Android 7.1 | external router/Pi-hole only | not supported: the scripts stop on it (issue #42) |
-| **Fire OS 6** (2017–2018 devices) | yes, some are protected | yes, `Keeper` + UsageStats on AFTMM only | external router/Pi-hole only; no local VPN in this fork | launcher target is Stick 4K (AFTMM); scripts use `data/fireos6/` |
+| **Fire OS 6** (2017–2018 devices) | yes, some are protected | yes, `HomeSentinel` + UsageStats on AFTMM only | external router/Pi-hole only; no local VPN in this fork | launcher target is Stick 4K (AFTMM); scripts use `data/fireos6/` |
 | **Fire OS 7** (Android 9) | yes, some are protected | no: this fork's launcher is API 25 only | external router/Pi-hole only; no local VPN in this fork | debloat scripts supported; launcher not targeted |
 | **Fire OS 8** (Android 11) | yes, protected list differs | no: this fork's launcher is API 25 only | external router/Pi-hole only; no local VPN in this fork | debloat scripts supported; launcher not targeted |
 | **Android TV / Google TV** (Sony, TCL, Philips, Hisense, Xiaomi, onn…) | yes, by hand with `pm disable-user` | no: this fork's launcher is AFTMM / API 25 only | Private DNS or a separate VPN app may be possible; not provided by this fork | manual cleanup reports in the catalog; the scripts are Fire OS only |
