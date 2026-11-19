@@ -28,7 +28,7 @@ final class AfterglowTile {
     private final TextPaint text = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private CharSequence fitted;
 
-    AfterglowTile(Context c, String packageId, CharSequence label, int accent) {
+    AfterglowTile(Context c, String packageId, CharSequence label, int accent, int backgroundColor) {
         context = c;
         title = label.toString().toUpperCase(Locale.ROOT);
         int[] known = BrandColors.forPackage(packageId);
@@ -40,7 +40,7 @@ final class AfterglowTile {
         } else {
             brandMark = null;
         }
-        text.setColor(Ui.TEXT);
+        text.setColor(Ui.ink(backgroundColor));
         text.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
         text.setTextAlign(Paint.Align.CENTER);
         if ("grayscale".equals(Config.get(c).get(Config.AFTERGLOW_ICON))) {
