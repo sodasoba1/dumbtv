@@ -67,7 +67,7 @@ class LauncherCertificateTest(unittest.TestCase):
                               '[[ "$1" == verify && "$2" == --print-certs ]] || exit 90\n'
                               f"printf '%s\\n' 'Signer #1 certificate SHA-256 digest: {PIN}'\n")
             signer.chmod(0o755)
-            env = dict(os.environ, ANDROID_HOME="", PATH=str(bindir) + os.pathsep + os.environ.get("PATH", ""))
+            env = dict(os.environ, ANDROID_HOME="", ANDROID_SDK_ROOT="", LOCALAPPDATA="", PATH=str(bindir) + os.pathsep + os.environ.get("PATH", ""))
             result = subprocess.run(["bash", str(VERIFY), str(apk)], env=env,
                                     capture_output=True, text=True, timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -85,13 +85,6 @@ class LauncherCertificateTest(unittest.TestCase):
             bindir.mkdir()
             capture = tmp / "cmd-arguments.txt"
 
-            cygpath = bindir / "cygpath"
-            cygpath.write_text(
-                "#!/usr/bin/env bash\n"
-                '[[ "$1" == -w || "$1" == -u ]] || exit 91\n'
-                'printf "%s\\n" "$2"\n'
-            )
-            cygpath.chmod(0o755)
             cmd = bindir / "cmd.exe"
             cmd.write_text(
                 "#!/usr/bin/env bash\n"
@@ -111,9 +104,11 @@ class LauncherCertificateTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("release certificate verified", result.stdout)
             args = capture.read_text()
-            self.assertIn("verify --print-certs", args)
-            self.assertIn(str(signer), args)
-            self.assertIn(str(apk), args)
+            self.assertIn("call", args)
+            self.assertIn("verify", args)
+            self.assertIn("--print-certs", args)
+            self.assertIn("apksigner.bat", args)
+            self.assertIn("release package.apk", args)
 
     def test_missing_apksigner_is_a_hard_failure(self):
         if shutil.which("apksigner"):
