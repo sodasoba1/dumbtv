@@ -109,15 +109,18 @@ final class Ui {
                 : round(c, optionSurface(c));
         dialog.getWindow().setBackgroundDrawable(background);
 
-        TextView title = dialog.findViewById(android.R.id.alertTitle);
-        if (title != null) {
+        int titleId = c.getResources().getIdentifier("alertTitle", "id", "android");
+        android.view.View titleView = titleId == 0 ? null : dialog.findViewById(titleId);
+        if (titleView instanceof TextView) {
+            TextView title = (TextView) titleView;
             title.setTextColor(TEXT);
             title.setTypeface(MEDIUM);
             title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19);
             title.setPadding(dp(c, 4), dp(c, 2), dp(c, 4), dp(c, 4));
         }
-        TextView message = dialog.findViewById(android.R.id.message);
-        if (message != null) {
+        android.view.View messageView = dialog.findViewById(android.R.id.message);
+        if (messageView instanceof TextView) {
+            TextView message = (TextView) messageView;
             message.setTextColor(MUTED);
             message.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         }
