@@ -119,11 +119,12 @@ fi
 # Detect a duplicate as soon as the device identity is known, before asking
 # for human-only details such as prompts, quirks and notes.
 [[ -z $ID ]] && ID=$(printf '%s-%s-%s' "$PLATFORM" "$(slug "$BRAND")" "$(slug "$MODEL")")
-printf '%s' "$ID" | grep -Eq '^[a-z0-9][a-z0-9.-]* && ( -z $BRAND || -z $MODEL ) ]]; then
+printf '%s' "$ID" | grep -Eq '^[a-z0-9][a-z0-9.-]*$' || die "invalid catalogue id: $ID"
+[[ ! -e $ROOT/catalog/devices/$ID.yaml ]] || die "catalogue entry already exists: $ROOT/catalog/devices/$ID.yaml"
+
+if [[ $ASSUME_YES == 1 && ( -z $BRAND || -z $MODEL ) ]]; then
   die "unattended mode needs --brand and --model (or drop --no-device so they can be read from the TV)"
 fi
-[[ -z $ID ]] && ID=$(printf '%s-%s-%s' "$PLATFORM" "$(slug "$BRAND")" "$(slug "$MODEL")")
-printf '%s' "$ID" | grep -Eq '^[a-z0-9][a-z0-9.-]*$' || die "id '$ID' must be lowercase letters, digits, dots or dashes"
 
 step "the parts only a human knows"
 if [[ -z $DEV_MODE ]]; then
