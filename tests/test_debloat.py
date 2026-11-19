@@ -10,7 +10,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / "data" / "fireos"
+DATA = ROOT / "data" / "fireos6"
 
 
 def entries(path):
