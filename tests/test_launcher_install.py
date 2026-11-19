@@ -77,7 +77,7 @@ class LauncherInstallTest(unittest.TestCase):
             launcher.mkdir(); scripts.mkdir(); bindir.mkdir()
             shutil.copy(ROOT / "launcher/install.sh", launcher / "install.sh")
             shutil.copy(ROOT / "scripts/home.sh", scripts / "home.sh")
-            (launcher / "version.env").write_text("VERSION=1.11\\n")
+            (launcher / "version.env").write_text("VERSION=1.11\n")
             state = tmp / "state.json"
             state.write_text(json.dumps({"packages": {}, "settings": {}, "sdk": 25}))
             log = tmp / "commands.log"; log.touch()
