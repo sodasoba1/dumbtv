@@ -22,7 +22,7 @@ class LauncherCertificateTest(unittest.TestCase):
             signer.parent.mkdir(parents=True)
             signer.write_text(
                 "#!/usr/bin/env bash\n"
-                '[[ "$1" == verify && "$2" == --print-certs && "$4" == "$APK_UNDER_TEST" ]] || exit 90\n'
+                '[[ "$1" == verify && "$2" == --print-certs && "$3" == "$APK_UNDER_TEST" ]] || exit 90\n'
                 f"printf '%s\\n' 'Signer #1 certificate SHA-256 digest: {digest}'\n"
                 f"printf '%s\\n' {extra_output!r}\n"
                 f"exit {exit_code}\n"
