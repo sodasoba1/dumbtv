@@ -18,7 +18,7 @@ class RestoreTest(unittest.TestCase):
                     package_snapshot=None, manufacturer='Amazon'):
         packages = {
             "dnsfilter.android": {"system": False, "enabled": True},
-            "com.amazon.tv.acr": {"system": True, "enabled": False},
+            "com.amazon.hedwig": {"system": True, "enabled": False},
         }
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
@@ -57,15 +57,15 @@ class RestoreTest(unittest.TestCase):
         self.assertIn("svc power reboot", commands[stop_filter:])
         self.assertNotIn("reboot", commands)
         self.assertEqual(state["boots"], 1)
-        self.assertTrue(state["packages"]["com.amazon.tv.acr"]["enabled"])
+        self.assertTrue(state["packages"]["com.amazon.hedwig"]["enabled"])
         self.assertEqual(state.get("bad", []), [])
 
     def test_restore_preserves_packages_disabled_before_dumbtv(self):
         result, commands, state = self.run_restore(
-            package_snapshot="com.amazon.tv.acr\tdisabled\n")
+            package_snapshot="com.amazon.hedwig\tdisabled\n")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertFalse(state["packages"]["com.amazon.tv.acr"]["enabled"])
-        self.assertNotIn("pm enable --user 0 com.amazon.tv.acr", commands)
+        self.assertFalse(state["packages"]["com.amazon.hedwig"]["enabled"])
+        self.assertNotIn("pm enable --user 0 com.amazon.hedwig", commands)
         self.assertIn("left disabled (was not enabled in the original snapshot)", result.stdout)
         self.assertFalse(self.package_snapshot_exists_after,
                          "successful restore clears snapshots for the next cleanup cycle")
