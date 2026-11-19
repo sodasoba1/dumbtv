@@ -736,7 +736,7 @@ public final class Home extends Activity {
         }
         if (!"4".equals(savedWidgetVersion)) widgetLayout.ensureDateWidget();
         cfg.set(WidgetLayout.CONFIG_KEY, widgetLayout.encode());
-        cfg.set("widgets.layout.version", "3");
+        cfg.set("widgets.layout.version", "4");
         widgetGrid = new WidgetGridView(this);
         widgetGrid.setLayout(widgetLayout);
         for (WidgetVisibility.Definition definition : WidgetVisibility.ALL) {
