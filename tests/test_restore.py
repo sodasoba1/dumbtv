@@ -30,7 +30,7 @@ class RestoreTest(unittest.TestCase):
             state.write_text(json.dumps({"packages": packages, "settings": hooked,
                                          "manufacturer": manufacturer,
                                          "ignores_reboot": ignores_reboot,
-                                         "svc_refused": svc_refused}))
+                                         "svc_refused": svc_refused, "sdk": 25}))
             log = tmp / "commands.log"
             log.touch()
             (tmp / "dumbtv.conf").write_text("")
