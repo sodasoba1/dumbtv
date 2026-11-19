@@ -105,6 +105,10 @@ public final class AllApps extends Activity {
     /** Decode artwork only for tiles near the viewport. */
     private void loadVisibleArt() {
         if (grid == null || scroll == null || isFinishing() || isDestroyed()) return;
+        if (grid.getHeight() == 0 || scroll.getHeight() == 0) {
+            grid.post(this::loadVisibleArt);
+            return;
+        }
         int top = scroll.getScrollY() - Ui.dp(this, 220);
         int bottom = scroll.getScrollY() + scroll.getHeight() + Ui.dp(this, 220);
         for (int i = 0; i < grid.getChildCount(); i++) {
