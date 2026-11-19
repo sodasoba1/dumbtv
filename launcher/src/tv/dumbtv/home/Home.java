@@ -162,7 +162,6 @@ public final class Home extends Activity {
         final LinearLayout strip;
         List<Item> all = new ArrayList<>();
         int initialFocusIndex;
-        int renderGeneration;
 
         Row(String kind, String name, LinearLayout parent) {
             this.kind = kind;
@@ -176,13 +175,14 @@ public final class Home extends Activity {
             strip.setClipToPadding(false);
             strip.setPadding(bleed, dp(12), bleed, dp(8));
             scroll = new HorizontalScrollView(Home.this) {
-                /** Keeps the focused tile centered, except near either end of the row. */
+                /** Scroll only enough to reveal the focused tile; never recenter the carousel. */
                 @Override
                 protected int computeScrollDeltaToGetChildRectOnScreen(Rect r) {
-                    if (getChildCount() == 0) return 0;
-                    int range = Math.max(0, getChildAt(0).getWidth() - (getWidth() - getPaddingLeft() - getPaddingRight()));
-                    int target = Math.max(0, Math.min(range, r.centerX() - getWidth() / 2));
-                    return target - getScrollX();
+                    int visibleLeft = getScrollX() + getPaddingLeft();
+                    int visibleRight = getScrollX() + getWidth() - getPaddingRight();
+                    if (r.left < visibleLeft) return r.left - visibleLeft;
+                    if (r.right > visibleRight) return r.right - visibleRight;
+                    return 0;
                 }
             };
             scroll.setFocusable(false);
@@ -725,18 +725,18 @@ public final class Home extends Activity {
         head.setPadding(dp(24), 0, dp(24), 0);
         root.addView(head, new FrameLayout.LayoutParams(MATCH, dp(56), Gravity.TOP));
 
+        String savedWidgetVersion = cfg.get("widgets.layout.version", "");
         if (!"1".equals(cfg.get("widgets.initialized", ""))) {
             widgetLayout = WidgetLayout.defaults();
-            cfg.set(WidgetLayout.CONFIG_KEY, widgetLayout.encode());
             cfg.set("widgets.initialized", "1");
-            cfg.set("widgets.layout.version", "2");
-        } else if (!"2".equals(cfg.get("widgets.layout.version", ""))) {
+        } else if ("1".equals(savedWidgetVersion)) {
             widgetLayout = WidgetLayout.decodeLegacy(cfg.get(WidgetLayout.CONFIG_KEY, ""));
-            cfg.set(WidgetLayout.CONFIG_KEY, widgetLayout.encode());
-            cfg.set("widgets.layout.version", "2");
         } else {
             widgetLayout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         }
+        if (!"4".equals(savedWidgetVersion)) widgetLayout.ensureDateWidget();
+        cfg.set(WidgetLayout.CONFIG_KEY, widgetLayout.encode());
+        cfg.set("widgets.layout.version", "4");
         widgetGrid = new WidgetGridView(this);
         widgetGrid.setLayout(widgetLayout);
         for (WidgetVisibility.Definition definition : WidgetVisibility.ALL) {
@@ -749,11 +749,13 @@ public final class Home extends Activity {
         clockWidget.setPadding(dp(18), dp(4), dp(18), dp(4));
         clockWidget.setBackground(null);
         clock = Ui.text(this, 32, Ui.TEXT, Ui.LIGHT);
-        date = Ui.text(this, 13, Ui.MUTED, Ui.MEDIUM);
-        date.setPadding(dp(2), dp(2), 0, 0);
         clockWidget.addView(clock);
-        clockWidget.addView(date);
         widgetGrid.addWidgetView("clock", clockWidget);
+
+        date = widgetText(DateFormat.format(
+                DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEEdMMMM"), new Date()).toString());
+        date.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14);
+        widgetGrid.addWidgetView("date", date);
 
         memoryWidget = new FrameLayout(this);
         memoryWidget.setBackground(null);
@@ -773,10 +775,12 @@ public final class Home extends Activity {
         storageMeter.setWords("Storage", "", "Running low");
         storageMeter.setAccent(cfg.accent());
         storageWidget = storageFrame;
-        storageFrame.addView(storageMeter, new FrameLayout.LayoutParams(MATCH, WRAP, Gravity.CENTER));
+        storageFrame.addView(storageMeter, new FrameLayout.LayoutParams(WRAP, WRAP, Gravity.CENTER));
         textWidget = widgetText(cfg.getText("widgets.text", "Custom text"));
         diagnosticsWidget = widgetText("DumbTV diagnostics\nCollecting process information…");
         diagnosticsWidget.setMaxLines(4);
+        diagnosticsWidget.setGravity(Gravity.TOP);
+        diagnosticsWidget.setLineSpacing(dp(2), 1.1f);
         diagnosticsWidget.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
         diagnosticsWidget.setPadding(dp(6), dp(2), dp(6), dp(2));
         deviceWidget = widgetText(WidgetDiagnostics.deviceInformation());
@@ -916,8 +920,8 @@ public final class Home extends Activity {
         ViewGroup strip = apps.tiles();
         int count = strip.getChildCount();
         if (count == 0) return null;
-        int start = count > 6 && count % 3 == 0 ? count / 3 : 0;
-        int end = count > 6 && count % 3 == 0 ? start + count / 3 : count;
+        int start = 0;
+        int end = count;
         int[] at = new int[2];
         from.getLocationOnScreen(at);
         int x = at[0] + from.getWidth() / 2;
@@ -1059,20 +1063,31 @@ public final class Home extends Activity {
     }
 
     private boolean iconChips() {
-        return "icons".equals(cfg.get(Config.CHIPS));
+        String mode = cfg.get(Config.CHIPS);
+        return "icons".equals(mode) || "both".equals(mode);
     }
 
-    /** Text and padding for the chip style: the name always for text, on focus only for icons. */
-    private void chipLook(TextView c, boolean focused) {
-        if (c.getTag() == null || !iconChips()) {
-            c.setText(c.getContentDescription());
-            c.setCompoundDrawablePadding(0);
-            c.setPadding(dp(18), dp(9), dp(18), dp(9));
-            return;
+    /** One width for every toolbar chip, sized to the longest label in the selected mode. */
+    private int toolbarChipWidth() {
+        String mode = cfg.get(Config.CHIPS);
+        if ("icons".equals(mode)) return dp(48);
+        float longest = 0;
+        for (TextView chip : chips) {
+            CharSequence label = chip.getContentDescription();
+            if (label != null) longest = Math.max(longest, chip.getPaint().measureText(label.toString()));
         }
-        c.setText(focused ? c.getContentDescription() : "");
-        c.setCompoundDrawablePadding(focused ? dp(8) : 0);
-        c.setPadding(dp(10), dp(10), dp(focused ? 16 : 10), dp(10));
+        int text = (int) Math.ceil(longest);
+        return text + ("both".equals(mode) ? dp(22 + 8 + 28) : dp(18 * 2));
+    }
+
+    /** Apply the selected chip content without changing its size when focus moves. */
+    private void chipLook(TextView c, boolean focused) {
+        String mode = cfg.get(Config.CHIPS);
+        boolean showText = !"icons".equals(mode);
+        c.setText(showText ? c.getContentDescription() : "");
+        c.setCompoundDrawablePadding("both".equals(mode) ? dp(8) : 0);
+        int horizontal = "icons".equals(mode) ? 13 : "both".equals(mode) ? 14 : 18;
+        c.setPadding(dp(horizontal), dp(9), dp(horizontal), dp(9));
     }
 
     private TextView widgetText(String value) {
@@ -1103,8 +1118,6 @@ public final class Home extends Activity {
             }
             if ("clock".equals(widget.id)) {
                 clock.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, size);
-                date.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP,
-                        Math.max(10, Math.round(size * 0.4f)));
                 continue;
             }
             for (int i = 0; i < widgetGrid.getChildCount(); i++) {
@@ -1161,6 +1174,7 @@ public final class Home extends Activity {
         int widgetSurface = Ui.tileSurface(this, true);
         boolean widgetBackgrounds = "on".equals(cfg.get(Config.WIDGET_BACKGROUNDS));
         clockWidget.setBackground(widgetBackgrounds ? Ui.surface(this, widgetSurface, dp(12)) : null);
+        date.setBackground(widgetBackgrounds ? Ui.surface(this, widgetSurface, dp(12)) : null);
         memoryWidget.setBackground(widgetBackgrounds ? Ui.surface(this, widgetSurface, dp(12)) : null);
         networkWidget.setBackground(widgetBackgrounds ? Ui.surface(this, widgetSurface, dp(12)) : null);
         storageWidget.setBackground(widgetBackgrounds ? Ui.surface(this, widgetSurface, dp(12)) : null);
@@ -1175,13 +1189,21 @@ public final class Home extends Activity {
         textWidget.setText(cfg.getText("widgets.text", "Custom text"));
         applyWidgetFontSizes();
         updateSystemWidgets();
+        int chipWidth = toolbarChipWidth();
         for (TextView c : chips) {
-            Ui.focusStyle(c, accent, Ui.isGlass(this) ? 0x55303D4B : 0x14FFFFFF, dp(icons ? 21 : 18));
+            Ui.focusStyle(c, accent, Ui.isGlass(this) ? 0x55303D4B : 0x14FFFFFF, dp(18));
             int[] art = (int[]) c.getTag();
-            c.setCompoundDrawablesRelative(icons && art != null ? Ui.chipIcon(getDrawable(art[0]), getDrawable(art[1]),
-                    accent, dp(22)) : null, null, null, null);
-            if (art == null) c.setText(c.getContentDescription());
+            c.setCompoundDrawablesRelative(icons && art != null
+                    ? Ui.chipIcon(getDrawable(art[0]), getDrawable(art[1]), accent, dp(22))
+                    : null, null, null, null);
             chipLook(c, c.isFocused());
+            c.setMinWidth(chipWidth);
+            ViewGroup.LayoutParams params = c.getLayoutParams();
+            if (params != null) {
+                params.width = chipWidth;
+                params.height = dp(48);
+                c.setLayoutParams(params);
+            }
             c.setVisibility(locked() ? View.GONE : View.VISIBLE);
         }
         for (WidgetVisibility.Definition definition : WidgetVisibility.ALL) {
@@ -1287,7 +1309,6 @@ public final class Home extends Activity {
             row.setVisible(false);
             return;
         }
-        int renderGeneration = ++row.renderGeneration;
         if (moving != null && moving.kind.equals(row.kind)) stopMoving(false);
         View focused = getCurrentFocus();
         String keep = focused instanceof Tile && ((Tile) focused).kind.equals(row.kind)
@@ -1304,29 +1325,15 @@ public final class Home extends Activity {
         int accent = cfg.accent();
         String spacing = cfg.get(Config.TILE_SPACING);
         int tileGap = dp("compact".equals(spacing) ? 10 : "spacious".equals(spacing) ? 28 : 18);
-        int availableWidth = getResources().getDisplayMetrics().widthPixels - dp(48);
-        int contentWidth = 0;
-        if (row == apps) {
-            for (Item item : shown) contentWidth += favoriteCardSize(item)[0];
-        } else if (size != null) {
-            contentWidth = shown.size() * size[0];
-        }
-        contentWidth += Math.max(0, shown.size() - 1) * tileGap;
-        boolean loopingFavourites = row == apps
-                && (shown.size() > 5 || contentWidth > availableWidth);
-        int copies = loopingFavourites ? 3 : 1;
-        row.initialFocusIndex = loopingFavourites ? shown.size() : 0;
+        // A single strip is a true carousel: no cloned tiles, hidden cycle or focus recentering.
+        row.initialFocusIndex = 0;
         if (row == apps) {
             row.strip.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
-            row.strip.setLayoutParams(new FrameLayout.LayoutParams(
-                    loopingFavourites ? WRAP : MATCH, WRAP));
+            row.strip.setLayoutParams(new FrameLayout.LayoutParams(WRAP, WRAP));
         }
-        int index = 0, restore = -1;
-        for (int copy = 0; copy < copies; copy++) {
-            for (int itemIndex = 0; itemIndex < shown.size(); itemIndex++) {
-                final int copyIndex = copy;
-                final int itemPosition = itemIndex;
-                Item it = shown.get(itemIndex);
+        int restore = -1;
+        for (int itemIndex = 0; itemIndex < shown.size(); itemIndex++) {
+            Item it = shown.get(itemIndex);
                 int[] itemSize = row == apps ? favoriteCardSize(it) : size;
                 int w = itemSize[0];
                 int h = Catalog.isApp(row.kind) ? itemSize[1] : Math.round(itemSize[1] * 0.56f);
@@ -1338,20 +1345,6 @@ public final class Home extends Activity {
                         lastFocusedKind = tile.kind;
                         lastIds.put(tile.kind, tile.item.id);
                         focusBackground(tile.item);
-                        if (loopingFavourites && copyIndex != 1) {
-                            ui.post(() -> {
-                                if (renderGeneration != row.renderGeneration
-                                        || getCurrentFocus() != tile || tile.getParent() != target) return;
-                                View equivalent = target.getChildAt(shown.size() + itemPosition);
-                                if (equivalent != null) {
-                                    // Use the actual measured tile positions, not an estimated
-                                    // cycle width, so spacing and card changes cannot introduce a jump.
-                                    int offset = equivalent.getLeft() - tile.getLeft();
-                                    row.scroll.scrollTo(row.scroll.getScrollX() + offset, 0);
-                                    equivalent.requestFocus();
-                                }
-                            });
-                        }
                     }
                 });
                 t.setOnLongClickListener(v -> {
@@ -1359,24 +1352,13 @@ public final class Home extends Activity {
                     return true;
                 });
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(WRAP, WRAP);
-                lp.rightMargin = row == apps && copy == copies - 1
-                        && itemIndex == shown.size() - 1 ? 0 : tileGap;
-                target.addView(t, lp);
-                if (it.id.equals(keep) && (!loopingFavourites || copy == 1)) restore = index;
-                index++;
-                String tileStyle = cfg.get(Config.TILE_STYLE);
+                lp.rightMargin = row == apps && itemIndex == shown.size() - 1 ? 0 : tileGap;
+            target.addView(t, lp);
+            if (it.id.equals(keep)) restore = target.getChildCount() - 1;
+            String tileStyle = cfg.get(Config.TILE_STYLE);
                 boolean needsStyleIcon = "afterglow".equals(tileStyle)
                         && cfg.get(AppStyle.key(it, "banner"), null) == null && it.icon == null;
                 if (Catalog.isApp(row.kind) && (!it.artRequested || needsStyleIcon)) loadArt(it);
-            }
-        }
-        if (loopingFavourites) {
-            final int initialScrollIndex = restore >= 0 ? restore : row.initialFocusIndex;
-            row.scroll.post(() -> {
-                if (renderGeneration != row.renderGeneration) return;
-                View initialTile = row.tiles().getChildAt(initialScrollIndex);
-                if (initialTile != null) row.scroll.scrollTo(initialTile.getLeft(), 0);
-            });
         }
         row.setVisible(row != allApps && !shown.isEmpty());
         if (row == apps) row.title.setVisibility(View.GONE);
@@ -1547,13 +1529,8 @@ public final class Home extends Activity {
     private void focusFirst() {
         View first = null;
         for (Row row : rows()) {
-            if (row == apps && row.initialFocusIndex > 0) {
-                first = row.tiles().getChildAt(row.initialFocusIndex);
-                if (first != null) row.scroll.scrollTo(first.getLeft(), 0);
-            } else {
-                row.scroll.scrollTo(0, 0);
-                if (first == null) first = row.tiles().getChildAt(0);
-            }
+            row.scroll.scrollTo(0, 0);
+            if (first == null) first = row.tiles().getChildAt(0);
         }
         landed = apps.tiles().getChildCount() > 0 || allApps.tiles().getChildCount() > 0;
         if (first == null) first = chips.get(0);

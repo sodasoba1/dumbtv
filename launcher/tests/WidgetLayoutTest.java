@@ -23,9 +23,16 @@ public final class WidgetLayoutTest {
         check(newWidgets.add("diagnostics", "diagnostics", 0, 0, 3, 3), "accept diagnostics widget");
         check(newWidgets.add("device", "device", 3, 0, 3, 2), "accept device information widget");
         check(newWidgets.add("wide", "clock", 3, 2, 2, 1), "accept default 1 row x 2 columns widget size");
-        check(WidgetLayout.defaults().items().size() == 1, "first-run layout starts with the clock only");
+        check(WidgetLayout.defaults().items().size() == 2, "first-run layout starts with clock and day/date widgets");
         check(WidgetLayout.defaults().find("clock").width == 2
                 && WidgetLayout.defaults().find("clock").height == 1, "clock default is 1 row x 2 columns");
+        check(WidgetLayout.defaults().find("date") != null
+                && WidgetLayout.defaults().find("date").x == 2, "day/date sits beside the clock");
+        WidgetLayout oldClock = new WidgetLayout();
+        check(oldClock.add("clock", "clock", 0, 0, 2, 1), "create old clock-only layout");
+        oldClock.ensureDateWidget();
+        check(oldClock.find("date") != null && oldClock.find("date").x == 2,
+                "migrate old clock-only layout by adding day/date beside it");
         WidgetLayout legacy = new WidgetLayout();
         check(legacy.add("clock", "clock", 0, 0, 2, 2), "load existing user-sized clock");
         check(legacy.add("network", "network", 2, 0, 2, 2), "load existing user-sized network");
@@ -33,6 +40,14 @@ public final class WidgetLayoutTest {
                 "preserve existing 2x2 widget size");
         check(WidgetLayout.decode(legacy.encode()).find("network").width == 2,
                 "preserve all existing widget sizes");
+        check("left".equals(WidgetLayout.decode(legacy.encode()).find("clock").alignment),
+                "new widget content alignment defaults to left");
+        check(legacy.setAlignment("clock", "right"), "set widget content alignment");
+        check("right".equals(WidgetLayout.decode(legacy.encode()).find("clock").alignment),
+                "persist widget content alignment");
+        check("left".equals(WidgetLayout.decode("old,text,0,0,2,1").find("old").alignment),
+                "migrate six-field saved widgets with left alignment");
+        check(!legacy.setAlignment("clock", "diagonal"), "reject invalid widget alignment");
         check(grid.move("memory", 4, 0), "move into free cells");
         check(!grid.move("memory", 1, 0), "reject move into occupied cells");
         check(!grid.resize("clock", 5, 2), "reject resize into occupied cells");

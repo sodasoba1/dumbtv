@@ -175,9 +175,10 @@ final class Config {
     static final Choice TILE_STYLE = new Choice("tile_style", "App tile style", "original",
             new String[] {"original", "afterglow"},
             new String[] {"Original", "Afterglow"});
-    /** Options and Settings in the corner: text chips, or icon buttons whose name shows on focus. */
+    /** Presentation of the top-bar navigation chips; all three modes keep a fixed shared width. */
     static final Choice CHIPS = new Choice("chips", "Chip style", "text",
-            new String[] {"text", "icons"}, new String[] {"Text", "Icons"});
+            new String[] {"icons", "text", "both"},
+            new String[] {"Icons only", "Text only", "Text & icon"});
     /** The banner of hand-picked titles from {@link Library}; hidden anyway while it has none. */
     static final Choice LIBRARY = new Choice("library", "Library banner", "on",
             new String[] {"on", "off"}, new String[] {"Shown", "Hidden"});
