@@ -122,6 +122,7 @@ class WidgetGridView extends ViewGroup {
         LayoutParams params = new LayoutParams(widgetId);
         addView(child, params);
         configureChild(child);
+        applyContentAlignments();
     }
 
     @Override
