@@ -50,8 +50,12 @@ final class AppStyleEditor {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(Ui.dp(activity, 18), Ui.dp(activity, 12),
                 Ui.dp(activity, 18), Ui.dp(activity, 12));
-        content.addView(tilePreview(activity, item, state),
-                new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(activity, 150)));
+        content.setGravity(Gravity.CENTER_HORIZONTAL);
+        int previewWidth = Ui.dp(activity, "compact".equals(state.size) ? 240
+                : "large".equals(state.size) ? 360 : 300);
+        LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(previewWidth, Ui.dp(activity, 150));
+        previewLp.gravity = Gravity.CENTER_HORIZONTAL;
+        content.addView(tilePreview(activity, item, state), previewLp);
         final AlertDialog[] holder = new AlertDialog[1];
         addAction(activity, content, "Rename app", () -> rename(activity, config, item, state, changed), holder);
         addAction(activity, content, "Banner artwork", () -> chooseBanner(activity, config, item, state, changed), holder);
@@ -66,9 +70,14 @@ final class AppStyleEditor {
             showMenu(activity, config, item, state, changed);
         }, holder);
         addAction(activity, content, "Save changes", () -> save(activity, config, item, state, changed), holder);
+        ScrollView scroll = new ScrollView(activity);
+        scroll.setVerticalScrollBarEnabled(true);
+        scroll.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(activity, 430)));
+        scroll.addView(content);
         AlertDialog dialog = new AlertDialog.Builder(activity, Ui.DIALOG)
                 .setTitle("Customise · " + Catalog.label(config, item))
-                .setView(content)
+                .setView(scroll)
                 .setNegativeButton(R.string.cancel, null)
                 .create();
         holder[0] = dialog;
