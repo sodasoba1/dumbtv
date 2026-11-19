@@ -86,7 +86,7 @@ class DebloatTest(unittest.TestCase):
         self.run_debloat(pre_disabled=["com.amazon.hedwig"])
         self.assertIsNotNone(self.package_snapshot)
         self.assertIn("com.amazon.hedwig\tdisabled", self.package_snapshot)
-        self.assertIn("com.amazon.hedwig\tenabled", self.package_snapshot)
+        self.assertIn("com.amazon.tv.launcher\tenabled", self.package_snapshot)
 
     def test_legacy_report_does_not_snapshot_already_debloated_state(self):
         self.run_debloat(legacy_report=True)
