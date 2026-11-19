@@ -2,8 +2,8 @@
 # Installs dumbtv home on the TV and gives it the HOME button.
 #   ./launcher/install.sh            download the release APK (checksum-verified), install, take over HOME
 #   ./launcher/install.sh --build    build from source instead (needs a JDK and the Android SDK)
-#   ./launcher/install.sh --apk FILE install a supplied DumbTV APK, then apply Keeper permissions
-#   ./launcher/install.sh --permissions-only reapply Keeper permissions without reinstalling
+#   ./launcher/install.sh --apk FILE install a supplied DumbTV APK, then apply HomeSentinel permissions
+#   ./launcher/install.sh --permissions-only reapply HomeSentinel permissions without reinstalling
 #   ./launcher/install.sh --undo     hand HOME back to Amazon's launcher
 # Pick the device with ADB_SERIAL when more than one is connected.
 set -euo pipefail
@@ -66,7 +66,7 @@ sha256() {
 }
 
 if [[ $mode == undo ]]; then
-  # force-stop also keeps the Fire OS 6 Keeper from restarting at the next boot.
+  # force-stop also keeps the Fire OS 6 HomeSentinel from restarting at the next boot.
   sh_ am force-stop $PKG >/dev/null 2>&1 || true
   sh_ appops set $PKG GET_USAGE_STATS default >/dev/null 2>&1 || true
   sh_ appops set $PKG AUTO_START default >/dev/null 2>&1 || true
@@ -100,7 +100,7 @@ install_apk() {
 
 if [[ $mode == permissions ]]; then
   installed "$PKG" || { echo "error: $PKG is not installed; install an APK first" >&2; exit 1; }
-  echo "reapplying Keeper permissions for the installed $PKG"
+  echo "reapplying HomeSentinel permissions for the installed $PKG"
 elif [[ $mode == build ]]; then
   build_apk
 elif [[ $mode == apk ]]; then
@@ -151,14 +151,14 @@ if [[ $mode != permissions ]]; then
 fi
 
 sh_ dumpsys deviceidle whitelist +$PKG >/dev/null
-# Fire OS 6 only: Keeper uses UsageStats and ActivityManager logcat; no accessibility service.
+# Fire OS 6 only: HomeSentinel uses UsageStats and ActivityManager logcat; no accessibility service.
 if ! sh_ appops set $PKG GET_USAGE_STATS allow; then
-  echo "error: could not grant Keeper UsageStats access" >&2
+  echo "error: could not grant HomeSentinel UsageStats access" >&2
   exit 1
 fi
 usage_access=$(sh_ appops get $PKG GET_USAGE_STATS 2>/dev/null | tr -d '\r')
 if ! grep -Eq 'GET_USAGE_STATS:[[:space:]]*allow([,[:space:]]|$)' <<<"$usage_access"; then
-  echo "error: Keeper UsageStats access is not enabled ($usage_access)" >&2
+  echo "error: HomeSentinel UsageStats access is not enabled ($usage_access)" >&2
   exit 1
 fi
 # AUTO_START is a vendor-specific AppOp, not part of Android's standard
@@ -171,13 +171,13 @@ if grep -Fq 'Unknown operation string: AUTO_START' <<<"$auto_start_probe"; then
   echo "standby start: AUTO_START is not supported by this firmware; using the Fire OS boot receiver"
 else
   if ! sh_ appops set $PKG AUTO_START allow; then
-    echo "error: Fire OS refused Keeper's AUTO_START permission" >&2
+    echo "error: Fire OS refused HomeSentinel's AUTO_START permission" >&2
     exit 1
   fi
   sh_ appops write-settings >/dev/null 2>&1 || true
   auto_start=$(sh_ appops get $PKG AUTO_START 2>/dev/null | tr -d '\r')
   if ! grep -Eq 'AUTO_START:[[:space:]]*allow([,[:space:]]|$)' <<<"$auto_start"; then
-    echo "error: Keeper AUTO_START permission is not enabled ($auto_start)" >&2
+    echo "error: HomeSentinel AUTO_START permission is not enabled ($auto_start)" >&2
     echo "  Fire OS may block standby recovery; enable automatic start for dumbtv home in device app settings." >&2
     exit 1
   fi
@@ -186,19 +186,19 @@ fi
 # Request READ_LOGS on every install/update, then verify the resulting package
 # permission state. Fire OS 6 does not reliably implement pm check-permission.
 if ! sh_ pm grant $PKG android.permission.READ_LOGS; then
-  echo "error: could not grant Keeper READ_LOGS; ActivityManager logcat monitoring is required" >&2
+  echo "error: could not grant HomeSentinel READ_LOGS; ActivityManager logcat monitoring is required" >&2
   exit 1
 fi
 package_dump=$(sh_ dumpsys package $PKG 2>/dev/null || true)
 if ! grep -Eq '^[[:space:]]*android\.permission\.READ_LOGS:[[:space:]]*granted=true([,[:space:]]|$)' <<<"$package_dump"; then
-  echo "error: Keeper READ_LOGS grant was not verified in the installed package ($PKG)" >&2
+  echo "error: HomeSentinel READ_LOGS grant was not verified in the installed package ($PKG)" >&2
   exit 1
 fi
 echo "logcat monitoring: READ_LOGS granted and verified"
 start_home $PKG/.Home
 sleep 3
 if ! grep -q 'isForeground=true' <<<"$(sh_ dumpsys activity services $PKG 2>/dev/null)"; then
-  echo "error: the Fire OS 6 home keeper did not start ($PKG/.Keeper)" >&2
+  echo "error: the Fire OS 6 HomeSentinel did not start ($PKG/.HomeSentinel)" >&2
   exit 1
 fi
 front=""
@@ -208,12 +208,12 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
   sleep 1
 done
 if [[ -z $front ]]; then
-  echo "note: could not read which app is in front; ./scripts/verify.sh checks the Keeper"
+  echo "note: could not read which app is in front; ./scripts/verify.sh checks HomeSentinel"
 elif [[ $front != *"$PKG"* ]]; then
   echo "error: dumbtv home is installed but not in front ($front)" >&2
   exit 1
 fi
-echo "home: dumbtv (Keeper, Fire OS 6 / API 25)"
+echo "home: dumbtv (HomeSentinel, Fire OS 6 / API 25)"
 
 sleep 2
 printf 'front window:  %s\n' "$(sh_ dumpsys window | grep -m1 mCurrentFocus | sed 's/.* u0 //; s/}$//')"

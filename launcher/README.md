@@ -10,7 +10,7 @@ A home screen for the Fire TV Stick 4K (1st generation, AFTMM) on Fire OS 6.7.1.
   Services or any other library.
 - **No network.** There is no `INTERNET` permission, so Android will not let it
   open a connection.
-- **Boot and standby access.** The installer grants the `GET_USAGE_STATS` and Fire OS `AUTO_START` AppOps, adds the package to the Doze whitelist, and starts Keeper after boot or an app update. `AUTO_START` is checked after it is set so an install cannot silently claim standby recovery is configured when Fire OS refused it. It also grants `android.permission.READ_LOGS` with ADB `pm grant` and verifies the package reports `granted=true`; failure to grant or verify it stops installation. ActivityManager logcat is a required Keeper signal, not an optional feature.
+- **Boot and standby access.** The installer grants the `GET_USAGE_STATS` and Fire OS `AUTO_START` AppOps, adds the package to the Doze whitelist, and starts HomeSentinel after boot or an app update. `AUTO_START` is checked after it is set so an install cannot silently claim standby recovery is configured when Fire OS refused it. It also grants `android.permission.READ_LOGS` with ADB `pm grant` and verifies the package reports `granted=true`; failure to grant or verify it stops installation. ActivityManager logcat is a required HomeSentinel signal, not an optional feature.
 - **No ads, no recommended rows, no account, no analytics, no update checks.**
 - About 60–70 MB of memory with the home screen showing, about 37 MB while an app
   plays (measured on a Fire TV Edition television with 1.4 GB of RAM).
@@ -144,7 +144,7 @@ still leave the name visible. Afterglow fade strength is adjustable.
 
 ## Glass theme, top bar and widgets
 
-The **Theme** option includes Classic, Glass, Midnight and Slate. Glass applies translucent surfaces to buttons and the favourites dock; widget backgrounds remain optional and the top bar itself stays clear. It does not change app launch, HDMI handling or Keeper. Tile roundness is a global adjustment shared by tiles and UI surfaces; spacing, borders, shadows, focus treatment and accent remain separate controls.
+The **Theme** option includes Classic, Glass, Midnight and Slate. Glass applies translucent surfaces to buttons and the favourites dock; widget backgrounds remain optional and the top bar itself stays clear. It does not change app launch, HDMI handling or HomeSentinel. Tile roundness is a global adjustment shared by tiles and UI surfaces; spacing, borders, shadows, focus treatment and accent remain separate controls.
 
 The top bar buttons use consistent dimensions and can be aligned left, centre or right. **Auto-hide top bar** is off by default; when enabled, the bar fades/slides away without reclaiming its layout space or shifting the widget grid, scrolling content or bottom favourites panel. The **Widgets** shortcut opens the layout editor directly. Widgets themselves are never focusable or clickable; their placement is changed only in this editor.
 
@@ -360,18 +360,18 @@ This launcher build targets the Fire TV Stick 4K (1st generation, AFTMM) on
 Fire OS 6.7.1.1 / Android 7.1.2 (API 25). Amazon's launcher remains the protected
 system HOME handler, so DumbTV does not try to replace it or intercept the HOME key.
 
-Keeper is the only HOME recovery service:
+HomeSentinel is the only HOME recovery service:
 
-1. A boot receiver starts Keeper after the user is unlocked. The service runs in
+1. A boot receiver starts HomeSentinel after the user is unlocked. The service runs in
    the foreground so Fire OS is less likely to stop it.
 2. UsageStats foreground events are polled as the primary signal. The installer
    grants GET_USAGE_STATS through AppOps.
 3. The installer grants READ_LOGS through ADB and verifies the installed
-   package reports `granted=true`. Keeper watches ActivityManager logcat for
+   package reports `granted=true`. HomeSentinel watches ActivityManager logcat for
    the exact Amazon Home activity becoming displayed or resumed, alongside
    UsageStats and screen on/off broadcasts. Installation fails if READ_LOGS
    cannot be granted or verified.
-4. Keeper only intervenes after a positive Amazon Home foreground event and
+4. HomeSentinel only intervenes after a positive Amazon Home foreground event and
    only while the display is interactive. It moves the existing DumbTV task
    to the foreground, then verifies recovery; a limited direct activity-launch
    fallback is used if task reordering does not succeed.
@@ -380,12 +380,12 @@ Keeper is the only HOME recovery service:
    app is opened.
 
 The deep-sleep failure that prompted this design is documented in
-[Keeper standby and HOME recovery](../docs/KEEPER-RECOVERY.md). It explains why
+[HomeSentinel standby and HOME recovery](../docs/HOMESENTINEL.md). It explains why
 the old fixed UsageStats look-back and screen-off snapshot could miss the HOME
 transition after a long suspend, how the event-cursor and ActivityManager
 logcat paths address that gap, and why the installer must grant READ_LOGS.
 
-Keeper does not reboot the device or force the display on. The changes address
+HomeSentinel does not reboot the device or force the display on. The changes address
 the known missed-event failure modes, but long deep-standby recovery still
 depends on Fire OS delivering usable foreground state/events and must be
 validated on the physical AFTMM.
@@ -415,14 +415,14 @@ up `home.conf`, then `adb uninstall tv.dumbtv.home`.
 ## Diagnostics
 
 Logcat has everything under the tag `dumbtvtest`. For problems at boot, when the
-log has rotated by the time you can read it, the Keeper can also write a file that
+log has rotated by the time you can read it, HomeSentinel can also write a file that
 survives reboots:
 
 ```sh
 adb shell touch /sdcard/Android/data/tv.dumbtv.home/files/debug
 ```
 
-While that file exists, log lines go to `files/keeper.log` in the same folder.
+While that file exists, log lines go to `files/homesentinel.log` in the same folder.
 Delete both to stop.
 
 ## Files
@@ -442,18 +442,18 @@ Delete both to stop.
 | `src/.../IconPicker.java` | the screen that picks one app's icon |
 | `src/.../IconMatch.java` | the icon pack text rules, kept free of Android for the host test |
 | `src/.../Ui.java` | shared colours, text and sizes |
-| `src/.../Keeper.java` | the Fire OS 6 HOME recovery service |
+| `src/.../HomeSentinel.java` | the Fire OS 6 HOME recovery service |
 | `src/.../Recent.java` | when each app was last opened, for App order › Recently used |
 | `src/.../Hero.java` | the library banner: cross-fade, slow zoom, ◀ ▶ and OK |
 | `src/.../Library.java` | reads `library/library.conf` and opens a title in its app |
-| `src/.../BootReceiver.java` | restarts the Keeper after a boot or an update |
+| `src/.../BootReceiver.java` | restarts HomeSentinel after a boot or an update |
 | `build.sh` | aapt2, javac, d8, zipalign, apksigner |
 | `install.sh` | download and checksum (or `--build`), install, HOME hook, `--undo` |
 | `version.env` | the single source of truth for version name and version code |
 | `release-check.sh` | checks that the version, the built APK and the GitHub release agree |
 | `tests/FocusColorTest.java` | host-side tests for focus colours and curated/legacy colour options, run by CI |
 | `tests/RecentTest.java` | host-side test for the Recently used order, run by CI |
-| `tests/KeeperPauseTest.java` | host-side tests for Amazon Settings pause and resume classification, run by CI |
+| `tests/HomeSentinelPauseTest.java` | host-side tests for Amazon Settings pause and resume classification, run by CI |
 | `tests/LibraryTest.java` | host-side test for `library.conf` parsing, run by CI |
 | `tests/ConfigTest.java` | file import and failed-write recovery tests, run by CI |
 | `tests/AppSectionsTest.java` | pinned and All apps selection tests, run by CI |

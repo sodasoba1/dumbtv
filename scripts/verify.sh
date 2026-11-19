@@ -18,14 +18,14 @@ if [[ $LAUNCHER == 0 ]]; then
 elif [[ $SDK != 25 ]]; then
   printf '%-10s %-38s %s\n' FAIL home "launcher supports only Fire OS 6 / API 25 (device reports API $SDK)"; fail=1
 else
-  keeper=$(dev 'dumpsys activity services tv.dumbtv.home' | grep -c 'isForeground=true' || true)
+  homesentinel=$(dev 'dumpsys activity services tv.dumbtv.home' | grep -c 'isForeground=true' || true)
   home_package=${home%%/*}
-  if [[ ${keeper:-0} -gt 0 && $home_package != com.amazon.tv.launcher && -n $home_package ]]; then
-    printf '%-10s %-38s %s\n' ok home "Keeper armed; foreground is ${home:-unknown}"
-  elif [[ ${keeper:-0} -gt 0 ]]; then
-    printf '%-10s %-38s %s\n' FAIL home "Keeper is running but Amazon Home is foreground (${home:-unknown})"; fail=1
+  if [[ ${homesentinel:-0} -gt 0 && $home_package != com.amazon.tv.launcher && -n $home_package ]]; then
+    printf '%-10s %-38s %s\n' ok home "HomeSentinel armed; foreground is ${home:-unknown}"
+  elif [[ ${homesentinel:-0} -gt 0 ]]; then
+    printf '%-10s %-38s %s\n' FAIL home "HomeSentinel is running but Amazon Home is foreground (${home:-unknown})"; fail=1
   else
-    printf '%-10s %-38s %s\n' FAIL home "Keeper not running; re-run launcher.sh"; fail=1
+    printf '%-10s %-38s %s\n' FAIL home "HomeSentinel not running; re-run launcher.sh"; fail=1
   fi
   usage_access=$(dev 'appops get tv.dumbtv.home GET_USAGE_STATS' | tr -d '\r')
   if grep -Eq 'GET_USAGE_STATS:[[:space:]]*allow([,[:space:]]|$)' <<<"$usage_access"; then
@@ -37,7 +37,7 @@ else
   if grep -Fq 'Unknown operation string: AUTO_START' <<<"$auto_start"; then
     printf '%-10s %-38s %s\n' skip standby-start "AUTO_START unsupported by this firmware; boot receiver remains available"
   elif grep -Eq 'AUTO_START:[[:space:]]*allow([,[:space:]]|$)' <<<"$auto_start"; then
-    printf '%-10s %-38s %s\n' ok standby-start "Keeper AUTO_START allowed"
+    printf '%-10s %-38s %s\n' ok standby-start "HomeSentinel AUTO_START allowed"
   else
     printf '%-10s %-38s %s\n' FAIL standby-start "${auto_start:-AUTO_START unavailable}; rerun ./launcher/install.sh"; fail=1
   fi
