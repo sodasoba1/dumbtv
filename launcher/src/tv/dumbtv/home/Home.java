@@ -734,7 +734,7 @@ public final class Home extends Activity {
         } else {
             widgetLayout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         }
-        if (!"3".equals(savedWidgetVersion)) widgetLayout.ensureDateWidget();
+        if (!"4".equals(savedWidgetVersion)) widgetLayout.ensureDateWidget();
         cfg.set(WidgetLayout.CONFIG_KEY, widgetLayout.encode());
         cfg.set("widgets.layout.version", "3");
         widgetGrid = new WidgetGridView(this);
