@@ -59,8 +59,12 @@ class LauncherReleaseCheckTest(unittest.TestCase):
                     "printf 'Signer #1 certificate SHA-256 digest: %s\\n' \"$FAKE_SIGNER_DIGEST\"\n"
                 )
                 signer.chmod(0o755)
-            env = dict(
-                os.environ,
+            # Do not let the CI host's Android SDK override this test's
+            # deliberately empty temporary SDK when apksigner is absent.
+            env = os.environ.copy()
+            env.pop("ANDROID_SDK_ROOT", None)
+            env.pop("LOCALAPPDATA", None)
+            env.update(
                 ANDROID_HOME=str(sdk),
                 FAKE_APK=str(apk),
                 FAKE_SIDECAR=str(sidecar),
