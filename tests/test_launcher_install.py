@@ -56,7 +56,7 @@ class LauncherInstallTest(unittest.TestCase):
     def test_supplied_apk_install_also_grants_keeper_permissions(self):
         result, commands, state = self.install(installer_args=["--apk", "{APK}"])
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("install -r", commands)
+        self.assertTrue(any(command.startswith("install -r ") for command in commands), commands)
         self.assertIn("appops set tv.dumbtv.home GET_USAGE_STATS allow", commands)
         self.assertIn("pm grant tv.dumbtv.home android.permission.READ_LOGS", commands)
         self.assertEqual(state["appops"]["tv.dumbtv.home"]["GET_USAGE_STATS"], "allow")
