@@ -10,7 +10,7 @@ A home screen for the Fire TV Stick 4K (1st generation, AFTMM) on Fire OS 6.7.1.
   Services or any other library.
 - **No network.** There is no `INTERNET` permission, so Android will not let it
   open a connection.
-- **Boot and standby access.** The installer grants the `GET_USAGE_STATS` and Fire OS `AUTO_START` AppOps, adds the package to the Doze whitelist, and starts HomeSentinel after boot or an app update. `AUTO_START` is checked after it is set so an install cannot silently claim standby recovery is configured when Fire OS refused it. It also grants `android.permission.READ_LOGS` with ADB `pm grant` and verifies the package reports `granted=true`; failure to grant or verify it stops installation. ActivityManager logcat is a required HomeSentinel signal, not an optional feature.
+- **Boot and standby access.** HomeSentinel is started after boot or an app update by the manifest boot receiver. The installer grants `GET_USAGE_STATS`, adds the package to the Doze whitelist, and grants `android.permission.READ_LOGS` with ADB `pm grant`, verifying the package reports `granted=true`. Failure to grant or verify READ_LOGS stops installation. ActivityManager logcat is a required HomeSentinel signal, not an optional feature.
 - **No ads, no recommended rows, no account, no analytics, no update checks.**
 - About 60–70 MB of memory with the home screen showing, about 37 MB while an app
   plays (measured on a Fire TV Edition television with 1.4 GB of RAM).
