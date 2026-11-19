@@ -57,7 +57,8 @@ final class Tile extends View {
         afterglow = app && "afterglow".equals(tileStyle)
                 && Config.get(c).get(AppStyle.key(item, "banner"), null) == null
                 ? new AfterglowTile(c, item.id, title, accent,
-                        AppStyle.backgroundColor(Config.get(c), item, Ui.tileSurface(c, true))) : null;
+                        AppStyle.backgroundColor(Config.get(c), item, Ui.tileSurface(c, true)),
+                        AppStyle.get(Config.get(c), item, "background", null) != null) : null;
         // All Apps uses one label baseline for banner artwork, icons and Afterglow tiles.
         labelH = app && afterglow == null ? Ui.dp(c, 26) : 0;
         labelAlways = "always".equals(labels);
