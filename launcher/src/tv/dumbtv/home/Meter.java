@@ -11,6 +11,7 @@ import android.os.Environment;
 import android.os.StatFs;
 import android.text.format.Formatter;
 import android.view.View;
+import android.view.Gravity;
 
 /**
  * Options › Memory meter: free memory under the date, as one line of text over a thin bar of
@@ -28,6 +29,7 @@ final class Meter extends View {
     private final Paint track = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint bar = new Paint(Paint.ANTI_ALIAS_FLAG);
     private int width;
+    private int alignment = Gravity.LEFT;
     private final int barH, gap;
     private String label = "";
     /** The words around the numbers; Home hands in the TV's language with {@link #setWords}. */
@@ -79,6 +81,12 @@ final class Meter extends View {
 
     void setAccent(int color) {
         accent = color;
+        invalidate();
+    }
+
+    void setAlignment(int gravity) {
+        alignment = gravity == Gravity.CENTER_HORIZONTAL || gravity == Gravity.CENTER
+                ? Gravity.CENTER_HORIZONTAL : gravity == Gravity.RIGHT ? Gravity.RIGHT : Gravity.LEFT;
         invalidate();
     }
 
@@ -146,12 +154,16 @@ final class Meter extends View {
     protected void onDraw(Canvas canvas) {
         float baseline = -value.ascent();
         String head = title + "  ";
-        canvas.drawText(head, 0, baseline, name);
+        float headWidth = name.measureText(head);
         value.setColor(low ? LOW_COLOR : Ui.MUTED);
-        float valueLeft = name.measureText(head);
         CharSequence visible = TextUtils.ellipsize(label, value,
-                Math.max(0, width - valueLeft), TextUtils.TruncateAt.END);
-        canvas.drawText(visible.toString(), valueLeft, baseline, value);
+                Math.max(0, width - headWidth), TextUtils.TruncateAt.END);
+        float valueWidth = value.measureText(visible.toString());
+        float groupWidth = Math.min(width, headWidth + valueWidth);
+        float start = alignment == Gravity.CENTER_HORIZONTAL ? (width - groupWidth) / 2f
+                : alignment == Gravity.RIGHT ? width - groupWidth : 0f;
+        canvas.drawText(head, start, baseline, name);
+        canvas.drawText(visible.toString(), start + headWidth, baseline, value);
         float top = getHeight() - barH, r = barH / 2f;
         canvas.drawRoundRect(0, top, width, top + barH, r, r, track);
         bar.setColor(low ? LOW_COLOR : accent);
