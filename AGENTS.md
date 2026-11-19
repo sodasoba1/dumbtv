@@ -87,7 +87,9 @@ Allow (and tick "Always allow"). Tell them, and do not retry in a loop.
 
 The API 25 launcher installer must grant and verify all three required Keeper
 access paths: `GET_USAGE_STATS`, Fire OS `AUTO_START`, and
-`android.permission.READ_LOGS`. READ_LOGS is declared in the launcher manifest
+`android.permission.READ_LOGS`. Use `./launcher/install.sh --apk FILE` for
+a supplied DumbTV APK so these grants are applied after installation; use
+`--permissions-only` to repair grants after a manual APK install. READ_LOGS is declared in the launcher manifest
 and granted by the ADB shell using `pm grant tv.dumbtv.home
 android.permission.READ_LOGS`. The installer verifies
 `android.permission.READ_LOGS: granted=true` in `dumpsys package` and must
