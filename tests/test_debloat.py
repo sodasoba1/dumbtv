@@ -45,7 +45,7 @@ class DebloatTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
             state = tmp / "state.json"
-            state.write_text(json.dumps({"packages": packages, "settings": {
+            state.write_text(json.dumps({"packages": packages, "sdk": 25, "settings": {
                 "secure/screensaver_components": self.AMAZON_DREAM}}))
             log = tmp / "commands.log"
             log.touch()
