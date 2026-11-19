@@ -156,6 +156,7 @@ elif words[:4] == ['pm', 'disable-user', '--user', '0']:
         print('Security exception: Cannot disable a protected package')
     else:
         apps[name]['enabled'] = False
+        apps[name]['enabled_state'] = 3
         if name == VPN_APP:
             state['dropped'] = True
         save()
@@ -163,6 +164,7 @@ elif words[:4] == ['pm', 'disable-user', '--user', '0']:
 elif words[:4] == ['pm', 'enable', '--user', '0']:
     if words[4] in apps:
         apps[words[4]]['enabled'] = True
+        apps[words[4]]['enabled_state'] = 0
         save()
         print(f'Package {words[4]} new state: enabled')
 elif words[:4] == ['pm', 'uninstall', '--user', '0']:
@@ -171,6 +173,10 @@ elif words[:4] == ['pm', 'uninstall', '--user', '0']:
     print('Success')
 elif words[:2] == ['dumpsys', 'package']:
     print('    userId=10050')
+    if len(words) > 2 and words[2] in apps:
+        app = apps[words[2]]
+        state_id = app.get('enabled_state', 0 if app.get('enabled', True) else (2 if app.get('system_disabled') else 3))
+        print(f'  User 0: installed=true enabled={state_id}')
     if words[2:] and words[2] in state.get('versions', {}):
         print(f"    versionCode={state['versions'][words[2]]} minSdk=21 targetSdk=25")
     for permission, granted in state.get('permissions', {}).get(words[2] if len(words) > 2 else '', {}).items():
