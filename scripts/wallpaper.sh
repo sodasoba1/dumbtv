@@ -93,7 +93,7 @@ for f in "${images[@]}"; do
   # reads the words in it (morning, afternoon, night).
   name=$(printf '%s' "${base%.*}" | tr -c 'A-Za-z0-9_-' '-')
   if [[ $SHUFFLE == 1 ]]; then
-    hash=$(printf '%s\\n' "$n:$base" | cksum | awk '{print $1}')
+    hash=$(printf '%s\n' "$n:$base" | cksum | awk '{print $1}')
     name=$(printf '%05d-%s' "$((hash % 100000))" "$name")
   fi
   candidate=$name; suffix=1
