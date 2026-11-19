@@ -181,6 +181,8 @@ final class AppStyleEditor {
         ScrollView scroll = new ScrollView(activity);
         scroll.setFillViewport(true);
         scroll.setVerticalScrollBarEnabled(true);
+        scroll.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(activity, 420)));
         GridLayout grid = new GridLayout(activity);
         grid.setColumnCount(3);
         grid.setUseDefaultMargins(false);
