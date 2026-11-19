@@ -15,8 +15,12 @@ import os, sys
 args = sys.argv[1:]
 with open(os.environ['ADB_LOG'], 'a') as f:
     f.write(' '.join(args) + '\n')
-if args[-3:] == ['shell', 'getprop', 'ro.build.version.sdk']:
+if args[-1:] == ['get-state']:
+    print('device')
+elif args[-3:] == ['shell', 'getprop', 'ro.build.version.sdk']:
     print(os.environ.get('FAKE_SDK', '25'))
+elif args[-3:] == ['pm', 'path', 'tv.dumbtv.home']:
+    print('package:/data/app/tv.dumbtv.home/base.apk')
 elif len(args) >= 3 and args[2] == 'push' and os.environ.get('FAKE_PUSH_FAIL') == '1':
     sys.exit(1)
 """)
@@ -24,7 +28,7 @@ elif len(args) >= 3 and args[2] == 'push' and os.environ.get('FAKE_PUSH_FAIL') =
 
 
 class LibraryDeployTest(unittest.TestCase):
-    def run_script(self, sdk=25, image_line=None, push_fail=False):
+    def run_script(self, sdk=25, image_line=None, push_fail=False, dry_run=False):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         tmp = Path(tmp.name)
@@ -32,7 +36,7 @@ class LibraryDeployTest(unittest.TestCase):
         source.mkdir()
         line = "# no titles for this path test\n" if image_line is None else image_line
         (source / "library.conf").write_text(line)
-        (tmp / "victim.jpg").write_bytes(b"not an image")
+        (source / "victim.jpg").write_bytes(b"not an image")
         log = tmp / "adb.log"
         adb = tmp / "adb"
         fake_adb(adb)
@@ -40,7 +44,7 @@ class LibraryDeployTest(unittest.TestCase):
                    ADB_LOG=str(log), FAKE_SDK=str(sdk),
                    FAKE_PUSH_FAIL="1" if push_fail else "0")
         result = subprocess.run(
-            ["bash", str(ROOT / "scripts" / "library.sh"), str(source)],
+            ["bash", str(ROOT / "scripts" / "library.sh"), "-y", *(["--dry-run"] if dry_run else []), str(source)],
             env=env, capture_output=True, text=True, timeout=30,
         )
         commands = log.read_text().splitlines() if log.exists() else []
@@ -69,6 +73,20 @@ class LibraryDeployTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("picture names must be simple file names", result.stderr)
         self.assertFalse(any(" push " in line for line in commands), commands)
+
+    def test_dry_run_validates_and_plans_without_uploading(self):
+        result, commands, _ = self.run_script(dry_run=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("dry-run: no files uploaded", result.stdout)
+        self.assertFalse(any(" push " in line for line in commands))
+        self.assertFalse(any("staging" in line and "mkdir" in line for line in commands))
+
+    def test_duplicate_picture_references_are_rejected_before_upload(self):
+        result, commands, _ = self.run_script(
+            image_line="victim.jpg | First | com.example.one\nvictim.jpg | Second | com.example.two\n")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("duplicate picture reference", result.stderr)
+        self.assertFalse(any(" push " in line for line in commands))
 
     def test_rejects_non_api25_devices_before_push(self):
         result, commands, _ = self.run_script(sdk=30)

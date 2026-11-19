@@ -144,6 +144,17 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("data-saver", result.stdout)
         self.assertIn("off", result.stdout)
 
+    def test_user_disabled_never_disable_package_fails_verification(self):
+        result, _ = self.run_verify(
+            installed="package:com.amazon.firebat",
+            disabled="package:com.amazon.firebat",
+            extra={"dumpsys package com.amazon.firebat": {
+                "out": "  User 0: installed=true enabled=3"}})
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("FAIL", result.stdout)
+        self.assertIn("protected", result.stdout)
+        self.assertIn("com.amazon.firebat", result.stdout)
+
     def test_old_launcher_version_is_a_failure(self):
         result, _ = self.run_verify(launcher_package="    versionName=1.2")
         self.assertEqual(result.returncode, 1)

@@ -60,6 +60,23 @@ class ContributeTest(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertIn(f"id: {want}", result.stdout)
 
+    def test_fire_os_6_uses_fireos6_catalogue_data(self):
+        import json, os, tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "state.json"
+            state.write_text(json.dumps({"packages": {}, "sdk": 25, "manufacturer": "Amazon",
+                "props": {"ro.product.brand": "Acme", "ro.product.model": "AFTZZ999",
+                          "ro.build.version.release": "7.1.2", "ro.build.display.id": "test-build"}}))
+            env = dict(os.environ, ADB=str(ROOT / "tests" / "fake_tv.py"), ADB_SERIAL="test-tv",
+                       FAKE_TV_STATE=str(state), FAKE_TV_LOG=str(Path(tmp) / "log"))
+            result = subprocess.run(
+                ["bash", str(ROOT / "scripts" / "contribute.sh"), "-y", "--dry-run"],
+                env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=60)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("packages: data/fireos6/packages.txt", result.stdout)
+            self.assertIn("never_disable: data/fireos6/never-disable.txt", result.stdout)
+            self.assertIn("user_apps: data/fireos/user-apps.txt", result.stdout)
+
     def test_every_existing_entry_passes(self):
         # What is already in the catalog was reviewed by hand; the filter must not refuse it.
         lines = [line for f in sorted((ROOT / "catalog" / "devices").glob("*.yaml"))

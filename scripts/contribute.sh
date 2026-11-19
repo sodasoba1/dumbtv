@@ -121,6 +121,9 @@ slug() { printf '%s' "$1" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9.\n' '-' | sed 's/--*/
 [[ -z $ID ]] && ID=$(printf '%s-%s-%s' "$PLATFORM" "$(slug "$BRAND")" "$(slug "$MODEL")")
 printf '%s' "$ID" | grep -Eq '^[a-z0-9][a-z0-9.-]*$' || die "id '$ID' must be lowercase letters, digits, dots or dashes"
 
+# Refuse an existing entry before asking for human-only prompts, quirks and notes.
+[[ ! -e $ROOT/catalog/devices/$ID.yaml ]] || die "catalogue entry already exists: $ROOT/catalog/devices/$ID.yaml"
+
 step "the parts only a human knows"
 if [[ -z $DEV_MODE ]]; then
   case $PLATFORM in
@@ -163,9 +166,14 @@ if [[ ${#QUIRKS[@]} -gt 0 ]]; then
 fi
 [[ -z $GITHUB || $GITHUB =~ ^[A-Za-z0-9][A-Za-z0-9-]*$ ]] || die "'$GITHUB' is not a GitHub username"
 
+USER_APPS_DIR=""
 case $PLATFORM in
-  fireos) DATA_DIR=data/fireos ;;
-  androidtv) DATA_DIR=data/androidtv ;;
+  fireos)
+    USER_APPS_DIR=data/fireos
+    if [[ $SDK == 25 && -f $ROOT/data/fireos6/packages.txt ]]; then DATA_DIR=data/fireos6
+    else DATA_DIR=data/fireos; fi
+    ;;
+  androidtv) DATA_DIR=data/androidtv; USER_APPS_DIR=data/androidtv ;;
   *) DATA_DIR="" ;;
 esac
 OUT="$ROOT/catalog/devices/$ID.yaml"
@@ -206,7 +214,7 @@ step "writing"
     printf '  packages: %s/packages.txt\n' "$DATA_DIR"
     printf '  protected: %s/protected.txt\n' "$DATA_DIR"
     printf '  never_disable: %s/never-disable.txt\n' "$DATA_DIR"
-    printf '  user_apps: %s/user-apps.txt\n' "$DATA_DIR"
+    printf '  user_apps: %s/user-apps.txt\n' "${USER_APPS_DIR:-$DATA_DIR}"
   else
     printf 'data: {}\n'
   fi

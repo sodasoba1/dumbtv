@@ -33,13 +33,14 @@ STORE_APPS = ["com.netflix.ninja", "com.amazon.firetv.youtube", "org.videolan.vl
 class DebloatTest(unittest.TestCase):
     AMAZON_DREAM = "com.amazon.ftv.screensaver/.app.services.ScreensaverService"
 
-    def run_debloat(self, conf="", *flags, basic_dream=True, pre_disabled=(), legacy_report=False):
+    def run_debloat(self, conf="", *flags, basic_dream=True, pre_disabled=(), legacy_report=False, old_debloat_report=None):
         packages = {p: {"system": True, "enabled": True} for p in CLEANUP + ALEXA + USER_APPS}
         if basic_dream:
             packages["com.android.dreams.basic"] = {"system": True, "enabled": True}
         for p in STORE_APPS:
             packages[p] = {"system": False, "enabled": True}
         packages["com.amazon.tv.launcher"] = {"system": True, "enabled": True}
+        packages["com.amazon.firebat"] = {"system": True, "enabled": True}
         packages["com.amazon.device.metrics"] = {"system": True, "enabled": True, "protected": True}
         for package in pre_disabled:
             packages[package]["enabled"] = False
@@ -50,10 +51,11 @@ class DebloatTest(unittest.TestCase):
                 "secure/screensaver_components": self.AMAZON_DREAM}}))
             log = tmp / "commands.log"
             log.touch()
-            if legacy_report:
+            if legacy_report or old_debloat_report is not None:
                 report_dir = tmp / "report"
                 report_dir.mkdir()
-                (report_dir / "debloat.txt").write_text("com.amazon.hedwig\\tdisabled\\n")
+                previous = old_debloat_report if old_debloat_report is not None else "com.amazon.hedwig\tdisabled\n"
+                (report_dir / "debloat.txt").write_text(previous)
             (tmp / "dumbtv.conf").write_text(conf)
             env = dict(os.environ, ADB=str(ROOT / "tests" / "fake_tv.py"), ADB_SERIAL="test-tv",
                        FAKE_TV_STATE=str(state), FAKE_TV_LOG=str(log), CONF=str(tmp / "dumbtv.conf"),
@@ -71,6 +73,7 @@ class DebloatTest(unittest.TestCase):
             self.report = report.read_text().splitlines() if report.exists() else None
             snapshot = tmp / "report" / "packages-before.txt"
             self.package_snapshot = snapshot.read_text() if snapshot.exists() else None
+        self.commands = commands
         disabled = {c.split()[-1] for c in commands if c.startswith("pm disable-user")}
         uninstalled = {c.split()[-1] for c in commands if c.startswith("pm uninstall")}
         settings = [c for c in commands if c.startswith("settings put")]
@@ -124,6 +127,13 @@ class DebloatTest(unittest.TestCase):
     def test_keep_list_wins_over_the_cleanup_list(self):
         disabled, _, _ = self.run_debloat('KEEP_APPS="com.amazon.hedwig"\n')
         self.assertNotIn("com.amazon.hedwig", disabled)
+
+    def test_newly_protected_package_disabled_by_old_dumbtv_is_restored(self):
+        disabled, _, _ = self.run_debloat(
+            pre_disabled=["com.amazon.firebat"],
+            old_debloat_report="com.amazon.firebat\tdisabled\n")
+        self.assertNotIn("com.amazon.firebat", disabled)
+        self.assertIn("pm enable --user 0 com.amazon.firebat", self.commands)
 
     def test_screensaver_left_alone_by_default(self):
         _, _, settings = self.run_debloat()

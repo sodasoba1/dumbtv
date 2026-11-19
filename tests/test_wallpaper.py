@@ -109,6 +109,21 @@ class WallpaperTest(unittest.TestCase):
         self.assertEqual(files, [])
         self.assertFalse(any(c.startswith(("mkdir", "rm", "am start")) for c in commands))
 
+    def test_shuffle_plan_is_identical_in_dry_run_and_real_run(self):
+        dry, _, _, _, _ = self.run_script("--dry-run", "--shuffle")
+        real, _, _, _, _ = self.run_script("--shuffle")
+        self.assertEqual(dry.returncode, 0, dry.stdout + dry.stderr)
+        self.assertEqual(real.returncode, 0, real.stdout + real.stderr)
+        planned = lambda output: [line.split("-> wallpapers/", 1)[1]
+                                  for line in output.splitlines() if "-> wallpapers/" in line]
+        self.assertEqual(planned(dry.stdout), planned(real.stdout))
+
+    def test_missing_option_value_is_rejected_before_device_changes(self):
+        result, commands, files, _, _ = self.run_script("--dim")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(commands, [])
+        self.assertEqual(files, [])
+
     def test_a_bad_value_stops_before_the_tv(self):
         result, commands, files, _, _ = self.run_script("--dim", "50")
         self.assertNotEqual(result.returncode, 0)
