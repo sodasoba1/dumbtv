@@ -24,7 +24,7 @@ if args == ['start-server'] or args[:1] == ['connect']:
     sys.exit(0)
 if len(args) >= 4 and args[0] == '-s' and args[2] == 'install':
     with Path(os.environ['FAKE_TV_LOG']).open('a') as log:
-        log.write('install ' + ' '.join(args[3:]) + '\\n')
+        log.write('install ' + ' '.join(args[3:]) + '\n')
     print('Success')
     sys.exit(0)
 if args[:1] == ['disconnect']:
