@@ -83,9 +83,9 @@ class DebloatTest(unittest.TestCase):
         self.assertTrue(any(line.endswith("\tdisabled") for line in self.report))
 
     def test_original_package_enabled_state_is_snapshotted(self):
-        self.run_debloat(pre_disabled=["com.amazon.tv.acr"])
+        self.run_debloat(pre_disabled=["com.amazon.hedwig"])
         self.assertIsNotNone(self.package_snapshot)
-        self.assertIn("com.amazon.tv.acr\tdisabled", self.package_snapshot)
+        self.assertIn("com.amazon.hedwig\tdisabled", self.package_snapshot)
         self.assertIn("com.amazon.hedwig\tenabled", self.package_snapshot)
 
     def test_legacy_report_does_not_snapshot_already_debloated_state(self):
@@ -122,8 +122,8 @@ class DebloatTest(unittest.TestCase):
         self.assertNotIn("com.amazon.tv.launcher", disabled | uninstalled)
 
     def test_keep_list_wins_over_the_cleanup_list(self):
-        disabled, _, _ = self.run_debloat('KEEP_APPS="com.amazon.tv.acr"\n')
-        self.assertNotIn("com.amazon.tv.acr", disabled)
+        disabled, _, _ = self.run_debloat('KEEP_APPS="com.amazon.hedwig"\n')
+        self.assertNotIn("com.amazon.hedwig", disabled)
 
     def test_screensaver_left_alone_by_default(self):
         _, _, settings = self.run_debloat()
