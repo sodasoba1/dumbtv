@@ -245,8 +245,11 @@ final class Tile extends View {
         }
         if (moving) drawArrows(canvas);
         String appLabels = AppStyle.get(Config.get(getContext()), item, "labels", Config.get(getContext()).get(Config.LABELS));
-        boolean label = banner == null || "always".equals(appLabels)
-                || "focus".equals(appLabels) && isFocused();
+        boolean afterglowAllApps = afterglow != null && Catalog.ALL_APPS.equals(kind);
+        boolean label = afterglowAllApps
+                ? "always".equals(appLabels) || "focus".equals(appLabels) && isFocused()
+                : banner == null || "always".equals(appLabels)
+                        || "focus".equals(appLabels) && isFocused();
         if (labelH > 0 && label) {
             drawLine(canvas, under, cardW / 2f, cardH + labelH - Ui.dp(getContext(), 6));
         }
