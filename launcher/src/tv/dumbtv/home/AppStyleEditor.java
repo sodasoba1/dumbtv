@@ -200,12 +200,18 @@ final class AppStyleEditor {
         ScrollView scroll = new ScrollView(activity);
         scroll.setFillViewport(true);
         scroll.setVerticalScrollBarEnabled(true);
+        scroll.setHorizontalScrollBarEnabled(false);
         int screenHeight = activity.getResources().getDisplayMetrics().heightPixels;
+        // Leave room inside the dialog for its title, buttons and window insets.
         scroll.setLayoutParams(new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Math.round(screenHeight * 0.76f)));
+                ViewGroup.LayoutParams.MATCH_PARENT, Math.round(screenHeight * 0.70f)));
+
         GridLayout grid = new GridLayout(activity);
-        grid.setColumnCount(3);
+        // Two responsive columns keep every card inside the dialog on 720p/1080p TVs.
+        // Fixed 194dp cells in a three-column grid overflowed the actual dialog content width.
+        grid.setColumnCount(2);
         grid.setUseDefaultMargins(false);
+        grid.setAlignmentMode(GridLayout.ALIGN_BOUNDS);
         grid.setPadding(Ui.dp(activity, 10), Ui.dp(activity, 10),
                 Ui.dp(activity, 10), Ui.dp(activity, 10));
         scroll.addView(grid, new ScrollView.LayoutParams(
@@ -217,8 +223,8 @@ final class AppStyleEditor {
             cell.setGravity(Gravity.CENTER);
             cell.setFocusable(true);
             cell.setClickable(true);
-            cell.setPadding(Ui.dp(activity, 7), Ui.dp(activity, 7),
-                    Ui.dp(activity, 7), Ui.dp(activity, 7));
+            cell.setPadding(Ui.dp(activity, 9), Ui.dp(activity, 9),
+                    Ui.dp(activity, 9), Ui.dp(activity, 9));
             android.graphics.drawable.StateListDrawable cellStates =
                     new android.graphics.drawable.StateListDrawable();
             cellStates.addState(new int[] {android.R.attr.state_focused},
@@ -231,18 +237,21 @@ final class AppStyleEditor {
             Drawable artwork = previewArtwork(activity, item, asset, state.bannerColor);
             if (artwork == null) artwork = item.icon;
             image.setImageDrawable(artwork);
-            cell.addView(image, new LinearLayout.LayoutParams(Ui.dp(activity, 88), Ui.dp(activity, 47)));
-            TextView caption = Ui.text(activity, 11, Ui.TEXT, Ui.MEDIUM);
+            cell.addView(image, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(activity, 76)));
+            TextView caption = Ui.text(activity, 12, Ui.TEXT, Ui.MEDIUM);
             caption.setText(asset == null ? "Original artwork" : asset.replace('_', ' '));
             caption.setGravity(Gravity.CENTER);
             caption.setMaxLines(2);
             cell.addView(caption, new LinearLayout.LayoutParams(
-                    Ui.dp(activity, 176), ViewGroup.LayoutParams.WRAP_CONTENT));
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
-            lp.width = Ui.dp(activity, 194);
+            lp.rowSpec = GridLayout.spec(GridLayout.UNDEFINED);
+            lp.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+            lp.width = 0;
             lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
-            lp.setMargins(Ui.dp(activity, 4), Ui.dp(activity, 4),
-                    Ui.dp(activity, 4), Ui.dp(activity, 4));
+            lp.setMargins(Ui.dp(activity, 5), Ui.dp(activity, 5),
+                    Ui.dp(activity, 5), Ui.dp(activity, 5));
             grid.addView(cell, lp);
             cell.setOnClickListener(v -> {
                 state.banner = asset;
@@ -262,7 +271,9 @@ final class AppStyleEditor {
         if (dialog.getWindow() != null) {
             int width = activity.getResources().getDisplayMetrics().widthPixels;
             int height = activity.getResources().getDisplayMetrics().heightPixels;
-            dialog.getWindow().setLayout(Math.round(width * 0.88f), Math.round(height * 0.86f));
+            // Size the window itself as well as its scroll area; the latter is deliberately
+            // shorter so the title and Cancel button are never pushed outside the window.
+            dialog.getWindow().setLayout(Math.round(width * 0.92f), Math.round(height * 0.90f));
         }
     }
 
