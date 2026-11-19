@@ -213,8 +213,11 @@ required access paths are available; it does not change service state.
   treats the ADB READ_LOGS grant as required for the intended configuration.
 - The service does not reboot the TV, force the display on, replace Amazon's
   HOME handler, or guarantee recovery from every possible firmware failure.
-- Physical standby/wake testing is still required, especially after long
-  overnight standby intervals and firmware updates.
+- Physical standby/wake validation has passed on the target AFTMM: the TV
+  was left in standby for approximately 20 hours, then woken; HomeSentinel
+  successfully restored DumbTV. This confirms that tested interval and device
+  state, not every possible standby duration or firmware state. Re-test after
+  significant Fire OS firmware updates.
 
 ## Change history
 
