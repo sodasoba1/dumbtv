@@ -33,7 +33,7 @@ class LauncherInstallTest(unittest.TestCase):
                 "packages": {"tv.dumbtv.home": {"system": False, "enabled": True}},
                 "settings": {},
                 "sdk": 25,
-                "keeper_running": True,
+                "homesentinel_running": True,
                 "appops_refused": appops_refused,
                 "auto_start_unsupported": auto_start_unsupported,
                 "read_logs_refused": read_logs_refused,
@@ -53,7 +53,7 @@ class LauncherInstallTest(unittest.TestCase):
                                     env=env, capture_output=True, text=True, timeout=60)
             return result, log.read_text().splitlines(), json.loads(state.read_text())
 
-    def test_supplied_apk_install_also_grants_keeper_permissions(self):
+    def test_supplied_apk_install_also_grants_homesentinel_permissions(self):
         result, commands, state = self.install(installer_args=["--apk", "{APK}"])
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue(any(command.startswith("install -r ") for command in commands), commands)
@@ -62,7 +62,7 @@ class LauncherInstallTest(unittest.TestCase):
         self.assertEqual(state["appops"]["tv.dumbtv.home"]["GET_USAGE_STATS"], "allow")
         self.assertTrue(state["permissions"]["tv.dumbtv.home"]["android.permission.READ_LOGS"])
 
-    def test_permissions_only_repairs_keeper_without_reinstalling(self):
+    def test_permissions_only_repairs_homesentinel_without_reinstalling(self):
         result, commands, state = self.install(installer_args=["--permissions-only"])
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertFalse(any(command.startswith("install ") for command in commands), commands)
@@ -89,7 +89,7 @@ class LauncherInstallTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("is not installed", result.stderr)
 
-    def test_install_grants_keeper_standby_and_usage_access(self):
+    def test_install_grants_homesentinel_standby_and_usage_access(self):
         result, commands, state = self.install()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("appops set tv.dumbtv.home GET_USAGE_STATS allow", commands)
@@ -106,7 +106,7 @@ class LauncherInstallTest(unittest.TestCase):
         result, commands, _ = self.install(appops_refused=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("appops set tv.dumbtv.home AUTO_START allow", commands)
-        self.assertIn("Fire OS refused Keeper's AUTO_START permission", result.stderr)
+        self.assertIn("Fire OS refused HomeSentinel's AUTO_START permission", result.stderr)
 
     def test_install_continues_when_auto_start_operation_is_unsupported(self):
         result, commands, state = self.install(auto_start_unsupported=True)
@@ -122,7 +122,7 @@ class LauncherInstallTest(unittest.TestCase):
         result, commands, state = self.install(read_logs_refused=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("pm grant tv.dumbtv.home android.permission.READ_LOGS", commands)
-        self.assertIn("could not grant Keeper READ_LOGS", result.stderr)
+        self.assertIn("could not grant HomeSentinel READ_LOGS", result.stderr)
         self.assertFalse(state.get("permissions", {}).get("tv.dumbtv.home", {}).get(
             "android.permission.READ_LOGS", False))
 

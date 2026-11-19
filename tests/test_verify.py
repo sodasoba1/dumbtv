@@ -1,4 +1,4 @@
-"""Regression tests for the API 25 Keeper verification path; never contact hardware."""
+"""Regression tests for the API 25 HomeSentinel verification path; never contact hardware."""
 import json
 import os
 import re
@@ -12,7 +12,7 @@ RELEASE = re.search(r"^VERSION=(\S+)", (ROOT / "launcher/version.env").read_text
 
 
 class VerifyTests(unittest.TestCase):
-    def run_verify(self, *, sdk="25", keeper=True, usage="allow", auto_start="allow",
+    def run_verify(self, *, sdk="25", homesentinel=True, usage="allow", auto_start="allow",
                    read_logs=True, launcher="1", launcher_package=None, extra=None,
                    changed_settings=None, disabled="", installed="", data_saver="enabled",
                    screensaver="null", home="tv.dumbtv.home/.Home"):
@@ -26,7 +26,7 @@ class VerifyTests(unittest.TestCase):
             "cmd package help": {"out": "Package manager commands: path [--user USER_ID] PACKAGE"},
             "dumpsys activity activities": {"out": resumed},
             "dumpsys activity services tv.dumbtv.home": {
-                "out": "ServiceRecord tv.dumbtv.home/.Keeper isForeground=true" if keeper else ""
+                "out": "ServiceRecord tv.dumbtv.home/.HomeSentinel isForeground=true" if homesentinel else ""
             },
             "appops get tv.dumbtv.home GET_USAGE_STATS": {"out": f"GET_USAGE_STATS: {usage}"},
             "appops get tv.dumbtv.home AUTO_START": {"out": f"AUTO_START: {auto_start}"},
@@ -61,29 +61,29 @@ class VerifyTests(unittest.TestCase):
                 rows.append(f"{line[1]}={changed.get(line[1], line[2])}")
         return "\n".join(rows)
 
-    def test_api25_keeper_and_standby_permissions_pass(self):
+    def test_api25_homesentinel_and_standby_permissions_pass(self):
         result, _ = self.run_verify()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("Keeper armed", result.stdout)
+        self.assertIn("HomeSentinel armed", result.stdout)
         self.assertIn("UsageStats AppOp allowed", result.stdout)
-        self.assertIn("Keeper AUTO_START allowed", result.stdout)
+        self.assertIn("HomeSentinel AUTO_START allowed", result.stdout)
         self.assertIn("READ_LOGS granted", result.stdout)
 
-    def test_missing_keeper_is_a_failure(self):
-        result, _ = self.run_verify(keeper=False)
+    def test_missing_homesentinel_is_a_failure(self):
+        result, _ = self.run_verify(homesentinel=False)
         self.assertEqual(result.returncode, 1)
-        self.assertIn("Keeper not running", result.stdout)
+        self.assertIn("HomeSentinel not running", result.stdout)
 
-    def test_running_keeper_does_not_pass_when_amazon_home_is_foreground(self):
+    def test_running_homesentinel_does_not_pass_when_amazon_home_is_foreground(self):
         result, _ = self.run_verify(home="com.amazon.tv.launcher/.ui.HomeActivity_vNext")
         self.assertEqual(result.returncode, 1)
         self.assertIn("FAIL", result.stdout)
         self.assertIn("Amazon Home is foreground (com.amazon.tv.launcher", result.stdout)
 
-    def test_running_keeper_passes_with_an_ordinary_app_in_foreground(self):
+    def test_running_homesentinel_passes_with_an_ordinary_app_in_foreground(self):
         result, _ = self.run_verify(home="com.netflix.ninja/.MainActivity")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("Keeper armed; foreground is com.netflix.ninja", result.stdout)
+        self.assertIn("HomeSentinel armed; foreground is com.netflix.ninja", result.stdout)
 
     def test_missing_usage_stats_is_a_failure(self):
         result, _ = self.run_verify(usage="default")
@@ -108,13 +108,13 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("FAIL", result.stdout)
         self.assertIn("READ_LOGS not granted", result.stdout)
 
-    def test_non_api25_device_is_rejected_before_keeper_checks(self):
+    def test_non_api25_device_is_rejected_before_homesentinel_checks(self):
         result, calls = self.run_verify(sdk="28")
         self.assertEqual(result.returncode, 1)
         self.assertIn("only Fire OS 6 / API 25", result.stdout)
         self.assertFalse(any("AUTO_START" in " ".join(call) for call in calls))
 
-    def test_launcher_opt_out_skips_keeper_checks(self):
+    def test_launcher_opt_out_skips_homesentinel_checks(self):
         result, calls = self.run_verify(launcher="0")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("skip", result.stdout)
