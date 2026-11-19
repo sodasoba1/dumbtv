@@ -40,7 +40,20 @@ final class WidgetLayout {
     static WidgetLayout defaults() {
         WidgetLayout result = new WidgetLayout();
         result.add("clock", "clock", 0, 0, 2, 1);
+        result.add("date", "date", 2, 0, 2, 1);
         return result;
+    }
+
+    /** Adds a separate day/date widget when an older saved layout contains a clock only. */
+    void ensureDateWidget() {
+        if (find("date") != null || find("clock") == null) return;
+        // Prefer the cell block immediately beside the clock, then the first available 2x1 slot.
+        if (add("date", "date", 2, 0, 2, 1)) return;
+        for (int y = 0; y < ROWS; y++) {
+            for (int x = 0; x <= COLUMNS - 2; x++) {
+                if (add("date", "date", x, y, 2, 1)) return;
+            }
+        }
     }
 
     List<Widget> items() {
@@ -108,7 +121,7 @@ final class WidgetLayout {
 
     private static boolean validType(String type) {
         return "clock".equals(type) || "memory".equals(type) || "network".equals(type) || "storage".equals(type) || "text".equals(type)
-                || "diagnostics".equals(type) || "device".equals(type);
+                || "diagnostics".equals(type) || "device".equals(type) || "date".equals(type);
     }
 
     /** Width is columns across; height is rows down. Every in-bounds rectangle is valid. */
