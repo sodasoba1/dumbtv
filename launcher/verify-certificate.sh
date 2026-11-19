@@ -21,6 +21,9 @@ fi
 
 for sdk in "${sdk_roots[@]}"; do
   [[ -n $sdk ]] || continue
+  if command -v cygpath >/dev/null 2>&1; then
+    sdk=$(cygpath -u "$sdk")
+  fi
   native="$sdk/build-tools/34.0.0/apksigner"
   windows="$sdk/build-tools/34.0.0/apksigner.bat"
   if [[ -x $native ]]; then
