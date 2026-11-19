@@ -82,7 +82,7 @@ if [[ $DRY_RUN == 1 ]]; then
 else
   mkdir -p "$REPORT"
   write_report > "$OUT"
-fi"
+fi
 
 step "result"
 note "candidates $count of $total packages"
