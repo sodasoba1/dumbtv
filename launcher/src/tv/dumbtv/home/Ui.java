@@ -127,7 +127,9 @@ final class Ui {
             list.setDivider(new ColorDrawable(0x22FFFFFF));
             list.setDividerHeight(Math.max(1, dp(c, 1)));
             for (int i = 0; i < list.getChildCount(); i++) {
-                styleDialogText(list.getChildAt(i), c, accent);
+                android.view.View row = list.getChildAt(i);
+                row.setBackground(focusBackground(c, accent, 0x00000000));
+                styleDialogText(row, c, accent);
             }
         }
         styleDialogButton(dialog.getButton(AlertDialog.BUTTON_POSITIVE), c, accent, true);
@@ -140,7 +142,6 @@ final class Ui {
             TextView text = (TextView) view;
             text.setTextColor(TEXT);
             text.setTypeface(MEDIUM);
-            text.setBackground(focusBackground(c, accent, 0x00000000));
         } else if (view instanceof android.view.ViewGroup) {
             android.view.ViewGroup group = (android.view.ViewGroup) view;
             for (int i = 0; i < group.getChildCount(); i++) {
