@@ -22,6 +22,7 @@ class LauncherInstallTest(unittest.TestCase):
             bindir.mkdir()
             shutil.copy(ROOT / "launcher/install.sh", launcher / "install.sh")
             shutil.copy(ROOT / "scripts/home.sh", scripts / "home.sh")
+            shutil.copy(ROOT / "scripts/lib.sh", scripts / "lib.sh")
             (launcher / "version.env").write_text("VERSION=1.11\n")
             (launcher / "build.sh").write_text(
                 "#!/usr/bin/env bash\nmkdir -p build\nprintf apk > build/dumbtv-home.apk\n")
@@ -83,6 +84,7 @@ class LauncherInstallTest(unittest.TestCase):
             launcher.mkdir(); scripts.mkdir(); bindir.mkdir()
             shutil.copy(ROOT / "launcher/install.sh", launcher / "install.sh")
             shutil.copy(ROOT / "scripts/home.sh", scripts / "home.sh")
+            shutil.copy(ROOT / "scripts/lib.sh", scripts / "lib.sh")
             (launcher / "version.env").write_text("VERSION=1.11\n")
             state = tmp / "state.json"
             state.write_text(json.dumps({"packages": {}, "settings": {}, "sdk": 25}))
