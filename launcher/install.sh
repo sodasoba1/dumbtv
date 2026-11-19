@@ -125,9 +125,11 @@ else
   fi
   got=$(sha256 "$APK")
   [[ $got == "$expected" ]] || { rm -f "$SUM.part"; echo "error: checksum mismatch for $APK (got $got, expected $expected) — not installing" >&2; exit 1; }
+  # Verify the complete APK's v2/v3-aware signer identity against the committed pin.
+  # This is a hard gate and runs before adb install; it never removes an installed APK.
   ./verify-certificate.sh "$APK"
   mv "$SUM.part" "$SUM"
-  echo "checksum ok"
+  echo "checksum and release signer ok"
 fi
 
 if [[ $mode != permissions ]]; then

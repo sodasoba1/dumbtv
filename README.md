@@ -63,6 +63,8 @@ The deep-sleep failure that motivated the wake-recovery changes, the original Ke
 
 ### Installer and release delivery
 
+**Release signing:** signer certificate SHA-256 (from `apksigner verify --print-certs`, not the APK file hash in the `.sha256` sidecar): `bfc77205e3f35cdb629dd3b5f7b9e807d1169dc0175beab572efe1ccc9e7ba4b`. The release-download installer verifies this pin with Android `apksigner`; it requires SDK build-tools 34.0.0 or `apksigner` on `PATH`. The `--apk` option is intentionally exempt, so check a supplied APK's signer fingerprint against this value yourself before using it.
+
 `launcher/install.sh` is designed around the AFTMM/API 25 deployment:
 
 - Reads the launcher version from `launcher/version.env`.
