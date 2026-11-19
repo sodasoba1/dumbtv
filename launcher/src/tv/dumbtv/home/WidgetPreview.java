@@ -19,7 +19,7 @@ import java.util.Locale;
 final class WidgetPreview extends WidgetGridView {
     private final TextView customText;
     private final TextView clockTime;
-    private final TextView clockDate;
+    private final TextView date;
 
     WidgetPreview(Context context) {
         super(context);
@@ -37,13 +37,14 @@ final class WidgetPreview extends WidgetGridView {
         boolean use24Hour = "24h".equals(clockMode)
                 || "auto".equals(clockMode) && DateFormat.is24HourFormat(context);
         clockTime.setText(DateFormat.format(use24Hour ? "HH:mm" : "h:mm a", new Date()));
-        clockDate = Ui.text(context, 13, Ui.MUTED, Ui.MEDIUM);
-        clockDate.setText(DateFormat.format(DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEEdMMMM"),
-                new Date()).toString().toUpperCase(Locale.ROOT));
-        clockDate.setPadding(Ui.dp(context, 2), Ui.dp(context, 2), 0, 0);
         clock.addView(clockTime);
-        clock.addView(clockDate);
         addWidgetView("clock", clock);
+
+        date = widgetText(context, DateFormat.format(
+                DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEEdMMMM"), new Date())
+                .toString().toUpperCase(Locale.ROOT), backgrounds, surface);
+        date.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14);
+        addWidgetView("date", date);
 
         FrameLayout memory = new FrameLayout(context);
         memory.setBackground(backgrounds ? Ui.surface(context, surface, Ui.dp(context, 12)) : null);
@@ -71,7 +72,7 @@ final class WidgetPreview extends WidgetGridView {
         storageMeter.setAccent(Config.get(context).accent());
         storageMeter.updateStorage(context);
         storage.addView(storageMeter, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.CENTER));
         addWidgetView("storage", storage);
 
@@ -81,6 +82,8 @@ final class WidgetPreview extends WidgetGridView {
         TextView diagnostics = widgetText(context, WidgetDiagnostics.snapshot(context),
                 backgrounds, surface);
         diagnostics.setMaxLines(4);
+        diagnostics.setGravity(Gravity.TOP);
+        diagnostics.setLineSpacing(Ui.dp(context, 2), 1.1f);
         diagnostics.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
         diagnostics.setPadding(Ui.dp(context, 6), Ui.dp(context, 2),
                 Ui.dp(context, 6), Ui.dp(context, 2));
@@ -104,7 +107,6 @@ final class WidgetPreview extends WidgetGridView {
     void setWidgetFontSize(String id, int size) {
         if ("clock".equals(id)) {
             clockTime.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, size);
-            clockDate.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, Math.max(10, Math.round(size * 0.4f)));
             return;
         }
         for (int i = 0; i < getChildCount(); i++) {
