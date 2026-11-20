@@ -113,13 +113,6 @@ build_apk() {
   APK=build/dumbtv-home.apk
 }
 
-# Every install/update starts fail-closed. HomeSentinel and BootReceiver consult
-# this device setting before any automatic foreground takeover. A failed install
-# therefore cannot leave a replacement APK actively reclaiming HOME.
-sh_ settings put global dumbtv_homesentinel_enabled 0 >/dev/null ||
-  { echo "error: could not suspend HomeSentinel takeover before installation" >&2; exit 1; }
-
-
 # adb ends its output with a blank line, so take the line that carries the result.
 install_apk() {
   out=$(adb_ install -r "$APK" 2>&1 | grep -m1 -E 'Success|Failure|failed' || true)
@@ -158,6 +151,12 @@ else
   mv "$SUM.part" "$SUM"
   echo "checksum and release signer ok"
 fi
+
+# Suspend takeover only once the APK is ready to be installed. If download or
+# build fails, the currently working launcher remains active; after this point
+# every failure leaves the replacement fail-closed until a complete health check.
+sh_ settings put global dumbtv_homesentinel_enabled 0 >/dev/null ||
+  { echo "error: could not suspend HomeSentinel takeover before installation" >&2; exit 1; }
 
 if [[ $mode != permissions ]]; then
   install_apk
