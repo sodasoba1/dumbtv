@@ -36,7 +36,11 @@ export DUMBTW_TRUSTED_CERT_SHA256="YOUR_64_CHARACTER_SHA256_FINGERPRINT"
 ./launcher/install.sh --permissions-only
 ```
 
-Only use a fingerprint obtained from a build key you control.
+Only use a fingerprint obtained from a build key you control. The host also needs
+Android SDK Build Tools 34.0.0: `apksigner` checks the signing certificate and
+`aapt2` checks the APK package name. Both are discovered from the configured SDK or
+from `PATH`; this also applies to `--permissions-only`, which pulls and verifies the
+installed APK before changing privileges.
 
 ## Data Saver scope
 
