@@ -199,8 +199,11 @@ public final class HomeSentinel extends Service {
 
     private void handleHomeVisibility(boolean ready) {
         if (!ready || !displayInteractive()) {
+            // Losing the Home window's focus is expected while Android switches to
+            // another app or Amazon HOME. Do not invalidate an in-flight recovery:
+            // foreground polling/logcat will cancel it only after a different app is
+            // positively observed. Screen-off handling still cancels immediately.
             invalidateStableHome();
-            cancelRecovery("Home window lost focus");
             return;
         }
         homeReady = true;
