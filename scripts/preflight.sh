@@ -78,8 +78,9 @@ if [[ $DRY_RUN == 0 ]]; then
     snapshot_package_states
     note "saved device-scoped settings and package snapshots in $REPORT"
   fi
-else
-  note "[dry-run] would snapshot secure/global settings and package states in $REPORT"
+fi
+if [[ $DRY_RUN == 0 && ! -f $REPORT/packages-before.txt ]]; then
+  snapshot_package_states
 fi
 
 step "next"
