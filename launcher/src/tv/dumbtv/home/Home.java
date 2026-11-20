@@ -1350,6 +1350,7 @@ public final class Home extends Activity {
                         Tile tile = (Tile) v;
                         lastFocusedKind = tile.kind;
                         lastIds.put(tile.kind, tile.item.id);
+                        if (Catalog.isApp(tile.kind) && !tile.item.artRequested) loadArt(tile.item);
                         focusBackground(tile.item);
                     }
                 });
@@ -1361,10 +1362,6 @@ public final class Home extends Activity {
                 lp.rightMargin = row == apps && itemIndex == shown.size() - 1 ? 0 : tileGap;
             target.addView(t, lp);
             if (it.id.equals(keep)) restore = target.getChildCount() - 1;
-            String tileStyle = cfg.get(Config.TILE_STYLE);
-                boolean needsStyleIcon = "afterglow".equals(tileStyle)
-                        && cfg.get(AppStyle.key(it, "banner"), null) == null && it.icon == null;
-                if (Catalog.isApp(row.kind) && (!it.artRequested || needsStyleIcon)) loadArt(it);
         }
         row.setVisible(row != allApps && !shown.isEmpty());
         if (row == apps) row.title.setVisibility(View.GONE);
