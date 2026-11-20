@@ -57,6 +57,15 @@ if [[ -e $lockdown_snapshot || -e $data_saver_snapshot ]]; then
   [[ -e $lockdown_snapshot && -s $lockdown_snapshot && -s $data_saver_snapshot ]] ||
     die "incomplete lockdown snapshot; original AppOps and Data Saver state must both be present"
   data_saver_check=$(tr -d '\r\n' < "$data_saver_snapshot")
+  awk -F '\t' '
+    NR == 1 && $0 == "# dumbtv-lockdown-v1" { header=1; next }
+    NF == 5 && $1 ~ /^[A-Za-z0-9_.]+$/ && $2 ~ /^[0-9]+$/ && $2 >= 10000 \
+      && $3 ~ /^[A-Za-z_-]+$/ && ($4 == "not-applicable" || $4 ~ /^[A-Za-z_-]+$/) \
+      && $5 ~ /^[01]$/ { next }
+    { bad=1 }
+    END { exit !header || bad }
+  ' "$lockdown_snapshot" ||
+    die "invalid original AppOps and network-policy snapshot; refusing to restore policy"
   [[ $data_saver_check == enabled || $data_saver_check == disabled ]] ||
     die "invalid saved Data Saver state: ${data_saver_check:-empty}"
 fi

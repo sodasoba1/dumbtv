@@ -156,7 +156,7 @@ class RestoreTest(unittest.TestCase):
     def test_restore_refuses_a_partial_lockdown_snapshot(self):
         result, commands, _ = self.run_restore(
             package_snapshot="com.amazon.hedwig\tdisabled\n",
-            lockdown_snapshot="com.amazon.firebat\t10050\tignore\tnot-applicable\t0\n")
+            lockdown_snapshot="# dumbtv-lockdown-v1\ncom.amazon.firebat\t10050\tignore\tnot-applicable\t0\n")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("original AppOps and Data Saver state must both be present", result.stderr)
         self.assertFalse(any(command.startswith("appops set") for command in commands))
@@ -193,7 +193,7 @@ class RestoreTest(unittest.TestCase):
             package_snapshot="com.amazon.hedwig\tenabled\ncom.amazon.firebat\tenabled\n",
             secure_snapshot="amz_limit_ad_tracking=1\n",
             global_snapshot="animator_duration_scale=1.0\n",
-            lockdown_snapshot="com.amazon.firebat\t10050\tforeground\tnot-applicable\t0\n",
+            lockdown_snapshot="# dumbtv-lockdown-v1\ncom.amazon.firebat\t10050\tforeground\tnot-applicable\t0\n",
             data_saver_snapshot="disabled\n",
             allow_legacy=False,
             state_overrides={
@@ -220,7 +220,7 @@ class RestoreTest(unittest.TestCase):
         result, commands, state = self.run_restore(
             protected_disabled=True,
             package_snapshot="com.amazon.hedwig\tdisabled\ncom.amazon.firebat\tenabled\n",
-            lockdown_snapshot="com.amazon.firebat\t10050\tignore\tnot-applicable\t1\n",
+            lockdown_snapshot="# dumbtv-lockdown-v1\ncom.amazon.firebat\t10050\tignore\tnot-applicable\t1\n",
             data_saver_snapshot="enabled\n",
             lockdown_state="complete\n",
             state_overrides={
@@ -239,7 +239,7 @@ class RestoreTest(unittest.TestCase):
         result, commands, state = self.run_restore(
             protected_disabled=True,
             package_snapshot="com.amazon.hedwig\tdisabled\ncom.amazon.firebat\tenabled\n",
-            lockdown_snapshot="com.amazon.firebat\t10050\tallow\tnot-applicable\t0\n",
+            lockdown_snapshot="# dumbtv-lockdown-v1\ncom.amazon.firebat\t10050\tallow\tnot-applicable\t0\n",
             data_saver_snapshot="disabled\n",
             lockdown_state="complete\n",
             state_overrides={
@@ -266,6 +266,19 @@ class RestoreTest(unittest.TestCase):
         self.assertIn("cmd netpolicy set restrict-background false", commands)
         self.assertFalse(any(command.startswith("appops set ") for command in commands))
         self.assertFalse(any(command.startswith("cmd netpolicy remove restrict-background-blacklist")
+                             for command in commands))
+
+
+    def test_restore_refuses_malformed_policy_snapshot_before_policy_changes(self):
+        result, commands, _ = self.run_restore(
+            package_snapshot="com.amazon.hedwig\\tenabled\\n",
+            lockdown_snapshot="# dumbtv-lockdown-v1\\nnot-a-valid-row\\n",
+            data_saver_snapshot="disabled\\n",
+            lockdown_state="started\\n")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("invalid original AppOps and network-policy snapshot", result.stderr)
+        self.assertFalse(any(command.startswith("appops set ") or
+                             command.startswith("cmd netpolicy remove restrict-background-blacklist")
                              for command in commands))
 
     def test_restore_refuses_to_run_on_non_fire_os_devices(self):
