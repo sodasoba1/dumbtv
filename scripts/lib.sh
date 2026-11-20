@@ -137,6 +137,19 @@ parse_flags() {
   done
 }
 
+serial_fingerprint() {
+  local digest
+  if command -v sha256sum >/dev/null 2>&1; then
+    digest=$(printf '%s' "$SERIAL" | sha256sum | awk '{print $1}')
+  elif command -v shasum >/dev/null 2>&1; then
+    digest=$(printf '%s' "$SERIAL" | shasum -a 256 | awk '{print $1}')
+  else
+    die "sha256sum or shasum is required to scope recovery snapshots without exposing the ADB serial"
+  fi
+  [[ $digest =~ ^[0-9a-fA-F]{64}$ ]] || die "could not fingerprint the connected ADB device"
+  printf '%s' "$digest"
+}
+
 need_device() {
   command -v "$ADB" >/dev/null || die "adb not found in PATH"
   "$ADB" start-server >/dev/null 2>&1
@@ -152,9 +165,9 @@ need_device() {
   SDK=$(dev1 getprop ro.build.version.sdk | tr -d '\r')
   case $SDK in ''|*[!0-9]*) SDK=0 ;; esac
   if [[ ${REPORT_EXPLICIT:-0} != 1 ]]; then
-    local report_serial
-    report_serial=$(printf '%s' "$SERIAL" | sed 's/[^A-Za-z0-9._-]/_/g')
-    REPORT="$ROOT/report/$report_serial"
+    local report_id
+    report_id=$(serial_fingerprint)
+    REPORT="$ROOT/report/device-$report_id"
     if [[ -f $ROOT/report/settings-before-secure.txt || -f $ROOT/report/settings-before-global.txt || -f $ROOT/report/packages-before.txt ]]; then
       die "legacy recovery snapshots exist in $ROOT/report; verify this is the same TV, then set REPORT='$ROOT/report' DUMBTW_ALLOW_LEGACY_REPORT=1 explicitly before preflight/restore"
     fi
