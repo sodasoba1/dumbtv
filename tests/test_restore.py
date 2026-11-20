@@ -20,7 +20,7 @@ class RestoreTest(unittest.TestCase):
                     protected_state=3, manifest_serial="test-tv:5555",
                     secure_snapshot=None, state_overrides=None, lockdown_snapshot=None,
                     data_saver_snapshot=None, global_snapshot=None, completed_restore=False,
-                    allow_legacy=True):
+                    allow_legacy=False):
         packages = {
             "dnsfilter.android": {"system": False, "enabled": True},
             "com.amazon.hedwig": {"system": True, "enabled": False},
@@ -188,9 +188,9 @@ class RestoreTest(unittest.TestCase):
 
     def test_restore_leaves_policy_untouched_when_lockdown_never_ran(self):
         result, commands, state = self.run_restore(
-            package_snapshot="com.amazon.hedwig\\tenabled\\ncom.amazon.firebat\\tenabled\\n",
-            secure_snapshot="amz_limit_ad_tracking=1\\n",
-            global_snapshot="animator_duration_scale=1.0\\n",
+            package_snapshot="com.amazon.hedwig\tenabled\ncom.amazon.firebat\tenabled\n",
+            secure_snapshot="amz_limit_ad_tracking=1\n",
+            global_snapshot="animator_duration_scale=1.0\n",
             allow_legacy=False,
             state_overrides={
                 "packages": {

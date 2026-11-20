@@ -53,6 +53,9 @@ public final class HomeSentinel extends Service {
     private Handler worker;
     private UsageStatsManager usage;
     private final UsageEventCursor eventCursor = new UsageEventCursor();
+    private final HomeSentinelRecoverySession recoverySession = new HomeSentinelRecoverySession();
+    private Runnable pendingRetry;
+    private Runnable pendingVerify;
     private long screenOffTime;
     private String lastTop;
     private String lastTopClass;
@@ -79,7 +82,6 @@ public final class HomeSentinel extends Service {
         }
     };
 
-    private final Runnable verify = this::verifyRecovery;
     private final Runnable stableHome = this::verifyStableHome;
 
     /** Restarts only a dead reader thread; an idle logcat stream is not considered unhealthy. */
@@ -118,6 +120,7 @@ public final class HomeSentinel extends Service {
             // window may have missed a delayed UsageStats event immediately before standby.
             updateTop(now - 10_000, now);
             invalidateStableHome();
+            cancelRecovery("screen off");
             screenOffTime = now;
             note("screen off; last foreground=" + lastTop + "/" + lastTopClass);
         } else if (Intent.ACTION_SCREEN_ON.equals(action)) {
@@ -136,7 +139,7 @@ public final class HomeSentinel extends Service {
                 scheduleStableHome();
                 cancelRecovery("screen on; DumbTV remains foreground");
             } else {
-                worker.removeCallbacks(stableHome);
+                invalidateStableHome();
                 cancelRecovery("screen on; foreground=" + lastTop + "/" + lastTopClass);
             }
             screenOffTime = 0;
@@ -159,6 +162,7 @@ public final class HomeSentinel extends Service {
         if (state == null) state = HomeSentinelPause.State.ACTIVE;
         if (pauseState == state) return;
         setPersistedPauseState(this, state);
+        if (!HomeSentinelPause.shouldRecover(state)) cancelRecovery("takeover pause state changed");
     }
 
     static boolean takeoverEnabled(Context context) {
@@ -191,6 +195,7 @@ public final class HomeSentinel extends Service {
     private void handleHomeVisibility(boolean ready) {
         if (!ready || !displayInteractive()) {
             invalidateStableHome();
+            cancelRecovery("Home window lost focus");
             return;
         }
         homeReady = true;
@@ -271,7 +276,7 @@ public final class HomeSentinel extends Service {
     public void onDestroy() {
         if (worker != null) {
             worker.removeCallbacks(poll);
-            worker.removeCallbacks(verify);
+            clearPendingRecoveryCallbacks();
             worker.removeCallbacks(logcatWatchdog);
             worker.removeCallbacks(stableHome);
         }
@@ -508,9 +513,17 @@ public final class HomeSentinel extends Service {
                 if (event.getEventType() != UsageEvents.Event.MOVE_TO_FOREGROUND
                         || !eventCursor.accept(event.getTimeStamp(),
                                 event.getPackageName(), event.getClassName())) continue;
-                lastTop = event.getPackageName();
-                lastTopClass = event.getClassName();
-                lastTopTimestamp = event.getTimeStamp();
+                long eventTime = event.getTimeStamp();
+                String eventPackage = event.getPackageName();
+                String eventClass = event.getClassName();
+                // UsageStats can return events buffered before a newer logcat record.
+                // Consume them in the cursor, but never let them roll foreground state back.
+                if (eventTime < lastTopTimestamp
+                        || (eventTime == lastTopTimestamp
+                        && (!equals(eventPackage, lastTop) || !equals(eventClass, lastTopClass)))) continue;
+                lastTop = eventPackage;
+                lastTopClass = eventClass;
+                lastTopTimestamp = eventTime;
                 changed = true;
             }
             lastUsageQuerySucceeded = true;
@@ -519,6 +532,10 @@ public final class HomeSentinel extends Service {
             note("UsageStats query failed: " + e);
             return false;
         }
+    }
+
+    private static boolean equals(Object a, Object b) {
+        return a == null ? b == null : a.equals(b);
     }
 
     private boolean isAmazonHome() {
@@ -534,13 +551,13 @@ public final class HomeSentinel extends Service {
             return;
         }
         recovering = true;
-        worker.removeCallbacks(verify);
+        long session = recoverySession.begin();
         note("recovery started with " + attempts + " prior failed attempts");
-        attemptRecovery();
+        attemptRecovery(session);
     }
 
-    private void attemptRecovery() {
-        if (!recovering) return;
+    private void attemptRecovery(long session) {
+        if (!recovering || !recoverySession.isCurrent(session)) return;
         long now = System.currentTimeMillis();
         updateTop(Math.max(0, eventCursor.lastTimestamp() - 1), now);
         if (!lastUsageQuerySucceeded || !recoveryEligible()) {
@@ -580,11 +597,29 @@ public final class HomeSentinel extends Service {
         // If task reordering did not verify on the first pass, use the independent direct
         // activity-launch path on subsequent attempts instead of repeating moveToFront only.
         if (!moved || attempts > 1) raiseHome();
-        worker.removeCallbacks(verify);
-        worker.postDelayed(verify, VERIFY_MS);
+        scheduleVerify(session);
     }
 
-    private void verifyRecovery() {
+    private void scheduleVerify(long session) {
+        if (pendingVerify != null) worker.removeCallbacks(pendingVerify);
+        pendingVerify = () -> {
+            pendingVerify = null;
+            verifyRecovery(session);
+        };
+        worker.postDelayed(pendingVerify, VERIFY_MS);
+    }
+
+    private void scheduleRetry(long session) {
+        if (pendingRetry != null) worker.removeCallbacks(pendingRetry);
+        pendingRetry = () -> {
+            pendingRetry = null;
+            attemptRecovery(session);
+        };
+        worker.postDelayed(pendingRetry, RETRY_MS);
+    }
+
+    private void verifyRecovery(long session) {
+        if (!recovering || !recoverySession.isCurrent(session)) return;
         long now = System.currentTimeMillis();
         updateTop(Math.max(0, eventCursor.lastTimestamp() - 1), now);
         if (!lastUsageQuerySucceeded) {
@@ -595,7 +630,8 @@ public final class HomeSentinel extends Service {
             note("recovery verified: DumbTV foreground; waiting for Home window readiness");
             if (homeReady) scheduleStableHome();
             recovering = false;
-            worker.removeCallbacks(verify);
+            recoverySession.invalidate();
+            clearPendingRecoveryCallbacks();
             return;
         }
         if (!recoveryEligible()) {
@@ -606,13 +642,23 @@ public final class HomeSentinel extends Service {
             cancelRecovery("recovery failed after " + attempts + " attempts");
             return;
         }
-        worker.postDelayed(this::attemptRecovery, RETRY_MS);
+        scheduleRetry(session);
+    }
+
+    private void clearPendingRecoveryCallbacks() {
+        if (worker != null) {
+            if (pendingRetry != null) worker.removeCallbacks(pendingRetry);
+            if (pendingVerify != null) worker.removeCallbacks(pendingVerify);
+        }
+        pendingRetry = null;
+        pendingVerify = null;
     }
 
     private void cancelRecovery(String reason) {
         if (recovering) note("recovery stopped: " + reason);
         recovering = false;
-        if (worker != null) worker.removeCallbacks(verify);
+        recoverySession.invalidate();
+        clearPendingRecoveryCallbacks();
     }
 
     private void scheduleStableHome() {
