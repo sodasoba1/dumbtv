@@ -1652,7 +1652,7 @@ public final class Home extends Activity {
                 .setTitle(R.string.settings)
                 .setItems(labels, (d, which) -> {
                     Item s = sections.get(which);
-                    HomeSentinel.pause();
+                    HomeSentinel.pause(this);
                     launch(new Intent(s.intent), null);
                 })
                 .create();
@@ -1679,7 +1679,7 @@ public final class Home extends Activity {
     }
 
     private void launch(Intent i, String pkg) {
-        if (HomeSentinel.AMAZON_PKG.equals(pkg)) HomeSentinel.pause();
+        if (HomeSentinel.AMAZON_PKG.equals(pkg)) HomeSentinel.pause(this);
         try {
             // No transition: on a warm start of an app with a trampoline activity, such as
             // Prime Video, the animation showed home again between the two (#169).
