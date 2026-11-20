@@ -24,14 +24,18 @@ final class HomeSentinelPause {
         if (foregroundPackage == null || SYSTEM_UI.equals(foregroundPackage)
                 || "android".equals(foregroundPackage)) return state;
         if (DUMBTV_PKG.equals(foregroundPackage)) return State.ACTIVE;
-        // An explicit Amazon Home hand-off survives launching and closing ordinary apps.
-        // Only manually returning to DumbTV releases this stronger hold.
-        if (state == State.AMAZON_HOME_HOLD) return state;
 
         boolean amazonUi = AMAZON_LAUNCHER.equals(foregroundPackage)
                 || AMAZON_SETTINGS.equals(foregroundPackage)
                 || AMAZON_NOTIFICATIONS.equals(foregroundPackage)
                 || AMAZON_DEVICE_CONTROL.equals(foregroundPackage);
+
+        // Keep an explicit Amazon HOME hand-off while the user remains in Amazon's
+        // interface. Once a real third-party app is foreground, however, the hand-off
+        // has ended: the next physical HOME press must be allowed to restore DumbTV.
+        if (state == State.AMAZON_HOME_HOLD) {
+            return amazonUi ? state : State.ACTIVE;
+        }
         if (amazonUi) {
             // Returning from the settings route to Amazon Home resumes normal takeover.
             if (state == State.AMAZON_SETTINGS && AMAZON_LAUNCHER.equals(foregroundPackage)
