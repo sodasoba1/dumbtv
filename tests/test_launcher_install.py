@@ -99,7 +99,14 @@ class LauncherInstallTest(unittest.TestCase):
     def test_undo_does_not_claim_success_when_force_stop_fails(self):
         result, _, _ = self.run_undo(force_stop_refused=True)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("could not stop DumbTV", result.stderr)
+        self.assertIn("could-not-force-stop-DumbTV", result.stderr)
+
+    def test_undo_can_return_to_amazon_when_dumbtv_is_not_installed(self):
+        result, commands, state = self.run_undo(packages={})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("HOME handed back and verified", result.stdout)
+        self.assertIn("com.amazon.tv.launcher", state["foreground_line"])
+        self.assertNotIn("am force-stop tv.dumbtv.home", commands)
 
     def test_undo_does_not_claim_success_when_amazon_home_cannot_be_verified(self):
         result, _, _ = self.run_undo(wrong_home_foreground=True)
