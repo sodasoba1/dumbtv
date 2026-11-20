@@ -260,8 +260,10 @@ final class Config {
         return out;
     }
 
-    private void save() {
-        signature = writeSettings(file, values) ? signature() : Long.MIN_VALUE;
+    private boolean save() {
+        boolean written = writeSettings(file, values);
+        signature = written ? signature() : Long.MIN_VALUE;
+        return written;
     }
 
     /** Writes a separately named copy beside home.conf for adb pull and later restore. */
