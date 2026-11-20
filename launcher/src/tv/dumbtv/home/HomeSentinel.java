@@ -125,7 +125,11 @@ public final class HomeSentinel extends Service {
             if (isAmazonHome() && HomeSentinelPause.shouldRecover(pauseState)) {
                 note("screen on; restoring last foreground Amazon Home");
                 beginRecovery();
+            } else if (DUMBTV_PKG.equals(lastTop)) {
+                scheduleStableHome();
+                cancelRecovery("screen on; DumbTV remains foreground");
             } else {
+                worker.removeCallbacks(stableHome);
                 cancelRecovery("screen on; foreground=" + lastTop + "/" + lastTopClass);
             }
             screenOffTime = 0;
@@ -390,6 +394,9 @@ public final class HomeSentinel extends Service {
         if (recoveryEligible()) {
             note("service start: verified Amazon Home foreground; recovery eligible");
             beginRecovery();
+        } else if (DUMBTV_PKG.equals(lastTop)) {
+            note("service start: DumbTV already foreground; checking for a stable session");
+            scheduleStableHome();
         } else {
             note("service start: no eligible Amazon Home takeover; foreground="
                     + lastTop + "/" + lastTopClass);
@@ -413,8 +420,7 @@ public final class HomeSentinel extends Service {
         }
         updatePauseState(HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass));
         if (DUMBTV_PKG.equals(lastTop)) {
-            worker.removeCallbacks(stableHome);
-            worker.postDelayed(stableHome, STABLE_HOME_MS);
+            scheduleStableHome();
             cancelRecovery("DumbTV foreground");
             return;
         }
@@ -548,6 +554,12 @@ public final class HomeSentinel extends Service {
         if (recovering) note("recovery stopped: " + reason);
         recovering = false;
         if (worker != null) worker.removeCallbacks(verify);
+    }
+
+    private void scheduleStableHome() {
+        if (worker == null) return;
+        worker.removeCallbacks(stableHome);
+        worker.postDelayed(stableHome, STABLE_HOME_MS);
     }
 
     private void verifyStableHome() {
