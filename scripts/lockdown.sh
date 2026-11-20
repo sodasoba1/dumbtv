@@ -81,13 +81,13 @@ for p in $(list_of "$(fos protected.txt)"); do
     op=RUN_IN_BACKGROUND
     if [[ $SDK -ge 28 ]]; then
       actual_any=$(dev1 appops get "$p" RUN_ANY_IN_BACKGROUND |
-        sed -n 's/.*RUN_ANY_IN_BACKGROUND:[[:space:]]*\\([^,[:space:]]*\\).*/\\1/p')
+        sed -n 's/.*RUN_ANY_IN_BACKGROUND:[[:space:]]*\([^,[:space:]]*\).*/\1/p')
       [[ $actual_any == ignore ]] ||
         die "RUN_ANY_IN_BACKGROUND restriction did not verify for $p"
       op=RUN_IN_BACKGROUND
     fi
     actual_bg=$(dev1 appops get "$p" "$op" |
-      sed -n "s/.*$op:[[:space:]]*\\([^,[:space:]]*\\).*/\\1/p")
+      sed -n "s/.*$op:[[:space:]]*\([^,[:space:]]*\).*/\1/p")
     [[ $actual_bg == ignore ]] || die "$op restriction did not verify for $p"
     blacklist_now=$(dev 'cmd netpolicy list restrict-background-blacklist')
     grep -Eq "(^|[^0-9])$uid([^0-9]|$)" <<<"$blacklist_now" ||
