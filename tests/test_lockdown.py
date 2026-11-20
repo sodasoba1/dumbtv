@@ -55,6 +55,7 @@ class LockdownTest(unittest.TestCase):
             self.assertEqual(after["appops"]["com.amazon.device.metrics"]["RUN_IN_BACKGROUND"],
                              "foreground")
             self.assertEqual(after["network_blacklist"], [])
+            self.assertFalse((report / "lockdown-state.txt").exists())
 
     def test_incomplete_data_saver_snapshot_is_not_reconstructed(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -143,11 +144,13 @@ class LockdownTest(unittest.TestCase):
             self.assertEqual(after_first["appops"]["com.amazon.device.metrics"]["RUN_IN_BACKGROUND"], "ignore")
             self.assertIn(10050, after_first["network_blacklist"])
             self.assertEqual(after_first["restrict_background"], "enabled")
+            self.assertEqual((report / "lockdown-state.txt").read_text(), "complete\n")
 
             second = subprocess.run(command, env=env, capture_output=True, text=True, timeout=30)
             self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
             self.assertEqual((report / "lockdown-before.tsv").read_text(), original_ops)
             self.assertEqual((report / "data-saver-before.txt").read_text(), original_data_saver)
+            self.assertEqual((report / "lockdown-state.txt").read_text(), "complete\n")
 
 
 if __name__ == "__main__":

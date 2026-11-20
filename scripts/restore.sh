@@ -60,6 +60,21 @@ if [[ -e $lockdown_snapshot || -e $data_saver_snapshot ]]; then
   [[ $data_saver_check == enabled || $data_saver_check == disabled ]] ||
     die "invalid saved Data Saver state: ${data_saver_check:-empty}"
 fi
+lockdown_state_file="$REPORT/lockdown-state.txt"
+restore_lockdown=0
+if [[ -f $lockdown_state_file ]]; then
+  lockdown_state=$(tr -d '\r\n' < "$lockdown_state_file")
+  case $lockdown_state in
+    started|complete) ;;
+    *) die "invalid lockdown execution marker: ${lockdown_state:-empty}" ;;
+  esac
+  [[ -s $lockdown_snapshot && -s $data_saver_snapshot ]] ||
+    die "lockdown execution marker exists without complete policy snapshots"
+  restore_lockdown=1
+elif [[ ${DUMBTW_ALLOW_LEGACY_REPORT:-0} == 1 ]]; then
+  # Explicit opt-in is required for reports created before the execution marker.
+  restore_lockdown=1
+fi
 if [[ -f $REPORT/packages-before.txt ]]; then
   awk -F '\t' '
     NF == 0 { next }
@@ -188,7 +203,7 @@ for p in $(list_of "$(fos never-disable.txt)" | awk '{print $1}'); do
     die "post-reboot protected package $p is still user-disabled; snapshots retained"
   fi
 done
-if [[ -f $REPORT/lockdown-before.tsv ]]; then
+if [[ $restore_lockdown == 1 && -f $REPORT/lockdown-before.tsv ]]; then
   while IFS='|' read -r p uid bg any was_blacklisted; do
     [[ -z ${p:-} ]] && continue
     acmd appops set "$p" RUN_IN_BACKGROUND "$bg" >/dev/null ||
@@ -219,7 +234,7 @@ if [[ -f $REPORT/lockdown-before.tsv ]]; then
     fi
     printf '  %-46s AppOps restored; original blacklist=%s\n' "$p" "$was_blacklisted"
   done < <(tr '\t' '|' < "$REPORT/lockdown-before.tsv")
-elif [[ ${DUMBTW_ALLOW_LEGACY_REPORT:-0} == 1 ]]; then
+elif [[ $restore_lockdown == 1 && ${DUMBTW_ALLOW_LEGACY_REPORT:-0} == 1 ]]; then
   # v1.17 did not retain the original modes. Only an explicitly accepted
   # legacy report may use the historical protected-package reset.
   note "legacy installation has no AppOps baseline; restoring protected packages to allow"
@@ -230,16 +245,16 @@ elif [[ ${DUMBTW_ALLOW_LEGACY_REPORT:-0} == 1 ]]; then
     [[ -n $uid ]] && acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null
   done
 else
-  note "no lockdown snapshot; leaving existing AppOps and network policy unchanged"
+  note "lockdown did not run; leaving existing AppOps and network policy unchanged"
 fi
 
 if [[ -f $REPORT/lockdown-before.tsv && ! -f $REPORT/data-saver-before.txt ]]; then
   die "incomplete lockdown snapshot: original Data Saver state is missing; refusing to guess"
 fi
 data_saver=unchanged
-if [[ -f $REPORT/data-saver-before.txt ]]; then
+if [[ $restore_lockdown == 1 && -f $REPORT/data-saver-before.txt ]]; then
   data_saver=$(tr -d '\r\n' < "$REPORT/data-saver-before.txt")
-elif [[ ${DUMBTW_ALLOW_LEGACY_REPORT:-0} == 1 ]]; then
+elif [[ $restore_lockdown == 1 && ${DUMBTW_ALLOW_LEGACY_REPORT:-0} == 1 ]]; then
   note "legacy report has no original Data Saver snapshot; using the v1.17 restore default (disabled)"
   data_saver=disabled
 else
@@ -344,7 +359,7 @@ for p in $(restore_list); do
   [[ $state == 0 || $state == 1 ]] ||
     die "post-reboot package verification failed for $p (state ${state:-unknown}); snapshots retained"
 done
-if [[ -f $REPORT/lockdown-before.tsv ]]; then
+if [[ $restore_lockdown == 1 && -f $REPORT/lockdown-before.tsv ]]; then
   while IFS='|' read -r p uid bg any was_blacklisted; do
     [[ -z ${p:-} ]] && continue
     actual_bg=$(dev1 appops get "$p" RUN_IN_BACKGROUND | sed -n 's/.*RUN_IN_BACKGROUND:[[:space:]]*\([^,[:space:]]*\).*/\1/p')
@@ -385,6 +400,6 @@ mv "$marker_tmp" "$REPORT/restore-complete.txt" ||
 [[ ! -f $REPORT/debloat.txt ]] || mv "$REPORT/debloat.txt" "$REPORT/debloat-last.txt"
 rm -f "$REPORT/packages-before.txt" "$REPORT/settings-before-secure.txt" \
   "$REPORT/settings-before-global.txt" "$REPORT/lockdown-before.tsv" \
-  "$REPORT/data-saver-before.txt"
+  "$REPORT/data-saver-before.txt" "$REPORT/lockdown-state.txt"
 note "restored. dumbtv home and SmartTube (if added) remain installed; remove them in"
 note "Settings > Applications if you want them gone too."

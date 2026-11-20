@@ -20,7 +20,7 @@ class RestoreTest(unittest.TestCase):
                     protected_state=3, manifest_serial="test-tv:5555",
                     secure_snapshot=None, state_overrides=None, lockdown_snapshot=None,
                     data_saver_snapshot=None, global_snapshot=None, completed_restore=False,
-                    allow_legacy=False):
+                    allow_legacy=False, lockdown_state=None):
         packages = {
             "dnsfilter.android": {"system": False, "enabled": True},
             "com.amazon.hedwig": {"system": True, "enabled": False},
@@ -65,6 +65,8 @@ class RestoreTest(unittest.TestCase):
                 (report / "lockdown-before.tsv").write_text(lockdown_snapshot)
             if data_saver_snapshot is not None:
                 (report / "data-saver-before.txt").write_text(data_saver_snapshot)
+            if lockdown_state is not None:
+                (report / "lockdown-state.txt").write_text(lockdown_state)
             env = dict(os.environ, ADB=str(ROOT / "tests" / "fake_tv.py"), ADB_SERIAL="test-tv:5555",
                        FAKE_TV_STATE=str(state), FAKE_TV_LOG=str(log),
                        CONF=str(tmp / "dumbtv.conf"), REPORT=str(report), BOOT_SECONDS="0",
@@ -191,6 +193,8 @@ class RestoreTest(unittest.TestCase):
             package_snapshot="com.amazon.hedwig\tenabled\ncom.amazon.firebat\tenabled\n",
             secure_snapshot="amz_limit_ad_tracking=1\n",
             global_snapshot="animator_duration_scale=1.0\n",
+            lockdown_snapshot="com.amazon.firebat\t10050\tforeground\tnot-applicable\t0\n",
+            data_saver_snapshot="disabled\n",
             allow_legacy=False,
             state_overrides={
                 "packages": {
@@ -218,6 +222,7 @@ class RestoreTest(unittest.TestCase):
             package_snapshot="com.amazon.hedwig\tdisabled\ncom.amazon.firebat\tenabled\n",
             lockdown_snapshot="com.amazon.firebat\t10050\tignore\tnot-applicable\t1\n",
             data_saver_snapshot="enabled\n",
+            lockdown_state="complete\n",
             state_overrides={
                 "appops": {"com.amazon.firebat": {"RUN_IN_BACKGROUND": "ignore"}},
                 "network_blacklist": [10050],
@@ -236,6 +241,7 @@ class RestoreTest(unittest.TestCase):
             package_snapshot="com.amazon.hedwig\tdisabled\ncom.amazon.firebat\tenabled\n",
             lockdown_snapshot="com.amazon.firebat\t10050\tallow\tnot-applicable\t0\n",
             data_saver_snapshot="disabled\n",
+            lockdown_state="complete\n",
             state_overrides={
                 "appops": {"com.amazon.firebat": {"RUN_IN_BACKGROUND": "ignore"}},
                 "network_blacklist": [10050],

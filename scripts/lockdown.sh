@@ -64,6 +64,21 @@ if [[ $DRY_RUN == 0 ]]; then
       die "could not publish Data Saver snapshot"
     }
   fi
+
+  # Record ownership before the first policy mutation. A restore can then recover
+  # a partially applied lockdown, while preflight-only snapshots remain untouched.
+  lockdown_state="$REPORT/lockdown-state.txt"
+  if [[ -f $lockdown_state ]]; then
+    prior_state=$(tr -d '\r\n' < "$lockdown_state")
+    case $prior_state in
+      started|complete) ;;
+      *) die "invalid lockdown execution marker: $prior_state" ;;
+    esac
+  fi
+  printf 'started\n' > "$lockdown_state.tmp" ||
+    die "could not create lockdown execution marker"
+  mv "$lockdown_state.tmp" "$lockdown_state" ||
+    die "could not publish lockdown execution marker"
 fi
 
 acmd cmd netpolicy set restrict-background true >/dev/null
@@ -116,4 +131,8 @@ else
   for p in $(list_of "$(fos protected.txt)"); do
     if present "$p"; then note "$(printf '%-44s' "$p") $(dev "appops get $p $op" | tr -d '\r')"; fi
   done
+  printf 'complete\n' > "$REPORT/lockdown-state.txt.tmp" ||
+    die "could not mark lockdown as complete"
+  mv "$REPORT/lockdown-state.txt.tmp" "$REPORT/lockdown-state.txt" ||
+    die "could not publish completed lockdown marker"
 fi

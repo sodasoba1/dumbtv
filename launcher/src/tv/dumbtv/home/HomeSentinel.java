@@ -178,6 +178,11 @@ public final class HomeSentinel extends Service {
         return power != null && power.isInteractive();
     }
 
+    private long foregroundQueryStart(long now) {
+        long cursor = eventCursor.lastTimestamp();
+        return cursor == 0 ? Math.max(0, now - 10_000) : Math.max(0, cursor - 1);
+    }
+
     private boolean recoveryEligible() {
         return lastUsageQuerySucceeded && lastTopTimestamp > 0 && takeoverEnabled()
                 && displayInteractive() && HomeSentinelPause.shouldRecover(pauseState)
@@ -518,9 +523,16 @@ public final class HomeSentinel extends Service {
                 String eventClass = event.getClassName();
                 // UsageStats can return events buffered before a newer logcat record.
                 // Consume them in the cursor, but never let them roll foreground state back.
-                if (eventTime < lastTopTimestamp
-                        || (eventTime == lastTopTimestamp
-                        && (!equals(eventPackage, lastTop) || !equals(eventClass, lastTopClass)))) continue;
+                if (eventTime < lastTopTimestamp) continue;
+                if (eventTime == lastTopTimestamp
+                        && (!equals(eventPackage, lastTop) || !equals(eventClass, lastTopClass))) {
+                    // Same-millisecond ordering between independent sources is ambiguous.
+                    // Clear the candidate rather than allowing either app to win by accident.
+                    lastTop = null;
+                    lastTopClass = null;
+                    changed = true;
+                    continue;
+                }
                 lastTop = eventPackage;
                 lastTopClass = eventClass;
                 lastTopTimestamp = eventTime;
@@ -559,7 +571,7 @@ public final class HomeSentinel extends Service {
     private void attemptRecovery(long session) {
         if (!recovering || !recoverySession.isCurrent(session)) return;
         long now = System.currentTimeMillis();
-        updateTop(Math.max(0, eventCursor.lastTimestamp() - 1), now);
+        updateTop(foregroundQueryStart(now), now);
         if (!lastUsageQuerySucceeded || !recoveryEligible()) {
             cancelRecovery("recovery no longer eligible after foreground recheck");
             return;
@@ -676,10 +688,12 @@ public final class HomeSentinel extends Service {
 
     /** Requires a successful foreground-history query whose latest event is DumbTV. */
     private boolean confirmDumbTvForeground(long since, long now) {
+        lastUsageQuerySucceeded = false;
         if (usage == null) return false;
         try {
             UsageEvents events = usage.queryEvents(Math.max(0, since), now);
             if (events == null) return false;
+            lastUsageQuerySucceeded = true;
             long latest = 0;
             String latestPackage = null;
             UsageEvents.Event event = new UsageEvents.Event();
@@ -702,7 +716,8 @@ public final class HomeSentinel extends Service {
         long startedAt = stableHomeStartedAt;
         long now = System.currentTimeMillis();
         boolean confirmed = startedAt > 0 && confirmDumbTvForeground(startedAt - 5_000, now);
-        if (HomeSentinelStability.canClearCircuit(homeReady, displayInteractive(),
+        if (HomeSentinelStability.canClearCircuit(homeReady,
+                displayInteractive() && HomeSentinelPause.shouldRecover(pauseState),
                 lastUsageQuerySucceeded, confirmed)) {
             note("DumbTV rendered Home and remained foreground for " + STABLE_HOME_MS
                     + "ms; clearing recovery circuit");
