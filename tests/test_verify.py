@@ -77,7 +77,7 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("HomeSentinel armed", result.stdout)
         self.assertIn("UsageStats AppOp allowed", result.stdout)
-        self.assertIn("HomeSentinel AUTO_START allowed", result.stdout)
+        self.assertIn("optional AUTO_START is allowed", result.stdout)
         self.assertIn("READ_LOGS granted", result.stdout)
 
     def test_disabled_takeover_gate_fails_verification(self):
