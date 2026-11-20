@@ -183,6 +183,9 @@ fi
 # every failure leaves the replacement fail-closed until a complete health check.
 sh_ settings put global dumbtv_homesentinel_enabled 0 >/dev/null ||
   { echo "error: could not suspend HomeSentinel takeover before installation" >&2; exit 1; }
+takeover=$(sh_ settings get global dumbtv_homesentinel_enabled | tr -d '\r')
+[[ $takeover == 0 ]] ||
+  { echo "error: HomeSentinel takeover suspension did not persist; existing installation was left untouched" >&2; exit 1; }
 TAKEOVER_SUSPENDED=1
 
 handoff_after_failure() {
