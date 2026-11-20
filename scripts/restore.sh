@@ -145,6 +145,13 @@ else
 fi
 
 step "restore background execution and network policy"
+for p in $(list_of "$(fos never-disable.txt)" | awk '{print $1}'); do
+  present "$p" || continue
+  state=$(package_user_enabled_state "$p")
+  if [[ $state == 3 ]] && was_enabled_before "$p"; then
+    die "post-reboot protected package $p is still user-disabled; snapshots retained"
+  fi
+done
 if [[ -f $REPORT/lockdown-before.tsv ]]; then
   while IFS='|' read -r p uid bg any was_blacklisted; do
     [[ -z ${p:-} ]] && continue
