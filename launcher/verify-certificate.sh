@@ -87,7 +87,9 @@ ACTUAL=$digests
 AAPT2=$(command -v aapt2 2>/dev/null || true)
 if [[ -z $AAPT2 ]]; then
   for sdk in "${sdk_roots[@]}"; do
-    [[ -x $sdk/build-tools/34.0.0/aapt2 ]] && { AAPT2=$sdk/build-tools/34.0.0/aapt2; break; }
+    for candidate in "$sdk/build-tools/34.0.0/aapt2" "$sdk/build-tools/34.0.0/aapt2.exe"; do
+      [[ -x $candidate ]] && { AAPT2=$candidate; break 2; }
+    done
   done
 fi
 [[ -n $AAPT2 ]] || { echo "error: aapt2 not found; install Android SDK build-tools 34.0.0" >&2; exit 1; }
