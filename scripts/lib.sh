@@ -350,12 +350,16 @@ package_user_enabled_state() {
 # Preserve the device's original package enabled/disabled state before the first cleanup.
 # restore.sh uses this to avoid enabling apps the owner had already disabled.
 snapshot_package_states() {
-  local file="$REPORT/packages-before.txt" installed disabled pkg
+  local file="$REPORT/packages-before.txt" installed disabled pkg installed_output disabled_output
   ensure_report_device
   [[ -f $file ]] && return 0
   mkdir -p "$REPORT"
-  installed=$(dev 'pm list packages' | sed 's/^package://' | tr -d '\r')
-  disabled=$(dev 'pm list packages -d' | sed 's/^package://' | tr -d '\r')
+  installed_output=$(dev_ok 'pm list packages') ||
+    die "could not read installed packages; refusing to change package state"
+  disabled_output=$(dev_ok 'pm list packages -d') ||
+    die "could not read disabled packages; refusing to change package state"
+  installed=$(printf '%s\n' "$installed_output" | sed 's/^package://' | tr -d '\r')
+  disabled=$(printf '%s\n' "$disabled_output" | sed 's/^package://' | tr -d '\r')
   [[ -n $installed ]] || die "could not snapshot installed packages; refusing to change package state"
   local tmp="$file.tmp"
   : > "$tmp"
@@ -375,8 +379,11 @@ snapshot_package_states() {
 ensure_report_device() {
   local manifest="$REPORT/device.txt" model build serial_hash tmp
   mkdir -p "$REPORT"
-  model=$(dev1 getprop ro.product.model)
-  build=$(dev1 getprop ro.build.display.id)
+  model=$(dev_ok getprop ro.product.model) ||
+    die "could not read device model; refusing to create a recovery manifest"
+  [[ -n $model ]] || die "device model is empty; refusing to create a recovery manifest"
+  build=$(dev_ok getprop ro.build.display.id) ||
+    die "could not read device build; refusing to create a recovery manifest"
   serial_hash=$(serial_fingerprint)
   if [[ -f $manifest ]]; then
     grep -qxF "format=2" "$manifest" ||

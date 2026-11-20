@@ -101,6 +101,11 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("FAIL", result.stdout)
         self.assertIn("Amazon Home is foreground (com.amazon.tv.launcher", result.stdout)
 
+    def test_unknown_foreground_is_not_reported_as_armed(self):
+        result, _ = self.run_verify(home="")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("could not determine the foreground activity", result.stdout)
+
     def test_running_homesentinel_passes_with_an_ordinary_app_in_foreground(self):
         result, _ = self.run_verify(home="com.netflix.ninja/.MainActivity")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

@@ -159,10 +159,16 @@ elif words[:2] == ['pm', 'path']:
     if words[2] in apps:
         print(f'package:/system/app/{words[2]}.apk')
 elif command == 'pm list packages':
+    if state.get('pm_list_packages_refused'):
+        print('Error: package list unavailable')
+        sys.exit(1)
     print('\n'.join(f'package:{p}' for p in apps))
 elif command == 'pm list packages -s':
     print('\n'.join(f'package:{p}' for p, a in apps.items() if a['system']))
 elif command == 'pm list packages -d':
+    if state.get('pm_list_disabled_refused'):
+        print('Error: disabled package list unavailable')
+        sys.exit(1)
     omitted = state.get('omit_disabled_package', '')
     print('\n'.join(f'package:{p}' for p, a in apps.items()
                       if not a['enabled'] and p != omitted))

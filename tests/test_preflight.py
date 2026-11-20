@@ -94,6 +94,23 @@ class PreflightTest(unittest.TestCase):
             self.assertNotEqual(second.returncode, 0)
             self.assertIn("different ADB device", second.stderr)
 
+    def test_preflight_does_not_write_a_package_baseline_if_disabled_state_cannot_be_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            state = tmp / "state.json"
+            state.write_text(json.dumps({
+                "sdk": 25, "manufacturer": "Amazon",
+                "props": {"ro.product.model": "AFTMM"},
+                "packages": {"com.netflix.ninja": {"system": False, "enabled": True}},
+                "pm_list_disabled_refused": True,
+                "settings": {"secure/screen_timeout": "300", "global/animator_duration_scale": "1.0"},
+            }))
+            report = tmp / "report"
+            result, _ = self.run_preflight(state, report)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("could not read disabled packages", result.stderr)
+            self.assertFalse((report / "packages-before.txt").exists())
+
     def test_preflight_refuses_an_incomplete_snapshot(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
