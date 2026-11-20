@@ -131,8 +131,8 @@ class RestoreTest(unittest.TestCase):
     def test_restore_preserves_preexisting_appops_blacklist_and_data_saver(self):
         result, commands, state = self.run_restore(
             protected_disabled=True,
-            lockdown_snapshot="com.amazon.firebat\\t10050\\tignore\\tnot-applicable\\t1\\n",
-            data_saver_snapshot="enabled\\n",
+            lockdown_snapshot="com.amazon.firebat\t10050\tignore\tnot-applicable\t1\n",
+            data_saver_snapshot="enabled\n",
             state_overrides={
                 "appops": {"com.amazon.firebat": {"RUN_IN_BACKGROUND": "ignore"}},
                 "network_blacklist": [10050],
@@ -147,8 +147,8 @@ class RestoreTest(unittest.TestCase):
     def test_restore_removes_only_its_own_appops_and_network_restrictions(self):
         result, commands, state = self.run_restore(
             protected_disabled=True,
-            lockdown_snapshot="com.amazon.firebat\\t10050\\tallow\\tnot-applicable\\t0\\n",
-            data_saver_snapshot="disabled\\n",
+            lockdown_snapshot="com.amazon.firebat\t10050\tallow\tnot-applicable\t0\n",
+            data_saver_snapshot="disabled\n",
             state_overrides={
                 "appops": {"com.amazon.firebat": {"RUN_IN_BACKGROUND": "ignore"}},
                 "network_blacklist": [10050],
