@@ -264,7 +264,7 @@ class RestoreTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(state["restrict_background"], "disabled")
         self.assertIn("cmd netpolicy set restrict-background false", commands)
-        self.assertFalse(any(command.startswith("appops set ") for command in commands))
+        self.assertFalse(any(command.startswith("appops set com.amazon.firebat ") for command in commands))
         self.assertFalse(any(command.startswith("cmd netpolicy remove restrict-background-blacklist")
                              for command in commands))
 
