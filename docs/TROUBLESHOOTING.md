@@ -11,6 +11,50 @@ To put the TV back the way it was: `./scripts/restore.sh`.
 
 ## Home screen
 
+### Installation or undo did not finish
+
+The installer suspends automatic takeover while an APK is being installed or permissions
+are repaired. If a step fails, it attempts to stop DumbTV and return to Amazon Home;
+check the reported foreground component rather than assuming the command succeeded.
+Run `./launcher/install.sh --undo` to retry the verified handoff.
+
+The takeover gate is stored in the device's Global Settings as
+`dumbtv_homesentinel_enabled`. A value of `0` leaves Amazon Home in control.
+A successful install verifies the launcher and HomeSentinel before setting it to `1`.
+
+### A supplied APK is rejected
+
+`--apk` and `--permissions-only` verify the installed or supplied APK's signer and
+package identity before granting HomeSentinel privileges. The default trust anchor is
+the release certificate in `launcher/signing.sha256`. For a locally signed developer
+build, explicitly provide its SHA-256 certificate fingerprint:
+
+```sh
+DUMBTW_TRUSTED_CERT_SHA256=<64-character-lowercase-sha256> ./launcher/install.sh --apk path/to/dumbtv-home.apk
+```
+
+Only use a fingerprint obtained from a build key you control.
+
+## Recovery snapshots
+
+Preflight stores the original package/settings state under
+`report/<ADB-serial>/`; the directory is local and git-ignored. Do not copy a report
+between TVs. Restore checks the manifest and refuses a serial or model mismatch. It
+keeps the snapshots until package state, AppOps, Data Saver, settings and Amazon Home
+have been verified after reboot.
+
+A report created by v1.17 has no device manifest and no exact AppOps/Data Saver
+baseline. If you are deliberately restoring that legacy report, first verify that the
+connected ADB serial is the same TV that created it, then opt in explicitly:
+
+```sh
+REPORT="$PWD/report" DUMBTW_ALLOW_LEGACY_REPORT=1 ./scripts/restore.sh
+```
+
+Legacy reports cannot recover the original AppOps modes or Data Saver setting exactly;
+the compatibility path restores the protected-package defaults used by v1.17. New
+installations record those values before lockdown.
+
 ### Amazon's home screen came back
 
 This launcher build supports only the AFTMM on Fire OS 6 / Android API 25.
