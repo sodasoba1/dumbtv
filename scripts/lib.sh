@@ -303,6 +303,7 @@ package_user_enabled_state() {
 # restore.sh uses this to avoid enabling apps the owner had already disabled.
 snapshot_package_states() {
   local file="$REPORT/packages-before.txt" installed disabled pkg
+  ensure_report_device
   [[ -f $file ]] && return 0
   mkdir -p "$REPORT"
   installed=$(dev 'pm list packages' | sed 's/^package://' | tr -d '\r')
@@ -335,7 +336,7 @@ ensure_report_device() {
       die "report device model does not match the connected TV; refusing restore"
     return 0
   fi
-  if [[ -f $REPORT/packages-before.txt || -f $REPORT/settings-before-secure.txt || -f $REPORT/settings-before-global.txt ]]; then
+  if [[ -f $REPORT/packages-before.txt || -f $REPORT/settings-before-secure.txt || -f $REPORT/settings-before-global.txt || -f $REPORT/lockdown-before.tsv || -f $REPORT/data-saver-before.txt ]]; then
     [[ ${DUMBTW_ALLOW_LEGACY_REPORT:-0} == 1 ]] ||
       die "legacy report has no device identity manifest; verify the TV, then explicitly retry with DUMBTW_ALLOW_LEGACY_REPORT=1"
     note "WARNING: accepting a legacy report without verified device ownership"
