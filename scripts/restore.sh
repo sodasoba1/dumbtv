@@ -152,18 +152,19 @@ if [[ -f $REPORT/lockdown-before.tsv ]]; then
     [[ -z ${p:-} ]] && continue
     acmd appops set "$p" RUN_IN_BACKGROUND "$bg" >/dev/null ||
       die "could not restore RUN_IN_BACKGROUND for $p"
-    actual_bg=$(dev1 appops get "$p" RUN_IN_BACKGROUND | sed -n 's/.*RUN_IN_BACKGROUND:[[:space:]]*\\([^,[:space:]]*\\).*/\\1/p')
+    actual_bg=$(dev1 appops get "$p" RUN_IN_BACKGROUND | sed -n 's/.*RUN_IN_BACKGROUND:[[:space:]]*\([^,[:space:]]*\).*/\1/p')
     [[ $actual_bg == "$bg" ]] || die "RUN_IN_BACKGROUND restore did not verify for $p"
     if [[ $SDK -ge 28 && $any != not-applicable ]]; then
       acmd appops set "$p" RUN_ANY_IN_BACKGROUND "$any" >/dev/null ||
         die "could not restore RUN_ANY_IN_BACKGROUND for $p"
-      actual_any=$(dev1 appops get "$p" RUN_ANY_IN_BACKGROUND | sed -n 's/.*RUN_ANY_IN_BACKGROUND:[[:space:]]*\\([^,[:space:]]*\\).*/\\1/p')
+      actual_any=$(dev1 appops get "$p" RUN_ANY_IN_BACKGROUND | sed -n 's/.*RUN_ANY_IN_BACKGROUND:[[:space:]]*\([^,[:space:]]*\).*/\1/p')
       [[ $actual_any == "$any" ]] || die "RUN_ANY_IN_BACKGROUND restore did not verify for $p"
     fi
-    acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null 2>&1 ||
-      [[ $was_blacklisted == 1 ]] || die "could not remove DumbTV's network restriction for $p"
     blacklist_now=$(dev 'cmd netpolicy list restrict-background-blacklist')
     if [[ $was_blacklisted == 0 ]]; then
+      acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null 2>&1 ||
+        die "could not remove DumbTV's network restriction for $p"
+      blacklist_now=$(dev 'cmd netpolicy list restrict-background-blacklist')
       ! grep -Eq "(^|[^0-9])$uid([^0-9]|$)" <<<"$blacklist_now" ||
         die "network blacklist removal did not verify for $p"
     else
