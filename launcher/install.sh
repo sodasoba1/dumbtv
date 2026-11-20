@@ -118,14 +118,33 @@ install_apk() {
   out=$(adb_ install -r "$APK" 2>&1 | grep -m1 -E 'Success|Failure|failed' || true)
 }
 
+verify_installed_apk() {
+  local device_apk tmp
+  device_apk=$(sh_ pm path "$PKG" | sed -n 's/^package://p' | head -1)
+  [[ -n $device_apk ]] || { echo "error: could not locate the installed $PKG APK for signer verification" >&2; return 1; }
+  tmp=$(mktemp "${TMPDIR:-/tmp}/dumbtv-installed.XXXXXX") || return 1
+  if ! adb_ pull "$device_apk" "$tmp" >/dev/null 2>&1; then
+    rm -f "$tmp"
+    echo "error: could not retrieve the installed APK for signer verification" >&2
+    return 1
+  fi
+  ./verify-certificate.sh "$tmp"
+  local rc=$?
+  rm -f "$tmp"
+  return $rc
+}
+
 if [[ $mode == permissions ]]; then
   installed "$PKG" || { echo "error: $PKG is not installed; install an APK first" >&2; exit 1; }
-  echo "reapplying HomeSentinel permissions for the installed $PKG"
+  verify_installed_apk || { echo "error: installed DumbTV signer is not trusted; no privileged permissions were changed" >&2; exit 1; }
+  echo "reapplying HomeSentinel permissions for the verified $PKG"
 elif [[ $mode == build ]]; then
   build_apk
 elif [[ $mode == apk ]]; then
   [[ -s $LOCAL_APK ]] || { echo "error: APK file not found or empty: $LOCAL_APK" >&2; exit 1; }
   APK=$LOCAL_APK
+  ./verify-certificate.sh "$APK" ||
+    { echo "error: supplied APK signer is not trusted; not installing or granting HomeSentinel privileges" >&2; exit 1; }
   echo "installing supplied APK: $APK"
 else
   mkdir -p build
