@@ -204,8 +204,12 @@ if [[ -f $REPORT/data-saver-before.txt ]]; then
 else
   note "legacy report has no original Data Saver snapshot; using the v1.17 restore default (disabled)"
 fi
-case $data_saver in enabled|disabled) ;; *) die "invalid saved Data Saver state: $data_saver" ;; esac
-acmd cmd netpolicy set restrict-background "$data_saver" >/dev/null ||
+case $data_saver in
+  enabled) data_saver_arg=true ;;
+  disabled) data_saver_arg=false ;;
+  *) die "invalid saved Data Saver state: $data_saver" ;;
+esac
+acmd cmd netpolicy set restrict-background "$data_saver_arg" >/dev/null ||
   die "could not restore original Data Saver state"
 if [[ $DRY_RUN == 0 ]]; then
   actual_data_saver=$(dev 'cmd netpolicy get restrict-background' | tr -d '\r')
