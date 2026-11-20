@@ -1,4 +1,5 @@
 """Lockdown snapshots and applies only the policy it owns."""
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -32,7 +33,8 @@ class LockdownTest(unittest.TestCase):
             report = tmp / "report"
             report.mkdir()
             (report / "device.txt").write_text(
-                "format=1\nserial=test-tv:5555\nmodel=AFTMM\nbuild=test-build\n")
+                "format=2\nserial_sha256=" + hashlib.sha256(b"test-tv:5555").hexdigest()
+                + "\nmodel=AFTMM\nbuild=test-build\n")
             conf = tmp / "dumbtv.conf"
             conf.write_text("")
             log = tmp / "commands.log"

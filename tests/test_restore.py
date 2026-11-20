@@ -37,6 +37,8 @@ class RestoreTest(unittest.TestCase):
             }
             state.write_text(json.dumps({"packages": packages, "settings": hooked,
                                          "manufacturer": manufacturer,
+                                         "props": {"ro.product.model": "AFTMM",
+                                                   "ro.build.display.id": "test-build"},
                                          "ignores_reboot": ignores_reboot,
                                          "svc_refused": svc_refused, "sdk": 25,
                                          "omit_disabled_package": "com.amazon.firebat" if protected_disabled else "",
@@ -48,7 +50,7 @@ class RestoreTest(unittest.TestCase):
             report.mkdir()
             (report / "device.txt").write_text(
                 "format=2\nserial_sha256=" + hashlib.sha256(manifest_serial.encode()).hexdigest()
-                + "\nmodel=\nbuild=\n")
+                + "\nmodel=AFTMM\nbuild=test-build\n")
             if package_snapshot is not None:
                 (report / "packages-before.txt").write_text(package_snapshot)
             if secure_snapshot is not None:
