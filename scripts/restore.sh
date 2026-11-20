@@ -96,6 +96,11 @@ for p in $(restore_list); do
     a="installed"
   fi
   b=$(acmd pm enable --user 0 "$p" 2>&1 | head -1)
+  if [[ $DRY_RUN == 0 ]]; then
+    state=$(package_user_enabled_state "$p")
+    [[ $state == 0 || $state == 1 ]] ||
+      die "package $p did not return to an enabled state (state ${state:-unknown})"
+  fi
   bg_on "$p"
   uid=$(uid_of "$p")
   [[ -n $uid ]] && acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null 2>&1
@@ -122,6 +127,11 @@ for p in $(list_of "$(fos never-disable.txt)" | awk '{print $1}'); do
     continue
   }
   b=$(acmd pm enable --user 0 "$p" 2>&1 | head -1)
+  if [[ $DRY_RUN == 0 ]]; then
+    state=$(package_user_enabled_state "$p")
+    [[ $state == 0 || $state == 1 ]] ||
+      die "protected package $p did not return to an enabled state (state ${state:-unknown})"
+  fi
   printf '  %-46s %s\n' "$p" "${b:-no output}"
 done
 
@@ -142,13 +152,23 @@ if [[ -f $REPORT/lockdown-before.tsv ]]; then
     [[ -z ${p:-} ]] && continue
     acmd appops set "$p" RUN_IN_BACKGROUND "$bg" >/dev/null ||
       die "could not restore RUN_IN_BACKGROUND for $p"
+    actual_bg=$(dev1 appops get "$p" RUN_IN_BACKGROUND | sed -n 's/.*RUN_IN_BACKGROUND:[[:space:]]*\\([^,[:space:]]*\\).*/\\1/p')
+    [[ $actual_bg == "$bg" ]] || die "RUN_IN_BACKGROUND restore did not verify for $p"
     if [[ $SDK -ge 28 && $any != not-applicable ]]; then
       acmd appops set "$p" RUN_ANY_IN_BACKGROUND "$any" >/dev/null ||
         die "could not restore RUN_ANY_IN_BACKGROUND for $p"
+      actual_any=$(dev1 appops get "$p" RUN_ANY_IN_BACKGROUND | sed -n 's/.*RUN_ANY_IN_BACKGROUND:[[:space:]]*\\([^,[:space:]]*\\).*/\\1/p')
+      [[ $actual_any == "$any" ]] || die "RUN_ANY_IN_BACKGROUND restore did not verify for $p"
     fi
+    acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null 2>&1 ||
+      [[ $was_blacklisted == 1 ]] || die "could not remove DumbTV's network restriction for $p"
+    blacklist_now=$(dev 'cmd netpolicy list restrict-background-blacklist')
     if [[ $was_blacklisted == 0 ]]; then
-      acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null ||
-        die "could not remove DumbTV's network restriction for $p"
+      ! grep -Eq "(^|[^0-9])$uid([^0-9]|$)" <<<"$blacklist_now" ||
+        die "network blacklist removal did not verify for $p"
+    else
+      grep -Eq "(^|[^0-9])$uid([^0-9]|$)" <<<"$blacklist_now" ||
+        die "pre-existing network blacklist entry was not preserved for $p"
     fi
     printf '  %-46s AppOps restored; original blacklist=%s\n' "$p" "$was_blacklisted"
   done < <(tr '\t' '|' < "$REPORT/lockdown-before.tsv")
