@@ -13,6 +13,9 @@ public final class BootReceiver extends BroadcastReceiver {
         // HomeSentinel is not direct-boot-aware, so leave that boot to BOOT_COMPLETED.
         UserManager users = (UserManager) context.getSystemService(Context.USER_SERVICE);
         if (users != null && !users.isUserUnlocked()) return;
+        // Undo leaves the app installed but deliberately disables automatic takeover.
+        // Do not start a persistent foreground service on every boot in that state.
+        if (!HomeSentinel.takeoverEnabled(context)) return;
         HomeSentinel.start(context);
     }
 }
