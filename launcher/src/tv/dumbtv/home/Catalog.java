@@ -108,8 +108,24 @@ final class Catalog {
     static Drawable customBanner(Context context, Item item) {
         String filename = Config.get(context).get("appstyle." + item.id + ".banner", null);
         if (filename == null || !filename.matches("[A-Za-z0-9_.-]+\\.png")) return null;
-        try (java.io.InputStream input = context.getAssets().open("custom-banners/" + filename)) {
-            Bitmap bitmap = BitmapFactory.decodeStream(input);
+        try (java.io.InputStream bounds = context.getAssets().open("custom-banners/" + filename)) {
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inJustDecodeBounds = true;
+            BitmapFactory.decodeStream(bounds, null, options);
+            if (options.outWidth <= 0 || options.outHeight <= 0) return null;
+            options.inJustDecodeBounds = false;
+            options.inSampleSize = 1;
+            while (options.outWidth > 0 && options.outHeight > 0) {
+                long width = Math.max(1, options.outWidth / options.inSampleSize);
+                long height = Math.max(1, options.outHeight / options.inSampleSize);
+                if (width * height <= 4_000_000L && Math.max(width, height) <= 4096) break;
+                if (options.inSampleSize >= (1 << 20)) break;
+                options.inSampleSize *= 2;
+            }
+            Bitmap bitmap;
+            try (java.io.InputStream image = context.getAssets().open("custom-banners/" + filename)) {
+                bitmap = BitmapFactory.decodeStream(image, null, options);
+            }
             if (bitmap == null) return null;
             Drawable artwork = new BitmapDrawable(context.getResources(), bitmap).mutate();
             String tint = Config.get(context).get("appstyle." + item.id + ".bannerColor", "original");
