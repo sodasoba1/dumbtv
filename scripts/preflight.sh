@@ -19,11 +19,10 @@ note "abi           $(dev1 getprop ro.product.cpu.abi)"
 note "verified boot $(dev1 getprop ro.boot.verifiedbootstate)  (1 = locked, cannot be changed)"
 note "gateway       $(gateway)"
 
-if [[ $SDK -gt 30 ]] && is_fireos; then
-  need_supported_fireos
-fi
-
 if is_fireos; then
+  if [[ $SDK -lt 25 || $SDK -gt 30 ]]; then
+    need_supported_fireos
+  fi
   note "platform      $(fireos_name)"
   note "lists         ${DATA#$ROOT/}/$(basename "$(dirname "$(fos packages.txt)")")"
   if [[ $SDK -lt 28 ]]; then
