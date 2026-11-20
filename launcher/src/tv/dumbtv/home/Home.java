@@ -67,6 +67,7 @@ public final class Home extends Activity {
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService startupIo = Executors.newSingleThreadExecutor();
     private final ExecutorService colorIo = Executors.newSingleThreadExecutor();
     private final List<TextView> chips = new ArrayList<>();
     private Config cfg;
@@ -256,7 +257,10 @@ public final class Home extends Activity {
         int generation = ++appsGeneration;
         // PackageManager and UsageStats can be slow on Fire OS 6. Never wait for them
         // on the Activity thread; the first render may use placeholders and fill in later.
-        io.execute(() -> {
+        // This waiter must not share the serial IO executor: the catalogue and UsageStats
+        // futures are queued there, so waiting from that same executor would make both timeouts
+        // ineffective and hold the first render behind the catalogue scan.
+        startupIo.execute(() -> {
             List<Item> loaded;
             Map<String, Long> loadedTimes = null;
             try {
@@ -375,6 +379,7 @@ public final class Home extends Activity {
         unregisterReceiver(packages);
         if (tv != null) tv.unregisterCallback(inputWatch);
         io.shutdownNow();
+        startupIo.shutdownNow();
         colorIo.shutdownNow();
         super.onDestroy();
     }
