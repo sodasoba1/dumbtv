@@ -51,8 +51,11 @@ class LauncherReleaseCheckTest(unittest.TestCase):
             )
             sdk = tmp / "sdk"
             signer = sdk / "build-tools" / "34.0.0" / "apksigner"
+            signer.parent.mkdir(parents=True)
+            aapt2 = signer.parent / "aapt2"
+            aapt2.write_text("#!/bin/sh\necho \"package: name='tv.dumbtv.home' versionCode='1' versionName='1.0'\"\n")
+            aapt2.chmod(0o755)
             if provide_apksigner:
-                signer.parent.mkdir(parents=True)
                 signer.write_text(
                     "#!/usr/bin/env bash\n"
                     '[[ $1 == verify && $2 == --print-certs ]] || exit 90\n'
