@@ -40,6 +40,8 @@ public final class HomeSentinel extends Service {
     private static final long STABLE_HOME_MS = 30_000;
     private static final String STATE_PREFS = "homesentinel_state";
     private static final String TAKEOVER_SETTING = "dumbtv_homesentinel_enabled";
+    private static final String ACTION_HOME_VISIBILITY = "tv.dumbtv.home.action.HOME_VISIBILITY";
+    private static final String EXTRA_HOME_READY = "home_ready";
     private static final long LOGCAT_RESTART_MIN_MS = 5_000;
     private static final long LOGCAT_RESTART_MAX_MS = 60_000;
     // A quiet ActivityManager stream is normal; this only detects a reader thread that died.
@@ -54,6 +56,10 @@ public final class HomeSentinel extends Service {
     private long screenOffTime;
     private String lastTop;
     private String lastTopClass;
+    private long lastTopTimestamp;
+    private boolean lastUsageQuerySucceeded;
+    private boolean homeReady;
+    private long stableHomeStartedAt;
     private boolean recovering;
     private int attempts;
     private volatile boolean logcatStopping;
@@ -111,6 +117,7 @@ public final class HomeSentinel extends Service {
             // Refresh the event history before recording the screen-off state. The polling
             // window may have missed a delayed UsageStats event immediately before standby.
             updateTop(now - 10_000, now);
+            invalidateStableHome();
             screenOffTime = now;
             note("screen off; last foreground=" + lastTop + "/" + lastTopClass);
         } else if (Intent.ACTION_SCREEN_ON.equals(action)) {
@@ -168,8 +175,29 @@ public final class HomeSentinel extends Service {
     }
 
     private boolean recoveryEligible() {
-        return takeoverEnabled() && displayInteractive()
-                && HomeSentinelPause.shouldRecover(pauseState) && isAmazonHome();
+        return lastUsageQuerySucceeded && lastTopTimestamp > 0 && takeoverEnabled()
+                && displayInteractive() && HomeSentinelPause.shouldRecover(pauseState)
+                && isAmazonHome();
+    }
+
+    /** Reports real Home-window focus from the Activity, not merely a task-ordering result. */
+    static void reportHomeVisibility(Context context, boolean ready) {
+        Intent intent = new Intent(context, HomeSentinel.class)
+                .setAction(ACTION_HOME_VISIBILITY)
+                .putExtra(EXTRA_HOME_READY, ready);
+        context.startService(intent);
+    }
+
+    private void handleHomeVisibility(boolean ready) {
+        if (!ready || !displayInteractive()) {
+            invalidateStableHome();
+            return;
+        }
+        homeReady = true;
+        long now = System.currentTimeMillis();
+        updateTop(Math.max(0, now - 10_000), now);
+        if (DUMBTV_PKG.equals(lastTop)) scheduleStableHome();
+        else note("Home window has focus; waiting for UsageStats foreground confirmation");
     }
 
     private int storedFailures() {
@@ -326,7 +354,7 @@ public final class HomeSentinel extends Service {
             try {
                 // Start at the live edge; replaying the existing ring buffer could mistake
                 // an old Amazon Home transition for a fresh wake event.
-                process = new ProcessBuilder("/system/bin/logcat", "-T", "1", "-v", "brief",
+                process = new ProcessBuilder("/system/bin/logcat", "-T", "1", "-v", "epoch",
                         "-s", "ActivityManager:I").redirectErrorStream(true).start();
                 synchronized (logcatLock) {
                     if (logcatStopping) {
@@ -341,8 +369,10 @@ public final class HomeSentinel extends Service {
                 String line;
                 while (!logcatStopping && (line = reader.readLine()) != null) {
                     if (HomeSentinelLogcat.matches(line) && worker != null) {
-                        // Do not persist raw system lines; they can contain other apps' data.
-                        worker.post(this::handleAmazonHomeDetected);
+                        // Epoch timestamps let the worker reject buffered records that arrive
+                        // after a newer UsageStats foreground transition.
+                        final long eventTime = HomeSentinelLogcat.timestampMillis(line);
+                        if (eventTime > 0) worker.post(() -> handleAmazonHomeDetected(eventTime));
                     }
                 }
                 // An unexpected EOF is a failed stream, even if process creation succeeded.
@@ -370,7 +400,15 @@ public final class HomeSentinel extends Service {
         }
     }
 
-    private void handleAmazonHomeDetected() {
+    private void handleAmazonHomeDetected(long eventTimestamp) {
+        if (!HomeSentinelLogcat.isCurrentForegroundEvent(eventTimestamp, lastTopTimestamp,
+                lastTop, lastTopClass)) {
+            note("ignored stale ActivityManager foreground record");
+            return;
+        }
+        lastTopTimestamp = eventTimestamp;
+        lastTop = AMAZON_PKG;
+        lastTopClass = AMAZON_HOME;
         updatePauseState(HomeSentinelPause.afterForeground(pauseState, AMAZON_PKG, AMAZON_HOME));
         if (!HomeSentinelPause.shouldRecover(pauseState)) return;
         // Never launch an activity in response to a log event while the TV display is off.
@@ -383,8 +421,6 @@ public final class HomeSentinel extends Service {
         // Debounce them so one Amazon Home launch cannot cause repeated takeovers.
         if (lastLogcatRecoveryMs != 0 && now - lastLogcatRecoveryMs < 3_000) return;
         lastLogcatRecoveryMs = now;
-        lastTop = AMAZON_PKG;
-        lastTopClass = AMAZON_HOME;
         updatePauseState(HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass));
         note("logcat detected Amazon Home foreground transition");
         beginRecovery();
@@ -397,8 +433,11 @@ public final class HomeSentinel extends Service {
         long now = System.currentTimeMillis();
         updateTop(Math.max(0, now - INITIAL_EVENT_LOOKBACK_MS), now);
         updatePauseState(HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass));
-        if (recoveryEligible()) {
-            note("service start: verified Amazon Home foreground; recovery eligible");
+        // The 24-hour query reconstructs standby history; it is not fresh permission
+        // to take focus when a sticky service starts. A live transition or screen-on path
+        // is required to authorize recovery.
+        if (recoveryEligible() && lastTopTimestamp >= now - 5_000) {
+            note("service start: fresh Amazon Home foreground; recovery eligible");
             beginRecovery();
         } else if (DUMBTV_PKG.equals(lastTop)) {
             note("service start: DumbTV already foreground; checking for a stable session");
@@ -426,11 +465,11 @@ public final class HomeSentinel extends Service {
         }
         updatePauseState(HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass));
         if (DUMBTV_PKG.equals(lastTop)) {
-            scheduleStableHome();
+            if (homeReady) scheduleStableHome();
             cancelRecovery("DumbTV foreground");
             return;
         }
-        worker.removeCallbacks(stableHome);
+        invalidateStableHome();
         if (lastTop == null || SYSTEM_UI.equals(lastTop) || "android".equals(lastTop)) {
             cancelRecovery("system UI foreground");
             return;
@@ -456,6 +495,7 @@ public final class HomeSentinel extends Service {
      * from an empty result.
      */
     private boolean updateTop(long from, long now) {
+        lastUsageQuerySucceeded = false;
         if (usage == null) return false;
         try {
             UsageEvents events = usage.queryEvents(Math.max(0, from), now);
@@ -470,8 +510,10 @@ public final class HomeSentinel extends Service {
                                 event.getPackageName(), event.getClassName())) continue;
                 lastTop = event.getPackageName();
                 lastTopClass = event.getClassName();
+                lastTopTimestamp = event.getTimeStamp();
                 changed = true;
             }
+            lastUsageQuerySucceeded = true;
             return changed;
         } catch (RuntimeException e) {
             note("UsageStats query failed: " + e);
@@ -485,6 +527,7 @@ public final class HomeSentinel extends Service {
 
     private void beginRecovery() {
         if (!recoveryEligible() || recovering) return;
+        invalidateStableHome();
         attempts = storedFailures();
         if (attempts >= MAX_ATTEMPTS) {
             note("automatic takeover circuit open after " + attempts + " failed attempts; leaving Amazon Home available");
@@ -497,8 +540,11 @@ public final class HomeSentinel extends Service {
     }
 
     private void attemptRecovery() {
-        if (!recovering || !recoveryEligible()) {
-            cancelRecovery("recovery no longer eligible");
+        if (!recovering) return;
+        long now = System.currentTimeMillis();
+        updateTop(Math.max(0, eventCursor.lastTimestamp() - 1), now);
+        if (!lastUsageQuerySucceeded || !recoveryEligible()) {
+            cancelRecovery("recovery no longer eligible after foreground recheck");
             return;
         }
         if (attempts >= MAX_ATTEMPTS) {
@@ -539,11 +585,15 @@ public final class HomeSentinel extends Service {
     }
 
     private void verifyRecovery() {
-        updateTop(System.currentTimeMillis() - 10_000, System.currentTimeMillis());
+        long now = System.currentTimeMillis();
+        updateTop(Math.max(0, eventCursor.lastTimestamp() - 1), now);
+        if (!lastUsageQuerySucceeded) {
+            cancelRecovery("foreground verification unavailable; retaining recovery budget");
+            return;
+        }
         if (DUMBTV_PKG.equals(lastTop)) {
-            note("recovery verified: DumbTV foreground; waiting for a stable Home session");
-            worker.removeCallbacks(stableHome);
-            worker.postDelayed(stableHome, STABLE_HOME_MS);
+            note("recovery verified: DumbTV foreground; waiting for Home window readiness");
+            if (homeReady) scheduleStableHome();
             recovering = false;
             worker.removeCallbacks(verify);
             return;
@@ -566,20 +616,55 @@ public final class HomeSentinel extends Service {
     }
 
     private void scheduleStableHome() {
-        if (worker == null) return;
+        if (worker == null || !homeReady || !displayInteractive()) return;
         worker.removeCallbacks(stableHome);
+        stableHomeStartedAt = System.currentTimeMillis();
         worker.postDelayed(stableHome, STABLE_HOME_MS);
     }
 
-    private void verifyStableHome() {
-        long now = System.currentTimeMillis();
-        updateTop(Math.max(0, now - STABLE_HOME_MS - 5_000), now);
-        if (displayInteractive() && DUMBTV_PKG.equals(lastTop)) {
-            note("DumbTV remained foreground for " + STABLE_HOME_MS + "ms; clearing recovery circuit");
-            storeFailures(0);
-        } else {
-            note("DumbTV Home was not stable; retaining recovery failure count");
+    private void invalidateStableHome() {
+        homeReady = false;
+        stableHomeStartedAt = 0;
+        if (worker != null) worker.removeCallbacks(stableHome);
+    }
+
+    /** Requires a successful foreground-history query whose latest event is DumbTV. */
+    private boolean confirmDumbTvForeground(long since, long now) {
+        if (usage == null) return false;
+        try {
+            UsageEvents events = usage.queryEvents(Math.max(0, since), now);
+            if (events == null) return false;
+            long latest = 0;
+            String latestPackage = null;
+            UsageEvents.Event event = new UsageEvents.Event();
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event);
+                if (event.getEventType() != UsageEvents.Event.MOVE_TO_FOREGROUND) continue;
+                if (event.getTimeStamp() >= latest) {
+                    latest = event.getTimeStamp();
+                    latestPackage = event.getPackageName();
+                }
+            }
+            return latest >= since && DUMBTV_PKG.equals(latestPackage);
+        } catch (RuntimeException e) {
+            note("stable Home UsageStats confirmation failed: " + e);
+            return false;
         }
+    }
+
+    private void verifyStableHome() {
+        long startedAt = stableHomeStartedAt;
+        long now = System.currentTimeMillis();
+        boolean confirmed = startedAt > 0 && confirmDumbTvForeground(startedAt - 5_000, now);
+        if (HomeSentinelStability.canClearCircuit(homeReady, displayInteractive(),
+                lastUsageQuerySucceeded, confirmed)) {
+            note("DumbTV rendered Home and remained foreground for " + STABLE_HOME_MS
+                    + "ms; clearing recovery circuit");
+            if (!storeFailures(0)) note("could not persist cleared recovery budget");
+        } else {
+            note("DumbTV Home stability was not confirmed; retaining recovery failure count");
+        }
+        stableHomeStartedAt = 0;
     }
 
     private void raiseHome() {
@@ -614,6 +699,10 @@ public final class HomeSentinel extends Service {
         // Permissions may have been repaired while this sticky service was already running.
         // Re-check on every start request so ActivityManager monitoring can resume immediately.
         startLogcatReader();
+        if (intent != null && ACTION_HOME_VISIBILITY.equals(intent.getAction()) && worker != null) {
+            final boolean ready = intent.getBooleanExtra(EXTRA_HOME_READY, false);
+            worker.post(() -> handleHomeVisibility(ready));
+        }
         return START_STICKY;
     }
 

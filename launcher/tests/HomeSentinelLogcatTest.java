@@ -19,6 +19,18 @@ public final class HomeSentinelLogcatTest {
         check(!HomeSentinelLogcat.matches("I/ActivityManager: Displayed com.netflix.ninja/.MainActivity"),
                 "other applications are ignored");
         check(!HomeSentinelLogcat.matches(null), "null log line is ignored");
+        check(HomeSentinelLogcat.timestampMillis("1795174682.125 I/ActivityManager: Displayed "
+                + "com.amazon.tv.launcher/.ui.HomeActivity_vNext") == 1795174682125L,
+                "epoch timestamp is parsed to milliseconds");
+        check(HomeSentinelLogcat.timestampMillis("I/ActivityManager: Displayed "
+                + "com.amazon.tv.launcher/.ui.HomeActivity_vNext") == -1,
+                "records without epoch timestamp are rejected");
+        check(!HomeSentinelLogcat.isCurrentForegroundEvent(100, 101, "com.netflix.ninja", "Player"),
+                "old buffered Amazon event cannot replace a newer foreground app");
+        check(!HomeSentinelLogcat.isCurrentForegroundEvent(101, 101, "com.netflix.ninja", "Player"),
+                "same-time ambiguous Amazon event cannot replace another app");
+        check(HomeSentinelLogcat.isCurrentForegroundEvent(102, 101, "com.netflix.ninja", "Player"),
+                "newer Amazon foreground event is accepted");
         System.out.println("HomeSentinelLogcatTest passed");
     }
 }

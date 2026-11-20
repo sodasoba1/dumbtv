@@ -57,6 +57,9 @@ jobs:
           javac --release 8 -Xlint:all -Werror -d /tmp/host launcher/src/tv/dumbtv/home/HomeSentinelPause.java \
             launcher/tests/HomeSentinelPauseTest.java
           java -cp /tmp/host tv.dumbtv.home.HomeSentinelPauseTest
+          javac --release 8 -Xlint:all -Werror -d /tmp/host launcher/src/tv/dumbtv/home/HomeSentinelStability.java \
+            launcher/tests/HomeSentinelStabilityTest.java
+          java -cp /tmp/host tv.dumbtv.home.HomeSentinelStabilityTest
           javac --release 8 -Xlint:all -Werror -d /tmp/host launcher/src/tv/dumbtv/home/HomeSentinelLogcat.java \
             launcher/tests/HomeSentinelLogcatTest.java
           java -cp /tmp/host tv.dumbtv.home.HomeSentinelLogcatTest
