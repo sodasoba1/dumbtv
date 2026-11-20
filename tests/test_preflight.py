@@ -1,4 +1,5 @@
 """Preflight snapshots are device-scoped and preserve the first baseline."""
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -43,7 +44,9 @@ class PreflightTest(unittest.TestCase):
             report = tmp / "report"
             result, _ = self.run_preflight(state, report)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertIn("serial=test-tv:5555", (report / "device.txt").read_text())
+            self.assertIn("serial_sha256=" + hashlib.sha256(b"test-tv:5555").hexdigest(),
+                          (report / "device.txt").read_text())
+            self.assertNotIn("test-tv:5555", (report / "device.txt").read_text())
             self.assertEqual((report / "settings-before-secure.txt").read_text(), "screen_timeout=300\n")
             self.assertEqual((report / "settings-before-global.txt").read_text(),
                              "animator_duration_scale=1.0\n")
@@ -104,7 +107,8 @@ class PreflightTest(unittest.TestCase):
             report = tmp / "report"
             report.mkdir()
             (report / "device.txt").write_text(
-                "format=1\nserial=test-tv:5555\nmodel=AFTMM\nbuild=\n")
+                "format=2\nserial_sha256=" + hashlib.sha256(b"test-tv:5555").hexdigest()
+                + "\nmodel=AFTMM\nbuild=\n")
             (report / "settings-before-secure.txt").write_text("screen_timeout=300\n")
             result, _ = self.run_preflight(state, report)
             self.assertNotEqual(result.returncode, 0)
