@@ -38,6 +38,14 @@ export DUMBTW_TRUSTED_CERT_SHA256="YOUR_64_CHARACTER_SHA256_FINGERPRINT"
 
 Only use a fingerprint obtained from a build key you control.
 
+## Data Saver scope
+
+Lockdown enables Android's device-wide Data Saver. It restricts background metered
+traffic for every non-whitelisted app, not only the protected Amazon packages.
+Foreground app traffic and unmetered Wi-Fi are generally unaffected. New reports save
+the original Data Saver state and restore it; a v1.17 report has no such baseline and
+uses the legacy disabled default.
+
 ## Recovery snapshots
 
 Preflight stores the original package/settings state under
