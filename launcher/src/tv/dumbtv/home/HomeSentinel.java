@@ -377,7 +377,7 @@ public final class HomeSentinel extends Service {
         // Service restarts are not permission to steal foreground. Only recover after a
         // positively observed Amazon Home event while the display is awake and takeover
         // remains enabled. Unknown foreground state means wait.
-        updateTop(System.currentTimeMillis() - 10_000, System.currentTimeMillis());
+        updateTop(System.currentTimeMillis() - 60_000, System.currentTimeMillis());
         if (recoveryEligible()) {
             note("service start: verified Amazon Home foreground; recovery eligible");
             beginRecovery();
