@@ -111,7 +111,7 @@ class LauncherInstallTest(unittest.TestCase):
     def test_undo_does_not_claim_success_when_amazon_home_cannot_be_verified(self):
         result, _, _ = self.run_undo(wrong_home_foreground=True)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("handoff not verified", result.stderr)
+        self.assertIn("Amazon-Home-foreground-not-verified", result.stderr)
 
     def test_supplied_apk_install_also_grants_homesentinel_permissions(self):
         result, commands, state = self.install(installer_args=["--apk", "{APK}"])
