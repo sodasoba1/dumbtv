@@ -16,7 +16,7 @@ class LauncherCertificateTest(unittest.TestCase):
         """Expose only required shell utilities and explicit test shims."""
         bindir = root / "isolated-bin"
         bindir.mkdir(exist_ok=True)
-        for name in ("bash", "dirname", "sed", "awk", "tr"):
+        for name in ("bash", "dirname", "sed", "awk", "tr", "grep", "head"):
             executable = shutil.which(name)
             if executable:
                 (bindir / name).symlink_to(executable)
