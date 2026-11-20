@@ -176,6 +176,25 @@ fi
 # every failure leaves the replacement fail-closed until a complete health check.
 sh_ settings put global dumbtv_homesentinel_enabled 0 >/dev/null ||
   { echo "error: could not suspend HomeSentinel takeover before installation" >&2; exit 1; }
+TAKEOVER_SUSPENDED=1
+
+handoff_after_failure() {
+  local rc=$?
+  if [[ $rc != 0 && ${TAKEOVER_SUSPENDED:-0} == 1 ]]; then
+    echo "warning: installation did not complete; keeping automatic takeover disabled and returning to Amazon Home" >&2
+    sh_ settings put global dumbtv_homesentinel_enabled 0 >/dev/null 2>&1 || true
+    sh_ am force-stop "$PKG" >/dev/null 2>&1 || true
+    sh_ am start -W -a android.intent.action.MAIN -c android.intent.category.HOME -p com.amazon.tv.launcher >/dev/null 2>&1 || true
+    fallback_front=$(front_activity 2>/dev/null || true)
+    if [[ $fallback_front == com.amazon.tv.launcher/* ]]; then
+      echo "Amazon Home is foreground; automatic DumbTV takeover remains suspended" >&2
+    else
+      echo "warning: Amazon Home foreground could not be verified (${fallback_front:-unknown}); use the Fire TV Home button or run --undo again" >&2
+    fi
+  fi
+  exit "$rc"
+}
+trap handoff_after_failure EXIT
 
 if [[ $mode != permissions ]]; then
   install_apk
@@ -292,4 +311,6 @@ sh_ settings put global dumbtv_homesentinel_enabled 1 >/dev/null ||
 takeover=$(sh_ settings get global dumbtv_homesentinel_enabled | tr -d '\r')
 [[ $takeover == 1 ]] ||
   { echo "error: automatic HOME takeover could not be enabled and verified" >&2; exit 1; }
+TAKEOVER_SUSPENDED=0
+trap - EXIT
 echo "automatic HOME takeover enabled and verified"
