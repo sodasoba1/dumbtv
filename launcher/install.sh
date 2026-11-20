@@ -71,33 +71,38 @@ sha256() {
 }
 
 if [[ $mode == undo ]]; then
-  # Fail closed first: a package-replaced or sticky service restart must not reclaim HOME.
+  # Attempt every recovery step even if one fails: returning stock HOME is more
+  # important than aborting after a permission or service-cleanup error.
+  undo_errors=""
   sh_ settings put global dumbtv_homesentinel_enabled 0 >/dev/null ||
-    { echo "error: could not suspend HomeSentinel takeover" >&2; exit 1; }
-  sh_ am force-stop "$PKG" >/dev/null ||
-    { echo "error: could not stop DumbTV; Amazon HOME handoff not verified" >&2; exit 1; }
-  sh_ appops set "$PKG" GET_USAGE_STATS default >/dev/null ||
-    { echo "error: could not revoke HomeSentinel UsageStats access" >&2; exit 1; }
-  sh_ pm revoke "$PKG" android.permission.READ_LOGS >/dev/null ||
-    { echo "error: could not revoke HomeSentinel log access" >&2; exit 1; }
-  sh_ dumpsys deviceidle whitelist -"$PKG" >/dev/null ||
-    { echo "error: could not remove DumbTV from the Doze whitelist" >&2; exit 1; }
-  services=$(sh_ dumpsys activity services "$PKG" 2>/dev/null || true)
-  if grep -q 'HomeSentinel' <<<"$services"; then
-    echo "error: HomeSentinel is still running after force-stop; refusing to claim HOME was handed back" >&2
-    exit 1
+    undo_errors="${undo_errors} could-not-disable-takeover"
+  if installed "$PKG"; then
+    sh_ am force-stop "$PKG" >/dev/null ||
+      undo_errors="${undo_errors} could-not-force-stop-DumbTV"
+    services=$(sh_ dumpsys activity services "$PKG" 2>/dev/null || true)
+    if grep -q 'HomeSentinel' <<<"$services"; then
+      undo_errors="${undo_errors} HomeSentinel-still-running"
+    fi
+    sh_ appops set "$PKG" GET_USAGE_STATS default >/dev/null ||
+      undo_errors="${undo_errors} could-not-reset-UsageStats"
+    sh_ pm revoke "$PKG" android.permission.READ_LOGS >/dev/null ||
+      undo_errors="${undo_errors} could-not-revoke-READ_LOGS"
+    sh_ dumpsys deviceidle whitelist -"$PKG" >/dev/null ||
+      undo_errors="${undo_errors} could-not-remove-Doze-whitelist"
   fi
   sh_ am start -W -a android.intent.action.MAIN -c android.intent.category.HOME -p com.amazon.tv.launcher >/dev/null ||
-    { echo "error: Amazon HOME launch request failed" >&2; exit 1; }
+    undo_errors="${undo_errors} Amazon-Home-launch-failed"
   front=$(front_activity)
   if [[ $front != com.amazon.tv.launcher/com.amazon.tv.launcher.ui.HomeActivity_vNext ]]; then
-    echo "error: Amazon HOME handoff not verified; foreground is ${front:-unknown}" >&2
+    undo_errors="${undo_errors} Amazon-Home-foreground-not-verified"
+  fi
+  if [[ -n $undo_errors ]]; then
+    echo "error: HOME handoff incomplete:$undo_errors; inspect the TV and retry ./launcher/install.sh --undo" >&2
     exit 1
   fi
   echo "HOME handed back and verified on Amazon's launcher (dumbtv home stays installed: adb uninstall $PKG)"
   exit 0
 fi
-
 # Only installation/build is restricted to the AFTMM API 25 target. Undo must
 # remain available on any device carrying an older installation so HOME can
 # always be handed back to Amazon, including during restore on other Fire OS versions.
