@@ -134,7 +134,7 @@ public final class HomeSentinel extends Service {
 
     private static void setPersistedPauseState(Context context, HomeSentinelPause.State state) {
         pauseState = state;
-        if (!context.getSharedPreferences(STATE_PREFS, MODE_PRIVATE).edit()
+        if (!context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE).edit()
                 .putString("pause_state", state.name()).commit()) {
             note("could not persist HomeSentinel pause state");
         }
@@ -161,12 +161,12 @@ public final class HomeSentinel extends Service {
     }
 
     private int storedFailures() {
-        return getSharedPreferences(STATE_PREFS, MODE_PRIVATE).getInt("recovery_failures", 0);
+        return getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE).getInt("recovery_failures", 0);
     }
 
     private void storeFailures(int failures) {
         attempts = failures;
-        if (!getSharedPreferences(STATE_PREFS, MODE_PRIVATE).edit()
+        if (!getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE).edit()
                 .putInt("recovery_failures", failures).commit()) {
             note("could not persist recovery failure count");
         }
@@ -194,7 +194,7 @@ public final class HomeSentinel extends Service {
     public void onCreate() {
         super.onCreate();
         usage = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
-        String savedPause = getSharedPreferences(STATE_PREFS, MODE_PRIVATE)
+        String savedPause = getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE)
                 .getString("pause_state", HomeSentinelPause.State.ACTIVE.name());
         try {
             pauseState = HomeSentinelPause.State.valueOf(savedPause);
