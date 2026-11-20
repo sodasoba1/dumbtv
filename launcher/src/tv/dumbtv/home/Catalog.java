@@ -13,6 +13,7 @@ import android.media.tv.TvContract;
 import android.media.tv.TvInputInfo;
 import android.media.tv.TvInputManager;
 import android.text.TextUtils;
+import android.util.Log;
 
 import java.text.Collator;
 import java.util.ArrayList;
@@ -50,7 +51,7 @@ final class Catalog {
         try {
             matches = pm.queryIntentActivities(query, 0);
         } catch (RuntimeException e) {
-            HomeSentinel.note("could not query " + category + " applications: " + e);
+            Log.w("DumbTV-Catalog", "could not query " + category + " applications: " + e);
             return;
         }
         if (matches == null) return;
@@ -69,7 +70,7 @@ final class Catalog {
                 it.leanback = leanback;
                 found.put(ai.packageName, it);
             } catch (RuntimeException e) {
-                HomeSentinel.note("skipping app " + ai.packageName
+                Log.w("DumbTV-Catalog", "skipping app " + ai.packageName
                         + " because its launcher metadata failed: " + e);
             }
         }
@@ -88,7 +89,7 @@ final class Catalog {
             it.banner = wide ? replacement : replacement == null ? it.info.loadBanner(pm) : null;
         } catch (RuntimeException e) {
             it.banner = null;
-            HomeSentinel.note("banner resource failed for " + it.id + ": " + e);
+            Log.w("DumbTV-Catalog", "banner resource failed for " + it.id + ": " + e);
         }
         if (replacement != null && !wide) {
             it.icon = replacement;
@@ -97,7 +98,7 @@ final class Catalog {
                 it.icon = it.info.loadIcon(pm);
             } catch (RuntimeException e) {
                 it.icon = null;
-                HomeSentinel.note("icon resource failed for " + it.id + ": " + e);
+                Log.w("DumbTV-Catalog", "icon resource failed for " + it.id + ": " + e);
             }
         } else {
             it.icon = null;
