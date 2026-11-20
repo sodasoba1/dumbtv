@@ -141,7 +141,46 @@ fi
 
 step "restore background execution and network policy"
 if [[ -f $REPORT/lockdown-before.tsv ]]; then
-  while IFS=
+  while IFS='|' read -r p uid bg any was_blacklisted; do
+    [[ -z ${p:-} ]] && continue
+    acmd appops set "$p" RUN_IN_BACKGROUND "$bg" >/dev/null ||
+      die "could not restore RUN_IN_BACKGROUND for $p"
+    if [[ $SDK -ge 28 && $any != not-applicable ]]; then
+      acmd appops set "$p" RUN_ANY_IN_BACKGROUND "$any" >/dev/null ||
+        die "could not restore RUN_ANY_IN_BACKGROUND for $p"
+    fi
+    if [[ $was_blacklisted == 0 ]]; then
+      acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null ||
+        die "could not remove DumbTV's network restriction for $p"
+    fi
+    printf '  %-46s AppOps restored; original blacklist=%s\\n' "$p" "$was_blacklisted"
+  done < <(tr '\\t' '|' < "$REPORT/lockdown-before.tsv")
+else
+  # v1.17 did not retain the original modes. Limit the compatibility fallback
+  # to the protected package list; never replay the broad debloat report.
+  note "legacy installation has no AppOps baseline; restoring protected packages to allow"
+  for p in $(list_of "$(fos protected.txt)"); do
+    present "$p" || continue
+    bg_on "$p"
+    uid=$(uid_of "$p")
+    [[ -n $uid ]] && acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null
+  done
+fi
+
+data_saver=disabled
+if [[ -f $REPORT/data-saver-before.txt ]]; then
+  data_saver=$(tr -d '\\r\\n' < "$REPORT/data-saver-before.txt")
+fi
+case $data_saver in enabled|disabled) ;; *) die "invalid saved Data Saver state: $data_saver" ;; esac
+acmd cmd netpolicy set restrict-background "$data_saver" >/dev/null ||
+  die "could not restore original Data Saver state"
+if [[ $DRY_RUN == 0 ]]; then
+  actual_data_saver=$(dev 'cmd netpolicy get restrict-background' | tr -d '\\r')
+  case $data_saver:$actual_data_saver in
+    enabled:*enabled*|disabled:*disabled*) ;;
+    *) die "Data Saver restore did not verify (expected $data_saver, got $actual_data_saver)" ;;
+  esac
+fi
 
 step "on-device hooks"
 if [[ $DRY_RUN == 1 ]]; then
