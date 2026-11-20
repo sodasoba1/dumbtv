@@ -398,7 +398,7 @@ ensure_report_device() {
       die "report device model does not match the connected TV; refusing restore"
     return 0
   fi
-  if [[ -f $REPORT/packages-before.txt || -f $REPORT/settings-before-secure.txt || -f $REPORT/settings-before-global.txt || -f $REPORT/lockdown-before.tsv || -f $REPORT/data-saver-before.txt ]]; then
+  if [[ -f $REPORT/debloat.txt || -f $REPORT/packages-before.txt || -f $REPORT/settings-before-secure.txt || -f $REPORT/settings-before-global.txt || -f $REPORT/lockdown-before.tsv || -f $REPORT/data-saver-before.txt ]]; then
     [[ ${DUMBTW_ALLOW_LEGACY_REPORT:-0} == 1 ]] ||
       die "legacy report has no device identity manifest; verify the TV, then explicitly retry with DUMBTW_ALLOW_LEGACY_REPORT=1"
     note "WARNING: accepting a legacy report without verified device ownership"

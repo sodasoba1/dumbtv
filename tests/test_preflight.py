@@ -114,6 +114,24 @@ class PreflightTest(unittest.TestCase):
             self.assertIn("could not read disabled packages", result.stderr)
             self.assertFalse((report / "packages-before.txt").exists())
 
+    def test_preflight_requires_opt_in_for_a_legacy_debloat_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            state = tmp / "state.json"
+            state.write_text(json.dumps({
+                "sdk": 25, "manufacturer": "Amazon",
+                "props": {"ro.product.model": "AFTMM"},
+                "packages": {"com.netflix.ninja": {"system": False, "enabled": True}},
+                "settings": {"secure/screen_timeout": "300", "global/animator_duration_scale": "1.0"},
+            }))
+            report = tmp / "report"
+            report.mkdir()
+            (report / "debloat.txt").write_text("com.amazon.metrics\\tdisabled\\n")
+            result, _ = self.run_preflight(state, report)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("legacy report has no device identity manifest", result.stderr)
+            self.assertFalse((report / "device.txt").exists())
+
     def test_preflight_refuses_an_incomplete_snapshot(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
