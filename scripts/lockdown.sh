@@ -15,6 +15,7 @@ note "data saver on, then a blacklist entry per protected package"
 
 if [[ $DRY_RUN == 0 ]]; then
   ensure_report_device
+  snapshot_package_states
   # Preserve the exact AppOps modes and whether each UID was already blacklisted.
   # Never overwrite the first snapshot on a subsequent run.
   snapshot="$REPORT/lockdown-before.tsv"
