@@ -13,35 +13,6 @@ pause/resume rules, task restoration, verification and bounded retry logic.
 The rename is descriptive; it does not change the service's monitoring or
 recovery behaviour, package name, permissions, or launcher identity.
 
-## Takeover eligibility and failure containment
-
-HomeSentinel is a recovery supervisor, not a general foreground launcher. Its
-startup path no longer launches DumbTV merely because no DumbTV task exists.
-It first has to observe Amazon's exact HOME activity in recent foreground
-history, confirm that the display is interactive, and confirm that automatic
-takeover is enabled. An unknown foreground state is a reason to wait, not to
-steal focus.
-
-The deliberate Amazon Settings/Home pause state is persisted across service
-restarts. The explicit Amazon Home hold also survives launching and closing ordinary
-apps; it is released only when the user manually opens DumbTV. This prevents a
-sticky-service restart or an app return-to-home transition from reclaiming the
-interface the user chose to keep.
-
-Recovery attempts are persisted before a launch is requested. The service has
-a three-attempt budget across process restarts. It clears that budget only after
-DumbTV has remained foreground for 30 seconds while the display is interactive.
-If the budget is exhausted, automatic takeover stops and Amazon Home remains
-available; manually opening DumbTV and keeping it stable can re-establish the
-healthy state.
-
-The installer controls the persistent Global Settings gate
-`dumbtv_homesentinel_enabled`: it sets the gate to `0` during install/update
-and permission repair, then enables it only after the APK, permissions, service
-and foreground activity have been verified. Undo leaves it at `0`, stops the
-service and verifies the exact Amazon HOME activity. A failed install attempts
-the same stock-Home handoff and does not silently re-enable takeover.
-
 ## How it differs from the original Keeper
 
 The first version was comparatively simple:
@@ -203,6 +174,12 @@ The launcher is deliberately restricted to the AFTMM Fire TV Stick 4K
 The service does not require root, an accessibility service, or an overlay.
 Amazon's protected HOME activity remains installed and remains the system HOME
 handler.
+
+The installer's persistent Global Settings gate `dumbtv_homesentinel_enabled`
+is checked by `BootReceiver`; a value of `0` prevents the service from starting
+after boot. The pause state is also persisted so an intentional Amazon Settings
+or Home hand-off survives a service restart. The recovery attempt budget itself
+is deliberately per recovery session, not persisted across service restarts.
 
 ## AlarmManager: what it does and does not do
 
