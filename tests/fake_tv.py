@@ -210,6 +210,9 @@ elif words[:2] == ['am', 'force-stop']:
         state['homesentinel_running'] = False
     save()
 elif words[:2] == ['am', 'start']:
+    if '-n' in words and words[words.index('-n') + 1] == 'tv.dumbtv.home/.Home':
+        state['homesentinel_running'] = True
+        save()
     if state.get('home_launch_refused'):
         print('Error: HOME launch refused')
         sys.exit(1)
