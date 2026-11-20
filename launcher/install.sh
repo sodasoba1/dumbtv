@@ -90,7 +90,7 @@ if [[ $mode == undo ]]; then
   sh_ am start -W -a android.intent.action.MAIN -c android.intent.category.HOME -p com.amazon.tv.launcher >/dev/null ||
     { echo "error: Amazon HOME launch request failed" >&2; exit 1; }
   front=$(front_activity)
-  if [[ ${front%%/*} != com.amazon.tv.launcher ]]; then
+  if [[ $front != com.amazon.tv.launcher/com.amazon.tv.launcher.ui.HomeActivity_vNext ]]; then
     echo "error: Amazon HOME handoff not verified; foreground is ${front:-unknown}" >&2
     exit 1
   fi
