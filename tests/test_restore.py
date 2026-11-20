@@ -3,6 +3,7 @@ filter's VPN stops, as it does on a real TV over Wi-Fi.
 
 Run: python3 -m unittest discover -s tests -v
 """
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -46,7 +47,8 @@ class RestoreTest(unittest.TestCase):
             report = tmp / "report"
             report.mkdir()
             (report / "device.txt").write_text(
-                "format=1\nserial=" + manifest_serial + "\nmodel=\nbuild=\n")
+                "format=2\nserial_sha256=" + hashlib.sha256(manifest_serial.encode()).hexdigest()
+                + "\nmodel=\nbuild=\n")
             if package_snapshot is not None:
                 (report / "packages-before.txt").write_text(package_snapshot)
             if secure_snapshot is not None:
