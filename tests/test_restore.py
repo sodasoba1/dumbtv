@@ -19,7 +19,7 @@ class RestoreTest(unittest.TestCase):
                     package_snapshot=None, manufacturer='Amazon', protected_disabled=False,
                     protected_state=3, manifest_serial="test-tv:5555",
                     secure_snapshot=None, state_overrides=None, lockdown_snapshot=None,
-                    data_saver_snapshot=None):
+                    data_saver_snapshot=None, completed_restore=False):
         packages = {
             "dnsfilter.android": {"system": False, "enabled": True},
             "com.amazon.hedwig": {"system": True, "enabled": False},
@@ -53,6 +53,8 @@ class RestoreTest(unittest.TestCase):
                 + "\nmodel=AFTMM\nbuild=test-build\n")
             if package_snapshot is not None:
                 (report / "packages-before.txt").write_text(package_snapshot)
+            if completed_restore:
+                (report / "restore-complete.txt").write_text("format=1\n")
             if secure_snapshot is not None:
                 (report / "settings-before-secure.txt").write_text(secure_snapshot)
             if lockdown_snapshot is not None:
@@ -66,6 +68,7 @@ class RestoreTest(unittest.TestCase):
             result = subprocess.run(["bash", str(ROOT / "scripts" / "restore.sh"), "-y"],
                                     env=env, capture_output=True, text=True, timeout=120)
             self.package_snapshot_exists_after = (report / "packages-before.txt").exists()
+            self.restore_complete_exists_after = (report / "restore-complete.txt").exists()
             self.secure_snapshot_exists_after = (report / "settings-before-secure.txt").exists()
             return result, log.read_text().splitlines(), json.loads(state.read_text())
 
@@ -81,6 +84,18 @@ class RestoreTest(unittest.TestCase):
         self.assertEqual(state["boots"], 1)
         self.assertTrue(state["packages"]["com.amazon.hedwig"]["enabled"])
         self.assertEqual(state.get("bad", []), [])
+
+    def test_successful_restore_marks_the_report_complete(self):
+        result, _, _ = self.run_restore()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(self.restore_complete_exists_after)
+
+    def test_restore_does_not_reapply_after_the_baseline_has_been_cleared(self):
+        result, commands, _ = self.run_restore(completed_restore=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("restore already completed", result.stderr)
+        self.assertFalse(any(command.startswith("pm enable") or command.startswith("settings put")
+                             for command in commands))
 
     def test_restore_preserves_packages_disabled_before_dumbtv(self):
         result, commands, state = self.run_restore(

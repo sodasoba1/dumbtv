@@ -33,6 +33,9 @@ mkdir -p "$REPORT"
 if [[ $DRY_RUN == 0 ]]; then
   ensure_report_device
 fi
+if [[ -f $REPORT/restore-complete.txt && ! -f $REPORT/packages-before.txt ]]; then
+  die "restore already completed; run preflight.sh before starting another debloat pass"
+fi
 
 ABSENT_SETTING="__DUMBTW_SETTING_WAS_ABSENT__"
 
@@ -324,9 +327,16 @@ case $data_saver:$actual_data_saver in
   *) die "post-reboot Data Saver verification failed; snapshots retained" ;;
 esac
 
+# Mark completion before deleting the baseline. A second restore must not
+# assume that every package was originally enabled after this snapshot is gone.
+marker_tmp="$REPORT/restore-complete.txt.tmp"
+printf 'format=1\n' > "$marker_tmp" ||
+  die "could not mark the verified restore as complete; snapshots retained"
+mv "$marker_tmp" "$REPORT/restore-complete.txt" ||
+  die "could not mark the verified restore as complete; snapshots retained"
+
 # A completed restore ends this cleanup cycle. Remove only the original-state
-# snapshots so a later run records the device's new baseline instead of reusing
-# stale values from this one.
+# snapshots so a later preflight records the device's new baseline.
 [[ ! -f $REPORT/debloat.txt ]] || mv "$REPORT/debloat.txt" "$REPORT/debloat-last.txt"
 rm -f "$REPORT/packages-before.txt" "$REPORT/settings-before-secure.txt" \
   "$REPORT/settings-before-global.txt" "$REPORT/lockdown-before.tsv" \

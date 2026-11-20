@@ -352,7 +352,10 @@ package_user_enabled_state() {
 snapshot_package_states() {
   local file="$REPORT/packages-before.txt" installed disabled pkg installed_output disabled_output
   ensure_report_device
-  [[ -f $file ]] && return 0
+  if [[ -f $file ]]; then
+    rm -f "$REPORT/restore-complete.txt"
+    return 0
+  fi
   mkdir -p "$REPORT"
   installed_output=$(dev_ok 'pm list packages') ||
     die "could not read installed packages; refusing to change package state"
@@ -372,6 +375,7 @@ snapshot_package_states() {
     fi
   done <<< "$installed"
   mv "$tmp" "$file"
+  rm -f "$REPORT/restore-complete.txt"
 }
 
 # A report belongs to one physical Fire TV. Keep local snapshots separate by

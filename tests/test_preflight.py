@@ -42,8 +42,11 @@ class PreflightTest(unittest.TestCase):
                 },
             }))
             report = tmp / "report"
+            report.mkdir()
+            (report / "restore-complete.txt").write_text("format=1\n")
             result, _ = self.run_preflight(state, report)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertFalse((report / "restore-complete.txt").exists())
             self.assertIn("serial_sha256=" + hashlib.sha256(b"test-tv:5555").hexdigest(),
                           (report / "device.txt").read_text())
             self.assertNotIn("test-tv:5555", (report / "device.txt").read_text())
