@@ -49,10 +49,11 @@ uses the legacy disabled default.
 ## Recovery snapshots
 
 Preflight stores the original package/settings state under
-`report/<ADB-serial>/`; the directory is local and git-ignored. Do not copy a report
-between TVs. Restore checks the manifest and refuses a serial or model mismatch. It
-keeps the snapshots until package state, AppOps, Data Saver, settings and Amazon Home
-have been verified after reboot.
+`report/device-<SHA-256-of-ADB-serial>/`; the directory is local and git-ignored.
+The manifest stores only the one-way serial fingerprint, not the raw ADB serial.
+Do not copy a report between TVs. Restore checks the fingerprint and model and refuses
+a cross-device restore. It keeps the snapshots until package state, AppOps, Data Saver,
+settings and Amazon Home have been verified after reboot.
 
 A report created by v1.17 has no device manifest and no exact AppOps/Data Saver
 baseline. If you are deliberately restoring that legacy report, first verify that the
