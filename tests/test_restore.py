@@ -144,6 +144,7 @@ class RestoreTest(unittest.TestCase):
         self.assertEqual(state["appops"]["com.amazon.firebat"]["RUN_IN_BACKGROUND"], "ignore")
         self.assertIn(10050, state["network_blacklist"])
         self.assertEqual(state["restrict_background"], "enabled")
+        self.assertIn("cmd netpolicy set restrict-background true", commands)
         self.assertNotIn("cmd netpolicy remove restrict-background-blacklist 10050", commands)
 
     def test_restore_removes_only_its_own_appops_and_network_restrictions(self):
@@ -160,6 +161,7 @@ class RestoreTest(unittest.TestCase):
         self.assertEqual(state["appops"]["com.amazon.firebat"]["RUN_IN_BACKGROUND"], "allow")
         self.assertNotIn(10050, state["network_blacklist"])
         self.assertEqual(state["restrict_background"], "disabled")
+        self.assertIn("cmd netpolicy set restrict-background false", commands)
         self.assertIn("cmd netpolicy remove restrict-background-blacklist 10050", commands)
 
     def test_restore_refuses_to_run_on_non_fire_os_devices(self):
