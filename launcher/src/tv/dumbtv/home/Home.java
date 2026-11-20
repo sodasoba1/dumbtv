@@ -34,7 +34,6 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -365,29 +364,7 @@ public final class Home extends Activity {
     }
 
     @Override
-    public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
-        if (!hasFocus) {
-            HomeSentinel.reportHomeVisibility(this, false);
-            return;
-        }
-        final View decor = getWindow().getDecorView();
-        final ViewTreeObserver observer = decor.getViewTreeObserver();
-        observer.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
-            @Override public boolean onPreDraw() {
-                ViewTreeObserver current = decor.getViewTreeObserver();
-                if (current.isAlive()) current.removeOnPreDrawListener(this);
-                if (hasWindowFocus() && !isFinishing()) {
-                    HomeSentinel.reportHomeVisibility(Home.this, true);
-                }
-                return true;
-            }
-        });
-    }
-
-    @Override
     protected void onPause() {
-        HomeSentinel.reportHomeVisibility(this, false);
         super.onPause();
         resumed = false;
         hero.stop();
