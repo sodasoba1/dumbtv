@@ -28,7 +28,7 @@ if [[ $DRY_RUN == 0 ]]; then
     blacklist=$(dev 'cmd netpolicy list restrict-background-blacklist') ||
       die "could not read the existing background-data blacklist"
     tmp="$snapshot.tmp"
-    : > "$tmp"
+    printf '# dumbtv-lockdown-v1\n' > "$tmp"
     for p in $(list_of "$(fos protected.txt)"); do
       keep_pkg "$p" && continue
       present "$p" || continue

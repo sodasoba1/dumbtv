@@ -54,7 +54,7 @@ fi
 lockdown_snapshot="$REPORT/lockdown-before.tsv"
 data_saver_snapshot="$REPORT/data-saver-before.txt"
 if [[ -e $lockdown_snapshot || -e $data_saver_snapshot ]]; then
-  [[ -e $lockdown_snapshot && -s $data_saver_snapshot ]] ||
+  [[ -e $lockdown_snapshot && -s $lockdown_snapshot && -s $data_saver_snapshot ]] ||
     die "incomplete lockdown snapshot; original AppOps and Data Saver state must both be present"
   data_saver_check=$(tr -d '\r\n' < "$data_saver_snapshot")
   [[ $data_saver_check == enabled || $data_saver_check == disabled ]] ||
@@ -205,7 +205,7 @@ for p in $(list_of "$(fos never-disable.txt)" | awk '{print $1}'); do
 done
 if [[ $restore_lockdown == 1 && -f $REPORT/lockdown-before.tsv ]]; then
   while IFS='|' read -r p uid bg any was_blacklisted; do
-    [[ -z ${p:-} ]] && continue
+    [[ -z ${p:-} || $p == \#* ]] && continue
     acmd appops set "$p" RUN_IN_BACKGROUND "$bg" >/dev/null ||
       die "could not restore RUN_IN_BACKGROUND for $p"
     if [[ $SDK -ge 28 && $any != not-applicable ]]; then
@@ -361,7 +361,7 @@ for p in $(restore_list); do
 done
 if [[ $restore_lockdown == 1 && -f $REPORT/lockdown-before.tsv ]]; then
   while IFS='|' read -r p uid bg any was_blacklisted; do
-    [[ -z ${p:-} ]] && continue
+    [[ -z ${p:-} || $p == \#* ]] && continue
     actual_bg=$(dev1 appops get "$p" RUN_IN_BACKGROUND | sed -n 's/.*RUN_IN_BACKGROUND:[[:space:]]*\([^,[:space:]]*\).*/\1/p')
     [[ $actual_bg == "$bg" ]] || die "post-reboot AppOps verification failed for $p; snapshots retained"
     if [[ $SDK -ge 28 && $any != not-applicable ]]; then

@@ -254,6 +254,20 @@ class RestoreTest(unittest.TestCase):
         self.assertIn("cmd netpolicy set restrict-background false", commands)
         self.assertIn("cmd netpolicy remove restrict-background-blacklist 10050", commands)
 
+
+    def test_restore_accepts_empty_policy_snapshot_and_restores_data_saver(self):
+        result, commands, state = self.run_restore(
+            package_snapshot="com.amazon.hedwig\tenabled\n",
+            lockdown_snapshot="# dumbtv-lockdown-v1\n",
+            data_saver_snapshot="disabled\n",
+            lockdown_state="started\n")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(state["restrict_background"], "disabled")
+        self.assertIn("cmd netpolicy set restrict-background false", commands)
+        self.assertFalse(any(command.startswith("appops set ") for command in commands))
+        self.assertFalse(any(command.startswith("cmd netpolicy remove restrict-background-blacklist")
+                             for command in commands))
+
     def test_restore_refuses_to_run_on_non_fire_os_devices(self):
         result, commands, _ = self.run_restore(manufacturer="Google")
         self.assertNotEqual(result.returncode, 0)
