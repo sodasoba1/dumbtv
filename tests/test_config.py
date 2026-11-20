@@ -22,8 +22,8 @@ class ConfigSafetyTest(unittest.TestCase):
 
     def test_valid_household_configuration_is_parsed(self):
         result = self.load(
-            'KEEP_APPS="com.netflix.ninja"\\nREMOVE_EXTRA=""\\n'
-            'ALEXA=0\\nLAUNCHER=0\\nYOUTUBE=1\\n')
+            'KEEP_APPS="com.netflix.ninja"\nREMOVE_EXTRA=""\n'
+            'ALEXA=0\nLAUNCHER=0\nYOUTUBE=1\n')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "com.netflix.ninja||0|0|1")
 
@@ -31,7 +31,7 @@ class ConfigSafetyTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             marker = Path(tmp) / "executed"
             conf = Path(tmp) / "dumbtv.conf"
-            conf.write_text('ALEXA=$(touch ' + str(marker) + ')\\n')
+            conf.write_text('ALEXA=$(touch ' + str(marker) + ')\n')
             env = dict(os.environ, CONF=str(conf))
             result = subprocess.run(
                 ["bash", "-c", 'source "$1/scripts/lib.sh"; load_conf', "_", str(ROOT)],
