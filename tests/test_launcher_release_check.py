@@ -16,7 +16,7 @@ class LauncherReleaseCheckTest(unittest.TestCase):
         """Provide test tools without leaking the host Android SDK into PATH."""
         bindir = root / "isolated-bin"
         bindir.mkdir(exist_ok=True)
-        for name in ("bash", "dirname", "tr", "awk", "sed", "sha256sum", "shasum", "mktemp", "rm", "cp"):
+        for name in ("bash", "dirname", "tr", "awk", "sed", "grep", "head", "sha256sum", "shasum", "mktemp", "rm", "cp"):
             executable = shutil.which(name)
             if executable:
                 (bindir / name).symlink_to(executable)
