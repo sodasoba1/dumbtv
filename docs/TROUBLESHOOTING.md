@@ -30,7 +30,10 @@ the release certificate in `launcher/signing.sha256`. For a locally signed devel
 build, explicitly provide its SHA-256 certificate fingerprint:
 
 ```sh
-DUMBTW_TRUSTED_CERT_SHA256="YOUR_64_CHARACTER_SHA256_FINGERPRINT" ./launcher/install.sh --apk path/to/dumbtv-home.apk
+export DUMBTW_TRUSTED_CERT_SHA256="YOUR_64_CHARACTER_SHA256_FINGERPRINT"
+./launcher/install.sh --apk path/to/dumbtv-home.apk
+# Or, to repair permissions on that same locally signed installed build:
+./launcher/install.sh --permissions-only
 ```
 
 Only use a fingerprint obtained from a build key you control.
