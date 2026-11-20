@@ -20,10 +20,15 @@ if [[ ! -f $CONF ]]; then
   run "$DIR/configure.sh" || exit 1
 fi
 
-# configure.sh runs in a child process, so load its saved opt-in here too.
-# A dry-run may not have written a config; absent YOUTUBE still defaults to 0.
+# configure.sh runs in a child process, so read its saved opt-in here too.
+# Parse only the YOUTUBE scalar; never source the household config as shell code.
+YOUTUBE=0
 if [[ -f $CONF ]]; then
-  source "$CONF" || exit 1
+  while IFS='=' read -r key value; do
+    [[ $key == YOUTUBE ]] || continue
+    value=${value%\"}; value=${value#\"}
+    case $value in 0|1) YOUTUBE=$value ;; *) echo "error: YOUTUBE must be 0 or 1 in $CONF" >&2; exit 1 ;; esac
+  done < "$CONF"
 fi
 
 run bash "$DIR/cleanup-legacy-dnsfilter.sh" || exit 1
