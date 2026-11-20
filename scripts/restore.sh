@@ -34,16 +34,13 @@ if [[ $DRY_RUN == 0 ]]; then
   ensure_report_device
 fi
 
-# A missing key in a real snapshot means it was absent on this device; preserve
-# that absence. The sentinel is internal and never written to Android settings.
 ABSENT_SETTING="__DUMBTW_SETTING_WAS_ABSENT__"
 
 # Prefer the value this device actually had before the pass (snapshotted by
-# preflight.sh); use bundled defaults only for installations without a snapshot.
+# preflight.sh); fall back to the stock defaults in data/.
 restore_value() {
   local ns=$1 key=$2 fallback=$3 snapshot="$REPORT/settings-before-$1.txt" v
   if [[ -f $snapshot ]]; then
-    # Preserve empty values and distinguish them from keys absent in the baseline.
     if grep -q "^$key=" "$snapshot"; then
       v=$(tr -d '\r' < "$snapshot" | grep -m1 "^$key=" | cut -d= -f2-)
       printf '%s' "$v"
@@ -196,7 +193,7 @@ while read -r ns key value; do
   [[ -z ${ns:-} || $ns == \#* ]] && continue
   want=$(restore_value "$ns" "$key" "$value")
   restore_setting "$ns" "$key" "$want"
-  printf '  %-46s %s\n' "$key" "${want/$ABSENT_SETTING/<absent>} "
+  printf '  %-46s %s\n' "$key" "${want/$ABSENT_SETTING/<absent>}"
 done < <(list_of "$(fos settings.restore.txt)" | sed 's/ = / /')
 
 # Retire only the old personalDNSfilter integration. Disable the app if present,
@@ -237,20 +234,20 @@ fi
 [[ $DRY_RUN == 1 ]] && { note "[dry-run] done"; exit 0; }
 reboot_wait
 
-# Re-check settings after the reboot: a successful reboot is not proof that
-# Android persisted the requested values. Keep every snapshot if any check fails.
+# A successful reboot alone does not prove that Android persisted the restored values.
 while read -r ns key value; do
-  [[ -z ${ns:-} || $ns == \#* ]] && continue
+  [[ -z ${ns:-} || $ns == \\#* ]] && continue
   want=$(restore_value "$ns" "$key" "$value")
   if [[ $want == "$ABSENT_SETTING" ]]; then expected=null; else expected=$want; fi
   actual=$(dev1 settings get "$ns" "$key" | tr -d '\r')
   [[ $actual == "$expected" ]] ||
-    die "post-reboot setting verification failed for $ns/$key (expected '$expected', got '$actual'); snapshots retained"
+    die "post-reboot setting verification failed for $ns/$key; snapshots retained"
 done < <(list_of "$(fos settings.restore.txt)" | sed 's/ = / /')
+
 actual_data_saver=$(dev 'cmd netpolicy get restrict-background' | tr -d '\r')
 case $data_saver:$actual_data_saver in
   enabled:*enabled*|disabled:*disabled*) ;;
-  *) die "post-reboot Data Saver verification failed (expected $data_saver, got $actual_data_saver); snapshots retained" ;;
+  *) die "post-reboot Data Saver verification failed; snapshots retained" ;;
 esac
 for ns in secure global; do
   snapshot="$REPORT/settings-before-$ns.txt"
@@ -271,131 +268,5 @@ done
 rm -f "$REPORT/packages-before.txt" "$REPORT/settings-before-secure.txt" \
   "$REPORT/settings-before-global.txt" "$REPORT/lockdown-before.tsv" \
   "$REPORT/data-saver-before.txt"
-note "restored. dumbtv home and SmartTube (if added) remain installed; remove them in"
-note "Settings > Applications if you want them gone too."
-\t' read -r p uid bg any was_blacklisted; do
-    [[ -z ${p:-} ]] && continue
-    acmd appops set "$p" RUN_IN_BACKGROUND "$bg" >/dev/null ||
-      die "could not restore RUN_IN_BACKGROUND for $p"
-    if [[ $SDK -ge 28 && $any != not-applicable ]]; then
-      acmd appops set "$p" RUN_ANY_IN_BACKGROUND "$any" >/dev/null ||
-        die "could not restore RUN_ANY_IN_BACKGROUND for $p"
-    fi
-    if [[ $was_blacklisted == 0 ]]; then
-      acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null ||
-        die "could not remove DumbTV's network restriction for $p"
-    fi
-    printf '  %-46s AppOps restored; original blacklist=%s\n' "$p" "$was_blacklisted"
-  done < "$REPORT/lockdown-before.tsv"
-else
-  # v1.17 did not retain the original modes. Limit the compatibility fallback
-  # to the protected package list; never replay the broad debloat report.
-  note "legacy installation has no AppOps baseline; restoring protected packages to allow"
-  for p in $(list_of "$(fos protected.txt)"); do
-    present "$p" || continue
-    bg_on "$p"
-    uid=$(uid_of "$p")
-    [[ -n $uid ]] && acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null
-  done
-fi
-
-data_saver=disabled
-if [[ -f $REPORT/data-saver-before.txt ]]; then
-  data_saver=$(tr -d '\r\n' < "$REPORT/data-saver-before.txt")
-fi
-case $data_saver in enabled|disabled) ;; *) die "invalid saved Data Saver state: $data_saver" ;; esac
-acmd cmd netpolicy set restrict-background "$data_saver" >/dev/null ||
-  die "could not restore original Data Saver state"
-if [[ $DRY_RUN == 0 ]]; then
-  actual_data_saver=$(dev 'cmd netpolicy get restrict-background' | tr -d '\r')
-  case $data_saver:$actual_data_saver in
-    enabled:*enabled*|disabled:*disabled*) ;;
-    *) die "Data Saver restore did not verify (expected $data_saver, got $actual_data_saver)" ;;
-  esac
-fi
-
-step "on-device hooks"
-if [[ $DRY_RUN == 1 ]]; then
-  note "[dry-run] ADB=$ADB ADB_SERIAL=$SERIAL launcher/install.sh --undo"
-else
-  ADB=$ADB ADB_SERIAL=$SERIAL "$ROOT/launcher/install.sh" --undo >/dev/null ||
-    die "could not hand HOME back to Amazon's launcher; run ./launcher/install.sh --undo"
-fi
-note "HOME handed back to Amazon's launcher"
-
-step "settings"
-while read -r ns key value; do
-  [[ -z ${ns:-} || $ns == \#* ]] && continue
-  want=$(restore_value "$ns" "$key" "$value")
-  restore_setting "$ns" "$key" "$want"
-  printf '  %-46s %s\n' "$key" "${want/$ABSENT_SETTING/<absent>} "
-done < <(list_of "$(fos settings.restore.txt)" | sed 's/ = / /')
-
-# Retire only the old personalDNSfilter integration. Disable the app if present,
-# then clear its always-on selection only if it names that app. Stopping a VPN
-# can drop network ADB, so reconnect before issuing further device commands.
-legacy_vpn=$(dev1 settings get secure always_on_vpn_app | tr -d '\r')
-if present dnsfilter.android; then
-  step "disable legacy personalDNSfilter app"
-  disable_rc=0
-  acmd pm disable-user --user 0 dnsfilter.android || disable_rc=$?
-  if [[ $DRY_RUN == 0 ]]; then
-    sleep 3
-    adb_reconnect
-    if ! dev 'pm list packages -d' | tr -d '\r' | grep -qx 'package:dnsfilter.android'; then
-      die "personalDNSfilter is still enabled after the disable request (exit $disable_rc)"
-    fi
-  fi
-  step "remove legacy personalDNSfilter privileges"
-  acmd appops set dnsfilter.android ACTIVATE_VPN default >/dev/null || true
-  acmd appops set dnsfilter.android AUTO_START default >/dev/null || true
-  acmd dumpsys deviceidle whitelist -dnsfilter.android >/dev/null || true
-  acmd pm revoke dnsfilter.android android.permission.READ_EXTERNAL_STORAGE >/dev/null || true
-  acmd pm revoke dnsfilter.android android.permission.WRITE_EXTERNAL_STORAGE >/dev/null || true
-  if [[ $DRY_RUN == 1 ]]; then
-    note "[dry-run] would disable personalDNSfilter"
-  else
-    note "personalDNSfilter disabled; remove it from Settings > Applications if desired"
-  fi
-fi
-if [[ $legacy_vpn == dnsfilter.android ]]; then
-  step "clear legacy personalDNSfilter VPN selection"
-  acmd settings delete secure always_on_vpn_app || die "could not clear the legacy personalDNSfilter VPN selection"
-  if [[ $DRY_RUN == 0 && $(dev1 settings get secure always_on_vpn_app | tr -d '\r') == dnsfilter.android ]]; then
-    die "the legacy personalDNSfilter VPN selection is still set"
-  fi
-fi
-
-[[ $DRY_RUN == 1 ]] && { note "[dry-run] done"; exit 0; }
-reboot_wait
-
-# Re-check settings after the reboot: a successful reboot is not proof that
-# Android persisted the requested values. Keep every snapshot if any check fails.
-while read -r ns key value; do
-  [[ -z ${ns:-} || $ns == \#* ]] && continue
-  want=$(restore_value "$ns" "$key" "$value")
-  if [[ $want == "$ABSENT_SETTING" ]]; then expected=null; else expected=$want; fi
-  actual=$(dev1 settings get "$ns" "$key" | tr -d '\r')
-  [[ $actual == "$expected" ]] ||
-    die "post-reboot setting verification failed for $ns/$key (expected '$expected', got '$actual'); snapshots retained"
-done < <(list_of "$(fos settings.restore.txt)" | sed 's/ = / /')
-for ns in secure global; do
-  snapshot="$REPORT/settings-before-$ns.txt"
-  [[ -f $snapshot ]] || continue
-  while IFS= read -r line; do
-    [[ $line == *=* ]] || continue
-    key=${line%%=*}; expected=${line#*=}
-    actual=$(dev1 settings get "$ns" "$key" | tr -d '\r')
-    [[ $actual == "$expected" ]] ||
-      die "post-reboot baseline verification failed for $ns/$key; snapshots retained"
-  done < "$snapshot"
-done
-
-# A completed restore ends this cleanup cycle. Remove only the original-state
-# snapshots so a later run records the device's new baseline instead of reusing
-# stale values from this one.
-[[ ! -f $REPORT/debloat.txt ]] || mv "$REPORT/debloat.txt" "$REPORT/debloat-last.txt"
-rm -f "$REPORT/packages-before.txt" "$REPORT/settings-before-secure.txt" \
-  "$REPORT/settings-before-global.txt"
 note "restored. dumbtv home and SmartTube (if added) remain installed; remove them in"
 note "Settings > Applications if you want them gone too."
