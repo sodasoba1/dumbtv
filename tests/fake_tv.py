@@ -252,10 +252,6 @@ elif words[:2] == ['cmd', 'netpolicy']:
         state['restrict_background'] = 'enabled'; save()
     elif action == 'set' and words[3:5] == ['restrict-background', 'false']:
         state['restrict_background'] = 'disabled'; save()
-    elif action == 'set' and words[3:5] == ['restrict-background', 'enabled']:
-        state['restrict_background'] = 'enabled'; save()
-    elif action == 'set' and words[3:5] == ['restrict-background', 'disabled']:
-        state['restrict_background'] = 'disabled'; save()
     elif action == 'list' and words[3:] == ['restrict-background-blacklist']:
         print(' '.join(str(uid) for uid in state.get('network_blacklist', [])))
     elif action == 'add' and words[3:4] == ['restrict-background-blacklist']:
