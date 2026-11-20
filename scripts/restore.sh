@@ -217,7 +217,7 @@ reboot_wait
 # Re-check settings after the reboot: a successful reboot is not proof that
 # Android persisted the requested values. Keep every snapshot if any check fails.
 while read -r ns key value; do
-  [[ -z ${ns:-} || $ns == \\#* ]] && continue
+  [[ -z ${ns:-} || $ns == \#* ]] && continue
   want=$(restore_value "$ns" "$key" "$value")
   if [[ $want == "$ABSENT_SETTING" ]]; then expected=null; else expected=$want; fi
   actual=$(dev1 settings get "$ns" "$key" | tr -d '\\r')
