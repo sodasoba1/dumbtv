@@ -29,17 +29,17 @@ if [[ $DRY_RUN == 0 ]]; then
       uid=$(uid_of "$p")
       [[ -n $uid && $uid -ge 10000 ]] || continue
       bg=$(dev "appops get $p RUN_IN_BACKGROUND" |
-        sed -n 's/.*RUN_IN_BACKGROUND:[[:space:]]*\\([^,[:space:]]*\\).*/\\1/p' | head -1)
+        sed -n 's/.*RUN_IN_BACKGROUND:[[:space:]]*\([^,[:space:]]*\).*/\1/p' | head -1)
       [[ -n $bg ]] || { rm -f "$tmp"; die "could not snapshot RUN_IN_BACKGROUND for $p"; }
       any=not-applicable
       if [[ $SDK -ge 28 ]]; then
         any=$(dev "appops get $p RUN_ANY_IN_BACKGROUND" |
-          sed -n 's/.*RUN_ANY_IN_BACKGROUND:[[:space:]]*\\([^,[:space:]]*\\).*/\\1/p' | head -1)
+          sed -n 's/.*RUN_ANY_IN_BACKGROUND:[[:space:]]*\([^,[:space:]]*\).*/\1/p' | head -1)
         [[ -n $any ]] || { rm -f "$tmp"; die "could not snapshot RUN_ANY_IN_BACKGROUND for $p"; }
       fi
       was_blacklisted=0
       grep -Eq "(^|[^0-9])$uid([^0-9]|$)" <<<"$blacklist" && was_blacklisted=1
-      printf '%s\\t%s\\t%s\\t%s\\t%s\\n' "$p" "$uid" "$bg" "$any" "$was_blacklisted" >> "$tmp"
+      printf '%s\t%s\t%s\t%s\t%s\n' "$p" "$uid" "$bg" "$any" "$was_blacklisted" >> "$tmp"
     done
     mv "$tmp" "$snapshot" || die "could not publish AppOps/network-policy snapshot"
   fi
@@ -47,8 +47,8 @@ if [[ $DRY_RUN == 0 ]]; then
     data_saver=$(dev 'cmd netpolicy get restrict-background') ||
       die "could not snapshot the original Data Saver state"
     case $data_saver in
-      *enabled*) printf 'enabled\\n' > "$REPORT/data-saver-before.txt.tmp" ;;
-      *disabled*) printf 'disabled\\n' > "$REPORT/data-saver-before.txt.tmp" ;;
+      *enabled*) printf 'enabled\n' > "$REPORT/data-saver-before.txt.tmp" ;;
+      *disabled*) printf 'disabled\n' > "$REPORT/data-saver-before.txt.tmp" ;;
       *) die "could not interpret the original Data Saver state: $data_saver" ;;
     esac
     mv "$REPORT/data-saver-before.txt.tmp" "$REPORT/data-saver-before.txt" ||
