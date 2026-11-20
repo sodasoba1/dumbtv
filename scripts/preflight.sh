@@ -68,9 +68,9 @@ if [[ $DRY_RUN == 0 ]]; then
     global_values=$(dev 'settings list global') || die "could not read global settings; no snapshot was saved"
     [[ -n $secure_values && -n $global_values ]] ||
       die "settings snapshot was unexpectedly empty; refusing to save an incomplete baseline"
-    printf '%s\\n' "$secure_values" > "$secure_snapshot.tmp" ||
+    printf '%s\n' "$secure_values" > "$secure_snapshot.tmp" ||
       die "could not write secure settings snapshot"
-    printf '%s\\n' "$global_values" > "$global_snapshot.tmp" ||
+    printf '%s\n' "$global_values" > "$global_snapshot.tmp" ||
       die "could not write global settings snapshot"
     mv "$secure_snapshot.tmp" "$secure_snapshot" &&
       mv "$global_snapshot.tmp" "$global_snapshot" ||
