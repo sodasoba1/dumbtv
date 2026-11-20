@@ -67,9 +67,24 @@ final class Catalog {
     static void art(PackageManager pm, Item it, boolean cornerIcon, Drawable replacement) {
         if (it.info == null) return;
         boolean wide = replacement != null && isWide(replacement);
-        it.banner = wide ? replacement : replacement == null ? it.info.loadBanner(pm) : null;
-        it.icon = replacement != null && !wide ? replacement
-                : it.banner == null || cornerIcon ? it.info.loadIcon(pm) : null;
+        try {
+            it.banner = wide ? replacement : replacement == null ? it.info.loadBanner(pm) : null;
+        } catch (RuntimeException e) {
+            it.banner = null;
+            HomeSentinel.note("banner resource failed for " + it.id + ": " + e);
+        }
+        if (replacement != null && !wide) {
+            it.icon = replacement;
+        } else if (it.banner == null || cornerIcon) {
+            try {
+                it.icon = it.info.loadIcon(pm);
+            } catch (RuntimeException e) {
+                it.icon = null;
+                HomeSentinel.note("icon resource failed for " + it.id + ": " + e);
+            }
+        } else {
+            it.icon = null;
+        }
     }
 
     /** Loads an optional user-selected bundled banner for one app. Slow: off the UI thread. */
