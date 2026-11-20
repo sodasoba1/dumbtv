@@ -28,15 +28,24 @@ public final class HomeSentinelPauseTest {
         check(!HomeSentinelPause.shouldRecover(state), "explicit Amazon Home must not be reclaimed");
         state = HomeSentinelPause.afterForeground(state, "com.android.systemui", null);
         check(state == HomeSentinelPause.State.AMAZON_HOME_HOLD, "System UI does not release explicit hold");
+
+        // Leaving Amazon's interface for a real app ends the explicit HOME hand-off.
         state = HomeSentinelPause.afterForeground(state, "com.netflix.ninja", null);
-        check(state == HomeSentinelPause.State.AMAZON_HOME_HOLD,
-                "launching an ordinary app preserves the explicit Amazon Home hold");
+        check(state == HomeSentinelPause.State.ACTIVE,
+                "launching a third-party app releases the explicit Amazon Home hold");
+        check(HomeSentinelPause.shouldRecover(state),
+                "takeover is enabled again after leaving Amazon's interface");
+
+        // When that app later returns to Amazon HOME, DumbTV must be allowed to reclaim it.
         state = HomeSentinelPause.afterForeground(state, "com.amazon.tv.launcher",
                 "com.amazon.tv.launcher.ui.HomeActivity_vNext");
-        check(state == HomeSentinelPause.State.AMAZON_HOME_HOLD,
-                "returning from an app keeps Amazon Home in control");
+        check(state == HomeSentinelPause.State.ACTIVE,
+                "returning from a third-party app leaves takeover active");
+        check(HomeSentinelPause.shouldRecover(state),
+                "Amazon Home is recoverable after a third-party app");
+
         state = HomeSentinelPause.afterForeground(state, "tv.dumbtv.home", null);
-        check(state == HomeSentinelPause.State.ACTIVE, "manually opening DumbTV releases explicit hold");
+        check(state == HomeSentinelPause.State.ACTIVE, "DumbTV foreground remains active");
     }
 
     public static void main(String[] args) {
