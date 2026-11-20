@@ -123,7 +123,7 @@ final class WidgetLayout {
     private static boolean inside(int x, int y, int width, int height) {
         return x >= 0 && y >= 0 && width > 0 && height > 0
                 && width <= COLUMNS && height <= ROWS
-                && x + width <= COLUMNS && y + height <= ROWS;
+                && x <= COLUMNS - width && y <= ROWS - height;
     }
 
     private static boolean validId(String id) {
