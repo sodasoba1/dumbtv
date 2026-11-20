@@ -32,6 +32,7 @@ public final class HomeSentinel extends Service {
     private static final String AMAZON_HOME = "com.amazon.tv.launcher.ui.HomeActivity_vNext";
     private static final String SYSTEM_UI = "com.android.systemui";
     private static final String DUMBTV_PKG = "tv.dumbtv.home";
+    private static final long INITIAL_EVENT_LOOKBACK_MS = 24L * 60 * 60 * 1000;
     private static final long POLL_MS = 250;
     private static final long VERIFY_MS = 800;
     private static final long RETRY_MS = 650;
@@ -116,7 +117,10 @@ public final class HomeSentinel extends Service {
             long now = System.currentTimeMillis();
             // Do not require a successful screen-off snapshot. A missed/stale snapshot must
             // not permanently suppress wake recovery after a long suspend.
-            updateTop(Math.max(0, (screenOffTime == 0 ? now : screenOffTime) - 10_000), now);
+            long from = eventCursor.lastTimestamp() == 0
+                    ? Math.max(0, now - INITIAL_EVENT_LOOKBACK_MS)
+                    : Math.max(0, (screenOffTime == 0 ? now : screenOffTime) - 10_000);
+            updateTop(from, now);
             updatePauseState(HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass));
             if (isAmazonHome() && HomeSentinelPause.shouldRecover(pauseState)) {
                 note("screen on; restoring last foreground Amazon Home");
@@ -381,7 +385,8 @@ public final class HomeSentinel extends Service {
         // Service restarts are not permission to steal foreground. Only recover after a
         // positively observed Amazon Home event while the display is awake and takeover
         // remains enabled. Unknown foreground state means wait.
-        updateTop(System.currentTimeMillis() - 60_000, System.currentTimeMillis());
+        long now = System.currentTimeMillis();
+        updateTop(Math.max(0, now - INITIAL_EVENT_LOOKBACK_MS), now);
         if (recoveryEligible()) {
             note("service start: verified Amazon Home foreground; recovery eligible");
             beginRecovery();
