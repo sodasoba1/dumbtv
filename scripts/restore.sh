@@ -37,8 +37,9 @@ if [[ -f $REPORT/restore-complete.txt && ! -f $REPORT/packages-before.txt ]]; th
   die "restore already completed; run preflight.sh before starting another debloat pass"
 fi
 if [[ ! -f $REPORT/packages-before.txt
-      && ( -f $REPORT/settings-before-secure.txt || -f $REPORT/settings-before-global.txt
-           || -f $REPORT/lockdown-before.tsv || -f $REPORT/data-saver-before.txt )
+      && ( -f $REPORT/debloat.txt || -f $REPORT/settings-before-secure.txt
+           || -f $REPORT/settings-before-global.txt || -f $REPORT/lockdown-before.tsv
+           || -f $REPORT/data-saver-before.txt )
       && ${DUMBTW_ALLOW_LEGACY_REPORT:-0} != 1 ]]; then
   die "incomplete recovery snapshot: original package baseline is missing; refusing to assume packages were enabled"
 fi
@@ -287,6 +288,9 @@ reboot_wait
 front=$(front_activity)
 [[ $front == com.amazon.tv.launcher/com.amazon.tv.launcher.ui.HomeActivity_vNext ]] ||
   die "post-reboot HOME handoff failed (foreground is ${front:-unknown}); recovery snapshots retained"
+takeover=$(dev1 settings get global dumbtv_homesentinel_enabled | tr -d '\r')
+[[ $takeover == 0 ]] ||
+  die "post-reboot HomeSentinel takeover gate is not disabled; recovery snapshots retained"
 
 # A successful reboot alone does not prove that Android persisted the restored values.
 while read -r ns key value; do

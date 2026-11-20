@@ -222,6 +222,7 @@ class RestoreTest(unittest.TestCase):
         settings = state["settings"]
         self.assertNotIn("secure/always_on_vpn_app", settings)
         self.assertFalse(state["packages"]["dnsfilter.android"]["enabled"])
+        self.assertEqual(state["settings"]["global/dumbtv_homesentinel_enabled"], "0")
 
     def test_a_refused_svc_reboot_falls_back_to_reboot_at_once(self):
         result, commands, state = self.run_restore(svc_refused=True)
