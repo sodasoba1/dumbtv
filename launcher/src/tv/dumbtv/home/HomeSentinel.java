@@ -355,7 +355,7 @@ public final class HomeSentinel extends Service {
     }
 
     private void handleAmazonHomeDetected() {
-        pauseState = HomeSentinelPause.afterForeground(pauseState, AMAZON_PKG, AMAZON_HOME);
+        updatePauseState(HomeSentinelPause.afterForeground(pauseState, AMAZON_PKG, AMAZON_HOME));
         if (!HomeSentinelPause.shouldRecover(pauseState)) return;
         // Never launch an activity in response to a log event while the TV display is off.
         // This watcher must not turn standby into an unintended screen wake.
@@ -402,7 +402,7 @@ public final class HomeSentinel extends Service {
             else cancelRecovery("Amazon Home takeover is paused or disabled");
             return;
         }
-        pauseState = HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass);
+        updatePauseState(HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass));
         if (DUMBTV_PKG.equals(lastTop)) {
             worker.removeCallbacks(stableHome);
             worker.postDelayed(stableHome, STABLE_HOME_MS);
