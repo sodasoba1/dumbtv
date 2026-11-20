@@ -62,11 +62,20 @@ final class IconPack {
     static Map<String, String> installed(PackageManager pm) {
         Map<String, String> packs = new LinkedHashMap<>();
         for (String action : ACTIONS) {
-            for (ResolveInfo ri : pm.queryIntentActivities(new Intent(action), ALL)) {
+            List<ResolveInfo> matches;
+            try {
+                matches = pm.queryIntentActivities(new Intent(action), ALL);
+            } catch (RuntimeException e) {
+                HomeSentinel.note("could not query icon packs for " + action + ": " + e);
+                continue;
+            }
+            if (matches == null) continue;
+            for (ResolveInfo ri : matches) {
                 if (ri == null || ri.activityInfo == null
                         || ri.activityInfo.applicationInfo == null) continue;
                 ApplicationInfo app = ri.activityInfo.applicationInfo;
-                if (packs.containsKey(app.packageName) || !hasAppfilter(pm, app)) continue;
+                if (app.packageName == null || packs.containsKey(app.packageName)
+                        || !hasAppfilter(pm, app)) continue;
                 try {
                     CharSequence label = app.loadLabel(pm);
                     packs.put(app.packageName,
