@@ -381,6 +381,7 @@ public final class HomeSentinel extends Service {
         lastLogcatRecoveryMs = now;
         lastTop = AMAZON_PKG;
         lastTopClass = AMAZON_HOME;
+        updatePauseState(HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass));
         note("logcat detected Amazon Home foreground transition");
         beginRecovery();
     }
@@ -391,6 +392,7 @@ public final class HomeSentinel extends Service {
         // remains enabled. Unknown foreground state means wait.
         long now = System.currentTimeMillis();
         updateTop(Math.max(0, now - INITIAL_EVENT_LOOKBACK_MS), now);
+        updatePauseState(HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass));
         if (recoveryEligible()) {
             note("service start: verified Amazon Home foreground; recovery eligible");
             beginRecovery();
