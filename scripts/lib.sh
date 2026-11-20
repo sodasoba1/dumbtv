@@ -30,9 +30,38 @@ load_conf() {
   REMOVE_EXTRA=${REMOVE_EXTRA:-}
   ALEXA=${ALEXA:-1}
   LAUNCHER=${LAUNCHER:-1}
-  [[ -f $CONF ]] && source "$CONF"
+  YOUTUBE=${YOUTUBE:-0}
+  if [[ -f $CONF ]]; then
+    local key value p
+    while IFS='=' read -r key value; do
+      key=$(printf '%s' "$key" | tr -d '\r')
+      value=$(printf '%s' "${value:-}" | tr -d '\r')
+      case $value in
+        \"*\") value=${value#\"}; value=${value%\"} ;;
+      esac
+      case $key in
+        KEEP_APPS|REMOVE_EXTRA)
+          for p in $value; do
+            [[ $p =~ ^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+$ ]] ||
+              die "invalid package name '$p' in $CONF"
+          done
+          if [[ $key == KEEP_APPS ]]; then KEEP_APPS=$value; else REMOVE_EXTRA=$value; fi
+          ;;
+        ALEXA|LAUNCHER|YOUTUBE)
+          case $value in 0|1) ;; *) die "$key must be 0 or 1 in $CONF" ;; esac
+          case $key in
+            ALEXA) ALEXA=$value ;;
+            LAUNCHER) LAUNCHER=$value ;;
+            YOUTUBE) YOUTUBE=$value ;;
+          esac
+          ;;
+        ""|\\#*) ;;
+        *) note "ignoring unknown config key '$key' in $CONF" ;;
+      esac
+    done < "$CONF"
+  fi
   KEEP_APPS=${KEEP_APPS:-}; REMOVE_EXTRA=${REMOVE_EXTRA:-}
-  ALEXA=${ALEXA:-1}; LAUNCHER=${LAUNCHER:-1}
+  ALEXA=${ALEXA:-1}; LAUNCHER=${LAUNCHER:-1}; YOUTUBE=${YOUTUBE:-0}
 }
 
 # What debloat.sh disables: the ads and tracking list, plus Alexa only with ALEXA=0.
