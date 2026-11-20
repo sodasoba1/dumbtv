@@ -46,7 +46,7 @@ note "disable $(cleanup_list | wc -l | tr -d ' ') Amazon packages, minus anythin
 if [[ -n $REMOVE_EXTRA ]]; then note "remove only the apps you named: $REMOVE_EXTRA"
 else note "remove none of your apps (none named in dumbtv.conf)"; fi
 note "deny background work + data to $(list_of "$(fos protected.txt)" | wc -l | tr -d ' ') protected packages"
-note "Data Saver is device-wide: other non-whitelisted apps also lose background metered data; foreground streaming and unmetered Wi-Fi are not the target"
+note "Data Saver is device-wide: it restricts background metered data for all non-whitelisted apps; foreground app traffic and unmetered Wi-Fi are generally unaffected"
 note "optional DNS filtering is external; see docs/PI-HOLE.md"
 note "apply $(list_of "$(fos settings.txt)" | wc -l | tr -d ' ') privacy settings"
 if [[ $LAUNCHER == 1 ]]; then
