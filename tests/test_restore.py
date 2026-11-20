@@ -42,6 +42,8 @@ class RestoreTest(unittest.TestCase):
             (tmp / "dumbtv.conf").write_text("")
             report = tmp / "report"
             report.mkdir()
+            (report / "device.txt").write_text(
+                "format=1\\nserial=test-tv:5555\\nmodel=\\nbuild=\\n")
             if package_snapshot is not None:
                 (report / "packages-before.txt").write_text(package_snapshot)
             env = dict(os.environ, ADB=str(ROOT / "tests" / "fake_tv.py"), ADB_SERIAL="test-tv:5555",
