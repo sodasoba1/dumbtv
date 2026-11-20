@@ -303,6 +303,17 @@ final class Config {
         save();
     }
 
+    /** Applies related configuration changes with one atomic file replacement. */
+    synchronized boolean setAll(Map<String, String> updates) {
+        for (Map.Entry<String, String> entry : updates.entrySet()) {
+            String value = entry.getValue();
+            if (value == null || value.isEmpty()) values.remove(entry.getKey());
+            else values.put(entry.getKey(), value);
+        }
+        version++;
+        return save();
+    }
+
     synchronized List<String> list(String key) {
         List<String> out = new ArrayList<>();
         for (String s : get(key, "").split(",")) {
