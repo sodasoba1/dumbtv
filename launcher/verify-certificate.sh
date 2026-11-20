@@ -5,7 +5,8 @@ set -euo pipefail
 APK=${1:-}
 [[ -n $APK && -s $APK ]] || { echo "error: APK file not found or empty: $APK" >&2; exit 1; }
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-EXPECTED=$(< "$HERE/signing.sha256")
+EXPECTED=${DUMBTW_TRUSTED_CERT_SHA256:-$(< "$HERE/signing.sha256")}
+EXPECTED=$(printf '%s' "$EXPECTED" | tr 'A-F' 'a-f')
 [[ $EXPECTED =~ ^[0-9a-f]{64}$ ]] || { echo "error: trusted release signer pin is missing or invalid" >&2; exit 1; }
 
 # Git Bash aliases are interactive-shell conveniences and are not visible to
