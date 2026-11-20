@@ -134,8 +134,10 @@ public final class HomeSentinel extends Service {
 
     private static void setPersistedPauseState(Context context, HomeSentinelPause.State state) {
         pauseState = state;
-        context.getSharedPreferences(STATE_PREFS, MODE_PRIVATE).edit()
-                .putString("pause_state", state.name()).apply();
+        if (!context.getSharedPreferences(STATE_PREFS, MODE_PRIVATE).edit()
+                .putString("pause_state", state.name()).commit()) {
+            note("could not persist HomeSentinel pause state");
+        }
     }
 
     private void updatePauseState(HomeSentinelPause.State state) {
@@ -164,8 +166,10 @@ public final class HomeSentinel extends Service {
 
     private void storeFailures(int failures) {
         attempts = failures;
-        getSharedPreferences(STATE_PREFS, MODE_PRIVATE).edit()
-                .putInt("recovery_failures", failures).apply();
+        if (!getSharedPreferences(STATE_PREFS, MODE_PRIVATE).edit()
+                .putInt("recovery_failures", failures).commit()) {
+            note("could not persist recovery failure count");
+        }
     }
 
     /** Opens Amazon's own home/settings screen without allowing HomeSentinel to reclaim it. */
