@@ -63,8 +63,8 @@ class LauncherInstallTest(unittest.TestCase):
             shutil.copy(ROOT / "launcher/install.sh", launcher / "install.sh")
             shutil.copy(ROOT / "scripts/home.sh", scripts / "home.sh")
             shutil.copy(ROOT / "scripts/lib.sh", scripts / "lib.sh")
-            (launcher / "version.env").write_text("VERSION=1.17\\n")
-            (bindir / "sleep").write_text("#!/bin/sh\\nexit 0\\n")
+            (launcher / "version.env").write_text("VERSION=1.17\n")
+            (bindir / "sleep").write_text("#!/bin/sh\nexit 0\n")
             (bindir / "sleep").chmod(0o755)
             state_data = {
                 "packages": {"tv.dumbtv.home": {"system": False, "enabled": True}},
