@@ -12,7 +12,8 @@ ASSUME_YES=${ASSUME_YES:-0}
 NO_REBOOT=${NO_REBOOT:-0}
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 DATA="$ROOT/data"
-REPORT_EXPLICIT=${REPORT+x}
+REPORT_EXPLICIT=0
+[[ -n ${REPORT:-} ]] && REPORT_EXPLICIT=1
 REPORT=${REPORT:-$ROOT/report}
 BOOT_SECONDS=${BOOT_SECONDS:-45}
 CONF=${CONF:-$ROOT/dumbtv.conf}
@@ -150,7 +151,7 @@ need_device() {
   dev getprop ro.build.version.sdk >/dev/null || die "device $SERIAL is not responding"
   SDK=$(dev1 getprop ro.build.version.sdk | tr -d '\r')
   case $SDK in ''|*[!0-9]*) SDK=0 ;; esac
-  if [[ ${REPORT_EXPLICIT:-} != x ]]; then
+  if [[ ${REPORT_EXPLICIT:-0} != 1 ]]; then
     local report_serial
     report_serial=$(printf '%s' "$SERIAL" | sed 's/[^A-Za-z0-9._-]/_/g')
     REPORT="$ROOT/report/$report_serial"
