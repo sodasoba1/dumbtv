@@ -115,7 +115,7 @@ class RestoreTest(unittest.TestCase):
     def test_failed_settings_write_keeps_the_original_snapshot(self):
         result, _, _ = self.run_restore(
             secure_snapshot="amz_limit_ad_tracking=1\n",
-            state_overrides={"settings_write_refused": True})
+            state_overrides={"settings_write_refused_key": "secure/amz_limit_ad_tracking"})
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("could not restore setting secure/amz_limit_ad_tracking", result.stderr)
         self.assertTrue(self.secure_snapshot_exists_after)
@@ -123,7 +123,7 @@ class RestoreTest(unittest.TestCase):
     def test_successful_settings_command_without_a_value_change_is_rejected(self):
         result, _, _ = self.run_restore(
             secure_snapshot="amz_limit_ad_tracking=1\n",
-            state_overrides={"settings_put_noop": True})
+            state_overrides={"settings_put_noop_key": "secure/amz_limit_ad_tracking"})
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("did not restore", result.stderr)
         self.assertTrue(self.secure_snapshot_exists_after)
