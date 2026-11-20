@@ -294,14 +294,12 @@ public final class Home extends Activity {
                         / (cardSize()[0] + dp(18)) + 1;
                 String tileStyle = cfg.get(Config.TILE_STYLE);
                 boolean cornerIcon = "afterglow".equals(tileStyle);
-                List<Item> first = new ArrayList<>();
                 List<Runnable> jobs = new ArrayList<>();
                 // A selected icon pack is parsed on demand; do not delay the first frame for it.
                 if (IconPack.OFF.equals(cfg.get(IconPack.KEY, IconPack.OFF))) {
                     for (Item it : Catalog.visible(cfg, Catalog.APPS, apps.all,
                             recentFor(Catalog.APPS))) {
                         if (fit-- <= 0) break;
-                        first.add(it);
                         it.artRequested = true;
                         jobs.add(artJob(it, cornerIcon));
                     }
