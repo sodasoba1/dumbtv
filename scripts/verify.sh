@@ -22,8 +22,10 @@ else
   home_package=${home%%/*}
   if [[ ${homesentinel:-0} -gt 0 && $home_package == tv.dumbtv.home ]]; then
     printf '%-10s %-38s %s\n' ok home "HomeSentinel armed; DumbTV is foreground"
-  elif [[ ${homesentinel:-0} -gt 0 ]]; then
+  elif [[ ${homesentinel:-0} -gt 0 && $home_package == com.amazon.tv.launcher ]]; then
     printf '%-10s %-38s %s\n' FAIL home "HomeSentinel is running but Amazon Home is foreground (${home:-unknown})"; fail=1
+  elif [[ ${homesentinel:-0} -gt 0 ]]; then
+    printf '%-10s %-38s %s\n' ok home "HomeSentinel armed; foreground is ${home_package:-unknown}"
   else
     printf '%-10s %-38s %s\n' FAIL home "HomeSentinel not running; re-run launcher.sh"; fail=1
   fi
