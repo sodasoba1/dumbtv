@@ -34,10 +34,10 @@ class LockdownTest(unittest.TestCase):
             report = tmp / "report"
             report.mkdir()
             (report / "device.txt").write_text(
-                "format=2\\nserial_sha256=" + hashlib.sha256(b"test-tv:5555").hexdigest()
-                + "\\nmodel=AFTMM\\nbuild=test-build\\n")
+                "format=2\nserial_sha256=" + hashlib.sha256(b"test-tv:5555").hexdigest()
+                + "\nmodel=AFTMM\nbuild=test-build\n")
             (report / "lockdown-before.tsv").write_text(
-                "com.amazon.device.metrics\\t10050\\tforeground\\tnot-applicable\\t0\\n")
+                "com.amazon.device.metrics\t10050\tforeground\tnot-applicable\t0\n")
             conf = tmp / "dumbtv.conf"
             conf.write_text("")
             env = dict(os.environ, ADB=str(ROOT / "tests/fake_tv.py"),
@@ -77,9 +77,9 @@ class LockdownTest(unittest.TestCase):
             report = tmp / "report"
             report.mkdir()
             (report / "device.txt").write_text(
-                "format=2\\nserial_sha256=" + hashlib.sha256(b"test-tv:5555").hexdigest()
-                + "\\nmodel=AFTMM\\nbuild=test-build\\n")
-            (report / "data-saver-before.txt").write_text("disabled\\n")
+                "format=2\nserial_sha256=" + hashlib.sha256(b"test-tv:5555").hexdigest()
+                + "\nmodel=AFTMM\nbuild=test-build\n")
+            (report / "data-saver-before.txt").write_text("disabled\n")
             conf = tmp / "dumbtv.conf"
             conf.write_text("")
             env = dict(os.environ, ADB=str(ROOT / "tests/fake_tv.py"),
