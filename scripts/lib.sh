@@ -152,6 +152,8 @@ fireos_name() {
 need_supported_fireos() {
   is_fireos || die "this is for Amazon Fire OS; see docs/OTHER-TVS.md"
   [[ $SDK -ge 25 ]] || die "$(fireos_name): Fire OS 5 and older refuse pm disable-user, so nothing here can work; see docs/OTHER-TVS.md"
+  [[ $SDK -le 30 || ${DUMBTW_ALLOW_UNTESTED_FIREOS:-0} == 1 ]] ||
+    die "$(fireos_name): package lists are not validated above API 30; refusing to change device state"
 }
 
 # Background execution off/on. RUN_ANY_IN_BACKGROUND only exists from Android 9; on
