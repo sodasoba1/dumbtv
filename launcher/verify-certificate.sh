@@ -83,4 +83,22 @@ ACTUAL=$digests
   echo "not installing this APK" >&2
   exit 1
 }
-echo "release certificate verified ($ACTUAL)"
+# A trusted signer is not enough: the package identity must also be DumbTV Home.
+AAPT2=$(command -v aapt2 2>/dev/null || true)
+if [[ -z $AAPT2 ]]; then
+  for sdk in "${sdk_roots[@]}"; do
+    [[ -x $sdk/build-tools/34.0.0/aapt2 ]] && { AAPT2=$sdk/build-tools/34.0.0/aapt2; break; }
+  done
+fi
+[[ -n $AAPT2 ]] || { echo "error: aapt2 not found; install Android SDK build-tools 34.0.0" >&2; exit 1; }
+badging=$("$AAPT2" dump badging "$APK" 2>&1) || {
+  echo "error: could not inspect APK package identity" >&2
+  printf '%s\\n' "$badging" >&2
+  exit 1
+}
+package=$(printf '%s\\n' "$badging" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" | head -1)
+[[ $package == tv.dumbtv.home ]] || {
+  echo "error: APK package is '$package', expected tv.dumbtv.home; not installing" >&2
+  exit 1
+}
+echo "release certificate verified ($ACTUAL); package identity verified ($package)"
