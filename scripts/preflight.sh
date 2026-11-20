@@ -19,7 +19,7 @@ note "abi           $(dev1 getprop ro.product.cpu.abi)"
 note "verified boot $(dev1 getprop ro.boot.verifiedbootstate)  (1 = locked, cannot be changed)"
 note "gateway       $(gateway)"
 
-if [[ $SDK -gt 30 ]]; then
+if [[ $SDK -gt 30 ]] && is_fireos; then
   need_supported_fireos
 fi
 
