@@ -135,9 +135,10 @@ done
 step "screensaver"
 if [[ $(dev1 settings get secure screensaver_components) == "$AOSP_DREAM" ]]; then
   want=$(restore_value secure screensaver_components "$(dev1 settings get secure screensaver_default_component)")
-  if [[ $want != null && $want != "$AOSP_DREAM" ]]; then
+  if [[ -z $want || $want == null ]]; then want=$ABSENT_SETTING; fi
+  if [[ $want != "$AOSP_DREAM" ]]; then
     restore_setting secure screensaver_components "$want"
-    printf '  %-46s %s\n' screensaver_components "$want"
+    printf '  %-46s %s\n' screensaver_components "${want/$ABSENT_SETTING/<absent>}"
   fi
 else
   note "unchanged"
@@ -185,6 +186,8 @@ fi
 data_saver=disabled
 if [[ -f $REPORT/data-saver-before.txt ]]; then
   data_saver=$(tr -d '\r\n' < "$REPORT/data-saver-before.txt")
+else
+  note "legacy report has no original Data Saver snapshot; using the v1.17 restore default (disabled)"
 fi
 case $data_saver in enabled|disabled) ;; *) die "invalid saved Data Saver state: $data_saver" ;; esac
 acmd cmd netpolicy set restrict-background "$data_saver" >/dev/null ||
@@ -251,6 +254,11 @@ fi
 
 [[ $DRY_RUN == 1 ]] && { note "[dry-run] done"; exit 0; }
 reboot_wait
+
+# Verify that Amazon Home, not merely any foreground app, owns HOME after reboot.
+front=$(front_activity)
+[[ $front == com.amazon.tv.launcher/com.amazon.tv.launcher.ui.HomeActivity_vNext ]] ||
+  die "post-reboot HOME handoff failed (foreground is ${front:-unknown}); recovery snapshots retained"
 
 # A successful reboot alone does not prove that Android persisted the restored values.
 while read -r ns key value; do
