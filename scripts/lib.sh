@@ -42,7 +42,7 @@ load_conf() {
       case $key in
         KEEP_APPS|REMOVE_EXTRA)
           for p in $value; do
-            [[ $p =~ ^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+$ ]] ||
+            [[ $p =~ ^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$ ]] ||
               die "invalid package name '$p' in $CONF"
           done
           if [[ $key == KEEP_APPS ]]; then KEEP_APPS=$value; else REMOVE_EXTRA=$value; fi
@@ -55,7 +55,7 @@ load_conf() {
             YOUTUBE) YOUTUBE=$value ;;
           esac
           ;;
-        ""|\\#*) ;;
+        ""|\#*) ;;
         *) note "ignoring unknown config key '$key' in $CONF" ;;
       esac
     done < "$CONF"
