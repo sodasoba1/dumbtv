@@ -23,11 +23,19 @@ fi
 # configure.sh runs in a child process, so read its saved opt-in here too.
 # Parse only the YOUTUBE scalar; never source the household config as shell code.
 YOUTUBE=0
+LAUNCHER=1
 if [[ -f $CONF ]]; then
   while IFS='=' read -r key value; do
-    [[ $key == YOUTUBE ]] || continue
+    value=$(printf '%s' "${value:-}" | tr -d '\r')
     value=${value%\"}; value=${value#\"}
-    case $value in 0|1) YOUTUBE=$value ;; *) echo "error: YOUTUBE must be 0 or 1 in $CONF" >&2; exit 1 ;; esac
+    case $key in
+      YOUTUBE|LAUNCHER)
+        case $value in
+          0|1) [[ $key == YOUTUBE ]] && YOUTUBE=$value || LAUNCHER=$value ;;
+          *) echo "error: $key must be 0 or 1 in $CONF" >&2; exit 1 ;;
+        esac
+        ;;
+    esac
   done < "$CONF"
 fi
 
