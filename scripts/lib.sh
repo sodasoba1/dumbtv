@@ -155,7 +155,7 @@ need_device() {
     local report_serial
     report_serial=$(printf '%s' "$SERIAL" | sed 's/[^A-Za-z0-9._-]/_/g')
     REPORT="$ROOT/report/$report_serial"
-    if [[ -f $ROOT/report/settings-before-secure.txt || -f $ROOT/report/packages-before.txt ]]; then
+    if [[ -f $ROOT/report/settings-before-secure.txt || -f $ROOT/report/settings-before-global.txt || -f $ROOT/report/packages-before.txt ]]; then
       die "legacy recovery snapshots exist in $ROOT/report; verify this is the same TV, then set REPORT='$ROOT/report' DUMBTW_ALLOW_LEGACY_REPORT=1 explicitly before preflight/restore"
     fi
   fi
