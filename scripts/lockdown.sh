@@ -19,7 +19,12 @@ if [[ $DRY_RUN == 0 ]]; then
   # Preserve the exact AppOps modes and whether each UID was already blacklisted.
   # Never overwrite the first snapshot on a subsequent run.
   snapshot="$REPORT/lockdown-before.tsv"
-  if [[ ! -f $snapshot ]]; then
+  data_saver_snapshot="$REPORT/data-saver-before.txt"
+  if [[ -e $snapshot && ! -e $data_saver_snapshot
+        || ! -e $snapshot && -e $data_saver_snapshot ]]; then
+    die "incomplete lockdown snapshot: AppOps and Data Saver baselines must both exist; refusing to reconstruct original state"
+  fi
+  if [[ ! -e $snapshot ]]; then
     blacklist=$(dev 'cmd netpolicy list restrict-background-blacklist') ||
       die "could not read the existing background-data blacklist"
     tmp="$snapshot.tmp"
@@ -44,16 +49,20 @@ if [[ $DRY_RUN == 0 ]]; then
     done
     mv "$tmp" "$snapshot" || die "could not publish AppOps/network-policy snapshot"
   fi
-  if [[ ! -f $REPORT/data-saver-before.txt ]]; then
-    data_saver=$(dev 'cmd netpolicy get restrict-background') ||
+  if [[ ! -e $data_saver_snapshot ]]; then
+    data_saver=$(dev 'cmd netpolicy get restrict-background') || {
+      rm -f "$snapshot"
       die "could not snapshot the original Data Saver state"
+    }
     case $data_saver in
-      *enabled*) printf 'enabled\n' > "$REPORT/data-saver-before.txt.tmp" ;;
-      *disabled*) printf 'disabled\n' > "$REPORT/data-saver-before.txt.tmp" ;;
-      *) die "could not interpret the original Data Saver state: $data_saver" ;;
+      *enabled*) printf 'enabled\n' > "$data_saver_snapshot.tmp" ;;
+      *disabled*) printf 'disabled\n' > "$data_saver_snapshot.tmp" ;;
+      *) rm -f "$snapshot"; die "could not interpret the original Data Saver state: $data_saver" ;;
     esac
-    mv "$REPORT/data-saver-before.txt.tmp" "$REPORT/data-saver-before.txt" ||
+    mv "$data_saver_snapshot.tmp" "$data_saver_snapshot" || {
+      rm -f "$snapshot"
       die "could not publish Data Saver snapshot"
+    }
   fi
 fi
 

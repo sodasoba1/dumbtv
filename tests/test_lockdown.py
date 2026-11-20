@@ -11,6 +11,91 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LockdownTest(unittest.TestCase):
+    def test_incomplete_appops_snapshot_is_not_reconstructed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            state = tmp / "state.json"
+            initial = {
+                "sdk": 25,
+                "manufacturer": "Amazon",
+                "packages": {
+                    "com.amazon.device.metrics": {
+                        "system": True, "enabled": True, "enabled_state": 0
+                    }
+                },
+                "appops": {
+                    "com.amazon.device.metrics": {"RUN_IN_BACKGROUND": "foreground"}
+                },
+                "network_blacklist": [],
+                "restrict_background": "enabled",
+                "props": {"ro.product.model": "AFTMM", "ro.build.display.id": "test-build"},
+            }
+            state.write_text(json.dumps(initial))
+            report = tmp / "report"
+            report.mkdir()
+            (report / "device.txt").write_text(
+                "format=2\\nserial_sha256=" + hashlib.sha256(b"test-tv:5555").hexdigest()
+                + "\\nmodel=AFTMM\\nbuild=test-build\\n")
+            (report / "lockdown-before.tsv").write_text(
+                "com.amazon.device.metrics\\t10050\\tforeground\\tnot-applicable\\t0\\n")
+            conf = tmp / "dumbtv.conf"
+            conf.write_text("")
+            env = dict(os.environ, ADB=str(ROOT / "tests/fake_tv.py"),
+                       ADB_SERIAL="test-tv:5555", FAKE_TV_STATE=str(state),
+                       REPORT=str(report), CONF=str(conf))
+            result = subprocess.run(
+                ["bash", str(ROOT / "scripts/lockdown.sh"), "-y"],
+                env=env, capture_output=True, text=True, timeout=30)
+            self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("incomplete lockdown snapshot", result.stderr)
+            after = json.loads(state.read_text())
+            self.assertEqual(after["restrict_background"], "enabled")
+            self.assertEqual(after["appops"]["com.amazon.device.metrics"]["RUN_IN_BACKGROUND"],
+                             "foreground")
+            self.assertEqual(after["network_blacklist"], [])
+
+    def test_incomplete_data_saver_snapshot_is_not_reconstructed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            state = tmp / "state.json"
+            initial = {
+                "sdk": 25,
+                "manufacturer": "Amazon",
+                "packages": {
+                    "com.amazon.device.metrics": {
+                        "system": True, "enabled": True, "enabled_state": 0
+                    }
+                },
+                "appops": {
+                    "com.amazon.device.metrics": {"RUN_IN_BACKGROUND": "foreground"}
+                },
+                "network_blacklist": [],
+                "restrict_background": "disabled",
+                "props": {"ro.product.model": "AFTMM", "ro.build.display.id": "test-build"},
+            }
+            state.write_text(json.dumps(initial))
+            report = tmp / "report"
+            report.mkdir()
+            (report / "device.txt").write_text(
+                "format=2\\nserial_sha256=" + hashlib.sha256(b"test-tv:5555").hexdigest()
+                + "\\nmodel=AFTMM\\nbuild=test-build\\n")
+            (report / "data-saver-before.txt").write_text("disabled\\n")
+            conf = tmp / "dumbtv.conf"
+            conf.write_text("")
+            env = dict(os.environ, ADB=str(ROOT / "tests/fake_tv.py"),
+                       ADB_SERIAL="test-tv:5555", FAKE_TV_STATE=str(state),
+                       REPORT=str(report), CONF=str(conf))
+            result = subprocess.run(
+                ["bash", str(ROOT / "scripts/lockdown.sh"), "-y"],
+                env=env, capture_output=True, text=True, timeout=30)
+            self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("incomplete lockdown snapshot", result.stderr)
+            after = json.loads(state.read_text())
+            self.assertEqual(after["restrict_background"], "disabled")
+            self.assertEqual(after["appops"]["com.amazon.device.metrics"]["RUN_IN_BACKGROUND"],
+                             "foreground")
+            self.assertEqual(after["network_blacklist"], [])
+
     def test_original_appops_blacklist_and_data_saver_are_snapshotted_once(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
