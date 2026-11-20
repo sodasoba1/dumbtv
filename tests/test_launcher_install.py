@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class LauncherInstallTest(unittest.TestCase):
     def install(self, read_logs_refused=False, read_logs_not_recorded=False, installer_args=None,
-                foreground_line=None, certificate_refused=False):
+                foreground_line=None, certificate_refused=False, takeover_write_noop=False):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
             launcher = tmp / "launcher"
@@ -40,6 +40,7 @@ class LauncherInstallTest(unittest.TestCase):
                 "settings": {},
                 "sdk": 25,
                 "homesentinel_running": True,
+                "settings_put_noop_key": "global/dumbtv_homesentinel_enabled" if takeover_write_noop else "",
                 "read_logs_refused": read_logs_refused,
                 "read_logs_not_recorded": read_logs_not_recorded,
                 **({"foreground_line": foreground_line} if foreground_line is not None else {}),
@@ -112,6 +113,14 @@ class LauncherInstallTest(unittest.TestCase):
         result, _, _ = self.run_undo(wrong_home_foreground=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Amazon-Home-foreground-not-verified", result.stderr)
+
+    def test_install_stops_before_replacing_apk_if_takeover_gate_does_not_persist(self):
+        result, commands, state = self.install(takeover_write_noop=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("takeover suspension did not persist", result.stderr)
+        self.assertFalse(any(command.startswith("install -r ") for command in commands))
+        self.assertFalse(state.get("permissions", {}).get("tv.dumbtv.home", {}).get(
+            "android.permission.READ_LOGS", False))
 
     def test_supplied_apk_install_also_grants_homesentinel_permissions(self):
         result, commands, state = self.install(installer_args=["--apk", "{APK}"])
