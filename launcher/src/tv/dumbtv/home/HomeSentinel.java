@@ -176,12 +176,12 @@ public final class HomeSentinel extends Service {
         return getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE).getInt("recovery_failures", 0);
     }
 
-    private void storeFailures(int failures) {
+    private boolean storeFailures(int failures) {
         attempts = failures;
-        if (!getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE).edit()
-                .putInt("recovery_failures", failures).commit()) {
-            note("could not persist recovery failure count");
-        }
+        boolean saved = getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE).edit()
+                .putInt("recovery_failures", failures).commit();
+        if (!saved) note("could not persist recovery failure count");
+        return saved;
     }
 
     /** Opens Amazon's own home/settings screen without allowing HomeSentinel to reclaim it. */
@@ -506,7 +506,10 @@ public final class HomeSentinel extends Service {
             return;
         }
         attempts++;
-        storeFailures(attempts);
+        if (!storeFailures(attempts)) {
+            cancelRecovery("could not persist the recovery budget; leaving Amazon Home available");
+            return;
+        }
         note("recovery attempt " + attempts + "/" + MAX_ATTEMPTS);
         boolean moved = false;
         ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
