@@ -12,7 +12,7 @@ RELEASE = re.search(r"^VERSION=(\S+)", (ROOT / "launcher/version.env").read_text
 
 
 class VerifyTests(unittest.TestCase):
-    def run_verify(self, *, sdk="25", homesentinel=True, usage="allow", auto_start="allow",
+    def run_verify(self, *, sdk="25", homesentinel=True, takeover_gate="1", usage="allow", auto_start="allow",
                    read_logs=True, launcher="1", launcher_package=None, extra=None,
                    changed_settings=None, disabled="", installed="", data_saver="enabled",
                    screensaver="null", home="tv.dumbtv.home/.Home", alexa=1,
@@ -29,6 +29,7 @@ class VerifyTests(unittest.TestCase):
             "dumpsys activity services tv.dumbtv.home": {
                 "out": "ServiceRecord tv.dumbtv.home/.HomeSentinel isForeground=true" if homesentinel else ""
             },
+            "settings get global dumbtv_homesentinel_enabled": {"out": takeover_gate},
             "appops get tv.dumbtv.home GET_USAGE_STATS": {"out": f"GET_USAGE_STATS: {usage}"},
             "appops get tv.dumbtv.home AUTO_START": {"out": f"AUTO_START: {auto_start}"},
             "dumpsys package tv.dumbtv.home": {"out": package_dump},
@@ -78,6 +79,16 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("UsageStats AppOp allowed", result.stdout)
         self.assertIn("HomeSentinel AUTO_START allowed", result.stdout)
         self.assertIn("READ_LOGS granted", result.stdout)
+
+    def test_disabled_takeover_gate_fails_verification(self):
+        result, _ = self.run_verify(takeover_gate="0")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("automatic HOME takeover is disabled", result.stdout)
+
+    def test_missing_takeover_gate_fails_verification(self):
+        result, _ = self.run_verify(takeover_gate="null")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("automatic HOME takeover enabled", result.stdout)
 
     def test_missing_homesentinel_is_a_failure(self):
         result, _ = self.run_verify(homesentinel=False)
