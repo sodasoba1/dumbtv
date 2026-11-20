@@ -53,6 +53,52 @@ class LauncherInstallTest(unittest.TestCase):
                                     env=env, capture_output=True, text=True, timeout=60)
             return result, log.read_text().splitlines(), json.loads(state.read_text())
 
+    def run_undo(self, **overrides):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            launcher = tmp / "launcher"
+            scripts = tmp / "scripts"
+            bindir = tmp / "bin"
+            launcher.mkdir(); scripts.mkdir(); bindir.mkdir()
+            shutil.copy(ROOT / "launcher/install.sh", launcher / "install.sh")
+            shutil.copy(ROOT / "scripts/home.sh", scripts / "home.sh")
+            shutil.copy(ROOT / "scripts/lib.sh", scripts / "lib.sh")
+            (launcher / "version.env").write_text("VERSION=1.17\\n")
+            (bindir / "sleep").write_text("#!/bin/sh\\nexit 0\\n")
+            (bindir / "sleep").chmod(0o755)
+            state_data = {
+                "packages": {"tv.dumbtv.home": {"system": False, "enabled": True}},
+                "settings": {}, "sdk": 25, "homesentinel_running": True,
+                "appops": {"tv.dumbtv.home": {"GET_USAGE_STATS": "allow"}},
+                **overrides,
+            }
+            state = tmp / "state.json"; state.write_text(json.dumps(state_data))
+            log = tmp / "commands.log"; log.touch()
+            env = dict(os.environ, ADB=str(ROOT / "tests/fake_tv.py"), ADB_SERIAL="test-tv",
+                       FAKE_TV_STATE=str(state), FAKE_TV_LOG=str(log),
+                       PATH=str(bindir) + os.pathsep + os.environ["PATH"])
+            result = subprocess.run(["bash", str(launcher / "install.sh"), "--undo"],
+                                    env=env, capture_output=True, text=True, timeout=60)
+            return result, log.read_text().splitlines(), json.loads(state.read_text())
+
+    def test_undo_verifies_service_stop_and_amazon_home_foreground(self):
+        result, commands, state = self.run_undo()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(state["settings"]["global/dumbtv_homesentinel_enabled"], "0")
+        self.assertFalse(state["homesentinel_running"])
+        self.assertIn("com.amazon.tv.launcher", state["foreground_line"])
+        self.assertIn("HOME handed back and verified", result.stdout)
+
+    def test_undo_does_not_claim_success_when_force_stop_fails(self):
+        result, _, _ = self.run_undo(force_stop_refused=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("could not stop DumbTV", result.stderr)
+
+    def test_undo_does_not_claim_success_when_amazon_home_cannot_be_verified(self):
+        result, _, _ = self.run_undo(wrong_home_foreground=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("handoff not verified", result.stderr)
+
     def test_supplied_apk_install_also_grants_homesentinel_permissions(self):
         result, commands, state = self.install(installer_args=["--apk", "{APK}"])
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
