@@ -30,17 +30,47 @@ if [[ $DRY_RUN == 0 ]]; then
 fi
 
 mkdir -p "$REPORT"
+if [[ $DRY_RUN == 0 ]]; then
+  ensure_report_device
+fi
+
+# A missing key in a real snapshot means it was absent on this device; preserve
+# that absence. The sentinel is internal and never written to Android settings.
+ABSENT_SETTING="__DUMBTW_SETTING_WAS_ABSENT__"
 
 # Prefer the value this device actually had before the pass (snapshotted by
-# preflight.sh); fall back to the stock defaults in data/.
+# preflight.sh); use bundled defaults only for installations without a snapshot.
 restore_value() {
   local ns=$1 key=$2 fallback=$3 snapshot="$REPORT/settings-before-$1.txt" v
   if [[ -f $snapshot ]]; then
-    # The snapshot is raw adb output: a CR left on the value would be written back with it.
-    v=$(tr -d '\r' < "$snapshot" | grep -m1 "^$key=" | cut -d= -f2-)
-    [[ -n $v ]] && { printf '%s' "$v"; return; }
+    # Preserve empty values and distinguish them from keys absent in the baseline.
+    if grep -q "^$key=" "$snapshot"; then
+      v=$(tr -d '\r' < "$snapshot" | grep -m1 "^$key=" | cut -d= -f2-)
+      printf '%s' "$v"
+    else
+      printf '%s' "$ABSENT_SETTING"
+    fi
+    return 0
   fi
   printf '%s' "$fallback"
+}
+
+restore_setting() {
+  local ns=$1 key=$2 value=$3 actual expected
+  if [[ $value == "$ABSENT_SETTING" ]]; then
+    acmd settings delete "$ns" "$key" >/dev/null ||
+      die "could not delete original absent setting $ns/$key"
+    expected=null
+  else
+    acmd settings put "$ns" "$key" "$value" >/dev/null ||
+      die "could not restore setting $ns/$key"
+    expected=$value
+  fi
+  if [[ $DRY_RUN == 0 ]]; then
+    actual=$(dev1 settings get "$ns" "$key" | tr -d '\r')
+    [[ $actual == "$expected" ]] ||
+      die "setting $ns/$key did not restore (expected '$expected', got '$actual'); baseline retained"
+  fi
 }
 
 package_snapshot="$REPORT/packages-before.txt"
@@ -102,7 +132,7 @@ step "screensaver"
 if [[ $(dev1 settings get secure screensaver_components) == "$AOSP_DREAM" ]]; then
   want=$(restore_value secure screensaver_components "$(dev1 settings get secure screensaver_default_component)")
   if [[ -n $want && $want != null && $want != "$AOSP_DREAM" ]]; then
-    acmd settings put secure screensaver_components "$want" >/dev/null
+    restore_setting secure screensaver_components "$want"
     printf '  %-46s %s\n' screensaver_components "$want"
   fi
 else
@@ -142,8 +172,8 @@ step "settings"
 while read -r ns key value; do
   [[ -z ${ns:-} || $ns == \#* ]] && continue
   want=$(restore_value "$ns" "$key" "$value")
-  acmd settings put "$ns" "$key" "$want" >/dev/null
-  printf '  %-46s %s\n' "$key" "$want"
+  restore_setting "$ns" "$key" "$want"
+  printf '  %-46s %s\n' "$key" "${want/$ABSENT_SETTING/<absent>} "
 done < <(list_of "$(fos settings.restore.txt)" | sed 's/ = / /')
 
 # Retire only the old personalDNSfilter integration. Disable the app if present,
@@ -183,6 +213,29 @@ fi
 
 [[ $DRY_RUN == 1 ]] && { note "[dry-run] done"; exit 0; }
 reboot_wait
+
+# Re-check settings after the reboot: a successful reboot is not proof that
+# Android persisted the requested values. Keep every snapshot if any check fails.
+while read -r ns key value; do
+  [[ -z ${ns:-} || $ns == \\#* ]] && continue
+  want=$(restore_value "$ns" "$key" "$value")
+  if [[ $want == "$ABSENT_SETTING" ]]; then expected=null; else expected=$want; fi
+  actual=$(dev1 settings get "$ns" "$key" | tr -d '\\r')
+  [[ $actual == "$expected" ]] ||
+    die "post-reboot setting verification failed for $ns/$key (expected '$expected', got '$actual'); snapshots retained"
+done < <(list_of "$(fos settings.restore.txt)" | sed 's/ = / /')
+for ns in secure global; do
+  snapshot="$REPORT/settings-before-$ns.txt"
+  [[ -f $snapshot ]] || continue
+  while IFS= read -r line; do
+    [[ $line == *=* ]] || continue
+    key=${line%%=*}; expected=${line#*=}
+    actual=$(dev1 settings get "$ns" "$key" | tr -d '\\r')
+    [[ $actual == "$expected" ]] ||
+      die "post-reboot baseline verification failed for $ns/$key; snapshots retained"
+  done < "$snapshot"
+done
+
 # A completed restore ends this cleanup cycle. Remove only the original-state
 # snapshots so a later run records the device's new baseline instead of reusing
 # stale values from this one.
