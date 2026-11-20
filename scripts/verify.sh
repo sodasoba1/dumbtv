@@ -27,6 +27,12 @@ else
   else
     printf '%-10s %-38s %s\n' FAIL home "HomeSentinel not running; re-run launcher.sh"; fail=1
   fi
+  takeover=$(dev1 settings get global dumbtv_homesentinel_enabled | tr -d '\r')
+  if [[ $takeover == 1 ]]; then
+    printf '%-10s %-38s %s\n' ok takeover-gate "automatic HOME takeover enabled"
+  else
+    printf '%-10s %-38s %s\n' FAIL takeover-gate "expected 1, got ${takeover:-unknown}"; fail=1
+  fi
   usage_access=$(dev 'appops get tv.dumbtv.home GET_USAGE_STATS' | tr -d '\r')
   if grep -Eq 'GET_USAGE_STATS:[[:space:]]*allow([,[:space:]]|$)' <<<"$usage_access"; then
     printf '%-10s %-38s %s\n' ok usage-access "UsageStats AppOp allowed"
