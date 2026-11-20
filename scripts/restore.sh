@@ -135,7 +135,7 @@ done
 step "screensaver"
 if [[ $(dev1 settings get secure screensaver_components) == "$AOSP_DREAM" ]]; then
   want=$(restore_value secure screensaver_components "$(dev1 settings get secure screensaver_default_component)")
-  if [[ -n $want && $want != null && $want != "$AOSP_DREAM" ]]; then
+  if [[ $want != null && $want != "$AOSP_DREAM" ]]; then
     restore_setting secure screensaver_components "$want"
     printf '  %-46s %s\n' screensaver_components "$want"
   fi
@@ -261,6 +261,35 @@ while read -r ns key value; do
   [[ $actual == "$expected" ]] ||
     die "post-reboot setting verification failed for $ns/$key; snapshots retained"
 done < <(list_of "$(fos settings.restore.txt)" | sed 's/ = / /')
+
+# Verify package enablement and the captured per-package background policy again
+# after boot, before deleting the only recovery baseline.
+for p in $(restore_list); do
+  was_enabled_before "$p" || continue
+  present "$p" || continue
+  state=$(package_user_enabled_state "$p")
+  [[ $state == 0 || $state == 1 ]] ||
+    die "post-reboot package verification failed for $p (state ${state:-unknown}); snapshots retained"
+done
+if [[ -f $REPORT/lockdown-before.tsv ]]; then
+  while IFS='|' read -r p uid bg any was_blacklisted; do
+    [[ -z ${p:-} ]] && continue
+    actual_bg=$(dev1 appops get "$p" RUN_IN_BACKGROUND | sed -n 's/.*RUN_IN_BACKGROUND:[[:space:]]*\([^,[:space:]]*\).*/\1/p')
+    [[ $actual_bg == "$bg" ]] || die "post-reboot AppOps verification failed for $p; snapshots retained"
+    if [[ $SDK -ge 28 && $any != not-applicable ]]; then
+      actual_any=$(dev1 appops get "$p" RUN_ANY_IN_BACKGROUND | sed -n 's/.*RUN_ANY_IN_BACKGROUND:[[:space:]]*\([^,[:space:]]*\).*/\1/p')
+      [[ $actual_any == "$any" ]] || die "post-reboot RUN_ANY_IN_BACKGROUND verification failed for $p; snapshots retained"
+    fi
+    blacklist_now=$(dev 'cmd netpolicy list restrict-background-blacklist')
+    if [[ $was_blacklisted == 1 ]]; then
+      grep -Eq "(^|[^0-9])$uid([^0-9]|$)" <<<"$blacklist_now" ||
+        die "post-reboot pre-existing blacklist entry was lost for $p; snapshots retained"
+    else
+      ! grep -Eq "(^|[^0-9])$uid([^0-9]|$)" <<<"$blacklist_now" ||
+        die "post-reboot network blacklist removal failed for $p; snapshots retained"
+    fi
+  done < <(tr '\t' '|' < "$REPORT/lockdown-before.tsv")
+fi
 
 actual_data_saver=$(dev 'cmd netpolicy get restrict-background' | tr -d '\r')
 case $data_saver:$actual_data_saver in
