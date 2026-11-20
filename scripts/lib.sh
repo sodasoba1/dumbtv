@@ -373,14 +373,15 @@ snapshot_package_states() {
 # A report belongs to one physical Fire TV. Keep local snapshots separate by
 # ADB serial and verify ownership before any restore can use them.
 ensure_report_device() {
-  local manifest="$REPORT/device.txt" model build tmp
+  local manifest="$REPORT/device.txt" model build serial_hash tmp
   mkdir -p "$REPORT"
   model=$(dev1 getprop ro.product.model)
   build=$(dev1 getprop ro.build.display.id)
+  serial_hash=$(serial_fingerprint)
   if [[ -f $manifest ]]; then
-    grep -qxF "format=1" "$manifest" ||
-      die "unsupported report manifest format; refusing to use $manifest"
-    grep -qxF "serial=$SERIAL" "$manifest" ||
+    grep -qxF "format=2" "$manifest" ||
+      die "unsupported or legacy report manifest format; refusing to use $manifest"
+    grep -qxF "serial_sha256=$serial_hash" "$manifest" ||
       die "report belongs to a different ADB device; refusing cross-device restore ($manifest)"
     grep -qxF "model=$model" "$manifest" ||
       die "report device model does not match the connected TV; refusing restore"
@@ -393,8 +394,8 @@ ensure_report_device() {
   fi
   tmp="$manifest.tmp"
   {
-    printf 'format=1\n'
-    printf 'serial=%s\n' "$SERIAL"
+    printf 'format=2\n'
+    printf 'serial_sha256=%s\n' "$serial_hash"
     printf 'model=%s\n' "$model"
     printf 'build=%s\n' "$build"
   } > "$tmp" || die "could not write report device manifest"
