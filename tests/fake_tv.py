@@ -83,7 +83,12 @@ if words[:2] == ['content', 'insert'] and '--uri' in words:
         sys.exit(1)
 elif words[:1] == ['settings']:
     verb, rest = words[1], words[2:]
-    if verb == 'put' and len(rest) == 3:
+    if verb == 'list' and len(rest) == 1:
+        prefix = rest[0] + '/'
+        for key, value in sorted(settings.items()):
+            if key.startswith(prefix):
+                print(key[len(prefix):] + '=' + value)
+    elif verb == 'put' and len(rest) == 3:
         settings[f'{rest[0]}/{rest[1]}'] = '' if rest[2] == '""' else rest[2]
         save()
     elif verb == 'put':
@@ -228,7 +233,28 @@ elif words[:2] == ['dumpsys', 'window']:
 elif words[:2] == ['input', 'keyevent']:
     pass
 elif words[:2] == ['cmd', 'netpolicy']:
-    pass
+    action = words[2] if len(words) > 2 else ''
+    if action == 'get' and words[3:] == ['restrict-background']:
+        print(state.get('restrict_background', 'disabled'))
+    elif action == 'set' and words[3:5] == ['restrict-background', 'true']:
+        state['restrict_background'] = 'enabled'; save()
+    elif action == 'set' and words[3:5] == ['restrict-background', 'false']:
+        state['restrict_background'] = 'disabled'; save()
+    elif action == 'set' and words[3:5] == ['restrict-background', 'enabled']:
+        state['restrict_background'] = 'enabled'; save()
+    elif action == 'set' and words[3:5] == ['restrict-background', 'disabled']:
+        state['restrict_background'] = 'disabled'; save()
+    elif action == 'list' and words[3:] == ['restrict-background-blacklist']:
+        print(' '.join(str(uid) for uid in state.get('network_blacklist', [])))
+    elif action == 'add' and words[3:4] == ['restrict-background-blacklist']:
+        uid = int(words[4])
+        values = state.setdefault('network_blacklist', [])
+        if uid not in values: values.append(uid)
+        save()
+    elif action == 'remove' and words[3:4] == ['restrict-background-blacklist']:
+        uid = int(words[4])
+        state['network_blacklist'] = [value for value in state.get('network_blacklist', []) if value != uid]
+        save()
 elif words[:2] == ['cmd', 'package']:
     pass
 elif words[:2] == ['pm', 'grant'] and len(words) >= 4:
