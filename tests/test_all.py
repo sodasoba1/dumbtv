@@ -102,7 +102,7 @@ fi
         self.assertEqual(steps, [[name] for name in expected])
 
     def test_saved_launcher_opt_out_is_honoured(self):
-        steps = self.run_all(config="LAUNCHER=0\\n")
+        steps = self.run_all(config="LAUNCHER=0\n")
         self.assertEqual(steps, [[name] for name in STEPS if name != "launcher"] + [["verify"]])
         self.assertIn("LAUNCHER=0", self.last_stdout)
 
