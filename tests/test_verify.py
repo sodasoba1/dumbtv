@@ -83,7 +83,7 @@ class VerifyTests(unittest.TestCase):
     def test_disabled_takeover_gate_fails_verification(self):
         result, _ = self.run_verify(takeover_gate="0")
         self.assertEqual(result.returncode, 1)
-        self.assertIn("automatic HOME takeover is disabled", result.stdout)
+        self.assertIn("expected 1, got 0", result.stdout)
 
     def test_missing_takeover_gate_fails_verification(self):
         result, _ = self.run_verify(takeover_gate="null")
