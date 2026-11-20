@@ -57,6 +57,10 @@ if [[ $DRY_RUN == 0 ]]; then
 fi
 
 acmd cmd netpolicy set restrict-background true >/dev/null
+if [[ $DRY_RUN == 0 ]]; then
+  data_saver_now=$(dev 'cmd netpolicy get restrict-background' | tr -d '\r')
+  case $data_saver_now in *enabled*) ;; *) die "Data Saver did not enable (got: $data_saver_now)" ;; esac
+fi
 
 for p in $(list_of "$(fos protected.txt)"); do
   if keep_pkg "$p"; then
@@ -73,6 +77,22 @@ for p in $(list_of "$(fos protected.txt)"); do
   bg_off "$p"
   acmd am force-stop "$p" >/dev/null 2>&1
   acmd cmd netpolicy add restrict-background-blacklist "$uid" >/dev/null
+  if [[ $DRY_RUN == 0 ]]; then
+    op=RUN_IN_BACKGROUND
+    if [[ $SDK -ge 28 ]]; then
+      actual_any=$(dev1 appops get "$p" RUN_ANY_IN_BACKGROUND |
+        sed -n 's/.*RUN_ANY_IN_BACKGROUND:[[:space:]]*\\([^,[:space:]]*\\).*/\\1/p')
+      [[ $actual_any == ignore ]] ||
+        die "RUN_ANY_IN_BACKGROUND restriction did not verify for $p"
+      op=RUN_IN_BACKGROUND
+    fi
+    actual_bg=$(dev1 appops get "$p" "$op" |
+      sed -n "s/.*$op:[[:space:]]*\\([^,[:space:]]*\\).*/\\1/p")
+    [[ $actual_bg == ignore ]] || die "$op restriction did not verify for $p"
+    blacklist_now=$(dev 'cmd netpolicy list restrict-background-blacklist')
+    grep -Eq "(^|[^0-9])$uid([^0-9]|$)" <<<"$blacklist_now" ||
+      die "metered-data blacklist did not verify for $p (uid $uid)"
+  fi
   printf '  %-46s ops off, metered data blocked (uid %s)\n' "$p" "$uid"
 done
 
