@@ -1625,7 +1625,15 @@ public final class Home extends Activity {
         o.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(f.getPath(), o);
         o.inSampleSize = 1;
-        while (o.outWidth / (o.inSampleSize * 2) >= w && o.outHeight / (o.inSampleSize * 2) >= h) {
+        // Bound both total decoded pixels and the longest side. The old AND condition
+        // left very tall/narrow images at full resolution because one dimension was
+        // already below the display size.
+        int maxSide = Math.max(2048, Math.max(w, h) * 2);
+        while (o.outWidth > 0 && o.outHeight > 0) {
+            long width = Math.max(1, o.outWidth / o.inSampleSize);
+            long height = Math.max(1, o.outHeight / o.inSampleSize);
+            if (width * height <= 4_000_000L && Math.max(width, height) <= maxSide) break;
+            if (o.inSampleSize >= (1 << 20)) break;
             o.inSampleSize *= 2;
         }
         o.inJustDecodeBounds = false;
