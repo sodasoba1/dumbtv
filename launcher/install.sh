@@ -76,6 +76,8 @@ if [[ $mode == undo ]]; then
   undo_errors=""
   sh_ settings put global dumbtv_homesentinel_enabled 0 >/dev/null ||
     undo_errors="${undo_errors} could-not-disable-takeover"
+  takeover=$(sh_ settings get global dumbtv_homesentinel_enabled | tr -d '\r')
+  [[ $takeover == 0 ]] || undo_errors="${undo_errors} takeover-disable-not-verified"
   if installed "$PKG"; then
     sh_ am force-stop "$PKG" >/dev/null ||
       undo_errors="${undo_errors} could-not-force-stop-DumbTV"
