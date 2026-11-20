@@ -16,7 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 class RestoreTest(unittest.TestCase):
     def run_restore(self, ignores_reboot=False, settings=None, svc_refused=False,
                     package_snapshot=None, manufacturer='Amazon', protected_disabled=False,
-                    protected_state=3):
+                    protected_state=3, manifest_serial="test-tv:5555",
+                    secure_snapshot=None, state_overrides=None):
         packages = {
             "dnsfilter.android": {"system": False, "enabled": True},
             "com.amazon.hedwig": {"system": True, "enabled": False},
@@ -36,16 +37,19 @@ class RestoreTest(unittest.TestCase):
                                          "manufacturer": manufacturer,
                                          "ignores_reboot": ignores_reboot,
                                          "svc_refused": svc_refused, "sdk": 25,
-                                         "omit_disabled_package": "com.amazon.firebat" if protected_disabled else ""}))
+                                         "omit_disabled_package": "com.amazon.firebat" if protected_disabled else "",
+                                         **(state_overrides or {})}))
             log = tmp / "commands.log"
             log.touch()
             (tmp / "dumbtv.conf").write_text("")
             report = tmp / "report"
             report.mkdir()
             (report / "device.txt").write_text(
-                "format=1\nserial=test-tv:5555\nmodel=\nbuild=\n")
+                "format=1\nserial=" + manifest_serial + "\nmodel=\nbuild=\n")
             if package_snapshot is not None:
                 (report / "packages-before.txt").write_text(package_snapshot)
+            if secure_snapshot is not None:
+                (report / "settings-before-secure.txt").write_text(secure_snapshot)
             env = dict(os.environ, ADB=str(ROOT / "tests" / "fake_tv.py"), ADB_SERIAL="test-tv:5555",
                        FAKE_TV_STATE=str(state), FAKE_TV_LOG=str(log),
                        CONF=str(tmp / "dumbtv.conf"), REPORT=str(report), BOOT_SECONDS="0",
@@ -53,6 +57,7 @@ class RestoreTest(unittest.TestCase):
             result = subprocess.run(["bash", str(ROOT / "scripts" / "restore.sh"), "-y"],
                                     env=env, capture_output=True, text=True, timeout=120)
             self.package_snapshot_exists_after = (report / "packages-before.txt").exists()
+            self.secure_snapshot_exists_after = (report / "settings-before-secure.txt").exists()
             return result, log.read_text().splitlines(), json.loads(state.read_text())
 
     def test_every_change_reaches_the_tv_before_the_reboot(self):
@@ -94,6 +99,29 @@ class RestoreTest(unittest.TestCase):
         self.assertFalse(state["packages"]["com.amazon.firebat"]["enabled"])
         self.assertNotIn("pm enable --user 0 com.amazon.firebat", commands)
         self.assertIn("left disabled by Fire OS (state 2)", result.stdout)
+
+    def test_restore_refuses_a_report_from_another_device(self):
+        result, commands, _ = self.run_restore(manifest_serial="different-tv")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("different ADB device", result.stderr)
+        self.assertFalse(any(command.startswith("settings put") or command.startswith("pm enable")
+                             for command in commands))
+
+    def test_failed_settings_write_keeps_the_original_snapshot(self):
+        result, _, _ = self.run_restore(
+            secure_snapshot="amz_limit_ad_tracking=1\\n",
+            state_overrides={"settings_write_refused": True})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("could not restore setting secure/amz_limit_ad_tracking", result.stderr)
+        self.assertTrue(self.secure_snapshot_exists_after)
+
+    def test_successful_settings_command_without_a_value_change_is_rejected(self):
+        result, _, _ = self.run_restore(
+            secure_snapshot="amz_limit_ad_tracking=1\\n",
+            state_overrides={"settings_put_noop": True})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("did not restore", result.stderr)
+        self.assertTrue(self.secure_snapshot_exists_after)
 
     def test_restore_refuses_to_run_on_non_fire_os_devices(self):
         result, commands, _ = self.run_restore(manufacturer="Google")
