@@ -365,6 +365,8 @@ ensure_report_device() {
   model=$(dev1 getprop ro.product.model)
   build=$(dev1 getprop ro.build.display.id)
   if [[ -f $manifest ]]; then
+    grep -qxF "format=1" "$manifest" ||
+      die "unsupported report manifest format; refusing to use $manifest"
     grep -qxF "serial=$SERIAL" "$manifest" ||
       die "report belongs to a different ADB device; refusing cross-device restore ($manifest)"
     grep -qxF "model=$model" "$manifest" ||
