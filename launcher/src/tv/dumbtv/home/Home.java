@@ -53,6 +53,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -251,41 +253,79 @@ public final class Home extends Activity {
      */
     private void firstApps(Future<List<Item>> catalog, Future<Map<String, Long>> times) {
         artState = artState();
-        try {
-            apps.all = catalog.get();
-            if (times != null) recent = times.get();
-        } catch (ExecutionException e) {
-            loadApps(null);
-            return;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            loadApps(null);
-            return;
-        }
-        int fit = getResources().getDisplayMetrics().widthPixels / (cardSize()[0] + dp(18)) + 1;
-        String tileStyle = cfg.get(Config.TILE_STYLE);
-        boolean cornerIcon = "afterglow".equals(tileStyle);
-        List<Item> first = new ArrayList<>();
-        List<Runnable> jobs = new ArrayList<>();
-        // A chosen icon pack is read by parsing its whole appfilter; the first frame does not wait
-        // for that, and its tiles load their art as they are drawn, like every later tile.
-        if (!IconPack.OFF.equals(cfg.get(IconPack.KEY, IconPack.OFF))) return;
-        for (Item it : Catalog.visible(cfg, Catalog.APPS, apps.all, recentFor(Catalog.APPS))) {
-            if (fit-- <= 0) break;
-            first.add(it);
-            jobs.add(artJob(it, cornerIcon));
-        }
-        try {
-            io.submit(() -> {
-                for (Runnable job : jobs) job.run();
-            }).get();
-        } catch (ExecutionException e) {
-            return; // the tiles load their art as they are drawn
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return;
-        }
-        for (Item it : first) it.artRequested = true;
+        int generation = ++appsGeneration;
+        // PackageManager and UsageStats can be slow on Fire OS 6. Never wait for them
+        // on the Activity thread; the first render may use placeholders and fill in later.
+        io.execute(() -> {
+            List<Item> loaded;
+            Map<String, Long> loadedTimes = null;
+            try {
+                loaded = catalog.get(4, TimeUnit.SECONDS);
+            } catch (ExecutionException | TimeoutException e) {
+                HomeSentinel.note("initial app catalogue was not ready; loading asynchronously: " + e);
+                catalog.cancel(true);
+                ui.post(() -> {
+                    if (generation == appsGeneration && !isDestroyed()) loadApps(null);
+                });
+                return;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            if (times != null) {
+                try {
+                    loadedTimes = times.get(2, TimeUnit.SECONDS);
+                } catch (ExecutionException | TimeoutException e) {
+                    HomeSentinel.note("initial usage history was not ready; using saved app order: " + e);
+                    times.cancel(true);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+            final List<Item> result = loaded;
+            final Map<String, Long> usage = loadedTimes;
+            ui.post(() -> {
+                if (generation != appsGeneration || isDestroyed()) return;
+                apps.all = result;
+                if (usage != null) recent = usage;
+
+                int fit = getResources().getDisplayMetrics().widthPixels
+                        / (cardSize()[0] + dp(18)) + 1;
+                String tileStyle = cfg.get(Config.TILE_STYLE);
+                boolean cornerIcon = "afterglow".equals(tileStyle);
+                List<Item> first = new ArrayList<>();
+                List<Runnable> jobs = new ArrayList<>();
+                // A selected icon pack is parsed on demand; do not delay the first frame for it.
+                if (IconPack.OFF.equals(cfg.get(IconPack.KEY, IconPack.OFF))) {
+                    for (Item it : Catalog.visible(cfg, Catalog.APPS, apps.all,
+                            recentFor(Catalog.APPS))) {
+                        if (fit-- <= 0) break;
+                        first.add(it);
+                        it.artRequested = true;
+                        jobs.add(artJob(it, cornerIcon));
+                    }
+                }
+
+                render(apps);
+                render(allApps);
+                if (!jobs.isEmpty()) {
+                    io.execute(() -> {
+                        for (Runnable job : jobs) job.run();
+                        ui.post(() -> {
+                            if (generation != appsGeneration || isDestroyed()) return;
+                            for (Row row : new Row[] {apps, allApps}) {
+                                ViewGroup tiles = row.tiles();
+                                for (int i = 0; i < tiles.getChildCount(); i++) {
+                                    tiles.getChildAt(i).invalidate();
+                                }
+                            }
+                            if (focusedItem() != null) focusBackground(focusedItem());
+                        });
+                    });
+                }
+            });
+        });
     }
 
     /** What the tiles' art depends on besides the apps themselves. */
