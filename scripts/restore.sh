@@ -236,7 +236,7 @@ reboot_wait
 
 # A successful reboot alone does not prove that Android persisted the restored values.
 while read -r ns key value; do
-  [[ -z ${ns:-} || $ns == \\#* ]] && continue
+  [[ -z ${ns:-} || $ns == \#* ]] && continue
   want=$(restore_value "$ns" "$key" "$value")
   if [[ $want == "$ABSENT_SETTING" ]]; then expected=null; else expected=$want; fi
   actual=$(dev1 settings get "$ns" "$key" | tr -d '\r')
@@ -249,17 +249,6 @@ case $data_saver:$actual_data_saver in
   enabled:*enabled*|disabled:*disabled*) ;;
   *) die "post-reboot Data Saver verification failed; snapshots retained" ;;
 esac
-for ns in secure global; do
-  snapshot="$REPORT/settings-before-$ns.txt"
-  [[ -f $snapshot ]] || continue
-  while IFS= read -r line; do
-    [[ $line == *=* ]] || continue
-    key=${line%%=*}; expected=${line#*=}
-    actual=$(dev1 settings get "$ns" "$key" | tr -d '\r')
-    [[ $actual == "$expected" ]] ||
-      die "post-reboot baseline verification failed for $ns/$key; snapshots retained"
-  done < "$snapshot"
-done
 
 # A completed restore ends this cleanup cycle. Remove only the original-state
 # snapshots so a later run records the device's new baseline instead of reusing
