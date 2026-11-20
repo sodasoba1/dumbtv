@@ -29,8 +29,8 @@ class LauncherInstallTest(unittest.TestCase):
                 "#!/usr/bin/env bash\nmkdir -p build\nprintf apk > build/dumbtv-home.apk\n")
             (bindir / "sleep").write_text("#!/bin/sh\nexit 0\n")
             (launcher / "verify-certificate.sh").write_text(
-                "#!/usr/bin/env bash\\necho \"$1\" >> \"$FAKE_CERT_LOG\"\\n"
-                "if [[ ${FAKE_CERT_REJECTED:-0} == 1 ]]; then exit 1; fi\\nexit 0\\n")
+                "#!/usr/bin/env bash\necho \"$1\" >> \"$FAKE_CERT_LOG\"\n"
+                "if [[ ${FAKE_CERT_REJECTED:-0} == 1 ]]; then exit 1; fi\nexit 0\n")
             (launcher / "verify-certificate.sh").chmod(0o755)
             (launcher / "build.sh").chmod(0o755)
             (bindir / "sleep").chmod(0o755)
