@@ -71,7 +71,7 @@ class PreflightTest(unittest.TestCase):
             self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
             self.assertEqual((report / "settings-before-secure.txt").read_text(), before)
             self.assertIn("screen_timeout=300", before)
-            self.assertIn("com.netflix.ninja\\tenabled",
+            self.assertIn("com.netflix.ninja\tenabled",
                           (report / "packages-before.txt").read_text())
 
     def test_preflight_refuses_a_report_owned_by_another_adb_device(self):
