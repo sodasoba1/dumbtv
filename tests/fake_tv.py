@@ -89,8 +89,12 @@ elif words[:1] == ['settings']:
             if key.startswith(prefix):
                 print(key[len(prefix):] + '=' + value)
     elif verb == 'put' and len(rest) == 3:
-        settings[f'{rest[0]}/{rest[1]}'] = '' if rest[2] == '""' else rest[2]
-        save()
+        if state.get('settings_write_refused'):
+            print('Error: settings write refused')
+            sys.exit(1)
+        if not state.get('settings_put_noop'):
+            settings[f'{rest[0]}/{rest[1]}'] = '' if rest[2] == '""' else rest[2]
+            save()
     elif verb == 'put':
         state.setdefault('bad', []).append(command)
         save()
