@@ -108,9 +108,8 @@ LAUNCHER=$LAUNCHER
 YOUTUBE=$YOUTUBE
 EOF_CONF
 
-# Prove the file before anyone sources it.
-# shellcheck disable=SC1090
-source "$CONF"
+# Validate the values already held in memory. Config files are parsed as data,
+# never sourced as shell code by the installer.
 for v in ALEXA LAUNCHER YOUTUBE; do
   case ${!v} in 0|1) ;; *) die "$v must be 0 or 1 in $CONF" ;; esac
 done
