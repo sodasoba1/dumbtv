@@ -103,6 +103,8 @@ class PreflightTest(unittest.TestCase):
             }))
             report = tmp / "report"
             report.mkdir()
+            (report / "device.txt").write_text(
+                "format=1\nserial=test-tv:5555\nmodel=AFTMM\nbuild=\n")
             (report / "settings-before-secure.txt").write_text("screen_timeout=300\n")
             result, _ = self.run_preflight(state, report)
             self.assertNotEqual(result.returncode, 0)
