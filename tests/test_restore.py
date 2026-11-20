@@ -19,7 +19,7 @@ class RestoreTest(unittest.TestCase):
                     package_snapshot=None, manufacturer='Amazon', protected_disabled=False,
                     protected_state=3, manifest_serial="test-tv:5555",
                     secure_snapshot=None, state_overrides=None, lockdown_snapshot=None,
-                    data_saver_snapshot=None, completed_restore=False):
+                    data_saver_snapshot=None, global_snapshot=None, completed_restore=False):
         packages = {
             "dnsfilter.android": {"system": False, "enabled": True},
             "com.amazon.hedwig": {"system": True, "enabled": False},
@@ -57,6 +57,8 @@ class RestoreTest(unittest.TestCase):
                 (report / "restore-complete.txt").write_text("format=1\n")
             if secure_snapshot is not None:
                 (report / "settings-before-secure.txt").write_text(secure_snapshot)
+            if global_snapshot is not None:
+                (report / "settings-before-global.txt").write_text(global_snapshot)
             if lockdown_snapshot is not None:
                 (report / "lockdown-before.tsv").write_text(lockdown_snapshot)
             if data_saver_snapshot is not None:
@@ -125,10 +127,34 @@ class RestoreTest(unittest.TestCase):
         self.assertIn("left disabled by Fire OS (state 2)", result.stdout)
 
     def test_restore_refuses_new_report_without_package_baseline(self):
-        result, commands, _ = self.run_restore(secure_snapshot="screen_timeout=300\n")
+        result, commands, _ = self.run_restore(
+            secure_snapshot="screen_timeout=300\n",
+            global_snapshot="animator_duration_scale=1.0\n")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("original package baseline is missing", result.stderr)
         self.assertFalse(any(command.startswith("pm enable") for command in commands))
+
+    def test_restore_refuses_an_empty_package_baseline(self):
+        result, commands, _ = self.run_restore(package_snapshot="")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("invalid or empty original package baseline", result.stderr)
+        self.assertFalse(any(command.startswith("pm enable") for command in commands))
+
+    def test_restore_refuses_a_partial_settings_snapshot(self):
+        result, commands, _ = self.run_restore(
+            package_snapshot="com.amazon.hedwig\tdisabled\n",
+            secure_snapshot="screen_timeout=300\n")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("both original settings files", result.stderr)
+        self.assertFalse(any(command.startswith("settings put") for command in commands))
+
+    def test_restore_refuses_a_partial_lockdown_snapshot(self):
+        result, commands, _ = self.run_restore(
+            package_snapshot="com.amazon.hedwig\tdisabled\n",
+            lockdown_snapshot="com.amazon.firebat\t10050\tignore\tnot-applicable\t0\n")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("original AppOps and Data Saver state must both be present", result.stderr)
+        self.assertFalse(any(command.startswith("appops set") for command in commands))
 
     def test_restore_refuses_a_report_from_another_device(self):
         result, commands, _ = self.run_restore(manifest_serial="different-tv")
@@ -141,6 +167,7 @@ class RestoreTest(unittest.TestCase):
         result, _, _ = self.run_restore(
             package_snapshot="com.amazon.hedwig\tdisabled\n",
             secure_snapshot="amz_limit_ad_tracking=1\n",
+            global_snapshot="animator_duration_scale=1.0\n",
             state_overrides={"settings_write_refused_key": "secure/amz_limit_ad_tracking"})
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("could not restore setting secure/amz_limit_ad_tracking", result.stderr)
@@ -150,6 +177,7 @@ class RestoreTest(unittest.TestCase):
         result, _, _ = self.run_restore(
             package_snapshot="com.amazon.hedwig\tdisabled\n",
             secure_snapshot="amz_limit_ad_tracking=1\n",
+            global_snapshot="animator_duration_scale=1.0\n",
             state_overrides={"settings_put_noop_key": "secure/amz_limit_ad_tracking"})
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("did not restore", result.stderr)

@@ -44,6 +44,32 @@ if [[ ! -f $REPORT/packages-before.txt
   die "incomplete recovery snapshot: original package baseline is missing; refusing to assume packages were enabled"
 fi
 
+# Validate the complete recovery baseline before issuing any package or settings changes.
+secure_snapshot="$REPORT/settings-before-secure.txt"
+global_snapshot="$REPORT/settings-before-global.txt"
+if [[ -e $secure_snapshot || -e $global_snapshot ]]; then
+  [[ -s $secure_snapshot && -s $global_snapshot ]] ||
+    die "incomplete settings snapshot; both original settings files must be present and non-empty"
+fi
+lockdown_snapshot="$REPORT/lockdown-before.tsv"
+data_saver_snapshot="$REPORT/data-saver-before.txt"
+if [[ -e $lockdown_snapshot || -e $data_saver_snapshot ]]; then
+  [[ -e $lockdown_snapshot && -s $data_saver_snapshot ]] ||
+    die "incomplete lockdown snapshot; original AppOps and Data Saver state must both be present"
+  data_saver_check=$(tr -d '\r\n' < "$data_saver_snapshot")
+  [[ $data_saver_check == enabled || $data_saver_check == disabled ]] ||
+    die "invalid saved Data Saver state: ${data_saver_check:-empty}"
+fi
+if [[ -f $REPORT/packages-before.txt ]]; then
+  awk -F '\t' '
+    NF == 0 { next }
+    NF != 2 || $1 !~ /^[A-Za-z0-9_.]+$/ || $2 !~ /^(enabled|disabled)$/ { bad=1; next }
+    { valid++ }
+    END { exit bad || valid == 0 }
+  ' "$REPORT/packages-before.txt" ||
+    die "invalid or empty original package baseline; refusing to restore package state"
+fi
+
 ABSENT_SETTING="__DUMBTW_SETTING_WAS_ABSENT__"
 
 # Prefer the value this device actually had before the pass (snapshotted by
