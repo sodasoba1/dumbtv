@@ -93,10 +93,10 @@ fi
 [[ -n $AAPT2 ]] || { echo "error: aapt2 not found; install Android SDK build-tools 34.0.0" >&2; exit 1; }
 badging=$("$AAPT2" dump badging "$APK" 2>&1) || {
   echo "error: could not inspect APK package identity" >&2
-  printf '%s\\n' "$badging" >&2
+  printf '%s\n' "$badging" >&2
   exit 1
 }
-package=$(printf '%s\\n' "$badging" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" | head -1)
+package=$(printf '%s\n' "$badging" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -1)
 [[ $package == tv.dumbtv.home ]] || {
   echo "error: APK package is '$package', expected tv.dumbtv.home; not installing" >&2
   exit 1
