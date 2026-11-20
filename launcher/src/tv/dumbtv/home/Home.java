@@ -1397,11 +1397,11 @@ public final class Home extends Activity {
         io.execute(() -> {
             job.run();
             ui.post(() -> {
-                for (Row row : new Row[] {apps, allApps}) {
-                    ViewGroup tiles = row.tiles();
-                    for (int i = 0; i < tiles.getChildCount(); i++) tiles.getChildAt(i).invalidate();
+                View focused = getCurrentFocus();
+                if (focused instanceof Tile && ((Tile) focused).item == it) {
+                    focused.invalidate();
+                    focusBackground(it);
                 }
-                if (focusedItem() == it) focusBackground(it);
             });
         });
     }
