@@ -154,8 +154,12 @@ public final class HomeSentinel extends Service {
         setPersistedPauseState(this, state);
     }
 
+    static boolean takeoverEnabled(Context context) {
+        return Settings.Global.getInt(context.getContentResolver(), TAKEOVER_SETTING, 1) == 1;
+    }
+
     private boolean takeoverEnabled() {
-        return Settings.Global.getInt(getContentResolver(), TAKEOVER_SETTING, 1) == 1;
+        return takeoverEnabled(this);
     }
 
     private boolean displayInteractive() {
