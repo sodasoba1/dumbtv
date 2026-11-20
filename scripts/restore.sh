@@ -101,9 +101,6 @@ for p in $(restore_list); do
     [[ $state == 0 || $state == 1 ]] ||
       die "package $p did not return to an enabled state (state ${state:-unknown})"
   fi
-  bg_on "$p"
-  uid=$(uid_of "$p")
-  [[ -n $uid ]] && acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null 2>&1
   printf '  %-46s %s / %s\n' "$p" "${a:-no output}" "${b:-no output}"
 done
 
