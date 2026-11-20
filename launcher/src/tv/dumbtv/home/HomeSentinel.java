@@ -14,6 +14,8 @@ import android.content.IntentFilter;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.os.PowerManager;
+import android.provider.Settings;
 import java.io.BufferedReader;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
@@ -34,6 +36,9 @@ public final class HomeSentinel extends Service {
     private static final long VERIFY_MS = 800;
     private static final long RETRY_MS = 650;
     private static final int MAX_ATTEMPTS = 3;
+    private static final long STABLE_HOME_MS = 30_000;
+    private static final String STATE_PREFS = "homesentinel_state";
+    private static final String TAKEOVER_SETTING = "dumbtv_homesentinel_enabled";
     private static final long LOGCAT_RESTART_MIN_MS = 5_000;
     private static final long LOGCAT_RESTART_MAX_MS = 60_000;
     // A quiet ActivityManager stream is normal; this only detects a reader thread that died.
@@ -68,6 +73,7 @@ public final class HomeSentinel extends Service {
     };
 
     private final Runnable verify = this::verifyRecovery;
+    private final Runnable stableHome = this::verifyStableHome;
 
     /** Restarts only a dead reader thread; an idle logcat stream is not considered unhealthy. */
     private final Runnable logcatWatchdog = new Runnable() {
@@ -111,7 +117,7 @@ public final class HomeSentinel extends Service {
             // Do not require a successful screen-off snapshot. A missed/stale snapshot must
             // not permanently suppress wake recovery after a long suspend.
             updateTop(Math.max(0, (screenOffTime == 0 ? now : screenOffTime) - 10_000), now);
-            pauseState = HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass);
+            updatePauseState(HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass));
             if (isAmazonHome() && HomeSentinelPause.shouldRecover(pauseState)) {
                 note("screen on; restoring last foreground Amazon Home");
                 beginRecovery();
@@ -122,19 +128,55 @@ public final class HomeSentinel extends Service {
         }
     }
 
-    static void pause() {
-        pauseState = HomeSentinelPause.State.AMAZON_SETTINGS;
+    static void pause(Context context) {
+        setPersistedPauseState(context, HomeSentinelPause.State.AMAZON_SETTINGS);
+    }
+
+    private static void setPersistedPauseState(Context context, HomeSentinelPause.State state) {
+        pauseState = state;
+        context.getSharedPreferences(STATE_PREFS, MODE_PRIVATE).edit()
+                .putString("pause_state", state.name()).apply();
+    }
+
+    private void updatePauseState(HomeSentinelPause.State state) {
+        if (state == null) state = HomeSentinelPause.State.ACTIVE;
+        if (pauseState == state) return;
+        setPersistedPauseState(this, state);
+    }
+
+    private boolean takeoverEnabled() {
+        return Settings.Global.getInt(getContentResolver(), TAKEOVER_SETTING, 1) == 1;
+    }
+
+    private boolean displayInteractive() {
+        PowerManager power = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        return power != null && power.isInteractive();
+    }
+
+    private boolean recoveryEligible() {
+        return takeoverEnabled() && displayInteractive()
+                && HomeSentinelPause.shouldRecover(pauseState) && isAmazonHome();
+    }
+
+    private int storedFailures() {
+        return getSharedPreferences(STATE_PREFS, MODE_PRIVATE).getInt("recovery_failures", 0);
+    }
+
+    private void storeFailures(int failures) {
+        attempts = failures;
+        getSharedPreferences(STATE_PREFS, MODE_PRIVATE).edit()
+                .putInt("recovery_failures", failures).apply();
     }
 
     /** Opens Amazon's own home/settings screen without allowing HomeSentinel to reclaim it. */
     static void openAmazonHome(Context c) {
-        pauseState = HomeSentinelPause.State.AMAZON_HOME_HOLD;
+        setPersistedPauseState(c, HomeSentinelPause.State.AMAZON_HOME_HOLD);
         Intent intent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
                 .setPackage(AMAZON_PKG).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             c.startActivity(intent);
         } catch (android.content.ActivityNotFoundException e) {
-            pauseState = HomeSentinelPause.State.ACTIVE;
+            setPersistedPauseState(c, HomeSentinelPause.State.ACTIVE);
             note("Amazon Home could not be opened: " + e);
         }
     }
@@ -148,6 +190,14 @@ public final class HomeSentinel extends Service {
     public void onCreate() {
         super.onCreate();
         usage = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
+        String savedPause = getSharedPreferences(STATE_PREFS, MODE_PRIVATE)
+                .getString("pause_state", HomeSentinelPause.State.ACTIVE.name());
+        try {
+            pauseState = HomeSentinelPause.State.valueOf(savedPause);
+        } catch (IllegalArgumentException ignored) {
+            pauseState = HomeSentinelPause.State.ACTIVE;
+        }
+        attempts = storedFailures();
         startForeground(1, new Notification.Builder(this)
                 .setSmallIcon(android.R.drawable.ic_menu_recent_history)
                 .setContentTitle("dumbtv")
@@ -179,6 +229,7 @@ public final class HomeSentinel extends Service {
             worker.removeCallbacks(poll);
             worker.removeCallbacks(verify);
             worker.removeCallbacks(logcatWatchdog);
+            worker.removeCallbacks(stableHome);
         }
         try {
             unregisterReceiver(screen);
@@ -323,10 +374,17 @@ public final class HomeSentinel extends Service {
     }
 
     private void firstStart() {
-        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-        if (manager == null || !manager.getAppTasks().isEmpty()) return;
-        note("first start: no DumbTV task");
-        raiseHome();
+        // Service restarts are not permission to steal foreground. Only recover after a
+        // positively observed Amazon Home event while the display is awake and takeover
+        // remains enabled. Unknown foreground state means wait.
+        updateTop(System.currentTimeMillis() - 10_000, System.currentTimeMillis());
+        if (recoveryEligible()) {
+            note("service start: verified Amazon Home foreground; recovery eligible");
+            beginRecovery();
+        } else {
+            note("service start: no eligible Amazon Home takeover; foreground="
+                    + lastTop + "/" + lastTopClass);
+        }
     }
 
     private void check() {
@@ -339,12 +397,19 @@ public final class HomeSentinel extends Service {
         boolean changed = updateTop(from, now);
         if (!changed) return;
         if (isAmazonHome()) {
-            pauseState = HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass);
-            if (HomeSentinelPause.shouldRecover(pauseState)) beginRecovery();
-            else cancelRecovery("Amazon Home is intentionally held");
+            updatePauseState(HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass));
+            if (recoveryEligible()) beginRecovery();
+            else cancelRecovery("Amazon Home takeover is paused or disabled");
             return;
         }
         pauseState = HomeSentinelPause.afterForeground(pauseState, lastTop, lastTopClass);
+        if (DUMBTV_PKG.equals(lastTop)) {
+            worker.removeCallbacks(stableHome);
+            worker.postDelayed(stableHome, STABLE_HOME_MS);
+            cancelRecovery("DumbTV foreground");
+            return;
+        }
+        worker.removeCallbacks(stableHome);
         if (lastTop == null || SYSTEM_UI.equals(lastTop) || "android".equals(lastTop)) {
             cancelRecovery("system UI foreground");
             return;
@@ -398,16 +463,20 @@ public final class HomeSentinel extends Service {
     }
 
     private void beginRecovery() {
-        if (!HomeSentinelPause.shouldRecover(pauseState) || !isAmazonHome() || recovering) return;
+        if (!recoveryEligible() || recovering) return;
+        attempts = storedFailures();
+        if (attempts >= MAX_ATTEMPTS) {
+            note("automatic takeover circuit open after " + attempts + " failed attempts; leaving Amazon Home available");
+            return;
+        }
         recovering = true;
-        attempts = 0;
         worker.removeCallbacks(verify);
-        note("recovery started");
+        note("recovery started with " + attempts + " prior failed attempts");
         attemptRecovery();
     }
 
     private void attemptRecovery() {
-        if (!recovering || !HomeSentinelPause.shouldRecover(pauseState) || !isAmazonHome()) {
+        if (!recovering || !recoveryEligible()) {
             cancelRecovery("recovery no longer eligible");
             return;
         }
@@ -416,6 +485,7 @@ public final class HomeSentinel extends Service {
             return;
         }
         attempts++;
+        storeFailures(attempts);
         note("recovery attempt " + attempts + "/" + MAX_ATTEMPTS);
         boolean moved = false;
         ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
@@ -447,11 +517,14 @@ public final class HomeSentinel extends Service {
     private void verifyRecovery() {
         updateTop(System.currentTimeMillis() - 10_000, System.currentTimeMillis());
         if (DUMBTV_PKG.equals(lastTop)) {
-            note("recovery verified: DumbTV foreground");
-            cancelRecovery("verified");
+            note("recovery verified: DumbTV foreground; waiting for a stable Home session");
+            worker.removeCallbacks(stableHome);
+            worker.postDelayed(stableHome, STABLE_HOME_MS);
+            recovering = false;
+            worker.removeCallbacks(verify);
             return;
         }
-        if (!isAmazonHome() || !HomeSentinelPause.shouldRecover(pauseState)) {
+        if (!recoveryEligible()) {
             cancelRecovery("recovery stopped; foreground=" + lastTop + "/" + lastTopClass);
             return;
         }
@@ -465,8 +538,18 @@ public final class HomeSentinel extends Service {
     private void cancelRecovery(String reason) {
         if (recovering) note("recovery stopped: " + reason);
         recovering = false;
-        attempts = 0;
         if (worker != null) worker.removeCallbacks(verify);
+    }
+
+    private void verifyStableHome() {
+        long now = System.currentTimeMillis();
+        updateTop(Math.max(0, now - STABLE_HOME_MS - 5_000), now);
+        if (displayInteractive() && DUMBTV_PKG.equals(lastTop)) {
+            note("DumbTV remained foreground for " + STABLE_HOME_MS + "ms; clearing recovery circuit");
+            storeFailures(0);
+        } else {
+            note("DumbTV Home was not stable; retaining recovery failure count");
+        }
     }
 
     private void raiseHome() {
