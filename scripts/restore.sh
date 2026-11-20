@@ -188,6 +188,9 @@ else
   done
 fi
 
+if [[ -f $REPORT/lockdown-before.tsv && ! -f $REPORT/data-saver-before.txt ]]; then
+  die "incomplete lockdown snapshot: original Data Saver state is missing; refusing to guess"
+fi
 data_saver=disabled
 if [[ -f $REPORT/data-saver-before.txt ]]; then
   data_saver=$(tr -d '\r\n' < "$REPORT/data-saver-before.txt")
