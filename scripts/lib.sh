@@ -12,6 +12,7 @@ ASSUME_YES=${ASSUME_YES:-0}
 NO_REBOOT=${NO_REBOOT:-0}
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 DATA="$ROOT/data"
+REPORT_EXPLICIT=${REPORT+x}
 REPORT=${REPORT:-$ROOT/report}
 BOOT_SECONDS=${BOOT_SECONDS:-45}
 CONF=${CONF:-$ROOT/dumbtv.conf}
@@ -120,6 +121,11 @@ need_device() {
   dev getprop ro.build.version.sdk >/dev/null || die "device $SERIAL is not responding"
   SDK=$(dev1 getprop ro.build.version.sdk | tr -d '\r')
   case $SDK in ''|*[!0-9]*) SDK=0 ;; esac
+  if [[ ${REPORT_EXPLICIT:-} != x ]]; then
+    local report_serial
+    report_serial=$(printf '%s' "$SERIAL" | sed 's/[^A-Za-z0-9._-]/_/g')
+    REPORT="$ROOT/report/$report_serial"
+  fi
   grep -q install-existing <<<"$(dev 'cmd package help')" && REINSTALL=1 || REINSTALL=0
 }
 
@@ -313,6 +319,35 @@ snapshot_package_states() {
     fi
   done <<< "$installed"
   mv "$tmp" "$file"
+}
+
+# A report belongs to one physical Fire TV. Keep local snapshots separate by
+# ADB serial and verify ownership before any restore can use them.
+ensure_report_device() {
+  local manifest="$REPORT/device.txt" model build tmp
+  mkdir -p "$REPORT"
+  model=$(dev1 getprop ro.product.model)
+  build=$(dev1 getprop ro.build.display.id)
+  if [[ -f $manifest ]]; then
+    grep -qxF "serial=$SERIAL" "$manifest" ||
+      die "report belongs to a different ADB device; refusing cross-device restore ($manifest)"
+    grep -qxF "model=$model" "$manifest" ||
+      die "report device model does not match the connected TV; refusing restore"
+    return 0
+  fi
+  if [[ -f $REPORT/packages-before.txt || -f $REPORT/settings-before-secure.txt || -f $REPORT/settings-before-global.txt ]]; then
+    [[ ${DUMBTW_ALLOW_LEGACY_REPORT:-0} == 1 ]] ||
+      die "legacy report has no device identity manifest; verify the TV, then explicitly retry with DUMBTW_ALLOW_LEGACY_REPORT=1"
+    note "WARNING: accepting a legacy report without verified device ownership"
+  fi
+  tmp="$manifest.tmp"
+  {
+    printf 'format=1\n'
+    printf 'serial=%s\n' "$SERIAL"
+    printf 'model=%s\n' "$model"
+    printf 'build=%s\n' "$build"
+  } > "$tmp" || die "could not write report device manifest"
+  mv "$tmp" "$manifest" || die "could not publish report device manifest"
 }
 
 list_of() { sed 's/#.*//; s/[[:space:]]*$//' "$1" | awk 'NF'; }
