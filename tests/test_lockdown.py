@@ -40,8 +40,10 @@ class LockdownTest(unittest.TestCase):
                 "com.amazon.device.metrics\t10050\tforeground\tnot-applicable\t0\n")
             conf = tmp / "dumbtv.conf"
             conf.write_text("")
+            log = tmp / "commands.log"
+            log.touch()
             env = dict(os.environ, ADB=str(ROOT / "tests/fake_tv.py"),
-                       ADB_SERIAL="test-tv:5555", FAKE_TV_STATE=str(state),
+                       ADB_SERIAL="test-tv:5555", FAKE_TV_STATE=str(state), FAKE_TV_LOG=str(log),
                        REPORT=str(report), CONF=str(conf))
             result = subprocess.run(
                 ["bash", str(ROOT / "scripts/lockdown.sh"), "-y"],
@@ -82,8 +84,10 @@ class LockdownTest(unittest.TestCase):
             (report / "data-saver-before.txt").write_text("disabled\n")
             conf = tmp / "dumbtv.conf"
             conf.write_text("")
+            log = tmp / "commands.log"
+            log.touch()
             env = dict(os.environ, ADB=str(ROOT / "tests/fake_tv.py"),
-                       ADB_SERIAL="test-tv:5555", FAKE_TV_STATE=str(state),
+                       ADB_SERIAL="test-tv:5555", FAKE_TV_STATE=str(state), FAKE_TV_LOG=str(log),
                        REPORT=str(report), CONF=str(conf))
             result = subprocess.run(
                 ["bash", str(ROOT / "scripts/lockdown.sh"), "-y"],

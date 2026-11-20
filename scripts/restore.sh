@@ -219,9 +219,9 @@ if [[ -f $REPORT/lockdown-before.tsv ]]; then
     fi
     printf '  %-46s AppOps restored; original blacklist=%s\n' "$p" "$was_blacklisted"
   done < <(tr '\t' '|' < "$REPORT/lockdown-before.tsv")
-else
-  # v1.17 did not retain the original modes. Limit the compatibility fallback
-  # to the protected package list; never replay the broad debloat report.
+elif [[ ${DUMBTW_ALLOW_LEGACY_REPORT:-0} == 1 ]]; then
+  # v1.17 did not retain the original modes. Only an explicitly accepted
+  # legacy report may use the historical protected-package reset.
   note "legacy installation has no AppOps baseline; restoring protected packages to allow"
   for p in $(list_of "$(fos protected.txt)"); do
     present "$p" || continue
@@ -229,30 +229,37 @@ else
     uid=$(uid_of "$p")
     [[ -n $uid ]] && acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null
   done
+else
+  note "no lockdown snapshot; leaving existing AppOps and network policy unchanged"
 fi
 
 if [[ -f $REPORT/lockdown-before.tsv && ! -f $REPORT/data-saver-before.txt ]]; then
   die "incomplete lockdown snapshot: original Data Saver state is missing; refusing to guess"
 fi
-data_saver=disabled
+data_saver=unchanged
 if [[ -f $REPORT/data-saver-before.txt ]]; then
   data_saver=$(tr -d '\r\n' < "$REPORT/data-saver-before.txt")
-else
+elif [[ ${DUMBTW_ALLOW_LEGACY_REPORT:-0} == 1 ]]; then
   note "legacy report has no original Data Saver snapshot; using the v1.17 restore default (disabled)"
+  data_saver=disabled
+else
+  note "no lockdown snapshot; leaving Data Saver unchanged"
 fi
-case $data_saver in
-  enabled) data_saver_arg=true ;;
-  disabled) data_saver_arg=false ;;
-  *) die "invalid saved Data Saver state: $data_saver" ;;
-esac
-acmd cmd netpolicy set restrict-background "$data_saver_arg" >/dev/null ||
-  die "could not restore original Data Saver state"
-if [[ $DRY_RUN == 0 ]]; then
-  actual_data_saver=$(dev 'cmd netpolicy get restrict-background' | tr -d '\r')
-  case $data_saver:$actual_data_saver in
-    enabled:*enabled*|disabled:*disabled*) ;;
-    *) die "Data Saver restore did not verify (expected $data_saver, got $actual_data_saver)" ;;
+if [[ $data_saver != unchanged ]]; then
+  case $data_saver in
+    enabled) data_saver_arg=true ;;
+    disabled) data_saver_arg=false ;;
+    *) die "invalid saved Data Saver state: $data_saver" ;;
   esac
+  acmd cmd netpolicy set restrict-background "$data_saver_arg" >/dev/null ||
+    die "could not restore original Data Saver state"
+  if [[ $DRY_RUN == 0 ]]; then
+    actual_data_saver=$(dev 'cmd netpolicy get restrict-background' | tr -d '\r')
+    case $data_saver:$actual_data_saver in
+      enabled:*enabled*|disabled:*disabled*) ;;
+      *) die "Data Saver restore did not verify (expected $data_saver, got $actual_data_saver)" ;;
+    esac
+  fi
 fi
 
 step "on-device hooks"
@@ -357,11 +364,13 @@ if [[ -f $REPORT/lockdown-before.tsv ]]; then
   done < <(tr '\t' '|' < "$REPORT/lockdown-before.tsv")
 fi
 
-actual_data_saver=$(dev 'cmd netpolicy get restrict-background' | tr -d '\r')
-case $data_saver:$actual_data_saver in
-  enabled:*enabled*|disabled:*disabled*) ;;
-  *) die "post-reboot Data Saver verification failed; snapshots retained" ;;
-esac
+if [[ $data_saver != unchanged ]]; then
+  actual_data_saver=$(dev 'cmd netpolicy get restrict-background' | tr -d '\r')
+  case $data_saver:$actual_data_saver in
+    enabled:*enabled*|disabled:*disabled*) ;;
+    *) die "post-reboot Data Saver verification failed; snapshots retained" ;;
+  esac
+fi
 
 # Mark completion before deleting the baseline. A second restore must not
 # assume that every package was originally enabled after this snapshot is gone.
