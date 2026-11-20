@@ -21,7 +21,7 @@ if [[ ! -f $CONF ]]; then
 fi
 
 # configure.sh runs in a child process, so read its saved opt-in here too.
-# Parse only the YOUTUBE scalar; never source the household config as shell code.
+# Parse the two values needed by this parent process; never source config as shell code.
 YOUTUBE=0
 LAUNCHER=1
 if [[ -f $CONF ]]; then
@@ -47,7 +47,9 @@ run "$DIR/lockdown.sh"  || exit 1
 # and launcher/install.sh invocations still reject unsupported SDKs.
 source "$DIR/lib.sh"
 need_device
-if [[ $SDK == 25 || ${LAUNCHER:-1} == 0 ]]; then
+if [[ ${LAUNCHER:-1} == 0 ]]; then
+  printf 'skip launcher: LAUNCHER=0 in dumbtv.conf\n'
+elif [[ $SDK == 25 ]]; then
   run "$DIR/launcher.sh" || exit 1
 else
   printf 'skip launcher: HomeSentinel supports API 25 only (device reports API %s)\n' "$SDK"
