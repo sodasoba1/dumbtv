@@ -13,6 +13,7 @@ import android.media.tv.TvContract;
 import android.media.tv.TvInputInfo;
 import android.media.tv.TvInputManager;
 import android.text.TextUtils;
+import android.util.Log;
 
 import java.text.Collator;
 import java.util.ArrayList;
@@ -46,15 +47,32 @@ final class Catalog {
     private static void collect(PackageManager pm, Map<String, Item> found, String category,
             boolean leanback, String self) {
         Intent query = new Intent(Intent.ACTION_MAIN).addCategory(category);
-        for (ResolveInfo ri : pm.queryIntentActivities(query, 0)) {
+        List<ResolveInfo> matches;
+        try {
+            matches = pm.queryIntentActivities(query, 0);
+        } catch (RuntimeException e) {
+            Log.w("DumbTV-Catalog", "could not query " + category + " applications: " + e);
+            return;
+        }
+        if (matches == null) return;
+        for (ResolveInfo ri : matches) {
+            if (ri == null || ri.activityInfo == null) continue;
             ActivityInfo ai = ri.activityInfo;
-            if (ai.packageName.equals(self) || found.containsKey(ai.packageName)) continue;
-            Intent launch = new Intent(Intent.ACTION_MAIN).addCategory(category)
-                    .setClassName(ai.packageName, ai.name);
-            Item it = new Item(ai.packageName, ri.loadLabel(pm), launch);
-            it.info = ai;
-            it.leanback = leanback;
-            found.put(ai.packageName, it);
+            if (ai.packageName == null || ai.name == null
+                    || ai.packageName.equals(self) || found.containsKey(ai.packageName)) continue;
+            try {
+                Intent launch = new Intent(Intent.ACTION_MAIN).addCategory(category)
+                        .setClassName(ai.packageName, ai.name);
+                CharSequence label = ri.loadLabel(pm);
+                Item it = new Item(ai.packageName,
+                        label == null ? ai.packageName : label, launch);
+                it.info = ai;
+                it.leanback = leanback;
+                found.put(ai.packageName, it);
+            } catch (RuntimeException e) {
+                Log.w("DumbTV-Catalog", "skipping app " + ai.packageName
+                        + " because its launcher metadata failed: " + e);
+            }
         }
     }
 
@@ -67,17 +85,48 @@ final class Catalog {
     static void art(PackageManager pm, Item it, boolean cornerIcon, Drawable replacement) {
         if (it.info == null) return;
         boolean wide = replacement != null && isWide(replacement);
-        it.banner = wide ? replacement : replacement == null ? it.info.loadBanner(pm) : null;
-        it.icon = replacement != null && !wide ? replacement
-                : it.banner == null || cornerIcon ? it.info.loadIcon(pm) : null;
+        try {
+            it.banner = wide ? replacement : replacement == null ? it.info.loadBanner(pm) : null;
+        } catch (RuntimeException e) {
+            it.banner = null;
+            Log.w("DumbTV-Catalog", "banner resource failed for " + it.id + ": " + e);
+        }
+        if (replacement != null && !wide) {
+            it.icon = replacement;
+        } else if (it.banner == null || cornerIcon) {
+            try {
+                it.icon = it.info.loadIcon(pm);
+            } catch (RuntimeException e) {
+                it.icon = null;
+                Log.w("DumbTV-Catalog", "icon resource failed for " + it.id + ": " + e);
+            }
+        } else {
+            it.icon = null;
+        }
     }
 
     /** Loads an optional user-selected bundled banner for one app. Slow: off the UI thread. */
     static Drawable customBanner(Context context, Item item) {
         String filename = Config.get(context).get("appstyle." + item.id + ".banner", null);
         if (filename == null || !filename.matches("[A-Za-z0-9_.-]+\\.png")) return null;
-        try (java.io.InputStream input = context.getAssets().open("custom-banners/" + filename)) {
-            Bitmap bitmap = BitmapFactory.decodeStream(input);
+        try (java.io.InputStream bounds = context.getAssets().open("custom-banners/" + filename)) {
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inJustDecodeBounds = true;
+            BitmapFactory.decodeStream(bounds, null, options);
+            if (options.outWidth <= 0 || options.outHeight <= 0) return null;
+            options.inJustDecodeBounds = false;
+            options.inSampleSize = 1;
+            while (options.outWidth > 0 && options.outHeight > 0) {
+                long width = Math.max(1, options.outWidth / options.inSampleSize);
+                long height = Math.max(1, options.outHeight / options.inSampleSize);
+                if (width * height <= 4_000_000L && Math.max(width, height) <= 4096) break;
+                if (options.inSampleSize >= (1 << 20)) break;
+                options.inSampleSize *= 2;
+            }
+            Bitmap bitmap;
+            try (java.io.InputStream image = context.getAssets().open("custom-banners/" + filename)) {
+                bitmap = BitmapFactory.decodeStream(image, null, options);
+            }
             if (bitmap == null) return null;
             Drawable artwork = new BitmapDrawable(context.getResources(), bitmap).mutate();
             String tint = Config.get(context).get("appstyle." + item.id + ".bannerColor", "original");

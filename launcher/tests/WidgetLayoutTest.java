@@ -14,6 +14,12 @@ public final class WidgetLayoutTest {
         check(grid.add("memory", "memory", 2, 0, 2, 2), "place memory beside clock");
         check(!grid.add("overlap", "text", 1, 0, 2, 1), "reject overlap");
         check(!grid.add("outside", "text", 5, 3, 2, 1), "reject horizontal overflow");
+        check(!grid.add("overflow-x", "text", Integer.MAX_VALUE, 0, 1, 1),
+                "reject overflowing x coordinates");
+        check(!grid.add("overflow-y", "text", 0, Integer.MAX_VALUE, 1, 1),
+                "reject overflowing y coordinates");
+        check(WidgetLayout.decode("overflow,clock,2147483647,0,1,1").items().isEmpty(),
+                "ignore overflowing persisted coordinates");
         check(!grid.add("bad", "unknown", 0, 2, 1, 1), "reject unknown widget type");
         WidgetLayout rowFixture = new WidgetLayout();
         check(rowFixture.add("single-row", "text", 0, 3, 1, 1), "accept a single row widget");

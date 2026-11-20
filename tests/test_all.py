@@ -101,6 +101,11 @@ fi
         expected = ["preflight", "configure", *STEPS[1:], "verify"]
         self.assertEqual(steps, [[name] for name in expected])
 
+    def test_saved_launcher_opt_out_is_honoured(self):
+        steps = self.run_all(config="LAUNCHER=0\n")
+        self.assertEqual(steps, [[name] for name in STEPS if name != "launcher"] + [["verify"]])
+        self.assertIn("LAUNCHER=0", self.last_stdout)
+
     def test_non_api25_device_skips_launcher_but_completes_cleanup(self):
         steps = self.run_all(config="LAUNCHER=1\n", sdk="28")
         self.assertEqual(steps, [[name] for name in STEPS if name != "launcher"] + [["verify"]])

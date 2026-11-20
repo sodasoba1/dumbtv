@@ -11,7 +11,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LauncherInstallTest(unittest.TestCase):
-    def install(self, read_logs_refused=False, read_logs_not_recorded=False, installer_args=None, foreground_line=None):
+    def install(self, read_logs_refused=False, read_logs_not_recorded=False, installer_args=None,
+                foreground_line=None, certificate_refused=False, takeover_write_noop=False,
+                home_start_no_service=False):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
             launcher = tmp / "launcher"
@@ -26,7 +28,11 @@ class LauncherInstallTest(unittest.TestCase):
             (launcher / "version.env").write_text("VERSION=1.11\n")
             (launcher / "build.sh").write_text(
                 "#!/usr/bin/env bash\nmkdir -p build\nprintf apk > build/dumbtv-home.apk\n")
-            (bindir / "sleep").write_text("#!/bin/sh\nexit 0\n")
+            (bindir / "sleep").write_text("#!/bin/sh\nexec /bin/sleep 0.01\n")
+            (launcher / "verify-certificate.sh").write_text(
+                "#!/usr/bin/env bash\necho \"$1\" >> \"$FAKE_CERT_LOG\"\n"
+                "if [[ ${FAKE_CERT_REJECTED:-0} == 1 ]]; then exit 1; fi\nexit 0\n")
+            (launcher / "verify-certificate.sh").chmod(0o755)
             (launcher / "build.sh").chmod(0o755)
             (bindir / "sleep").chmod(0o755)
             state = tmp / "state.json"
@@ -34,7 +40,9 @@ class LauncherInstallTest(unittest.TestCase):
                 "packages": {"tv.dumbtv.home": {"system": False, "enabled": True}},
                 "settings": {},
                 "sdk": 25,
-                "homesentinel_running": True,
+                "homesentinel_running": not home_start_no_service,
+                "home_start_no_service": home_start_no_service,
+                "settings_put_noop_key": "global/dumbtv_homesentinel_enabled" if takeover_write_noop else "",
                 "read_logs_refused": read_logs_refused,
                 "read_logs_not_recorded": read_logs_not_recorded,
                 **({"foreground_line": foreground_line} if foreground_line is not None else {}),
@@ -44,6 +52,8 @@ class LauncherInstallTest(unittest.TestCase):
             log.touch()
             env = dict(os.environ, ADB=str(ROOT / "tests/fake_tv.py"), ADB_SERIAL="test-tv",
                        FAKE_TV_STATE=str(state), FAKE_TV_LOG=str(log),
+                       FAKE_CERT_LOG=str(tmp / "cert.log"),
+                       FAKE_CERT_REJECTED="1" if certificate_refused else "0",
                        PATH=str(bindir) + os.pathsep + os.environ["PATH"])
             apk = tmp / "supplied-dumbtv.apk"
             apk.write_bytes(b"fake apk")
@@ -53,6 +63,67 @@ class LauncherInstallTest(unittest.TestCase):
                                     env=env, capture_output=True, text=True, timeout=60)
             return result, log.read_text().splitlines(), json.loads(state.read_text())
 
+    def run_undo(self, **overrides):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            launcher = tmp / "launcher"
+            scripts = tmp / "scripts"
+            bindir = tmp / "bin"
+            launcher.mkdir(); scripts.mkdir(); bindir.mkdir()
+            shutil.copy(ROOT / "launcher/install.sh", launcher / "install.sh")
+            shutil.copy(ROOT / "scripts/home.sh", scripts / "home.sh")
+            shutil.copy(ROOT / "scripts/lib.sh", scripts / "lib.sh")
+            (launcher / "version.env").write_text("VERSION=1.17\n")
+            (bindir / "sleep").write_text("#!/bin/sh\nexit 0\n")
+            (bindir / "sleep").chmod(0o755)
+            state_data = {
+                "packages": {"tv.dumbtv.home": {"system": False, "enabled": True}},
+                "settings": {}, "sdk": 25, "homesentinel_running": True,
+                "appops": {"tv.dumbtv.home": {"GET_USAGE_STATS": "allow"}},
+                **overrides,
+            }
+            state = tmp / "state.json"; state.write_text(json.dumps(state_data))
+            log = tmp / "commands.log"; log.touch()
+            env = dict(os.environ, ADB=str(ROOT / "tests/fake_tv.py"), ADB_SERIAL="test-tv",
+                       FAKE_TV_STATE=str(state), FAKE_TV_LOG=str(log),
+                       PATH=str(bindir) + os.pathsep + os.environ["PATH"])
+            result = subprocess.run(["bash", str(launcher / "install.sh"), "--undo"],
+                                    env=env, capture_output=True, text=True, timeout=60)
+            return result, log.read_text().splitlines(), json.loads(state.read_text())
+
+    def test_undo_verifies_service_stop_and_amazon_home_foreground(self):
+        result, commands, state = self.run_undo()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(state["settings"]["global/dumbtv_homesentinel_enabled"], "0")
+        self.assertFalse(state["homesentinel_running"])
+        self.assertIn("com.amazon.tv.launcher", state["foreground_line"])
+        self.assertIn("HOME handed back and verified", result.stdout)
+
+    def test_undo_does_not_claim_success_when_force_stop_fails(self):
+        result, _, _ = self.run_undo(force_stop_refused=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("could-not-force-stop-DumbTV", result.stderr)
+
+    def test_undo_can_return_to_amazon_when_dumbtv_is_not_installed(self):
+        result, commands, state = self.run_undo(packages={})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("HOME handed back and verified", result.stdout)
+        self.assertIn("com.amazon.tv.launcher", state["foreground_line"])
+        self.assertNotIn("am force-stop tv.dumbtv.home", commands)
+
+    def test_undo_does_not_claim_success_when_amazon_home_cannot_be_verified(self):
+        result, _, _ = self.run_undo(wrong_home_foreground=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Amazon-Home-foreground-not-verified", result.stderr)
+
+    def test_install_stops_before_replacing_apk_if_takeover_gate_does_not_persist(self):
+        result, commands, state = self.install(takeover_write_noop=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("takeover suspension did not persist", result.stderr)
+        self.assertFalse(any(command.startswith("install -r ") for command in commands))
+        self.assertFalse(state.get("permissions", {}).get("tv.dumbtv.home", {}).get(
+            "android.permission.READ_LOGS", False))
+
     def test_supplied_apk_install_also_grants_homesentinel_permissions(self):
         result, commands, state = self.install(installer_args=["--apk", "{APK}"])
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -61,6 +132,23 @@ class LauncherInstallTest(unittest.TestCase):
         self.assertIn("pm grant tv.dumbtv.home android.permission.READ_LOGS", commands)
         self.assertEqual(state["appops"]["tv.dumbtv.home"]["GET_USAGE_STATS"], "allow")
         self.assertTrue(state["permissions"]["tv.dumbtv.home"]["android.permission.READ_LOGS"])
+        self.assertEqual(state["settings"]["global/dumbtv_homesentinel_enabled"], "1")
+
+    def test_supplied_apk_must_pass_signer_verification_before_install(self):
+        result, commands, state = self.install(
+            installer_args=["--apk", "{APK}"], certificate_refused=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("supplied APK signer is not trusted", result.stderr)
+        self.assertFalse(any(command.startswith("install -r ") for command in commands))
+        self.assertFalse(state.get("permissions", {}).get("tv.dumbtv.home", {}).get(
+            "android.permission.READ_LOGS", False))
+
+    def test_permissions_only_verifies_the_installed_signer_before_granting(self):
+        result, commands, state = self.install(
+            installer_args=["--permissions-only"], certificate_refused=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("installed DumbTV signer is not trusted", result.stderr)
+        self.assertNotIn("pm grant tv.dumbtv.home android.permission.READ_LOGS", commands)
 
     def test_permissions_only_repairs_homesentinel_without_reinstalling(self):
         result, commands, state = self.install(installer_args=["--permissions-only"])
@@ -104,6 +192,14 @@ class LauncherInstallTest(unittest.TestCase):
         self.assertEqual(state["appops"]["tv.dumbtv.home"]["GET_USAGE_STATS"], "allow")
         self.assertTrue(state["permissions"]["tv.dumbtv.home"]["android.permission.READ_LOGS"])
         self.assertIn("READ_LOGS granted and verified", result.stdout)
+
+    def test_install_keeps_takeover_disabled_if_homesentinel_does_not_start(self):
+        result, commands, state = self.install(home_start_no_service=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("HomeSentinel did not start", result.stderr)
+        self.assertEqual(state["settings"]["global/dumbtv_homesentinel_enabled"], "0")
+        self.assertFalse(state["homesentinel_running"])
+        self.assertIn("com.amazon.tv.launcher", state["foreground_line"])
 
     def test_install_fails_if_adb_refuses_read_logs(self):
         result, commands, state = self.install(read_logs_refused=True)

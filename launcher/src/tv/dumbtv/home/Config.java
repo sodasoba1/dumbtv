@@ -260,8 +260,10 @@ final class Config {
         return out;
     }
 
-    private void save() {
-        signature = writeSettings(file, values) ? signature() : Long.MIN_VALUE;
+    private boolean save() {
+        boolean written = writeSettings(file, values);
+        signature = written ? signature() : Long.MIN_VALUE;
+        return written;
     }
 
     /** Writes a separately named copy beside home.conf for adb pull and later restore. */
@@ -301,6 +303,24 @@ final class Config {
         else values.put(key, value);
         version++;
         save();
+    }
+
+    /** Applies related configuration changes with one atomic file replacement. */
+    synchronized boolean setAll(Map<String, String> updates) {
+        Map<String, String> before = new LinkedHashMap<>(values);
+        int previousVersion = version;
+        for (Map.Entry<String, String> entry : updates.entrySet()) {
+            String value = entry.getValue();
+            if (value == null || value.isEmpty()) values.remove(entry.getKey());
+            else values.put(entry.getKey(), value);
+        }
+        version++;
+        if (save()) return true;
+        values.clear();
+        values.putAll(before);
+        version = previousVersion;
+        signature = Long.MIN_VALUE;
+        return false;
     }
 
     synchronized List<String> list(String key) {

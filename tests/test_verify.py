@@ -12,7 +12,7 @@ RELEASE = re.search(r"^VERSION=(\S+)", (ROOT / "launcher/version.env").read_text
 
 
 class VerifyTests(unittest.TestCase):
-    def run_verify(self, *, sdk="25", homesentinel=True, usage="allow", auto_start="allow",
+    def run_verify(self, *, sdk="25", homesentinel=True, takeover_gate="1", usage="allow", auto_start="allow",
                    read_logs=True, launcher="1", launcher_package=None, extra=None,
                    changed_settings=None, disabled="", installed="", data_saver="enabled",
                    screensaver="null", home="tv.dumbtv.home/.Home", alexa=1,
@@ -29,6 +29,7 @@ class VerifyTests(unittest.TestCase):
             "dumpsys activity services tv.dumbtv.home": {
                 "out": "ServiceRecord tv.dumbtv.home/.HomeSentinel isForeground=true" if homesentinel else ""
             },
+            "settings get global dumbtv_homesentinel_enabled": {"out": takeover_gate},
             "appops get tv.dumbtv.home GET_USAGE_STATS": {"out": f"GET_USAGE_STATS: {usage}"},
             "appops get tv.dumbtv.home AUTO_START": {"out": f"AUTO_START: {auto_start}"},
             "dumpsys package tv.dumbtv.home": {"out": package_dump},
@@ -76,8 +77,18 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("HomeSentinel armed", result.stdout)
         self.assertIn("UsageStats AppOp allowed", result.stdout)
-        self.assertIn("HomeSentinel AUTO_START allowed", result.stdout)
+        self.assertIn("optional AUTO_START is allowed", result.stdout)
         self.assertIn("READ_LOGS granted", result.stdout)
+
+    def test_disabled_takeover_gate_fails_verification(self):
+        result, _ = self.run_verify(takeover_gate="0")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("expected 1, got 0", result.stdout)
+
+    def test_missing_takeover_gate_fails_verification(self):
+        result, _ = self.run_verify(takeover_gate="null")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("expected 1, got null", result.stdout)
 
     def test_missing_homesentinel_is_a_failure(self):
         result, _ = self.run_verify(homesentinel=False)
@@ -89,6 +100,11 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("FAIL", result.stdout)
         self.assertIn("Amazon Home is foreground (com.amazon.tv.launcher", result.stdout)
+
+    def test_unknown_foreground_is_not_reported_as_armed(self):
+        result, _ = self.run_verify(home="")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("could not determine the foreground activity", result.stdout)
 
     def test_running_homesentinel_passes_with_an_ordinary_app_in_foreground(self):
         result, _ = self.run_verify(home="com.netflix.ninja/.MainActivity")

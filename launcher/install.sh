@@ -71,16 +71,40 @@ sha256() {
 }
 
 if [[ $mode == undo ]]; then
-  # force-stop also keeps the Fire OS 6 HomeSentinel from restarting at the next boot.
-  sh_ am force-stop $PKG >/dev/null 2>&1 || true
-  sh_ appops set $PKG GET_USAGE_STATS default >/dev/null 2>&1 || true
-  sh_ pm revoke $PKG android.permission.READ_LOGS >/dev/null 2>&1 || true
-  sh_ dumpsys deviceidle whitelist -$PKG >/dev/null 2>&1 || true
-  sh_ am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null 2>&1 || true
-  echo "HOME handed back to Amazon's launcher (dumbtv home stays installed: adb uninstall $PKG)"
+  # Attempt every recovery step even if one fails: returning stock HOME is more
+  # important than aborting after a permission or service-cleanup error.
+  undo_errors=""
+  sh_ settings put global dumbtv_homesentinel_enabled 0 >/dev/null ||
+    undo_errors="${undo_errors} could-not-disable-takeover"
+  takeover=$(sh_ settings get global dumbtv_homesentinel_enabled | tr -d '\r')
+  [[ $takeover == 0 ]] || undo_errors="${undo_errors} takeover-disable-not-verified"
+  if installed "$PKG"; then
+    sh_ am force-stop "$PKG" >/dev/null ||
+      undo_errors="${undo_errors} could-not-force-stop-DumbTV"
+    services=$(sh_ dumpsys activity services "$PKG" 2>/dev/null || true)
+    if grep -q 'HomeSentinel' <<<"$services"; then
+      undo_errors="${undo_errors} HomeSentinel-still-running"
+    fi
+    sh_ appops set "$PKG" GET_USAGE_STATS default >/dev/null ||
+      undo_errors="${undo_errors} could-not-reset-UsageStats"
+    sh_ pm revoke "$PKG" android.permission.READ_LOGS >/dev/null ||
+      undo_errors="${undo_errors} could-not-revoke-READ_LOGS"
+    sh_ dumpsys deviceidle whitelist -"$PKG" >/dev/null ||
+      undo_errors="${undo_errors} could-not-remove-Doze-whitelist"
+  fi
+  sh_ am start -W -a android.intent.action.MAIN -c android.intent.category.HOME -p com.amazon.tv.launcher >/dev/null ||
+    undo_errors="${undo_errors} Amazon-Home-launch-failed"
+  front=$(front_activity)
+  if [[ $front != com.amazon.tv.launcher/com.amazon.tv.launcher.ui.HomeActivity_vNext ]]; then
+    undo_errors="${undo_errors} Amazon-Home-foreground-not-verified"
+  fi
+  if [[ -n $undo_errors ]]; then
+    echo "error: HOME handoff incomplete:$undo_errors; inspect the TV and retry ./launcher/install.sh --undo" >&2
+    exit 1
+  fi
+  echo "HOME handed back and verified on Amazon's launcher (dumbtv home stays installed: adb uninstall $PKG)"
   exit 0
 fi
-
 # Only installation/build is restricted to the AFTMM API 25 target. Undo must
 # remain available on any device carrying an older installation so HOME can
 # always be handed back to Amazon, including during restore on other Fire OS versions.
@@ -101,14 +125,33 @@ install_apk() {
   out=$(adb_ install -r "$APK" 2>&1 | grep -m1 -E 'Success|Failure|failed' || true)
 }
 
+verify_installed_apk() {
+  local device_apk tmp
+  device_apk=$(sh_ pm path "$PKG" | sed -n 's/^package://p' | head -1)
+  [[ -n $device_apk ]] || { echo "error: could not locate the installed $PKG APK for signer verification" >&2; return 1; }
+  tmp=$(mktemp "${TMPDIR:-/tmp}/dumbtv-installed.XXXXXX") || return 1
+  if ! adb_ pull "$device_apk" "$tmp" >/dev/null 2>&1; then
+    rm -f "$tmp"
+    echo "error: could not retrieve the installed APK for signer verification" >&2
+    return 1
+  fi
+  ./verify-certificate.sh "$tmp"
+  local rc=$?
+  rm -f "$tmp"
+  return $rc
+}
+
 if [[ $mode == permissions ]]; then
   installed "$PKG" || { echo "error: $PKG is not installed; install an APK first" >&2; exit 1; }
-  echo "reapplying HomeSentinel permissions for the installed $PKG"
+  verify_installed_apk || { echo "error: installed DumbTV signer is not trusted; no privileged permissions were changed" >&2; exit 1; }
+  echo "reapplying HomeSentinel permissions for the verified $PKG"
 elif [[ $mode == build ]]; then
   build_apk
 elif [[ $mode == apk ]]; then
   [[ -s $LOCAL_APK ]] || { echo "error: APK file not found or empty: $LOCAL_APK" >&2; exit 1; }
   APK=$LOCAL_APK
+  ./verify-certificate.sh "$APK" ||
+    { echo "error: supplied APK signer is not trusted; not installing or granting HomeSentinel privileges" >&2; exit 1; }
   echo "installing supplied APK: $APK"
 else
   mkdir -p build
@@ -134,6 +177,34 @@ else
   mv "$SUM.part" "$SUM"
   echo "checksum and release signer ok"
 fi
+
+# Suspend takeover only once the APK is ready to be installed. If download or
+# build fails, the currently working launcher remains active; after this point
+# every failure leaves the replacement fail-closed until a complete health check.
+sh_ settings put global dumbtv_homesentinel_enabled 0 >/dev/null ||
+  { echo "error: could not suspend HomeSentinel takeover before installation" >&2; exit 1; }
+takeover=$(sh_ settings get global dumbtv_homesentinel_enabled | tr -d '\r')
+[[ $takeover == 0 ]] ||
+  { echo "error: HomeSentinel takeover suspension did not persist; existing installation was left untouched" >&2; exit 1; }
+TAKEOVER_SUSPENDED=1
+
+handoff_after_failure() {
+  local rc=$?
+  if [[ $rc != 0 && ${TAKEOVER_SUSPENDED:-0} == 1 ]]; then
+    echo "warning: installation did not complete; keeping automatic takeover disabled and returning to Amazon Home" >&2
+    sh_ settings put global dumbtv_homesentinel_enabled 0 >/dev/null 2>&1 || true
+    sh_ am force-stop "$PKG" >/dev/null 2>&1 || true
+    sh_ am start -W -a android.intent.action.MAIN -c android.intent.category.HOME -p com.amazon.tv.launcher >/dev/null 2>&1 || true
+    fallback_front=$(front_activity 2>/dev/null || true)
+    if [[ $fallback_front == com.amazon.tv.launcher/* ]]; then
+      echo "Amazon Home is foreground; automatic DumbTV takeover remains suspended" >&2
+    else
+      echo "warning: Amazon Home foreground could not be verified (${fallback_front:-unknown}); use the Fire TV Home button or run --undo again" >&2
+    fi
+  fi
+  exit "$rc"
+}
+trap handoff_after_failure EXIT
 
 if [[ $mode != permissions ]]; then
   install_apk
@@ -242,3 +313,14 @@ if [[ $legacy_vpn == dnsfilter.android ]]; then
   [[ $remaining != dnsfilter.android ]] || { echo "error: could not clear the legacy VPN selection" >&2; exit 1; }
 fi
 fi
+
+# Activate automatic takeover only after installation, permission checks, service
+# startup, foreground verification and the legacy VPN cleanup have all succeeded.
+sh_ settings put global dumbtv_homesentinel_enabled 1 >/dev/null ||
+  { echo "error: DumbTV is installed, but automatic HOME takeover remains suspended" >&2; exit 1; }
+takeover=$(sh_ settings get global dumbtv_homesentinel_enabled | tr -d '\r')
+[[ $takeover == 1 ]] ||
+  { echo "error: automatic HOME takeover could not be enabled and verified" >&2; exit 1; }
+TAKEOVER_SUSPENDED=0
+trap - EXIT
+echo "automatic HOME takeover enabled and verified"

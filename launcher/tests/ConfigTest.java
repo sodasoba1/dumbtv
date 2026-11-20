@@ -199,6 +199,13 @@ public final class ConfigTest {
             File blocked = new File(f.dir, Config.FILE + ".tmp");
             check(blocked.mkdir(), "block settings write");
             Config cfg = f.open();
+            java.util.Map<String, String> migration = new java.util.HashMap<>();
+            migration.put("widgets.layout", "migrated");
+            migration.put("widgets.layout.version", "4");
+            check(!cfg.setAll(migration), "failed migration write is reported");
+            check("".equals(cfg.get("widgets.layout", "")), "failed migration is rolled back in memory");
+            check("".equals(cfg.get("widgets.layout.version", "")),
+                    "failed migration version is rolled back in memory");
             cfg.set("accent", "green");
             cfg.refresh();
             check("blue".equals(cfg.get(Config.ACCENT)), "failed write does not replace persisted value");

@@ -25,6 +25,10 @@ if args == ['start-server'] or args[:1] == ['connect']:
 if args[-1:] == ['get-state']:
     print('device')
     sys.exit(0)
+if len(args) >= 5 and args[0] == '-s' and args[2] == 'pull':
+    Path(args[4]).write_bytes(b'fake installed apk')
+    print(f'{args[3]}: 1 file pulled')
+    sys.exit(0)
 if len(args) >= 4 and args[0] == '-s' and args[2] == 'install':
     with Path(os.environ['FAKE_TV_LOG']).open('a') as log:
         log.write('install ' + ' '.join(args[3:]) + '\n')
@@ -83,9 +87,19 @@ if words[:2] == ['content', 'insert'] and '--uri' in words:
         sys.exit(1)
 elif words[:1] == ['settings']:
     verb, rest = words[1], words[2:]
-    if verb == 'put' and len(rest) == 3:
-        settings[f'{rest[0]}/{rest[1]}'] = '' if rest[2] == '""' else rest[2]
-        save()
+    if verb == 'list' and len(rest) == 1:
+        prefix = rest[0] + '/'
+        for key, value in sorted(settings.items()):
+            if key.startswith(prefix):
+                print(key[len(prefix):] + '=' + value)
+    elif verb == 'put' and len(rest) == 3:
+        setting_key = f'{rest[0]}/{rest[1]}'
+        if state.get('settings_write_refused') or state.get('settings_write_refused_key') == setting_key:
+            print('Error: settings write refused')
+            sys.exit(1)
+        if not state.get('settings_put_noop') and state.get('settings_put_noop_key') != setting_key:
+            settings[setting_key] = '' if rest[2] == '""' else rest[2]
+            save()
     elif verb == 'put':
         state.setdefault('bad', []).append(command)
         save()
@@ -145,10 +159,16 @@ elif words[:2] == ['pm', 'path']:
     if words[2] in apps:
         print(f'package:/system/app/{words[2]}.apk')
 elif command == 'pm list packages':
+    if state.get('pm_list_packages_refused'):
+        print('Error: package list unavailable')
+        sys.exit(1)
     print('\n'.join(f'package:{p}' for p in apps))
 elif command == 'pm list packages -s':
     print('\n'.join(f'package:{p}' for p, a in apps.items() if a['system']))
 elif command == 'pm list packages -d':
+    if state.get('pm_list_disabled_refused'):
+        print('Error: disabled package list unavailable')
+        sys.exit(1)
     omitted = state.get('omit_disabled_package', '')
     print('\n'.join(f'package:{p}' for p, a in apps.items()
                       if not a['enabled'] and p != omitted))
@@ -188,9 +208,27 @@ elif command == 'ps -A -o NAME':
 elif command == 'dumpsys activity activities':
     print(state.get('foreground_line',
                     '  mResumedActivity: ActivityRecord{1 u0 tv.dumbtv.home/.Home t1}'))
-elif words[:1] == ['am'] and words[1:2] in (['force-stop'], ['start']):
-    # Activity-manager operations used by the launcher install/undo scripts.
-    pass
+elif words[:2] == ['am', 'force-stop']:
+    if state.get('force_stop_refused'):
+        print('Error: force-stop refused')
+        sys.exit(1)
+    if len(words) > 2 and words[2] == 'tv.dumbtv.home':
+        state['homesentinel_running'] = False
+    save()
+elif words[:2] == ['am', 'start']:
+    if state.get('home_launch_refused'):
+        print('Error: HOME launch refused')
+        sys.exit(1)
+    if ('-n' in words and words[words.index('-n') + 1] == 'tv.dumbtv.home/.Home'
+            and not state.get('home_start_no_service')):
+        state['homesentinel_running'] = True
+        save()
+    if '-p' in words and words[words.index('-p') + 1] == 'com.amazon.tv.launcher':
+        if not state.get('wrong_home_foreground'):
+            state['foreground_line'] = (
+                '  mResumedActivity: ActivityRecord{2 u0 '
+                'com.amazon.tv.launcher/com.amazon.tv.launcher.ui.HomeActivity_vNext t1}')
+    save()
 elif words[:2] == ['appops', 'set'] and len(words) >= 5:
     package, operation, mode = words[2], words[3], words[4]
     state.setdefault('appops', {}).setdefault(package, {})[operation] = mode
@@ -214,7 +252,24 @@ elif words[:2] == ['dumpsys', 'window']:
 elif words[:2] == ['input', 'keyevent']:
     pass
 elif words[:2] == ['cmd', 'netpolicy']:
-    pass
+    action = words[2] if len(words) > 2 else ''
+    if action == 'get' and words[3:] == ['restrict-background']:
+        print(state.get('restrict_background', 'disabled'))
+    elif action == 'set' and words[3:5] == ['restrict-background', 'true']:
+        state['restrict_background'] = 'enabled'; save()
+    elif action == 'set' and words[3:5] == ['restrict-background', 'false']:
+        state['restrict_background'] = 'disabled'; save()
+    elif action == 'list' and words[3:] == ['restrict-background-blacklist']:
+        print(' '.join(str(uid) for uid in state.get('network_blacklist', [])))
+    elif action == 'add' and words[3:4] == ['restrict-background-blacklist']:
+        uid = int(words[4])
+        values = state.setdefault('network_blacklist', [])
+        if uid not in values: values.append(uid)
+        save()
+    elif action == 'remove' and words[3:4] == ['restrict-background-blacklist']:
+        uid = int(words[4])
+        state['network_blacklist'] = [value for value in state.get('network_blacklist', []) if value != uid]
+        save()
 elif words[:2] == ['cmd', 'package']:
     pass
 elif words[:2] == ['pm', 'grant'] and len(words) >= 4:

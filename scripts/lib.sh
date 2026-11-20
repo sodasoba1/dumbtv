@@ -12,6 +12,8 @@ ASSUME_YES=${ASSUME_YES:-0}
 NO_REBOOT=${NO_REBOOT:-0}
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 DATA="$ROOT/data"
+REPORT_EXPLICIT=0
+[[ -n ${REPORT:-} ]] && REPORT_EXPLICIT=1
 REPORT=${REPORT:-$ROOT/report}
 BOOT_SECONDS=${BOOT_SECONDS:-45}
 CONF=${CONF:-$ROOT/dumbtv.conf}
@@ -29,9 +31,38 @@ load_conf() {
   REMOVE_EXTRA=${REMOVE_EXTRA:-}
   ALEXA=${ALEXA:-1}
   LAUNCHER=${LAUNCHER:-1}
-  [[ -f $CONF ]] && source "$CONF"
+  YOUTUBE=${YOUTUBE:-0}
+  if [[ -f $CONF ]]; then
+    local key value p
+    while IFS='=' read -r key value; do
+      key=$(printf '%s' "$key" | tr -d '\r')
+      value=$(printf '%s' "${value:-}" | tr -d '\r')
+      case $value in
+        \"*\") value=${value#\"}; value=${value%\"} ;;
+      esac
+      case $key in
+        KEEP_APPS|REMOVE_EXTRA)
+          for p in $value; do
+            [[ $p =~ ^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$ ]] ||
+              die "invalid package name '$p' in $CONF"
+          done
+          if [[ $key == KEEP_APPS ]]; then KEEP_APPS=$value; else REMOVE_EXTRA=$value; fi
+          ;;
+        ALEXA|LAUNCHER|YOUTUBE)
+          case $value in 0|1) ;; *) die "$key must be 0 or 1 in $CONF" ;; esac
+          case $key in
+            ALEXA) ALEXA=$value ;;
+            LAUNCHER) LAUNCHER=$value ;;
+            YOUTUBE) YOUTUBE=$value ;;
+          esac
+          ;;
+        ""|\#*) ;;
+        *) note "ignoring unknown config key '$key' in $CONF" ;;
+      esac
+    done < "$CONF"
+  fi
   KEEP_APPS=${KEEP_APPS:-}; REMOVE_EXTRA=${REMOVE_EXTRA:-}
-  ALEXA=${ALEXA:-1}; LAUNCHER=${LAUNCHER:-1}
+  ALEXA=${ALEXA:-1}; LAUNCHER=${LAUNCHER:-1}; YOUTUBE=${YOUTUBE:-0}
 }
 
 # What debloat.sh disables: the ads and tracking list, plus Alexa only with ALEXA=0.
@@ -106,6 +137,19 @@ parse_flags() {
   done
 }
 
+serial_fingerprint() {
+  local digest
+  if command -v sha256sum >/dev/null 2>&1; then
+    digest=$(printf '%s' "$SERIAL" | sha256sum | awk '{print $1}')
+  elif command -v shasum >/dev/null 2>&1; then
+    digest=$(printf '%s' "$SERIAL" | shasum -a 256 | awk '{print $1}')
+  else
+    die "sha256sum or shasum is required to scope recovery snapshots without exposing the ADB serial"
+  fi
+  [[ $digest =~ ^[0-9a-fA-F]{64}$ ]] || die "could not fingerprint the connected ADB device"
+  printf '%s' "$digest"
+}
+
 need_device() {
   command -v "$ADB" >/dev/null || die "adb not found in PATH"
   "$ADB" start-server >/dev/null 2>&1
@@ -120,6 +164,14 @@ need_device() {
   dev getprop ro.build.version.sdk >/dev/null || die "device $SERIAL is not responding"
   SDK=$(dev1 getprop ro.build.version.sdk | tr -d '\r')
   case $SDK in ''|*[!0-9]*) SDK=0 ;; esac
+  if [[ ${REPORT_EXPLICIT:-0} != 1 ]]; then
+    local report_id
+    report_id=$(serial_fingerprint)
+    REPORT="$ROOT/report/device-$report_id"
+    if [[ -f $ROOT/report/settings-before-secure.txt || -f $ROOT/report/settings-before-global.txt || -f $ROOT/report/packages-before.txt ]]; then
+      die "legacy recovery snapshots exist in $ROOT/report; verify this is the same TV, then set REPORT='$ROOT/report' DUMBTW_ALLOW_LEGACY_REPORT=1 explicitly before preflight/restore"
+    fi
+  fi
   grep -q install-existing <<<"$(dev 'cmd package help')" && REINSTALL=1 || REINSTALL=0
 }
 
@@ -143,6 +195,8 @@ fireos_name() {
 need_supported_fireos() {
   is_fireos || die "this is for Amazon Fire OS; see docs/OTHER-TVS.md"
   [[ $SDK -ge 25 ]] || die "$(fireos_name): Fire OS 5 and older refuse pm disable-user, so nothing here can work; see docs/OTHER-TVS.md"
+  [[ $SDK -le 30 || ${DUMBTW_ALLOW_UNTESTED_FIREOS:-0} == 1 ]] ||
+    die "$(fireos_name): package lists are not validated above API 30; refusing to change device state"
 }
 
 # Background execution off/on. RUN_ANY_IN_BACKGROUND only exists from Android 9; on
@@ -296,11 +350,19 @@ package_user_enabled_state() {
 # Preserve the device's original package enabled/disabled state before the first cleanup.
 # restore.sh uses this to avoid enabling apps the owner had already disabled.
 snapshot_package_states() {
-  local file="$REPORT/packages-before.txt" installed disabled pkg
-  [[ -f $file ]] && return 0
+  local file="$REPORT/packages-before.txt" installed disabled pkg installed_output disabled_output
+  ensure_report_device
+  if [[ -f $file ]]; then
+    rm -f "$REPORT/restore-complete.txt"
+    return 0
+  fi
   mkdir -p "$REPORT"
-  installed=$(dev 'pm list packages' | sed 's/^package://' | tr -d '\r')
-  disabled=$(dev 'pm list packages -d' | sed 's/^package://' | tr -d '\r')
+  installed_output=$(dev_ok 'pm list packages') ||
+    die "could not read installed packages; refusing to change package state"
+  disabled_output=$(dev_ok 'pm list packages -d') ||
+    die "could not read disabled packages; refusing to change package state"
+  installed=$(printf '%s\n' "$installed_output" | sed 's/^package://' | tr -d '\r')
+  disabled=$(printf '%s\n' "$disabled_output" | sed 's/^package://' | tr -d '\r')
   [[ -n $installed ]] || die "could not snapshot installed packages; refusing to change package state"
   local tmp="$file.tmp"
   : > "$tmp"
@@ -313,6 +375,42 @@ snapshot_package_states() {
     fi
   done <<< "$installed"
   mv "$tmp" "$file"
+  rm -f "$REPORT/restore-complete.txt"
+}
+
+# A report belongs to one physical Fire TV. Keep local snapshots separate by
+# ADB serial and verify ownership before any restore can use them.
+ensure_report_device() {
+  local manifest="$REPORT/device.txt" model build serial_hash tmp
+  mkdir -p "$REPORT"
+  model=$(dev_ok getprop ro.product.model) ||
+    die "could not read device model; refusing to create a recovery manifest"
+  [[ -n $model ]] || die "device model is empty; refusing to create a recovery manifest"
+  build=$(dev_ok getprop ro.build.display.id) ||
+    die "could not read device build; refusing to create a recovery manifest"
+  serial_hash=$(serial_fingerprint)
+  if [[ -f $manifest ]]; then
+    grep -qxF "format=2" "$manifest" ||
+      die "unsupported or legacy report manifest format; refusing to use $manifest"
+    grep -qxF "serial_sha256=$serial_hash" "$manifest" ||
+      die "report belongs to a different ADB device; refusing cross-device restore ($manifest)"
+    grep -qxF "model=$model" "$manifest" ||
+      die "report device model does not match the connected TV; refusing restore"
+    return 0
+  fi
+  if [[ -f $REPORT/debloat.txt || -f $REPORT/packages-before.txt || -f $REPORT/settings-before-secure.txt || -f $REPORT/settings-before-global.txt || -f $REPORT/lockdown-before.tsv || -f $REPORT/data-saver-before.txt ]]; then
+    [[ ${DUMBTW_ALLOW_LEGACY_REPORT:-0} == 1 ]] ||
+      die "legacy report has no device identity manifest; verify the TV, then explicitly retry with DUMBTW_ALLOW_LEGACY_REPORT=1"
+    note "WARNING: accepting a legacy report without verified device ownership"
+  fi
+  tmp="$manifest.tmp"
+  {
+    printf 'format=2\n'
+    printf 'serial_sha256=%s\n' "$serial_hash"
+    printf 'model=%s\n' "$model"
+    printf 'build=%s\n' "$build"
+  } > "$tmp" || die "could not write report device manifest"
+  mv "$tmp" "$manifest" || die "could not publish report device manifest"
 }
 
 list_of() { sed 's/#.*//; s/[[:space:]]*$//' "$1" | awk 'NF'; }

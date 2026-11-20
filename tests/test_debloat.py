@@ -47,8 +47,9 @@ class DebloatTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
             state = tmp / "state.json"
-            state.write_text(json.dumps({"packages": packages, "sdk": 25, "settings": {
-                "secure/screensaver_components": self.AMAZON_DREAM}}))
+            state.write_text(json.dumps({"packages": packages, "sdk": 25,
+                "props": {"ro.product.model": "AFTMM", "ro.build.display.id": "test-build"},
+                "settings": {"secure/screensaver_components": self.AMAZON_DREAM}}))
             log = tmp / "commands.log"
             log.touch()
             if legacy_report or old_debloat_report is not None:

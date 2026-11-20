@@ -11,6 +11,66 @@ To put the TV back the way it was: `./scripts/restore.sh`.
 
 ## Home screen
 
+### Installation or undo did not finish
+
+The installer suspends automatic takeover while an APK is being installed or permissions
+are repaired. If a step fails, it attempts to stop DumbTV and return to Amazon Home;
+check the reported foreground component rather than assuming the command succeeded.
+Run `./launcher/install.sh --undo` to retry the verified handoff.
+
+The takeover gate is stored in the device's Global Settings as
+`dumbtv_homesentinel_enabled`. A value of `0` leaves Amazon Home in control.
+A successful install verifies the launcher and HomeSentinel before setting it to `1`.
+
+### A supplied APK is rejected
+
+`--apk` and `--permissions-only` verify the installed or supplied APK's signer and
+package identity before granting HomeSentinel privileges. The default trust anchor is
+the release certificate in `launcher/signing.sha256`. For a locally signed developer
+build, explicitly provide its SHA-256 certificate fingerprint:
+
+```sh
+export DUMBTW_TRUSTED_CERT_SHA256="YOUR_64_CHARACTER_SHA256_FINGERPRINT"
+./launcher/install.sh --apk path/to/dumbtv-home.apk
+# Or, to repair permissions on that same locally signed installed build:
+./launcher/install.sh --permissions-only
+```
+
+Only use a fingerprint obtained from a build key you control. The host also needs
+Android SDK Build Tools 34.0.0: `apksigner` checks the signing certificate and
+`aapt2` checks the APK package name. Both are discovered from the configured SDK or
+from `PATH`; this also applies to `--permissions-only`, which pulls and verifies the
+installed APK before changing privileges.
+
+## Data Saver scope
+
+Lockdown enables Android's device-wide Data Saver. It restricts background metered
+traffic for every non-whitelisted app, not only the protected Amazon packages.
+Foreground app traffic and unmetered Wi-Fi are generally unaffected. New reports save
+the original Data Saver state and restore it; a v1.17 report has no such baseline and
+uses the legacy disabled default.
+
+## Recovery snapshots
+
+Preflight stores the original package/settings state under
+`report/device-<SHA-256-of-ADB-serial>/`; the directory is local and git-ignored.
+The manifest stores only the one-way serial fingerprint, not the raw ADB serial.
+Do not copy a report between TVs. Restore checks the fingerprint and model and refuses
+a cross-device restore. It keeps the snapshots until package state, AppOps, Data Saver,
+settings and Amazon Home have been verified after reboot.
+
+A report created by v1.17 has no device manifest and no exact AppOps/Data Saver
+baseline. If you are deliberately restoring that legacy report, first verify that the
+connected ADB serial is the same TV that created it, then opt in explicitly:
+
+```sh
+REPORT="$PWD/report" DUMBTW_ALLOW_LEGACY_REPORT=1 ./scripts/restore.sh
+```
+
+Legacy reports cannot recover the original AppOps modes or Data Saver setting exactly;
+the compatibility path restores the protected-package defaults used by v1.17. New
+installations record those values before lockdown.
+
 ### Amazon's home screen came back
 
 This launcher build supports only the AFTMM on Fire OS 6 / Android API 25.

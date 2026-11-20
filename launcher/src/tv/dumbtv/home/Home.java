@@ -34,6 +34,7 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -53,6 +54,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -65,6 +68,7 @@ public final class Home extends Activity {
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService startupIo = Executors.newSingleThreadExecutor();
     private final ExecutorService colorIo = Executors.newSingleThreadExecutor();
     private final List<TextView> chips = new ArrayList<>();
     private Config cfg;
@@ -251,41 +255,80 @@ public final class Home extends Activity {
      */
     private void firstApps(Future<List<Item>> catalog, Future<Map<String, Long>> times) {
         artState = artState();
-        try {
-            apps.all = catalog.get();
-            if (times != null) recent = times.get();
-        } catch (ExecutionException e) {
-            loadApps(null);
-            return;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            loadApps(null);
-            return;
-        }
-        int fit = getResources().getDisplayMetrics().widthPixels / (cardSize()[0] + dp(18)) + 1;
-        String tileStyle = cfg.get(Config.TILE_STYLE);
-        boolean cornerIcon = "afterglow".equals(tileStyle);
-        List<Item> first = new ArrayList<>();
-        List<Runnable> jobs = new ArrayList<>();
-        // A chosen icon pack is read by parsing its whole appfilter; the first frame does not wait
-        // for that, and its tiles load their art as they are drawn, like every later tile.
-        if (!IconPack.OFF.equals(cfg.get(IconPack.KEY, IconPack.OFF))) return;
-        for (Item it : Catalog.visible(cfg, Catalog.APPS, apps.all, recentFor(Catalog.APPS))) {
-            if (fit-- <= 0) break;
-            first.add(it);
-            jobs.add(artJob(it, cornerIcon));
-        }
-        try {
-            io.submit(() -> {
-                for (Runnable job : jobs) job.run();
-            }).get();
-        } catch (ExecutionException e) {
-            return; // the tiles load their art as they are drawn
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return;
-        }
-        for (Item it : first) it.artRequested = true;
+        int generation = ++appsGeneration;
+        // PackageManager and UsageStats can be slow on Fire OS 6. Never wait for them
+        // on the Activity thread; the first render may use placeholders and fill in later.
+        // This waiter must not share the serial IO executor: the catalogue and UsageStats
+        // futures are queued there, so waiting from that same executor would make both timeouts
+        // ineffective and hold the first render behind the catalogue scan.
+        startupIo.execute(() -> {
+            List<Item> loaded;
+            Map<String, Long> loadedTimes = null;
+            try {
+                loaded = catalog.get(4, TimeUnit.SECONDS);
+            } catch (ExecutionException | TimeoutException e) {
+                HomeSentinel.note("initial app catalogue was not ready; loading asynchronously: " + e);
+                catalog.cancel(true);
+                ui.post(() -> {
+                    if (generation == appsGeneration && !isDestroyed()) loadApps(null);
+                });
+                return;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            if (times != null) {
+                try {
+                    loadedTimes = times.get(2, TimeUnit.SECONDS);
+                } catch (ExecutionException | TimeoutException e) {
+                    HomeSentinel.note("initial usage history was not ready; using saved app order: " + e);
+                    times.cancel(true);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+            final List<Item> result = loaded;
+            final Map<String, Long> usage = loadedTimes;
+            ui.post(() -> {
+                if (generation != appsGeneration || isDestroyed()) return;
+                apps.all = result;
+                if (usage != null) recent = usage;
+
+                int fit = getResources().getDisplayMetrics().widthPixels
+                        / (cardSize()[0] + dp(18)) + 1;
+                String tileStyle = cfg.get(Config.TILE_STYLE);
+                boolean cornerIcon = "afterglow".equals(tileStyle);
+                List<Runnable> jobs = new ArrayList<>();
+                // A selected icon pack is parsed on demand; do not delay the first frame for it.
+                if (IconPack.OFF.equals(cfg.get(IconPack.KEY, IconPack.OFF))) {
+                    for (Item it : Catalog.visible(cfg, Catalog.APPS, apps.all,
+                            recentFor(Catalog.APPS))) {
+                        if (fit-- <= 0) break;
+                        it.artRequested = true;
+                        jobs.add(artJob(it, cornerIcon));
+                    }
+                }
+
+                render(apps);
+                render(allApps);
+                if (!jobs.isEmpty()) {
+                    io.execute(() -> {
+                        for (Runnable job : jobs) job.run();
+                        ui.post(() -> {
+                            if (generation != appsGeneration || isDestroyed()) return;
+                            for (Row row : new Row[] {apps, allApps}) {
+                                ViewGroup tiles = row.tiles();
+                                for (int i = 0; i < tiles.getChildCount(); i++) {
+                                    tiles.getChildAt(i).invalidate();
+                                }
+                            }
+                            if (focusedItem() != null) focusBackground(focusedItem());
+                        });
+                    });
+                }
+            });
+        });
     }
 
     /** What the tiles' art depends on besides the apps themselves. */
@@ -322,7 +365,29 @@ public final class Home extends Activity {
     }
 
     @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (!hasFocus) {
+            HomeSentinel.reportHomeVisibility(this, false);
+            return;
+        }
+        final View decor = getWindow().getDecorView();
+        final ViewTreeObserver observer = decor.getViewTreeObserver();
+        observer.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+            @Override public boolean onPreDraw() {
+                ViewTreeObserver current = decor.getViewTreeObserver();
+                if (current.isAlive()) current.removeOnPreDrawListener(this);
+                if (hasWindowFocus() && !isFinishing()) {
+                    HomeSentinel.reportHomeVisibility(Home.this, true);
+                }
+                return true;
+            }
+        });
+    }
+
+    @Override
     protected void onPause() {
+        HomeSentinel.reportHomeVisibility(this, false);
         super.onPause();
         resumed = false;
         hero.stop();
@@ -337,6 +402,7 @@ public final class Home extends Activity {
         unregisterReceiver(packages);
         if (tv != null) tv.unregisterCallback(inputWatch);
         io.shutdownNow();
+        startupIo.shutdownNow();
         colorIo.shutdownNow();
         super.onDestroy();
     }
@@ -1312,6 +1378,7 @@ public final class Home extends Activity {
                         Tile tile = (Tile) v;
                         lastFocusedKind = tile.kind;
                         lastIds.put(tile.kind, tile.item.id);
+                        if (Catalog.isApp(tile.kind) && !tile.item.artRequested) loadArt(tile.item);
                         focusBackground(tile.item);
                     }
                 });
@@ -1323,10 +1390,6 @@ public final class Home extends Activity {
                 lp.rightMargin = row == apps && itemIndex == shown.size() - 1 ? 0 : tileGap;
             target.addView(t, lp);
             if (it.id.equals(keep)) restore = target.getChildCount() - 1;
-            String tileStyle = cfg.get(Config.TILE_STYLE);
-                boolean needsStyleIcon = "afterglow".equals(tileStyle)
-                        && cfg.get(AppStyle.key(it, "banner"), null) == null && it.icon == null;
-                if (Catalog.isApp(row.kind) && (!it.artRequested || needsStyleIcon)) loadArt(it);
         }
         row.setVisible(row != allApps && !shown.isEmpty());
         if (row == apps) row.title.setVisibility(View.GONE);
@@ -1362,11 +1425,11 @@ public final class Home extends Activity {
         io.execute(() -> {
             job.run();
             ui.post(() -> {
-                for (Row row : new Row[] {apps, allApps}) {
-                    ViewGroup tiles = row.tiles();
-                    for (int i = 0; i < tiles.getChildCount(); i++) tiles.getChildAt(i).invalidate();
+                View focused = getCurrentFocus();
+                if (focused instanceof Tile && ((Tile) focused).item == it) {
+                    focused.invalidate();
+                    focusBackground(it);
                 }
-                if (focusedItem() == it) focusBackground(it);
             });
         });
     }
@@ -1625,7 +1688,15 @@ public final class Home extends Activity {
         o.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(f.getPath(), o);
         o.inSampleSize = 1;
-        while (o.outWidth / (o.inSampleSize * 2) >= w && o.outHeight / (o.inSampleSize * 2) >= h) {
+        // Bound both total decoded pixels and the longest side. The old AND condition
+        // left very tall/narrow images at full resolution because one dimension was
+        // already below the display size.
+        int maxSide = Math.max(2048, Math.max(w, h) * 2);
+        while (o.outWidth > 0 && o.outHeight > 0) {
+            long width = Math.max(1, o.outWidth / o.inSampleSize);
+            long height = Math.max(1, o.outHeight / o.inSampleSize);
+            if (width * height <= 4_000_000L && Math.max(width, height) <= maxSide) break;
+            if (o.inSampleSize >= (1 << 20)) break;
             o.inSampleSize *= 2;
         }
         o.inJustDecodeBounds = false;
@@ -1652,7 +1723,7 @@ public final class Home extends Activity {
                 .setTitle(R.string.settings)
                 .setItems(labels, (d, which) -> {
                     Item s = sections.get(which);
-                    HomeSentinel.pause();
+                    HomeSentinel.pause(this);
                     launch(new Intent(s.intent), null);
                 })
                 .create();
@@ -1679,7 +1750,7 @@ public final class Home extends Activity {
     }
 
     private void launch(Intent i, String pkg) {
-        if (HomeSentinel.AMAZON_PKG.equals(pkg)) HomeSentinel.pause();
+        if (HomeSentinel.AMAZON_PKG.equals(pkg)) HomeSentinel.pause(this);
         try {
             // No transition: on a warm start of an app with a trampoline activity, such as
             // Prime Video, the animation showed home again between the two (#169).

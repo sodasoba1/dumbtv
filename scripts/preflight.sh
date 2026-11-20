@@ -20,6 +20,9 @@ note "verified boot $(dev1 getprop ro.boot.verifiedbootstate)  (1 = locked, cann
 note "gateway       $(gateway)"
 
 if is_fireos; then
+  if [[ $SDK -lt 25 || $SDK -gt 30 ]]; then
+    need_supported_fireos
+  fi
   note "platform      $(fireos_name)"
   note "lists         ${DATA#$ROOT/}/$(basename "$(dirname "$(fos packages.txt)")")"
   if [[ $SDK -lt 28 ]]; then
@@ -43,6 +46,7 @@ note "disable $(cleanup_list | wc -l | tr -d ' ') Amazon packages, minus anythin
 if [[ -n $REMOVE_EXTRA ]]; then note "remove only the apps you named: $REMOVE_EXTRA"
 else note "remove none of your apps (none named in dumbtv.conf)"; fi
 note "deny background work + data to $(list_of "$(fos protected.txt)" | wc -l | tr -d ' ') protected packages"
+note "Data Saver is device-wide: it restricts background metered data for all non-whitelisted apps; foreground app traffic and unmetered Wi-Fi are generally unaffected"
 note "optional DNS filtering is external; see docs/PI-HOLE.md"
 note "apply $(list_of "$(fos settings.txt)" | wc -l | tr -d ' ') privacy settings"
 if [[ $LAUNCHER == 1 ]]; then
@@ -56,17 +60,31 @@ note "see ${DATA#$ROOT/}/$(basename "$(dirname "$(fos never-disable.txt)")")/nev
 
 step "snapshot before anything changes"
 if [[ $DRY_RUN == 0 ]]; then
-  # Only the first run counts: later runs would snapshot the already-tightened
-  # values and destroy the originals restore.sh needs.
-  if [[ -f $REPORT/settings-before-secure.txt ]]; then
+  ensure_report_device
+  secure_snapshot="$REPORT/settings-before-secure.txt"
+  global_snapshot="$REPORT/settings-before-global.txt"
+  if [[ -f $secure_snapshot && -f $global_snapshot ]]; then
     note "settings snapshot already exists, keeping the original"
+  elif [[ -e $secure_snapshot || -e $global_snapshot ]]; then
+    die "incomplete settings snapshot in $REPORT; refusing to overwrite the original baseline"
   else
-    dev 'settings list secure' > "$REPORT/settings-before-secure.txt" 2>/dev/null || true
-    dev 'settings list global' > "$REPORT/settings-before-global.txt" 2>/dev/null || true
-    note "saved to report/ (git-ignored) so restore.sh can put the exact values back"
+    secure_values=$(dev 'settings list secure') || die "could not read secure settings; no snapshot was saved"
+    global_values=$(dev 'settings list global') || die "could not read global settings; no snapshot was saved"
+    [[ -n $secure_values && -n $global_values ]] ||
+      die "settings snapshot was unexpectedly empty; refusing to save an incomplete baseline"
+    printf '%s\n' "$secure_values" > "$secure_snapshot.tmp" ||
+      die "could not write secure settings snapshot"
+    printf '%s\n' "$global_values" > "$global_snapshot.tmp" ||
+      die "could not write global settings snapshot"
+    mv "$secure_snapshot.tmp" "$secure_snapshot" &&
+      mv "$global_snapshot.tmp" "$global_snapshot" ||
+      die "could not publish complete settings snapshots"
+    snapshot_package_states
+    note "saved device-scoped settings and package snapshots in $REPORT"
   fi
-else
-  note "[dry-run] would snapshot secure and global settings into report/"
+fi
+if [[ $DRY_RUN == 0 && ! -f $REPORT/packages-before.txt ]]; then
+  snapshot_package_states
 fi
 
 step "next"

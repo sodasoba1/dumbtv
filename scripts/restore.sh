@@ -30,17 +30,104 @@ if [[ $DRY_RUN == 0 ]]; then
 fi
 
 mkdir -p "$REPORT"
+if [[ $DRY_RUN == 0 ]]; then
+  ensure_report_device
+fi
+if [[ -f $REPORT/restore-complete.txt && ! -f $REPORT/packages-before.txt ]]; then
+  die "restore already completed; run preflight.sh before starting another debloat pass"
+fi
+if [[ ! -f $REPORT/packages-before.txt
+      && ( -f $REPORT/debloat.txt || -f $REPORT/settings-before-secure.txt
+           || -f $REPORT/settings-before-global.txt || -f $REPORT/lockdown-before.tsv
+           || -f $REPORT/data-saver-before.txt )
+      && ${DUMBTW_ALLOW_LEGACY_REPORT:-0} != 1 ]]; then
+  die "incomplete recovery snapshot: original package baseline is missing; refusing to assume packages were enabled"
+fi
+
+# Validate the complete recovery baseline before issuing any package or settings changes.
+secure_snapshot="$REPORT/settings-before-secure.txt"
+global_snapshot="$REPORT/settings-before-global.txt"
+if [[ -e $secure_snapshot || -e $global_snapshot ]]; then
+  [[ -s $secure_snapshot && -s $global_snapshot ]] ||
+    die "incomplete settings snapshot; both original settings files must be present and non-empty"
+fi
+lockdown_snapshot="$REPORT/lockdown-before.tsv"
+data_saver_snapshot="$REPORT/data-saver-before.txt"
+if [[ -e $lockdown_snapshot || -e $data_saver_snapshot ]]; then
+  [[ -e $lockdown_snapshot && -s $lockdown_snapshot && -s $data_saver_snapshot ]] ||
+    die "incomplete lockdown snapshot; original AppOps and Data Saver state must both be present"
+  data_saver_check=$(tr -d '\r\n' < "$data_saver_snapshot")
+  awk -F '\t' '
+    NR == 1 && $0 == "# dumbtv-lockdown-v1" { header=1; next }
+    NF == 5 && $1 ~ /^[A-Za-z0-9_.]+$/ && $2 ~ /^[0-9]+$/ && $2 >= 10000 \
+      && $3 ~ /^[A-Za-z_-]+$/ && ($4 == "not-applicable" || $4 ~ /^[A-Za-z_-]+$/) \
+      && $5 ~ /^[01]$/ { next }
+    { bad=1 }
+    END { exit !header || bad }
+  ' "$lockdown_snapshot" ||
+    die "invalid original AppOps and network-policy snapshot; refusing to restore policy"
+  [[ $data_saver_check == enabled || $data_saver_check == disabled ]] ||
+    die "invalid saved Data Saver state: ${data_saver_check:-empty}"
+fi
+lockdown_state_file="$REPORT/lockdown-state.txt"
+restore_lockdown=0
+if [[ -f $lockdown_state_file ]]; then
+  lockdown_state=$(tr -d '\r\n' < "$lockdown_state_file")
+  case $lockdown_state in
+    started|complete) ;;
+    *) die "invalid lockdown execution marker: ${lockdown_state:-empty}" ;;
+  esac
+  [[ -s $lockdown_snapshot && -s $data_saver_snapshot ]] ||
+    die "lockdown execution marker exists without complete policy snapshots"
+  restore_lockdown=1
+elif [[ ${DUMBTW_ALLOW_LEGACY_REPORT:-0} == 1 ]]; then
+  # Explicit opt-in is required for reports created before the execution marker.
+  restore_lockdown=1
+fi
+if [[ -f $REPORT/packages-before.txt ]]; then
+  awk -F '\t' '
+    NF == 0 { next }
+    NF != 2 || $1 !~ /^[A-Za-z0-9_.]+$/ || $2 !~ /^(enabled|disabled)$/ { bad=1; next }
+    { valid++ }
+    END { exit bad || valid == 0 }
+  ' "$REPORT/packages-before.txt" ||
+    die "invalid or empty original package baseline; refusing to restore package state"
+fi
+
+ABSENT_SETTING="__DUMBTW_SETTING_WAS_ABSENT__"
 
 # Prefer the value this device actually had before the pass (snapshotted by
 # preflight.sh); fall back to the stock defaults in data/.
 restore_value() {
   local ns=$1 key=$2 fallback=$3 snapshot="$REPORT/settings-before-$1.txt" v
   if [[ -f $snapshot ]]; then
-    # The snapshot is raw adb output: a CR left on the value would be written back with it.
-    v=$(tr -d '\r' < "$snapshot" | grep -m1 "^$key=" | cut -d= -f2-)
-    [[ -n $v ]] && { printf '%s' "$v"; return; }
+    if grep -q "^$key=" "$snapshot"; then
+      v=$(tr -d '\r' < "$snapshot" | grep -m1 "^$key=" | cut -d= -f2-)
+      printf '%s' "$v"
+    else
+      printf '%s' "$ABSENT_SETTING"
+    fi
+    return 0
   fi
   printf '%s' "$fallback"
+}
+
+restore_setting() {
+  local ns=$1 key=$2 value=$3 actual expected
+  if [[ $value == "$ABSENT_SETTING" ]]; then
+    acmd settings delete "$ns" "$key" >/dev/null ||
+      die "could not delete original absent setting $ns/$key"
+    expected=null
+  else
+    acmd settings put "$ns" "$key" "$value" >/dev/null ||
+      die "could not restore setting $ns/$key"
+    expected=$value
+  fi
+  if [[ $DRY_RUN == 0 ]]; then
+    actual=$(dev1 settings get "$ns" "$key" | tr -d '\r')
+    [[ $actual == "$expected" ]] ||
+      die "setting $ns/$key did not restore (expected '$expected', got '$actual'); baseline retained"
+  fi
 }
 
 package_snapshot="$REPORT/packages-before.txt"
@@ -69,9 +156,11 @@ for p in $(restore_list); do
     a="installed"
   fi
   b=$(acmd pm enable --user 0 "$p" 2>&1 | head -1)
-  bg_on "$p"
-  uid=$(uid_of "$p")
-  [[ -n $uid ]] && acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null 2>&1
+  if [[ $DRY_RUN == 0 ]]; then
+    state=$(package_user_enabled_state "$p")
+    [[ $state == 0 || $state == 1 ]] ||
+      die "package $p did not return to an enabled state (state ${state:-unknown})"
+  fi
   printf '  %-46s %s / %s\n' "$p" "${a:-no output}" "${b:-no output}"
 done
 
@@ -95,39 +184,107 @@ for p in $(list_of "$(fos never-disable.txt)" | awk '{print $1}'); do
     continue
   }
   b=$(acmd pm enable --user 0 "$p" 2>&1 | head -1)
+  if [[ $DRY_RUN == 0 ]]; then
+    state=$(package_user_enabled_state "$p")
+    [[ $state == 0 || $state == 1 ]] ||
+      die "protected package $p did not return to an enabled state (state ${state:-unknown})"
+  fi
   printf '  %-46s %s\n' "$p" "${b:-no output}"
 done
 
 step "screensaver"
 if [[ $(dev1 settings get secure screensaver_components) == "$AOSP_DREAM" ]]; then
   want=$(restore_value secure screensaver_components "$(dev1 settings get secure screensaver_default_component)")
-  if [[ -n $want && $want != null && $want != "$AOSP_DREAM" ]]; then
-    acmd settings put secure screensaver_components "$want" >/dev/null
-    printf '  %-46s %s\n' screensaver_components "$want"
+  if [[ -z $want || $want == null ]]; then want=$ABSENT_SETTING; fi
+  if [[ $want != "$AOSP_DREAM" ]]; then
+    restore_setting secure screensaver_components "$want"
+    printf '  %-46s %s\n' screensaver_components "${want/$ABSENT_SETTING/<absent>}"
   fi
 else
   note "unchanged"
 fi
 
-step "packages that were only starved"
-if [[ -f $REPORT/debloat.txt ]]; then
-  while IFS=$'\t' read -r p state rest; do
-    [[ -z ${p:-} ]] && continue
-    bg_on "$p"
-    uid=$(uid_of "$p")
-    [[ -n $uid ]] && acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null 2>&1
-    printf '  %-46s %s\n' "$p" "${state:-unknown}"
-  done < "$REPORT/debloat.txt"
-else
-  note "no report/debloat.txt, relying on protected.txt only"
+step "restore background execution and network policy"
+for p in $(list_of "$(fos never-disable.txt)" | awk '{print $1}'); do
+  present "$p" || continue
+  state=$(package_user_enabled_state "$p")
+  if [[ $state == 3 ]] && was_enabled_before "$p"; then
+    die "post-reboot protected package $p is still user-disabled; snapshots retained"
+  fi
+done
+if [[ $restore_lockdown == 1 && -f $REPORT/lockdown-before.tsv ]]; then
+  while IFS='|' read -r p uid bg any was_blacklisted; do
+    [[ -z ${p:-} || $p == \#* ]] && continue
+    acmd appops set "$p" RUN_IN_BACKGROUND "$bg" >/dev/null ||
+      die "could not restore RUN_IN_BACKGROUND for $p"
+    if [[ $SDK -ge 28 && $any != not-applicable ]]; then
+      acmd appops set "$p" RUN_ANY_IN_BACKGROUND "$any" >/dev/null ||
+        die "could not restore RUN_ANY_IN_BACKGROUND for $p"
+    fi
+    if [[ $was_blacklisted == 0 ]]; then
+      acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null 2>&1 ||
+        die "could not remove DumbTV's network restriction for $p"
+    fi
+    if [[ $DRY_RUN == 0 ]]; then
+      actual_bg=$(dev1 appops get "$p" RUN_IN_BACKGROUND | sed -n 's/.*RUN_IN_BACKGROUND:[[:space:]]*\([^,[:space:]]*\).*/\1/p')
+      [[ $actual_bg == "$bg" ]] || die "RUN_IN_BACKGROUND restore did not verify for $p"
+      if [[ $SDK -ge 28 && $any != not-applicable ]]; then
+        actual_any=$(dev1 appops get "$p" RUN_ANY_IN_BACKGROUND | sed -n 's/.*RUN_ANY_IN_BACKGROUND:[[:space:]]*\([^,[:space:]]*\).*/\1/p')
+        [[ $actual_any == "$any" ]] || die "RUN_ANY_IN_BACKGROUND restore did not verify for $p"
+      fi
+      blacklist_now=$(dev 'cmd netpolicy list restrict-background-blacklist')
+      if [[ $was_blacklisted == 1 ]]; then
+        grep -Eq "(^|[^0-9])$uid([^0-9]|$)" <<<"$blacklist_now" ||
+          die "pre-existing network blacklist entry was not preserved for $p"
+      else
+        ! grep -Eq "(^|[^0-9])$uid([^0-9]|$)" <<<"$blacklist_now" ||
+          die "network blacklist removal did not verify for $p"
+      fi
+    fi
+    printf '  %-46s AppOps restored; original blacklist=%s\n' "$p" "$was_blacklisted"
+  done < <(tr '\t' '|' < "$REPORT/lockdown-before.tsv")
+elif [[ $restore_lockdown == 1 && ${DUMBTW_ALLOW_LEGACY_REPORT:-0} == 1 ]]; then
+  # v1.17 did not retain the original modes. Only an explicitly accepted
+  # legacy report may use the historical protected-package reset.
+  note "legacy installation has no AppOps baseline; restoring protected packages to allow"
   for p in $(list_of "$(fos protected.txt)"); do
+    present "$p" || continue
     bg_on "$p"
     uid=$(uid_of "$p")
-    [[ -n $uid ]] && acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null 2>&1
-    printf '  %-46s cleared\n' "$p"
+    [[ -n $uid ]] && acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null
   done
+else
+  note "lockdown did not run; leaving existing AppOps and network policy unchanged"
 fi
-acmd cmd netpolicy set restrict-background false >/dev/null 2>&1
+
+if [[ -f $REPORT/lockdown-before.tsv && ! -f $REPORT/data-saver-before.txt ]]; then
+  die "incomplete lockdown snapshot: original Data Saver state is missing; refusing to guess"
+fi
+data_saver=unchanged
+if [[ $restore_lockdown == 1 && -f $REPORT/data-saver-before.txt ]]; then
+  data_saver=$(tr -d '\r\n' < "$REPORT/data-saver-before.txt")
+elif [[ $restore_lockdown == 1 && ${DUMBTW_ALLOW_LEGACY_REPORT:-0} == 1 ]]; then
+  note "legacy report has no original Data Saver snapshot; using the v1.17 restore default (disabled)"
+  data_saver=disabled
+else
+  note "no lockdown snapshot; leaving Data Saver unchanged"
+fi
+if [[ $data_saver != unchanged ]]; then
+  case $data_saver in
+    enabled) data_saver_arg=true ;;
+    disabled) data_saver_arg=false ;;
+    *) die "invalid saved Data Saver state: $data_saver" ;;
+  esac
+  acmd cmd netpolicy set restrict-background "$data_saver_arg" >/dev/null ||
+    die "could not restore original Data Saver state"
+  if [[ $DRY_RUN == 0 ]]; then
+    actual_data_saver=$(dev 'cmd netpolicy get restrict-background' | tr -d '\r')
+    case $data_saver:$actual_data_saver in
+      enabled:*enabled*|disabled:*disabled*) ;;
+      *) die "Data Saver restore did not verify (expected $data_saver, got $actual_data_saver)" ;;
+    esac
+  fi
+fi
 
 step "on-device hooks"
 if [[ $DRY_RUN == 1 ]]; then
@@ -142,8 +299,8 @@ step "settings"
 while read -r ns key value; do
   [[ -z ${ns:-} || $ns == \#* ]] && continue
   want=$(restore_value "$ns" "$key" "$value")
-  acmd settings put "$ns" "$key" "$want" >/dev/null
-  printf '  %-46s %s\n' "$key" "$want"
+  restore_setting "$ns" "$key" "$want"
+  printf '  %-46s %s\n' "$key" "${want/$ABSENT_SETTING/<absent>}"
 done < <(list_of "$(fos settings.restore.txt)" | sed 's/ = / /')
 
 # Retire only the old personalDNSfilter integration. Disable the app if present,
@@ -183,11 +340,75 @@ fi
 
 [[ $DRY_RUN == 1 ]] && { note "[dry-run] done"; exit 0; }
 reboot_wait
+
+# Verify that Amazon Home, not merely any foreground app, owns HOME after reboot.
+front=$(front_activity)
+[[ $front == com.amazon.tv.launcher/com.amazon.tv.launcher.ui.HomeActivity_vNext ]] ||
+  die "post-reboot HOME handoff failed (foreground is ${front:-unknown}); recovery snapshots retained"
+takeover=$(dev1 settings get global dumbtv_homesentinel_enabled | tr -d '\r')
+[[ $takeover == 0 ]] ||
+  die "post-reboot HomeSentinel takeover gate is not disabled; recovery snapshots retained"
+
+# A successful reboot alone does not prove that Android persisted the restored values.
+while read -r ns key value; do
+  [[ -z ${ns:-} || $ns == \#* ]] && continue
+  want=$(restore_value "$ns" "$key" "$value")
+  if [[ $want == "$ABSENT_SETTING" ]]; then expected=null; else expected=$want; fi
+  actual=$(dev1 settings get "$ns" "$key" | tr -d '\r')
+  [[ $actual == "$expected" ]] ||
+    die "post-reboot setting verification failed for $ns/$key; snapshots retained"
+done < <(list_of "$(fos settings.restore.txt)" | sed 's/ = / /')
+
+# Verify package enablement and the captured per-package background policy again
+# after boot, before deleting the only recovery baseline.
+for p in $(restore_list); do
+  was_enabled_before "$p" || continue
+  present "$p" || continue
+  state=$(package_user_enabled_state "$p")
+  [[ $state == 0 || $state == 1 ]] ||
+    die "post-reboot package verification failed for $p (state ${state:-unknown}); snapshots retained"
+done
+if [[ $restore_lockdown == 1 && -f $REPORT/lockdown-before.tsv ]]; then
+  while IFS='|' read -r p uid bg any was_blacklisted; do
+    [[ -z ${p:-} || $p == \#* ]] && continue
+    actual_bg=$(dev1 appops get "$p" RUN_IN_BACKGROUND | sed -n 's/.*RUN_IN_BACKGROUND:[[:space:]]*\([^,[:space:]]*\).*/\1/p')
+    [[ $actual_bg == "$bg" ]] || die "post-reboot AppOps verification failed for $p; snapshots retained"
+    if [[ $SDK -ge 28 && $any != not-applicable ]]; then
+      actual_any=$(dev1 appops get "$p" RUN_ANY_IN_BACKGROUND | sed -n 's/.*RUN_ANY_IN_BACKGROUND:[[:space:]]*\([^,[:space:]]*\).*/\1/p')
+      [[ $actual_any == "$any" ]] || die "post-reboot RUN_ANY_IN_BACKGROUND verification failed for $p; snapshots retained"
+    fi
+    blacklist_now=$(dev 'cmd netpolicy list restrict-background-blacklist')
+    if [[ $was_blacklisted == 1 ]]; then
+      grep -Eq "(^|[^0-9])$uid([^0-9]|$)" <<<"$blacklist_now" ||
+        die "post-reboot pre-existing blacklist entry was lost for $p; snapshots retained"
+    else
+      ! grep -Eq "(^|[^0-9])$uid([^0-9]|$)" <<<"$blacklist_now" ||
+        die "post-reboot network blacklist removal failed for $p; snapshots retained"
+    fi
+  done < <(tr '\t' '|' < "$REPORT/lockdown-before.tsv")
+fi
+
+if [[ $data_saver != unchanged ]]; then
+  actual_data_saver=$(dev 'cmd netpolicy get restrict-background' | tr -d '\r')
+  case $data_saver:$actual_data_saver in
+    enabled:*enabled*|disabled:*disabled*) ;;
+    *) die "post-reboot Data Saver verification failed; snapshots retained" ;;
+  esac
+fi
+
+# Mark completion before deleting the baseline. A second restore must not
+# assume that every package was originally enabled after this snapshot is gone.
+marker_tmp="$REPORT/restore-complete.txt.tmp"
+printf 'format=1\n' > "$marker_tmp" ||
+  die "could not mark the verified restore as complete; snapshots retained"
+mv "$marker_tmp" "$REPORT/restore-complete.txt" ||
+  die "could not mark the verified restore as complete; snapshots retained"
+
 # A completed restore ends this cleanup cycle. Remove only the original-state
-# snapshots so a later run records the device's new baseline instead of reusing
-# stale values from this one.
+# snapshots so a later preflight records the device's new baseline.
 [[ ! -f $REPORT/debloat.txt ]] || mv "$REPORT/debloat.txt" "$REPORT/debloat-last.txt"
 rm -f "$REPORT/packages-before.txt" "$REPORT/settings-before-secure.txt" \
-  "$REPORT/settings-before-global.txt"
+  "$REPORT/settings-before-global.txt" "$REPORT/lockdown-before.tsv" \
+  "$REPORT/data-saver-before.txt" "$REPORT/lockdown-state.txt"
 note "restored. dumbtv home and SmartTube (if added) remain installed; remove them in"
 note "Settings > Applications if you want them gone too."

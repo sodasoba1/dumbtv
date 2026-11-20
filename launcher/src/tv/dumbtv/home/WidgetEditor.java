@@ -44,14 +44,21 @@ public final class WidgetEditor extends Activity {
         cfg = Config.get(this);
         cfg.refresh();
         String savedWidgetVersion = cfg.get("widgets.layout.version", "");
+        boolean migrateLayout = !"4".equals(savedWidgetVersion);
         if ("1".equals(savedWidgetVersion)) {
             layout = WidgetLayout.decodeLegacy(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         } else {
             layout = WidgetLayout.decode(cfg.get(WidgetLayout.CONFIG_KEY, ""));
         }
-        if (!"4".equals(savedWidgetVersion)) layout.ensureDateWidget();
-        cfg.set(WidgetLayout.CONFIG_KEY, layout.encode());
-        cfg.set("widgets.layout.version", "4");
+        if (migrateLayout) {
+            layout.ensureDateWidget();
+            Map<String, String> migration = new HashMap<>();
+            migration.put(WidgetLayout.CONFIG_KEY, layout.encode());
+            migration.put("widgets.layout.version", "4");
+            if (!cfg.setAll(migration)) {
+                android.util.Log.w("dumbtv", "widget layout migration could not be saved; original config retained");
+            }
+        }
         pendingText = cfg.getText("widgets.text", "Custom text");
         for (WidgetLayout.Widget widget : layout.items()) {
             int fallback = "clock".equals(widget.type) ? 32

@@ -29,10 +29,14 @@ public final class HomeSentinelPauseTest {
         state = HomeSentinelPause.afterForeground(state, "com.android.systemui", null);
         check(state == HomeSentinelPause.State.AMAZON_HOME_HOLD, "System UI does not release explicit hold");
         state = HomeSentinelPause.afterForeground(state, "com.netflix.ninja", null);
-        check(state == HomeSentinelPause.State.ACTIVE, "leaving Amazon for an app releases explicit hold");
-        state = HomeSentinelPause.afterForeground(HomeSentinelPause.State.AMAZON_HOME_HOLD,
-                "tv.dumbtv.home", null);
-        check(state == HomeSentinelPause.State.ACTIVE, "returning to DumbTV releases explicit hold");
+        check(state == HomeSentinelPause.State.AMAZON_HOME_HOLD,
+                "launching an ordinary app preserves the explicit Amazon Home hold");
+        state = HomeSentinelPause.afterForeground(state, "com.amazon.tv.launcher",
+                "com.amazon.tv.launcher.ui.HomeActivity_vNext");
+        check(state == HomeSentinelPause.State.AMAZON_HOME_HOLD,
+                "returning from an app keeps Amazon Home in control");
+        state = HomeSentinelPause.afterForeground(state, "tv.dumbtv.home", null);
+        check(state == HomeSentinelPause.State.ACTIVE, "manually opening DumbTV releases explicit hold");
     }
 
     public static void main(String[] args) {

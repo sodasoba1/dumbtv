@@ -16,7 +16,7 @@ class LauncherCertificateTest(unittest.TestCase):
         """Expose only required shell utilities and explicit test shims."""
         bindir = root / "isolated-bin"
         bindir.mkdir(exist_ok=True)
-        for name in ("bash", "dirname", "sed", "awk", "tr"):
+        for name in ("bash", "dirname", "sed", "awk", "tr", "grep", "head"):
             executable = shutil.which(name)
             if executable:
                 (bindir / name).symlink_to(executable)
@@ -34,6 +34,9 @@ class LauncherCertificateTest(unittest.TestCase):
             sdk = tmp / "android-sdk"
             signer = sdk / "build-tools" / "34.0.0" / "apksigner"
             signer.parent.mkdir(parents=True)
+            aapt2 = signer.parent / "aapt2"
+            aapt2.write_text("#!/bin/sh\necho \"package: name='tv.dumbtv.home' versionCode='1' versionName='1.0'\"\n")
+            aapt2.chmod(0o755)
             signer.write_text(
                 "#!/usr/bin/env bash\n"
                 '[[ "$1" == verify && "$2" == --print-certs && "$3" == "$APK_UNDER_TEST" ]] || exit 90\n'
@@ -83,7 +86,7 @@ class LauncherCertificateTest(unittest.TestCase):
                               f"printf '%s\\n' 'Signer #1 certificate SHA-256 digest: {PIN}'\n")
             signer.chmod(0o755)
             env = dict(os.environ, ANDROID_HOME="", ANDROID_SDK_ROOT="", LOCALAPPDATA="")
-            env["PATH"] = self.isolated_path(tmp, (("apksigner", signer.read_text()),))
+            env["PATH"] = self.isolated_path(tmp, (("apksigner", signer.read_text()), ("aapt2", "#!/bin/sh\necho \"package: name='tv.dumbtv.home' versionCode='1' versionName='1.0'\"\n")))
             result = subprocess.run(["bash", str(VERIFY), str(apk)], env=env,
                                     capture_output=True, text=True, timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -95,6 +98,9 @@ class LauncherCertificateTest(unittest.TestCase):
             signer = sdk / "build-tools" / "34.0.0" / "apksigner.bat"
             signer.parent.mkdir(parents=True)
             signer.write_text("@echo off\r\n")
+            aapt2 = signer.parent / "aapt2.exe"
+            aapt2.write_text("#!/bin/sh\necho \"package: name='tv.dumbtv.home' versionCode='1' versionName='1.0'\"\n")
+            aapt2.chmod(0o755)
             apk = tmp / "release package.apk"
             apk.write_bytes(b"fake apk")
             bindir = tmp / "mock-bin"

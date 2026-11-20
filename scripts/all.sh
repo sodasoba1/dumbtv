@@ -20,10 +20,23 @@ if [[ ! -f $CONF ]]; then
   run "$DIR/configure.sh" || exit 1
 fi
 
-# configure.sh runs in a child process, so load its saved opt-in here too.
-# A dry-run may not have written a config; absent YOUTUBE still defaults to 0.
+# configure.sh runs in a child process, so read its saved opt-in here too.
+# Parse the two values needed by this parent process; never source config as shell code.
+YOUTUBE=0
+LAUNCHER=1
 if [[ -f $CONF ]]; then
-  source "$CONF" || exit 1
+  while IFS='=' read -r key value; do
+    value=$(printf '%s' "${value:-}" | tr -d '\r')
+    value=${value%\"}; value=${value#\"}
+    case $key in
+      YOUTUBE|LAUNCHER)
+        case $value in
+          0|1) [[ $key == YOUTUBE ]] && YOUTUBE=$value || LAUNCHER=$value ;;
+          *) echo "error: $key must be 0 or 1 in $CONF" >&2; exit 1 ;;
+        esac
+        ;;
+    esac
+  done < "$CONF"
 fi
 
 run bash "$DIR/cleanup-legacy-dnsfilter.sh" || exit 1
@@ -34,7 +47,9 @@ run "$DIR/lockdown.sh"  || exit 1
 # and launcher/install.sh invocations still reject unsupported SDKs.
 source "$DIR/lib.sh"
 need_device
-if [[ $SDK == 25 || ${LAUNCHER:-1} == 0 ]]; then
+if [[ ${LAUNCHER:-1} == 0 ]]; then
+  printf 'skip launcher: LAUNCHER=0 in dumbtv.conf\n'
+elif [[ $SDK == 25 ]]; then
   run "$DIR/launcher.sh" || exit 1
 else
   printf 'skip launcher: HomeSentinel supports API 25 only (device reports API %s)\n' "$SDK"

@@ -12,29 +12,39 @@ final class AppArtwork {
 
     static void load(Context context, PackageManager pm, Item item, boolean cornerIcon,
                      Map<String, IconPack> packs, String packName, String chosen) {
-        Drawable replacement = null;
-        if (!IconPack.OWN.equals(chosen)) {
-            IconPack pack;
-            if (packs.containsKey(packName)) {
-                pack = packs.get(packName);
-            } else {
-                pack = IconPack.load(pm, packName);
-                packs.put(packName, pack);
-                if (pack != null) HomeSentinel.note("icon pack " + packName + ": " + pack.size() + " apps");
+        try {
+            Drawable replacement = null;
+            if (!IconPack.OWN.equals(chosen)) {
+                IconPack pack;
+                if (packs.containsKey(packName)) {
+                    pack = packs.get(packName);
+                } else {
+                    pack = IconPack.load(pm, packName);
+                    packs.put(packName, pack);
+                    if (pack != null) HomeSentinel.note("icon pack " + packName + ": " + pack.size() + " apps");
+                }
+                if (pack != null) {
+                    // A manually picked drawable is valid only for the pack it came from.
+                    String picked = IconMatch.picked(chosen, packName);
+                    Drawable selected = picked == null ? null : pack.picture(picked);
+                    replacement = selected != null ? selected : pack.drawable(item);
+                }
             }
-            if (pack != null) {
-                // A manually picked drawable is valid only for the pack it came from.
-                String picked = IconMatch.picked(chosen, packName);
-                Drawable selected = picked == null ? null : pack.picture(picked);
-                replacement = selected != null ? selected : pack.drawable(item);
-            }
-        }
 
-        Catalog.art(pm, item, cornerIcon, replacement);
-        Drawable custom = Catalog.customBanner(context, item);
-        if (custom != null) {
-            item.banner = custom;
-            item.icon = null;
+            Catalog.art(pm, item, cornerIcon, replacement);
+            Drawable custom = Catalog.customBanner(context, item);
+            if (custom != null) {
+                item.banner = custom;
+                item.icon = null;
+            }
+        } catch (RuntimeException e) {
+            HomeSentinel.note("artwork failed for " + item.id + "; using the app's default icon: " + e);
+            item.banner = null;
+            try {
+                item.icon = pm.getApplicationIcon(item.id);
+            } catch (PackageManager.NameNotFoundException | RuntimeException ignored) {
+                item.icon = null;
+            }
         }
     }
 }

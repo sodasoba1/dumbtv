@@ -20,12 +20,22 @@ elif [[ $SDK != 25 ]]; then
 else
   homesentinel=$(dev 'dumpsys activity services tv.dumbtv.home' | grep -c 'isForeground=true' || true)
   home_package=${home%%/*}
-  if [[ ${homesentinel:-0} -gt 0 && $home_package != com.amazon.tv.launcher && -n $home_package ]]; then
-    printf '%-10s %-38s %s\n' ok home "HomeSentinel armed; foreground is ${home:-unknown}"
-  elif [[ ${homesentinel:-0} -gt 0 ]]; then
+  if [[ ${homesentinel:-0} -gt 0 && $home_package == tv.dumbtv.home ]]; then
+    printf '%-10s %-38s %s\n' ok home "HomeSentinel armed; DumbTV is foreground"
+  elif [[ ${homesentinel:-0} -gt 0 && $home_package == com.amazon.tv.launcher ]]; then
     printf '%-10s %-38s %s\n' FAIL home "HomeSentinel is running but Amazon Home is foreground (${home:-unknown})"; fail=1
+  elif [[ ${homesentinel:-0} -gt 0 && -z $home_package ]]; then
+    printf '%-10s %-38s %s\n' FAIL home "could not determine the foreground activity"; fail=1
+  elif [[ ${homesentinel:-0} -gt 0 ]]; then
+    printf '%-10s %-38s %s\n' ok home "HomeSentinel armed; foreground is ${home_package:-unknown}"
   else
     printf '%-10s %-38s %s\n' FAIL home "HomeSentinel not running; re-run launcher.sh"; fail=1
+  fi
+  takeover=$(dev1 settings get global dumbtv_homesentinel_enabled | tr -d '\r')
+  if [[ $takeover == 1 ]]; then
+    printf '%-10s %-38s %s\n' ok takeover-gate "automatic HOME takeover enabled"
+  else
+    printf '%-10s %-38s %s\n' FAIL takeover-gate "expected 1, got ${takeover:-unknown}"; fail=1
   fi
   usage_access=$(dev 'appops get tv.dumbtv.home GET_USAGE_STATS' | tr -d '\r')
   if grep -Eq 'GET_USAGE_STATS:[[:space:]]*allow([,[:space:]]|$)' <<<"$usage_access"; then
@@ -37,9 +47,9 @@ else
   if grep -Fq 'Unknown operation string: AUTO_START' <<<"$auto_start"; then
     printf '%-10s %-38s %s\n' skip standby-start "AUTO_START unsupported by this firmware; boot receiver remains available"
   elif grep -Eq 'AUTO_START:[[:space:]]*allow([,[:space:]]|$)' <<<"$auto_start"; then
-    printf '%-10s %-38s %s\n' ok standby-start "HomeSentinel AUTO_START allowed"
+    printf '%-10s %-38s %s\n' ok standby-start "optional AUTO_START is allowed"
   else
-    printf '%-10s %-38s %s\n' FAIL standby-start "${auto_start:-AUTO_START unavailable}; rerun ./launcher/install.sh"; fail=1
+    printf '%-10s %-38s %s\n' FAIL standby-start "AUTO_START is not allowed (${auto_start:-unknown})"; fail=1
   fi
   package_dump=$(dev 'dumpsys package tv.dumbtv.home' | tr -d '\r')
   if grep -Eq '^[[:space:]]*android\.permission\.READ_LOGS:[[:space:]]*granted=true([,[:space:]]|$)' <<<"$package_dump"; then

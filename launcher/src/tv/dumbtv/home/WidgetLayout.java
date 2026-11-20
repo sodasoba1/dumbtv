@@ -123,7 +123,7 @@ final class WidgetLayout {
     private static boolean inside(int x, int y, int width, int height) {
         return x >= 0 && y >= 0 && width > 0 && height > 0
                 && width <= COLUMNS && height <= ROWS
-                && x + width <= COLUMNS && y + height <= ROWS;
+                && x <= COLUMNS - width && y <= ROWS - height;
     }
 
     private static boolean validId(String id) {
@@ -175,19 +175,26 @@ final class WidgetLayout {
                 int oldHeight = Integer.parseInt(fields[5]);
                 int width = oldHeight;
                 int height = oldWidth;
-                if (result.add(fields[0], fields[1], x, y, width, height)) continue;
+                // Validate untrusted persisted dimensions before using them as loop bounds.
+                // The grid has only 24 cells, so migration work must remain strictly bounded.
+                if (validSize(width, height)
+                        && result.add(fields[0], fields[1], x, y, width, height)) continue;
                 boolean placed = false;
-                for (int row = 0; row + height <= ROWS && !placed; row++) {
-                    for (int column = 0; column + width <= COLUMNS; column++) {
-                        if (result.add(fields[0], fields[1], column, row, width, height)) {
-                            placed = true;
-                            break;
+                if (validSize(width, height)) {
+                    for (int row = 0; row < ROWS && !placed; row++) {
+                        for (int column = 0; column < COLUMNS && !placed; column++) {
+                            if (column + width <= COLUMNS && row + height <= ROWS
+                                    && result.add(fields[0], fields[1], column, row, width, height)) {
+                                placed = true;
+                            }
                         }
                     }
                 }
-                // Retain the old valid rectangle rather than discard a widget if no
-                // transposed location is available.
-                if (!placed) result.add(fields[0], fields[1], x, y, oldWidth, oldHeight);
+                // If the corrected dimensions cannot fit, retain the original rectangle
+                // only when it is independently valid. Otherwise skip this corrupt record.
+                if (!placed && validSize(oldWidth, oldHeight)) {
+                    result.add(fields[0], fields[1], x, y, oldWidth, oldHeight);
+                }
             } catch (NumberFormatException ignored) {
                 // Ignore corrupt records; retain every other valid placement.
             }

@@ -42,7 +42,7 @@ class LauncherUndoTest(unittest.TestCase):
     def test_undo_is_available_outside_the_launcher_target_api(self):
         commands, _ = self.undo(sdk=28)
         self.assertIn("am force-stop tv.dumbtv.home", commands)
-        self.assertIn("am start -a android.intent.action.MAIN -c android.intent.category.HOME", commands)
+        self.assertIn("am start -W -a android.intent.action.MAIN -c android.intent.category.HOME -p com.amazon.tv.launcher", commands)
 
     def test_all_homesentinel_access_is_reset(self):
         commands, state = self.undo(sdk=25)
@@ -59,7 +59,7 @@ class LauncherUndoTest(unittest.TestCase):
         commands, state = self.undo(sdk=25)
         self.assertFalse(any("accessibility" in command or "alarm_manager" in command
                              for command in commands))
-        self.assertEqual(state["settings"], {})
+        self.assertEqual(state["settings"], {"global/dumbtv_homesentinel_enabled": "0"})
 
 
 if __name__ == "__main__":
