@@ -36,6 +36,12 @@ fi
 if [[ -f $REPORT/restore-complete.txt && ! -f $REPORT/packages-before.txt ]]; then
   die "restore already completed; run preflight.sh before starting another debloat pass"
 fi
+if [[ ! -f $REPORT/packages-before.txt
+      && ( -f $REPORT/settings-before-secure.txt || -f $REPORT/settings-before-global.txt
+           || -f $REPORT/lockdown-before.tsv || -f $REPORT/data-saver-before.txt )
+      && ${DUMBTW_ALLOW_LEGACY_REPORT:-0} != 1 ]]; then
+  die "incomplete recovery snapshot: original package baseline is missing; refusing to assume packages were enabled"
+fi
 
 ABSENT_SETTING="__DUMBTW_SETTING_WAS_ABSENT__"
 

@@ -124,6 +124,12 @@ class RestoreTest(unittest.TestCase):
         self.assertNotIn("pm enable --user 0 com.amazon.firebat", commands)
         self.assertIn("left disabled by Fire OS (state 2)", result.stdout)
 
+    def test_restore_refuses_new_report_without_package_baseline(self):
+        result, commands, _ = self.run_restore(secure_snapshot="screen_timeout=300\n")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("original package baseline is missing", result.stderr)
+        self.assertFalse(any(command.startswith("pm enable") for command in commands))
+
     def test_restore_refuses_a_report_from_another_device(self):
         result, commands, _ = self.run_restore(manifest_serial="different-tv")
         self.assertNotEqual(result.returncode, 0)
@@ -133,6 +139,7 @@ class RestoreTest(unittest.TestCase):
 
     def test_failed_settings_write_keeps_the_original_snapshot(self):
         result, _, _ = self.run_restore(
+            package_snapshot="com.amazon.hedwig\tdisabled\n",
             secure_snapshot="amz_limit_ad_tracking=1\n",
             state_overrides={"settings_write_refused_key": "secure/amz_limit_ad_tracking"})
         self.assertNotEqual(result.returncode, 0)
@@ -141,6 +148,7 @@ class RestoreTest(unittest.TestCase):
 
     def test_successful_settings_command_without_a_value_change_is_rejected(self):
         result, _, _ = self.run_restore(
+            package_snapshot="com.amazon.hedwig\tdisabled\n",
             secure_snapshot="amz_limit_ad_tracking=1\n",
             state_overrides={"settings_put_noop_key": "secure/amz_limit_ad_tracking"})
         self.assertNotEqual(result.returncode, 0)
@@ -150,6 +158,7 @@ class RestoreTest(unittest.TestCase):
     def test_restore_preserves_preexisting_appops_blacklist_and_data_saver(self):
         result, commands, state = self.run_restore(
             protected_disabled=True,
+            package_snapshot="com.amazon.hedwig\tdisabled\ncom.amazon.firebat\tenabled\n",
             lockdown_snapshot="com.amazon.firebat\t10050\tignore\tnot-applicable\t1\n",
             data_saver_snapshot="enabled\n",
             state_overrides={
@@ -167,6 +176,7 @@ class RestoreTest(unittest.TestCase):
     def test_restore_removes_only_its_own_appops_and_network_restrictions(self):
         result, commands, state = self.run_restore(
             protected_disabled=True,
+            package_snapshot="com.amazon.hedwig\tdisabled\ncom.amazon.firebat\tenabled\n",
             lockdown_snapshot="com.amazon.firebat\t10050\tallow\tnot-applicable\t0\n",
             data_saver_snapshot="disabled\n",
             state_overrides={
