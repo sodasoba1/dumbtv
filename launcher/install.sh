@@ -71,13 +71,30 @@ sha256() {
 }
 
 if [[ $mode == undo ]]; then
-  # force-stop also keeps the Fire OS 6 HomeSentinel from restarting at the next boot.
-  sh_ am force-stop $PKG >/dev/null 2>&1 || true
-  sh_ appops set $PKG GET_USAGE_STATS default >/dev/null 2>&1 || true
-  sh_ pm revoke $PKG android.permission.READ_LOGS >/dev/null 2>&1 || true
-  sh_ dumpsys deviceidle whitelist -$PKG >/dev/null 2>&1 || true
-  sh_ am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null 2>&1 || true
-  echo "HOME handed back to Amazon's launcher (dumbtv home stays installed: adb uninstall $PKG)"
+  # Fail closed first: a package-replaced or sticky service restart must not reclaim HOME.
+  sh_ settings put global dumbtv_homesentinel_enabled 0 >/dev/null ||
+    { echo "error: could not suspend HomeSentinel takeover" >&2; exit 1; }
+  sh_ am force-stop "$PKG" >/dev/null ||
+    { echo "error: could not stop DumbTV; Amazon HOME handoff not verified" >&2; exit 1; }
+  sh_ appops set "$PKG" GET_USAGE_STATS default >/dev/null ||
+    { echo "error: could not revoke HomeSentinel UsageStats access" >&2; exit 1; }
+  sh_ pm revoke "$PKG" android.permission.READ_LOGS >/dev/null ||
+    { echo "error: could not revoke HomeSentinel log access" >&2; exit 1; }
+  sh_ dumpsys deviceidle whitelist -"$PKG" >/dev/null ||
+    { echo "error: could not remove DumbTV from the Doze whitelist" >&2; exit 1; }
+  services=$(sh_ dumpsys activity services "$PKG" 2>/dev/null || true)
+  if grep -q 'HomeSentinel' <<<"$services"; then
+    echo "error: HomeSentinel is still running after force-stop; refusing to claim HOME was handed back" >&2
+    exit 1
+  fi
+  sh_ am start -W -a android.intent.action.MAIN -c android.intent.category.HOME -p com.amazon.tv.launcher >/dev/null ||
+    { echo "error: Amazon HOME launch request failed" >&2; exit 1; }
+  front=$(front_activity)
+  if [[ ${front%%/*} != com.amazon.tv.launcher ]]; then
+    echo "error: Amazon HOME handoff not verified; foreground is ${front:-unknown}" >&2
+    exit 1
+  fi
+  echo "HOME handed back and verified on Amazon's launcher (dumbtv home stays installed: adb uninstall $PKG)"
   exit 0
 fi
 
@@ -95,6 +112,13 @@ build_apk() {
   ./build.sh
   APK=build/dumbtv-home.apk
 }
+
+# Every install/update starts fail-closed. HomeSentinel and BootReceiver consult
+# this device setting before any automatic foreground takeover. A failed install
+# therefore cannot leave a replacement APK actively reclaiming HOME.
+sh_ settings put global dumbtv_homesentinel_enabled 0 >/dev/null ||
+  { echo "error: could not suspend HomeSentinel takeover before installation" >&2; exit 1; }
+
 
 # adb ends its output with a blank line, so take the line that carries the result.
 install_apk() {
@@ -242,3 +266,12 @@ if [[ $legacy_vpn == dnsfilter.android ]]; then
   [[ $remaining != dnsfilter.android ]] || { echo "error: could not clear the legacy VPN selection" >&2; exit 1; }
 fi
 fi
+
+# Activate automatic takeover only after installation, permission checks, service
+# startup, foreground verification and the legacy VPN cleanup have all succeeded.
+sh_ settings put global dumbtv_homesentinel_enabled 1 >/dev/null ||
+  { echo "error: DumbTV is installed, but automatic HOME takeover remains suspended" >&2; exit 1; }
+takeover=$(sh_ settings get global dumbtv_homesentinel_enabled | tr -d '\r')
+[[ $takeover == 1 ]] ||
+  { echo "error: automatic HOME takeover could not be enabled and verified" >&2; exit 1; }
+echo "automatic HOME takeover enabled and verified"
