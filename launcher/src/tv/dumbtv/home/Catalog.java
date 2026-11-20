@@ -46,15 +46,32 @@ final class Catalog {
     private static void collect(PackageManager pm, Map<String, Item> found, String category,
             boolean leanback, String self) {
         Intent query = new Intent(Intent.ACTION_MAIN).addCategory(category);
-        for (ResolveInfo ri : pm.queryIntentActivities(query, 0)) {
+        List<ResolveInfo> matches;
+        try {
+            matches = pm.queryIntentActivities(query, 0);
+        } catch (RuntimeException e) {
+            HomeSentinel.note("could not query " + category + " applications: " + e);
+            return;
+        }
+        if (matches == null) return;
+        for (ResolveInfo ri : matches) {
+            if (ri == null || ri.activityInfo == null) continue;
             ActivityInfo ai = ri.activityInfo;
-            if (ai.packageName.equals(self) || found.containsKey(ai.packageName)) continue;
-            Intent launch = new Intent(Intent.ACTION_MAIN).addCategory(category)
-                    .setClassName(ai.packageName, ai.name);
-            Item it = new Item(ai.packageName, ri.loadLabel(pm), launch);
-            it.info = ai;
-            it.leanback = leanback;
-            found.put(ai.packageName, it);
+            if (ai.packageName == null || ai.name == null
+                    || ai.packageName.equals(self) || found.containsKey(ai.packageName)) continue;
+            try {
+                Intent launch = new Intent(Intent.ACTION_MAIN).addCategory(category)
+                        .setClassName(ai.packageName, ai.name);
+                CharSequence label = ri.loadLabel(pm);
+                Item it = new Item(ai.packageName,
+                        label == null ? ai.packageName : label, launch);
+                it.info = ai;
+                it.leanback = leanback;
+                found.put(ai.packageName, it);
+            } catch (RuntimeException e) {
+                HomeSentinel.note("skipping app " + ai.packageName
+                        + " because its launcher metadata failed: " + e);
+            }
         }
     }
 
