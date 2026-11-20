@@ -20,8 +20,8 @@ elif [[ $SDK != 25 ]]; then
 else
   homesentinel=$(dev 'dumpsys activity services tv.dumbtv.home' | grep -c 'isForeground=true' || true)
   home_package=${home%%/*}
-  if [[ ${homesentinel:-0} -gt 0 && $home_package != com.amazon.tv.launcher && -n $home_package ]]; then
-    printf '%-10s %-38s %s\n' ok home "HomeSentinel armed; foreground is ${home:-unknown}"
+  if [[ ${homesentinel:-0} -gt 0 && $home_package == tv.dumbtv.home ]]; then
+    printf '%-10s %-38s %s\n' ok home "HomeSentinel armed; DumbTV is foreground"
   elif [[ ${homesentinel:-0} -gt 0 ]]; then
     printf '%-10s %-38s %s\n' FAIL home "HomeSentinel is running but Amazon Home is foreground (${home:-unknown})"; fail=1
   else
