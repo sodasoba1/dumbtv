@@ -90,11 +90,13 @@ configuration; `./scripts/verify.sh` fails if it is missing. Re-run
 `./launcher/install.sh` and inspect its error if the grant is refused. Do not
 treat a successful UsageStats check as proof that logcat monitoring is active.
 
-READ_LOGS is required because it enables the ActivityManager wake-detection
-path added after a deep-sleep bug: HomeSentinel's old four-second UsageStats query
-could run too late after resume, and its screen-off snapshot could be stale or
-missing. See [HomeSentinel standby and HOME recovery](HOMESENTINEL.md) for the
-failure mechanism, the PR #15/#16 fixes, and the limits of the fix.
+READ_LOGS enables the ActivityManager signal that supplements
+UsageStats foreground monitoring. UsageStats remains an independent recovery
+path, and the screen-on handler refreshes the event history after standby. The
+event cursor is intended to prevent delayed polling from missing events that
+accumulated while the service was suspended. See
+[HomeSentinel standby and HOME recovery](HOMESENTINEL.md) for the recovery
+sequence and the limits of the fix.
 
 ### Amazon's Settings stays on screen
 

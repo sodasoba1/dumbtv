@@ -24,9 +24,6 @@ final class HomeSentinelPause {
         if (foregroundPackage == null || SYSTEM_UI.equals(foregroundPackage)
                 || "android".equals(foregroundPackage)) return state;
         if (DUMBTV_PKG.equals(foregroundPackage)) return State.ACTIVE;
-        // An explicit Amazon Home hand-off survives launching and closing ordinary apps.
-        // Only manually returning to DumbTV releases this stronger hold.
-        if (state == State.AMAZON_HOME_HOLD) return state;
 
         boolean amazonUi = AMAZON_LAUNCHER.equals(foregroundPackage)
                 || AMAZON_SETTINGS.equals(foregroundPackage)
