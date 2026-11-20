@@ -17,7 +17,8 @@ class RestoreTest(unittest.TestCase):
     def run_restore(self, ignores_reboot=False, settings=None, svc_refused=False,
                     package_snapshot=None, manufacturer='Amazon', protected_disabled=False,
                     protected_state=3, manifest_serial="test-tv:5555",
-                    secure_snapshot=None, state_overrides=None):
+                    secure_snapshot=None, state_overrides=None, lockdown_snapshot=None,
+                    data_saver_snapshot=None):
         packages = {
             "dnsfilter.android": {"system": False, "enabled": True},
             "com.amazon.hedwig": {"system": True, "enabled": False},
@@ -50,6 +51,10 @@ class RestoreTest(unittest.TestCase):
                 (report / "packages-before.txt").write_text(package_snapshot)
             if secure_snapshot is not None:
                 (report / "settings-before-secure.txt").write_text(secure_snapshot)
+            if lockdown_snapshot is not None:
+                (report / "lockdown-before.tsv").write_text(lockdown_snapshot)
+            if data_saver_snapshot is not None:
+                (report / "data-saver-before.txt").write_text(data_saver_snapshot)
             env = dict(os.environ, ADB=str(ROOT / "tests" / "fake_tv.py"), ADB_SERIAL="test-tv:5555",
                        FAKE_TV_STATE=str(state), FAKE_TV_LOG=str(log),
                        CONF=str(tmp / "dumbtv.conf"), REPORT=str(report), BOOT_SECONDS="0",
@@ -122,6 +127,38 @@ class RestoreTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("did not restore", result.stderr)
         self.assertTrue(self.secure_snapshot_exists_after)
+
+    def test_restore_preserves_preexisting_appops_blacklist_and_data_saver(self):
+        result, commands, state = self.run_restore(
+            protected_disabled=True,
+            lockdown_snapshot="com.amazon.firebat\\t10050\\tignore\\tnot-applicable\\t1\\n",
+            data_saver_snapshot="enabled\\n",
+            state_overrides={
+                "appops": {"com.amazon.firebat": {"RUN_IN_BACKGROUND": "ignore"}},
+                "network_blacklist": [10050],
+                "restrict_background": "disabled",
+            })
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(state["appops"]["com.amazon.firebat"]["RUN_IN_BACKGROUND"], "ignore")
+        self.assertIn(10050, state["network_blacklist"])
+        self.assertEqual(state["restrict_background"], "enabled")
+        self.assertNotIn("cmd netpolicy remove restrict-background-blacklist 10050", commands)
+
+    def test_restore_removes_only_its_own_appops_and_network_restrictions(self):
+        result, commands, state = self.run_restore(
+            protected_disabled=True,
+            lockdown_snapshot="com.amazon.firebat\\t10050\\tallow\\tnot-applicable\\t0\\n",
+            data_saver_snapshot="disabled\\n",
+            state_overrides={
+                "appops": {"com.amazon.firebat": {"RUN_IN_BACKGROUND": "ignore"}},
+                "network_blacklist": [10050],
+                "restrict_background": "enabled",
+            })
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(state["appops"]["com.amazon.firebat"]["RUN_IN_BACKGROUND"], "allow")
+        self.assertNotIn(10050, state["network_blacklist"])
+        self.assertEqual(state["restrict_background"], "disabled")
+        self.assertIn("cmd netpolicy remove restrict-background-blacklist 10050", commands)
 
     def test_restore_refuses_to_run_on_non_fire_os_devices(self):
         result, commands, _ = self.run_restore(manufacturer="Google")
