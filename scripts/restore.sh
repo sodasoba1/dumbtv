@@ -153,8 +153,8 @@ if [[ -f $REPORT/lockdown-before.tsv ]]; then
       acmd cmd netpolicy remove restrict-background-blacklist "$uid" >/dev/null ||
         die "could not remove DumbTV's network restriction for $p"
     fi
-    printf '  %-46s AppOps restored; original blacklist=%s\\n' "$p" "$was_blacklisted"
-  done < <(tr '\\t' '|' < "$REPORT/lockdown-before.tsv")
+    printf '  %-46s AppOps restored; original blacklist=%s\n' "$p" "$was_blacklisted"
+  done < <(tr '\t' '|' < "$REPORT/lockdown-before.tsv")
 else
   # v1.17 did not retain the original modes. Limit the compatibility fallback
   # to the protected package list; never replay the broad debloat report.
@@ -169,13 +169,13 @@ fi
 
 data_saver=disabled
 if [[ -f $REPORT/data-saver-before.txt ]]; then
-  data_saver=$(tr -d '\\r\\n' < "$REPORT/data-saver-before.txt")
+  data_saver=$(tr -d '\r\n' < "$REPORT/data-saver-before.txt")
 fi
 case $data_saver in enabled|disabled) ;; *) die "invalid saved Data Saver state: $data_saver" ;; esac
 acmd cmd netpolicy set restrict-background "$data_saver" >/dev/null ||
   die "could not restore original Data Saver state"
 if [[ $DRY_RUN == 0 ]]; then
-  actual_data_saver=$(dev 'cmd netpolicy get restrict-background' | tr -d '\\r')
+  actual_data_saver=$(dev 'cmd netpolicy get restrict-background' | tr -d '\r')
   case $data_saver:$actual_data_saver in
     enabled:*enabled*|disabled:*disabled*) ;;
     *) die "Data Saver restore did not verify (expected $data_saver, got $actual_data_saver)" ;;
@@ -243,7 +243,7 @@ while read -r ns key value; do
   [[ -z ${ns:-} || $ns == \#* ]] && continue
   want=$(restore_value "$ns" "$key" "$value")
   if [[ $want == "$ABSENT_SETTING" ]]; then expected=null; else expected=$want; fi
-  actual=$(dev1 settings get "$ns" "$key" | tr -d '\\r')
+  actual=$(dev1 settings get "$ns" "$key" | tr -d '\r')
   [[ $actual == "$expected" ]] ||
     die "post-reboot setting verification failed for $ns/$key (expected '$expected', got '$actual'); snapshots retained"
 done < <(list_of "$(fos settings.restore.txt)" | sed 's/ = / /')
@@ -258,7 +258,7 @@ for ns in secure global; do
   while IFS= read -r line; do
     [[ $line == *=* ]] || continue
     key=${line%%=*}; expected=${line#*=}
-    actual=$(dev1 settings get "$ns" "$key" | tr -d '\\r')
+    actual=$(dev1 settings get "$ns" "$key" | tr -d '\r')
     [[ $actual == "$expected" ]] ||
       die "post-reboot baseline verification failed for $ns/$key; snapshots retained"
   done < "$snapshot"
@@ -375,7 +375,7 @@ while read -r ns key value; do
   [[ -z ${ns:-} || $ns == \#* ]] && continue
   want=$(restore_value "$ns" "$key" "$value")
   if [[ $want == "$ABSENT_SETTING" ]]; then expected=null; else expected=$want; fi
-  actual=$(dev1 settings get "$ns" "$key" | tr -d '\\r')
+  actual=$(dev1 settings get "$ns" "$key" | tr -d '\r')
   [[ $actual == "$expected" ]] ||
     die "post-reboot setting verification failed for $ns/$key (expected '$expected', got '$actual'); snapshots retained"
 done < <(list_of "$(fos settings.restore.txt)" | sed 's/ = / /')
@@ -385,7 +385,7 @@ for ns in secure global; do
   while IFS= read -r line; do
     [[ $line == *=* ]] || continue
     key=${line%%=*}; expected=${line#*=}
-    actual=$(dev1 settings get "$ns" "$key" | tr -d '\\r')
+    actual=$(dev1 settings get "$ns" "$key" | tr -d '\r')
     [[ $actual == "$expected" ]] ||
       die "post-reboot baseline verification failed for $ns/$key; snapshots retained"
   done < "$snapshot"
