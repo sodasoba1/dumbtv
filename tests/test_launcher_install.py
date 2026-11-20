@@ -11,7 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LauncherInstallTest(unittest.TestCase):
-    def install(self, read_logs_refused=False, read_logs_not_recorded=False, installer_args=None, foreground_line=None):
+    def install(self, read_logs_refused=False, read_logs_not_recorded=False, installer_args=None,
+                foreground_line=None, certificate_refused=False):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
             launcher = tmp / "launcher"
@@ -27,6 +28,10 @@ class LauncherInstallTest(unittest.TestCase):
             (launcher / "build.sh").write_text(
                 "#!/usr/bin/env bash\nmkdir -p build\nprintf apk > build/dumbtv-home.apk\n")
             (bindir / "sleep").write_text("#!/bin/sh\nexit 0\n")
+            (launcher / "verify-certificate.sh").write_text(
+                "#!/usr/bin/env bash\\necho \"$1\" >> \"$FAKE_CERT_LOG\"\\n"
+                "if [[ ${FAKE_CERT_REJECTED:-0} == 1 ]]; then exit 1; fi\\nexit 0\\n")
+            (launcher / "verify-certificate.sh").chmod(0o755)
             (launcher / "build.sh").chmod(0o755)
             (bindir / "sleep").chmod(0o755)
             state = tmp / "state.json"
@@ -44,6 +49,8 @@ class LauncherInstallTest(unittest.TestCase):
             log.touch()
             env = dict(os.environ, ADB=str(ROOT / "tests/fake_tv.py"), ADB_SERIAL="test-tv",
                        FAKE_TV_STATE=str(state), FAKE_TV_LOG=str(log),
+                       FAKE_CERT_LOG=str(tmp / "cert.log"),
+                       FAKE_CERT_REJECTED="1" if certificate_refused else "0",
                        PATH=str(bindir) + os.pathsep + os.environ["PATH"])
             apk = tmp / "supplied-dumbtv.apk"
             apk.write_bytes(b"fake apk")
@@ -107,6 +114,22 @@ class LauncherInstallTest(unittest.TestCase):
         self.assertIn("pm grant tv.dumbtv.home android.permission.READ_LOGS", commands)
         self.assertEqual(state["appops"]["tv.dumbtv.home"]["GET_USAGE_STATS"], "allow")
         self.assertTrue(state["permissions"]["tv.dumbtv.home"]["android.permission.READ_LOGS"])
+
+    def test_supplied_apk_must_pass_signer_verification_before_install(self):
+        result, commands, state = self.install(
+            installer_args=["--apk", "{APK}"], certificate_refused=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("supplied APK signer is not trusted", result.stderr)
+        self.assertFalse(any(command.startswith("install -r ") for command in commands))
+        self.assertFalse(state.get("permissions", {}).get("tv.dumbtv.home", {}).get(
+            "android.permission.READ_LOGS", False))
+
+    def test_permissions_only_verifies_the_installed_signer_before_granting(self):
+        result, commands, state = self.install(
+            installer_args=["--permissions-only"], certificate_refused=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("installed DumbTV signer is not trusted", result.stderr)
+        self.assertNotIn("pm grant tv.dumbtv.home android.permission.READ_LOGS", commands)
 
     def test_permissions_only_repairs_homesentinel_without_reinstalling(self):
         result, commands, state = self.install(installer_args=["--permissions-only"])
