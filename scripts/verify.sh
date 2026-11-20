@@ -49,7 +49,7 @@ else
   elif grep -Eq 'AUTO_START:[[:space:]]*allow([,[:space:]]|$)' <<<"$auto_start"; then
     printf '%-10s %-38s %s\n' ok standby-start "optional AUTO_START is allowed"
   else
-    printf '%-10s %-38s %s\n' skip standby-start "AUTO_START is not required; BOOT_COMPLETED receiver is the supported startup path"
+    printf '%-10s %-38s %s\n' FAIL standby-start "AUTO_START is not allowed (${auto_start:-unknown})"; fail=1
   fi
   package_dump=$(dev 'dumpsys package tv.dumbtv.home' | tr -d '\r')
   if grep -Eq '^[[:space:]]*android\.permission\.READ_LOGS:[[:space:]]*granted=true([,[:space:]]|$)' <<<"$package_dump"; then
