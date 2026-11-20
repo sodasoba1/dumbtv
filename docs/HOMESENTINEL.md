@@ -23,8 +23,10 @@ takeover is enabled. An unknown foreground state is a reason to wait, not to
 steal focus.
 
 The deliberate Amazon Settings/Home pause state is persisted across service
-restarts. This prevents a sticky-service restart from forgetting that the user
-chose to remain in Amazon's interface.
+restarts. The explicit Amazon Home hold also survives launching and closing ordinary
+apps; it is released only when the user manually opens DumbTV. This prevents a
+sticky-service restart or an app return-to-home transition from reclaiming the
+interface the user chose to keep.
 
 Recovery attempts are persisted before a launch is requested. The service has
 a three-attempt budget across process restarts. It clears that budget only after
