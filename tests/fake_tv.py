@@ -188,9 +188,23 @@ elif command == 'ps -A -o NAME':
 elif command == 'dumpsys activity activities':
     print(state.get('foreground_line',
                     '  mResumedActivity: ActivityRecord{1 u0 tv.dumbtv.home/.Home t1}'))
-elif words[:1] == ['am'] and words[1:2] in (['force-stop'], ['start']):
-    # Activity-manager operations used by the launcher install/undo scripts.
-    pass
+elif words[:2] == ['am', 'force-stop']:
+    if state.get('force_stop_refused'):
+        print('Error: force-stop refused')
+        sys.exit(1)
+    if len(words) > 2 and words[2] == 'tv.dumbtv.home':
+        state['homesentinel_running'] = False
+    save()
+elif words[:2] == ['am', 'start']:
+    if state.get('home_launch_refused'):
+        print('Error: HOME launch refused')
+        sys.exit(1)
+    if '-p' in words and words[words.index('-p') + 1] == 'com.amazon.tv.launcher':
+        if not state.get('wrong_home_foreground'):
+            state['foreground_line'] = (
+                '  mResumedActivity: ActivityRecord{2 u0 '
+                'com.amazon.tv.launcher/com.amazon.tv.launcher.ui.HomeActivity_vNext t1}')
+    save()
 elif words[:2] == ['appops', 'set'] and len(words) >= 5:
     package, operation, mode = words[2], words[3], words[4]
     state.setdefault('appops', {}).setdefault(package, {})[operation] = mode
