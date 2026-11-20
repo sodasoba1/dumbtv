@@ -202,10 +202,6 @@ final class WidgetLayout {
         return result;
     }
 
-    private static boolean validSize(int width, int height) {
-        return width >= 1 && width <= COLUMNS && height >= 1 && height <= ROWS;
-    }
-
     static WidgetLayout decode(String encoded) {
         WidgetLayout result = new WidgetLayout();
         if (encoded == null || encoded.trim().isEmpty()) return result;
